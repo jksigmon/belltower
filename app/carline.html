@@ -96,9 +96,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 	let currentCarlineEventId = null;
 
-
-const SUPABASE_URL = 'https://lmvpjbzwdyfziedpeytd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdnBqYnp3ZHlmemllZHBleXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODY5MTcsImV4cCI6MjA4OTI2MjkxN30.b1X1ru4NYlkDjHlsxZ82ZOwbVoZ_PhRsjf4Atfwa5G0';
+const SUPABASE_URL = import.meta.env.SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.SUPABASE_ANON_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
