@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BellTower | Streamline Your School</title>
+
+  <style>
+    :root {
+      --blue-dark: #0b2d4f;
+      --blue-main: #1f5fa8;
+      --blue-light: #eaf3ff;
+      --gold: #f5a623;
+      --text-dark: #1f2937;
+      --text-light: #6b7280;
+      --white: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: var(--text-dark);
+      background: linear-gradient(#0b2d4f, #1f5fa8);
+      line-height: 1.6;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    /* ---------- HEADER ---------- */
+    header {
+      background: var(--blue-dark);
+      color: var(--white);
+      padding: 1rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      font-weight: 700;
+      font-size: 1.25rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    nav a {
+      margin: 0 0.75rem;
+      font-size: 0.95rem;
+      opacity: 0.9;
+    }
+
+    nav a:hover {
+      opacity: 1;
+    }
+
+    .btn {
+      background: var(--gold);
+      color: #1b1b1b;
+      padding: 0.6rem 1.1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .btn.secondary {
+      background: var(--white);
+      color: var(--blue-dark);
+    }
+
+    /* ---------- HERO ---------- */
+    .hero {
+      background: linear-gradient(135deg, #1f5fa8, #2f80ed);
+      color: var(--white);
+      padding: 4rem 2rem;
+    }
+
+    .hero-inner {
+      max-width: 1100px;
+      margin: auto;
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 3rem;
+      align-items: center;
+    }
+
+    .hero h1 {
+      font-size: 2.8rem;
+      line-height: 1.2;
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 span {
+      color: var(--gold);
+    }
+
+    .hero p {
+      color: #e5effa;
+      max-width: 520px;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero .checks {
+      margin: 1.5rem 0;
+    }
+
+    .checks div {
+      margin-bottom: 0.6rem;
+      font-weight: 600;
+    }
+
+    .hero img {
+      width: 100%;
+      border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+    }
+
+    /* ---------- FEATURE CARDS ---------- */
+    .features {
+      background: var(--white);
+      padding: 4rem 2rem;
+    }
+
+    .feature-grid {
+      max-width: 1100px;
+      margin: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 2rem;
+    }
+
+    .card {
+      background: var(--blue-light);
+      padding: 1.8rem;
+      border-radius: 12px;
+      text-align: left;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
+
+    .card h3 {
+      margin-bottom: 0.7rem;
+    }
+
+    .card p {
+      color: var(--text-light);
+      margin-bottom: 1rem;
+    }
+
+    .card a {
+      color: var(--blue-main);
+      font-weight: 600;
+    }
+
+    /* ---------- TESTIMONIAL ---------- */
+    .testimonial {
+      background: var(--white);
+      text-align: center;
+      padding: 3rem 2rem;
+      font-style: italic;
+    }
+
+    .testimonial span {
+      display: block;
+      margin-top: 0.8rem;
+      font-style: normal;
+      font-weight: 600;
+      color: var(--text-light);
+    }
+
+    /* ---------- LOGOS ---------- */
+    .logos {
+      background: var(--white);
+      padding: 2rem;
+    }
+
+    .logo-row {
+      max-width: 900px;
+      margin: auto;
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+      gap: 2rem;
+      opacity: 0.85;
+    }
+
+    .logo-box {
+      background: #f3f4f6;
+      padding: 0.8rem 1.2rem;
+      border-radius: 6px;
+      font-weight: 600;
+    }
+
+    /* ---------- CTA ---------- */
+    .cta {
+      background: linear-gradient(135deg, #1f5fa8, #0b2d4f);
+      color: var(--white);
+      padding: 3.5rem 2rem;
+      text-align: center;
+    }
+
+    .cta h2 {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ---------- FOOTER ---------- */
+    footer {
+      background: var(--blue-dark);
+      color: #cbd5e1;
+      padding: 2rem;
+      font-size: 0.85rem;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: auto;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    footer a {
+      margin-right: 1rem;
+    }
+
+    /* ---------- RESPONSIVE ---------- */
+    @media (max-width: 900px) {
+      .hero-inner {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+
+      nav {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">🏫 BellTower</div>
+    <nav>
+      <a href="#">Features</a>
+      <a href="#">Solutions</a>
+      <a href="#">Pricing</a>
+      <a href="#">About</a>
+      <a href="#">Contact</a>
+    </nav>
+    <a class="btn" href="#">Get a Demo</a>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div>
+        <h1>Streamline Your School.<br><span>Simplify Your Day.</span></h1>
+        <p>
+          All‑in‑one platform for PTO, dismissal, substitutes, and staff management.
+          Efficient. Paperless. Connected.
+        </p>
+
+        <div class="checks">
+          <div>✅ Carline Live</div>
+          <div>✅ PTO Requests</div>
+          <div>✅ Sub Tracking</div>
+        </div>
+
+        <a class="btn secondary" href="#">Book a Demo</a>
+      </div>
+
+      <img src="https://placehold.co/500x420/png?text=BellTower+Illustration" alt="BellTower Illustration">
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features">
+    <div class="feature-grid">
+      <div class="card">
+        <h3>Manage PTO & Approvals</h3>
+        <p>Submit, approve, and track PTO requests effortlessly.</p>
+        <a href="#">Learn More →</a>
+      </div>
+
+      <div class="card">
+        <h3>Dismissal & Carline</h3>
+        <p>Coordinate student pickups and real‑time dismissal flow.</p>
+        <a href="#">Learn More →</a>
+      </div>
+
+      <div class="card">
+        <h3>Licenses & Substitutes</h3>
+        <p>Track certifications and manage substitutes easily.</p>
+        <a href="#">Learn More →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- TESTIMONIAL -->
+  <section class="testimonial">
+    “BellTower has transformed how we run our school. It’s a game changer.”
+    <span>— Principal Harris, Westside Elementary</span>
+  </section>
+
+  <!-- LOGOS -->
+  <section class="logos">
+    <div class="logo-row">
+      <div class="logo-box">Crestwood SD</div>
+      <div class="logo-box">Northview Academy</div>
+      <div class="logo-box">Saint Mark School</div>
+      <div class="logo-box">Riverside Unified</div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta">
+    <h2>Ready to Make School Management Simple?</h2>
+    <a class="btn" href="#">Get Started Today</a>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div>© 2026 BellTower. All Rights Reserved.</div>
+      <div>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

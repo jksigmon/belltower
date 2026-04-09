@@ -1,0 +1,445 @@
+ <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carline Live</title>
+  <link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <link rel="stylesheet" href="/admin-ui.css" />
+  <style>
+   
+	.carline-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  height: 60vh; /* adjust as needed */
+}
+
+.carline-column {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.carline-header {
+  padding: 8px 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.03);
+}
+
+.carline-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+}
+  </style>
+</head>
+
+<body>
+
+   <header>
+    <div class="row">
+      <div class="brand">School Admin Portal</div>
+      <div id="badge" class="badge" style="display:none;">Superadmin</div>
+    </div>
+    <div class="row">
+      <div id="userEmail" class="muted"></div>
+      <button id="signOut" class="btn">Sign out</button>
+    </div>
+  </header>
+ 
+ <section id="carline-live" class="panel">
+  <h2>Carline Live</h2>
+
+  <div class="row" style="gap:12px; margin-bottom:12px;">
+    <input id="carlineTagInput" placeholder="Enter carline tag #" />
+    <button id="callTagBtn" class="btn">Call Tag</button>
+    <button id="allCallBtn" class="btn warn">All Call</button>
+  </div>
+<div class="row" style="gap:12px; margin-bottom:12px;">
+  <input id="recallTagInput" placeholder="Recall tag #" />
+  <button id="recallTagBtn" class="btn warn">Recall Tag</button>
+</div>
+
+  <div class="carline-grid">
+  <div class="carline-column">
+    <div class="carline-header">Waiting</div>
+    <ul id="waitingList" class="carline-list"></ul>
+  </div>
+
+  <div class="carline-column">
+    <div class="carline-header">Called</div>
+    <ul id="calledList" class="carline-list"></ul>
+  </div>
+
+  <div class="carline-column">
+    <div class="carline-header">Recalled</div>
+    <ul id="recalledList" class="carline-list"></ul>
+  </div>
+</div>
+<div style="margin-top:16px;">
+  <button id="closeCarlineBtn" class="btn err">
+    Close Dismissal
+  </button>
+</div>
+</section>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+	let currentCarlineEventId = null;
+
+
+const SUPABASE_URL = 'https://lmvpjbzwdyfziedpeytd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdnBqYnp3ZHlmemllZHBleXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODY5MTcsImV4cCI6MjA4OTI2MjkxN30.b1X1ru4NYlkDjHlsxZ82ZOwbVoZ_PhRsjf4Atfwa5G0';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+/* ✅ AUTH */
+const { data: sessionData } = await supabase.auth.getSession();
+if (!sessionData?.session) {
+  window.location.href = '/login.html';
+  throw new Error('No session');
+}
+
+/* ✅ PROFILE */
+const { data: currentProfile, error: profErr } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('user_id', sessionData.session.user.id)
+  .single();
+
+if (profErr || !currentProfile) {
+  alert('Profile load failed');
+  throw profErr;
+}
+
+
+async function init() {
+  // ✅ Ensure the user is still authenticated
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData?.session) {
+    window.location.href = '/login.html';
+    return;
+  }
+
+  // ✅ Initialize today's carline event
+  await getOrCreateTodayCarlineEvent();
+
+  // ✅ Load initial lists
+  await loadCarlineLists();
+
+  // ✅ Wire UI actions
+  document.getElementById('allCallBtn')
+    ?.addEventListener('click', allCall);
+
+  document.getElementById('callTagBtn')
+    ?.addEventListener('click', callByTag);
+
+  document.getElementById('recallTagBtn')
+    ?.addEventListener('click', recallByTag);
+
+  document.getElementById('closeCarlineBtn')
+    ?.addEventListener('click', closeCarlineEvent);
+}
+
+
+
+
+async function getOrCreateTodayCarlineEvent() {
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Try to find an open event for today
+  const { data: existing } = await supabase
+    .from('carline_events')
+    .select('id')
+    .eq('school_id', currentProfile.school_id)
+    .eq('event_date', today)
+    .eq('status', 'OPEN')
+    .maybeSingle();
+
+  if (existing) {
+    currentCarlineEventId = existing.id;
+    return;
+  }
+
+  // Otherwise create one
+  const { data: created, error } = await supabase
+    .from('carline_events')
+    .insert({
+      school_id: currentProfile.school_id,
+      name: 'PM Dismissal',
+      event_date: today,
+      status: 'OPEN'
+    })
+    .select('id')
+    .single();
+
+  if (error) {
+    alert('Failed to create carline event');
+    console.error(error);
+    return;
+  }
+
+  currentCarlineEventId = created.id;
+}
+
+async function loadCarlineLists() {
+  if (!currentCarlineEventId) return;
+
+  const { data, error } = await supabase
+    .from('carline_calls')
+    .select(`
+      id,
+      status,
+      students(first_name, last_name),
+      families(carline_tag_number)
+    `)
+    .eq('carline_event_id', currentCarlineEventId)
+    .order('created_at');
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  const waiting = document.getElementById('waitingList');
+  const called = document.getElementById('calledList');
+  const recalled = document.getElementById('recalledList');
+
+  waiting.innerHTML = '';
+  called.innerHTML = '';
+  recalled.innerHTML = '';
+
+  (data || []).forEach(row => {
+    const name = `${row.students.first_name} ${row.students.last_name}`;
+    const tag = row.families.carline_tag_number;
+    const li = document.createElement('li');
+    li.textContent = `${tag} – ${name}`;
+
+    if (row.status === 'WAITING') waiting.appendChild(li);
+    if (row.status === 'CALLED') {
+  const recallBtn = document.createElement('button');
+  recallBtn.textContent = 'Recall';
+  recallBtn.className = 'btn warn';
+  recallBtn.style.marginLeft = '8px';
+
+  recallBtn.addEventListener('click', () => {
+    recallStudent(row.id);
+  });
+
+  li.appendChild(recallBtn);
+  called.appendChild(li);
+}
+    if (row.status === 'RECALLED') recalled.appendChild(li);
+  });
+}
+
+async function allCall() {
+if (!currentCarlineEventId) {
+  alert('Dismissal is closed. Open a new dismissal to continue.');
+  return;
+}  
+
+  const { data: students } = await supabase
+    .from('students')
+    .select('id, family_id')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true);
+
+  if (!students?.length) return;
+
+  const rows = students.map(s => ({
+    school_id: currentProfile.school_id,
+    carline_event_id: currentCarlineEventId,
+    student_id: s.id,
+    family_id: s.family_id,
+    call_type: 'ALL',
+    status: 'CALLED',
+    called_at: new Date().toISOString()
+  }));
+
+  const { error } = await supabase
+    .from('carline_calls')
+    .upsert(rows, {
+      onConflict: 'carline_event_id,student_id'
+    });
+
+  if (error) {
+    console.error(error);
+    alert('All Call failed');
+    return;
+  }
+
+  loadCarlineLists();
+}
+
+async function callByTag() {
+
+if (!currentCarlineEventId) {
+  alert('Dismissal is closed. Open a new dismissal to continue.');
+  return;
+}
+
+const tag = document.getElementById('carlineTagInput').value.trim();
+  if (!tag) {
+    alert('Please enter a carline tag number.');
+    return;
+  }
+
+
+  const { data: family } = await supabase
+    .from('families')
+    .select('id')
+    .eq('school_id', currentProfile.school_id)
+    .eq('carline_tag_number', tag)
+    .eq('active', true)
+    .single();
+
+  if (!family) {
+    alert('Tag not found');
+    return;
+  }
+
+  const { data: students } = await supabase
+    .from('students')
+    .select('id')
+    .eq('family_id', family.id)
+    .eq('active', true);
+
+  if (!students?.length) return;
+
+  const rows = students.map(s => ({
+    school_id: currentProfile.school_id,
+    carline_event_id: currentCarlineEventId,
+    student_id: s.id,
+    family_id: family.id,
+    call_type: 'FAMILY',
+    status: 'CALLED',
+    called_at: new Date().toISOString()
+  }));
+
+  const { error } = await supabase
+    .from('carline_calls')
+    .upsert(rows, {
+      onConflict: 'carline_event_id,student_id'
+    });
+
+  if (error) {
+    console.error(error);
+    alert('Tag call failed');
+    return;
+  }
+
+  document.getElementById('carlineTagInput').value = '';
+  loadCarlineLists();
+}
+
+async function recallStudent(carlineCallId) {
+  
+
+if (!currentCarlineEventId) {
+  alert('Dismissal is closed. Open a new dismissal to continue.');
+  return;
+}
+const { error } = await supabase
+    .from('carline_calls')
+    .update({
+      status: 'RECALLED',
+      recalled_at: new Date().toISOString()
+    })
+    .eq('id', carlineCallId);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to recall student');
+    return;
+  }
+
+  loadCarlineLists();
+}
+
+async function recallByTag() {
+  const tag = document.getElementById('recallTagInput').value.trim();
+  if (!tag || !currentCarlineEventId) return;
+
+  // Find the family
+  const { data: family } = await supabase
+    .from('families')
+    .select('id')
+    .eq('school_id', currentProfile.school_id)
+    .eq('carline_tag_number', tag)
+    .eq('active', true)
+    .single();
+
+  if (!family) {
+    alert('Tag not found');
+    return;
+  }
+
+  // Recall ALL called students in that family
+  const { error } = await supabase
+    .from('carline_calls')
+    .update({
+      status: 'RECALLED',
+      recalled_at: new Date().toISOString()
+    })
+    .eq('carline_event_id', currentCarlineEventId)
+    .eq('family_id', family.id)
+    .eq('status', 'CALLED');
+
+  if (error) {
+    console.error(error);
+    alert('Recall by tag failed');
+    return;
+  }
+
+  document.getElementById('recallTagInput').value = '';
+  loadCarlineLists();
+}
+
+async function closeCarlineEvent() {
+  if (!currentCarlineEventId) return;
+
+  const confirmClose = confirm(
+    'Close this dismissal?\n\n' +
+    'This will end today’s carline and prevent further calls.'
+  );
+
+  if (!confirmClose) return;
+
+  const { error } = await supabase
+    .from('carline_events')
+    .update({
+      status: 'CLOSED',
+      closed_at: new Date().toISOString(),
+      closed_by_user_id: currentProfile.user_id
+    })
+    .eq('id', currentCarlineEventId);
+
+  if (error) {
+    console.error('Failed to close carline event:', error);
+    alert('Failed to close dismissal.');
+    return;
+  }
+
+  currentCarlineEventId = null;
+
+  alert('Dismissal closed for today.');
+  loadCarlineLists();
+}
+
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,2423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PTO Management</title>
+  <link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <link rel="stylesheet" href="/admin-ui.css" />
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <style>
+
+  </style>
+</head>
+
+<body class="admin-page">
+
+  <!-- ✅ Shared header + nav (copied from admin.html for now) -->
+  <!-- We will DRY this later into a shell -->
+
+  <!-- ============================= -->
+  <!-- PTO MANAGEMENT -->
+  <!-- ============================= -->
+  
+<header>
+
+<div class="header-left">
+  <a id="backToAdmin"
+     href="/admin.html"
+     class="btn btn-admin">
+    ← Back to Admin
+  </a>
+</div>
+
+
+  <!-- Center: Product -->
+  <div class="page-header">
+    <div class="page-title">Belltower</div>
+    <div class="page-subtitle">PTO Management</div>
+  </div>
+
+  <!-- Right: User actions -->
+  <div class="header-actions">
+    <span id="adminName" class="muted"></span>
+    <button id="signOut" class="btn">Sign out</button>
+  </div>
+</header>
+
+<div class="pto-shell">
+  <div class="pto-rail">
+    <div class="pto-tabs" id="ptoTabs">
+
+  <button class="tab active" data-view="calendar" id="ptoTabCalendar">
+  Calendar</button>
+
+<button class="tab badge-btn" data-view="pending" id="ptoTabPending">
+  Pending Requests
+  <span class="badge-count" id="pendingCount" hidden></span>
+</button>
+
+<button class="tab badge-btn" data-view="cancellations" id="ptoTabCancellations">
+  Cancellation Requests
+  <span class="badge-count" id="cancelCount" hidden></span>
+</button>
+
+
+  <button class="tab" data-view="history">Staff PTO History</button>
+  <button class="tab" data-view="adjust" id="ptoTabAdjust">
+  Adjust PTO
+  </button>
+  <button class="tab" data-view="reports" id="ptoTabReports">
+  Reports
+  </button>
+  <button class="tab" data-view="policies" id="ptoTabPolicies">
+  Policies
+  </button>
+
+   </div>
+  </div>
+
+<main class="pto-main">
+<section id="pto-calendar" class="admin-section">
+  <div class="admin-content fade-in">
+    <div class="panel panel-history">
+      <h3>PTO Calendar</h3>
+      <div id="pto-calendar"></div>
+    </div>
+  </div>
+</section>
+<section id="pto-pending" class="admin-section">
+  <div class="admin-content fade-in">
+    <div class="panel panel-history">
+      <h3>Pending PTO Requests</h3>
+
+      <table id="ptoTable">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Type</th>
+            <th>Dates</th>
+			<th>Hours</th>
+            <th>Notes</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <!-- Empty State -->
+     <div id="pendingEmpty" class="empty-state" hidden>
+  <div class="empty-title">No pending requests</div>
+  <div class="empty-text">
+    All PTO requests have been processed.
+  </div>
+</div>
+
+    </div>
+  </div>
+</section>
+<section id="pto-cancellations" class="admin-section">
+   <div class="admin-content fade-in">
+    <div class="panel panel-history">
+      <h3>PTO Cancellation Requests</h3>
+  
+      <table id="ptoCancelTable">
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Type</th>
+            <th>Dates</th>
+			<th>Hours</th>
+            <th>Notes</th>
+            <th>Status</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+	   <!-- Empty State -->
+     
+<div id="cancellationsEmpty" class="empty-state" hidden>
+  <div class="empty-title">No cancellation requests</div>
+  <div class="empty-text">
+    There are no pending PTO cancellation requests.
+  </div>
+</div>
+
+  </div>
+  </div>
+</section>
+<section id="pto-history" class="admin-section">
+  <!-- Skeleton -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content -->
+  <div class="admin-content fade-in">
+    <div class="panel panel-history">
+      <h3>Staff PTO History</h3>
+
+      
+<div class="row pto-history-header">
+  <!-- Staff selector -->
+  <select id="ptoStaffSelect">
+    <option value="">Select staff member…</option>
+  </select>
+
+  <!-- PTO summary -->
+  <div class="pto-summary">
+    <div>
+      <div class="muted">Approved</div>
+      <div id="ptoSumApproved">—</div>
+    </div>
+    <div>
+      <div class="muted">Pending</div>
+      <div id="ptoSumPending">—</div>
+    </div>
+    <div>
+      <div class="muted">Cancelled</div>
+      <div id="ptoSumCancelled">—</div>
+    </div>
+    <div>
+      <div class="muted">Net Used</div>
+      <div id="ptoSumNet">—</div>
+    </div>
+  </div>
+</div>
+
+
+      <!-- ============================
+           PTO REQUEST HISTORY BLOCK
+           ============================ -->
+
+      <div class="history-block">
+        <table id="ptoHistoryAdminTable">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Dates</th>
+              <th>Hours</th>
+              <th>Decision</th>
+              <th>Notes</th>
+              <th>Submitted</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <!-- Empty state: no PTO history -->
+        <div id="ptoHistoryEmpty" class="empty-state" hidden>
+          <div class="empty-title">No PTO history</div>
+          <div class="empty-text">
+            This employee hasn’t submitted any PTO requests.
+          </div>
+        </div>
+      </div>
+
+      <hr style="margin:20px 0; border-color:var(--border);" />
+
+      <!-- ============================
+           PTO LEDGER BLOCK
+           ============================ -->
+
+   <div class="ledger-block">
+  <h4>PTO Ledger Adjustments</h4>
+
+  <table id="ptoLedgerAdminTable">
+    <thead>
+      <tr>
+        <th>Type</th>
+        <th>Hours</th>
+        <th>Reason</th>
+        <th>Date</th>
+        <th>Balance After</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="ptoLedgerEmpty" class="empty-state empty-ledger" hidden>
+    <div class="empty-title">No ledger adjustments</div>
+    <div class="empty-text">
+      This employee has no manual PTO balance changes.
+    </div>
+  </div>
+</div>
+    </div>
+  </div>
+</section>
+<section id="pto-adjust" class="admin-section">
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <div class="admin-content fade-in">
+    <div class="panel panel-action">
+      <h3>Adjust PTO Balance</h3>
+
+      <div class="admin-form-row compact">
+        <select id="ptoAdjustStaff">
+          <option value="">Select staff…</option>
+        </select>
+
+        <select id="ptoAdjustType">
+          <option value="VACATION">Vacation</option>
+          <option value="SICK">Sick</option>
+          <option value="PERSONAL">Personal</option>
+          <option value="PROFESSIONAL">Professional</option>
+        </select>
+
+        <input type="number" id="ptoAdjustHours" placeholder="Hours (+/-)" step="0.5" />
+        <input type="text" id="ptoAdjustReason" placeholder="Reason (required)" />
+
+        <button id="applyPtoAdjustment" class="btn btn-primary">Apply</button>
+      </div>
+	  
+<div
+  id="adjustPtoBalances"
+  class="pto-balances"
+  style="margin:12px 0; display:none;">
+</div>
+
+
+
+      <div class="muted" style="margin-top:8px;">
+        Positive hours grant PTO. Negative hours subtract PTO. All adjustments are recorded.
+      </div>
+
+      <hr style="margin:12px 0; border-color: var(--border);" />
+
+      <div class="row" style="gap:8px;">
+        <button id="applyAnnualAllotmentBtn" class="btn">Apply Annual Allotment</button>
+        <span id="annualAllotmentStatus" class="muted" style="display:none;"></span>
+      </div>
+
+      <div class="row" style="gap:8px; margin-top:12px;">
+        <select id="bulkAnnualPtoType">
+          <option value="">Select PTO type…</option>
+        </select>
+
+        <button id="applyAnnualAllotmentsBulk" class="btn warn">
+          Apply Annual Allotments (Bulk)
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+<section id="pto-reports" class="admin-section">
+   <div class="admin-content fade-in">
+    <div class="panel panel-action">
+      <h3>Export PTO Reports</h3>
+
+ 
+<div class="row export-controls">
+  <select id="exportReportType">
+    <option value="">Select report…</option>
+    <option value="transactions">PTO Transactions</option>
+    <option value="balances">PTO Balances Snapshot</option>
+    <option value="payroll">Payroll PTO Usage</option>
+  </select>
+
+  <input id="exportStartDate" placeholder="Start date" />
+  <input id="exportEndDate" placeholder="End date" />
+
+  <button id="generateExportBtn" class="btn">
+    Generate
+  </button>
+</div>
+
+    </div>
+  </div>
+</section>
+<section id="pto-policies" class="admin-section">
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <div class="admin-content fade-in">
+    <div class="panel panel-history">
+      <h3>PTO Policies</h3>
+
+      <div class="muted" style="margin-bottom:12px;">
+        Configure annual PTO hours per employee and PTO type.
+      </div>
+
+      <table id="ptoPoliciesTable">
+        <thead>
+          <tr id="ptoPoliciesHeader">
+            <th>Employee</th>
+            <!-- PTO type columns injected dynamically -->
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+</main>
+</div>
+  
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+	let currentSchoolPtoTypes = [];
+    let lastPendingPtoCount = 0;
+    let lastCancelPtoCount = 0;
+	let currentPtoHistoryEmployeeId = null;
+
+
+const SUPABASE_URL = 'https://lmvpjbzwdyfziedpeytd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdnBqYnp3ZHlmemllZHBleXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODY5MTcsImV4cCI6MjA4OTI2MjkxN30.b1X1ru4NYlkDjHlsxZ82ZOwbVoZ_PhRsjf4Atfwa5G0';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+/* ✅ AUTH */
+const { data: sessionData } = await supabase.auth.getSession();
+if (!sessionData?.session) {
+  window.location.href = '/login.html';
+  throw new Error('No session');
+}
+
+const signOutBtn = document.getElementById('signOut');
+
+if (signOutBtn) {
+  signOutBtn.addEventListener('click', async () => {
+    try {
+      await supabase.auth.signOut();
+      window.location.href = '/login.html';
+    } catch (err) {
+      console.error('Sign out failed', err);
+    }
+  });
+}
+
+/* ✅ PROFILE */
+const { data: currentProfile, error: profErr } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('user_id', sessionData.session.user.id)
+  .single();
+
+if (profErr || !currentProfile) {
+  alert('Profile load failed');
+  throw profErr;
+}
+
+if (!currentProfile.can_view_pto_calendar) {
+  document.getElementById('ptoTabCalendar')?.remove();
+}
+
+if (!currentProfile.can_approve_pto) {
+  document.getElementById('ptoTabPending')?.remove();
+  document.getElementById('ptoTabCancellations')?.remove();
+}
+
+if (!currentProfile.can_review_pto) {
+  document
+    .querySelector('#ptoTabs [data-view="history"]')
+    ?.remove();
+}
+
+if (!currentProfile.can_adjust_pto) {
+  document.getElementById('ptoTabAdjust')?.remove();
+  document.getElementById('ptoTabPolicies')?.remove();
+}
+
+if (!currentProfile.can_generate_pto_reports) {
+  document.getElementById('ptoTabReports')?.remove();
+}
+
+const ptoTabsEl = document.querySelector('.pto-tabs');
+if (ptoTabsEl) {
+  ptoTabsEl.style.visibility = 'visible';
+}
+
+function hasAdminAccess(profile) {
+  return (
+    profile.is_superadmin === true ||
+    profile.can_access_admin === true ||
+    profile.can_manage_access === true ||
+    profile.can_approve_pto === true ||
+    profile.can_adjust_pto === true ||
+    profile.can_bulk_upload === true
+  );
+}
+
+const backToAdmin = document.getElementById('backToAdmin');
+const params = new URLSearchParams(window.location.search);
+const cameFromAdmin = params.get('from') === 'admin';
+
+if (backToAdmin && cameFromAdmin && hasAdminAccess(currentProfile)) {
+  backToAdmin.style.visibility = 'visible';
+}
+
+
+
+/* ✅ MODULE GATE */
+const { data: moduleRow } = await supabase
+  .from('school_modules')
+  .select('enabled')
+  .eq('school_id', currentProfile.school_id)
+  .eq('module', 'pto')
+  .maybeSingle();
+
+if (!moduleRow?.enabled) {
+  alert('PTO is not enabled for your school.');
+  window.location.href = '/admin.html';
+  throw new Error('PTO disabled');
+}
+
+let ptoCalendar;
+
+await loadSchoolPtoTypes();
+await loadPtoRequestCounts();    
+
+if (currentProfile.can_view_pto_calendar) {
+  initPtoCalendar();
+}
+
+const staffSelect = document.getElementById('ptoStaffSelect');
+const generateBtn = document.getElementById('generateExportBtn');
+
+if (!currentProfile.can_generate_pto_reports) {
+  document.getElementById('generateExportBtn')?.setAttribute('disabled', true);
+}
+
+if (generateBtn) {
+  generateBtn.addEventListener('click', handlePtoExport);
+}
+
+if (staffSelect) {
+
+staffSelect.addEventListener('change', e => {
+  const employeeId = e.target.value;
+
+  // ✅ Prevent duplicate reloads
+  if (employeeId === currentPtoHistoryEmployeeId) return;
+
+  currentPtoHistoryEmployeeId = employeeId;
+
+  resetStaffHistoryView();
+
+  if (employeeId) {
+    loadStaffPtoHistory(employeeId);
+    loadStaffPtoLedger(employeeId);
+  }
+});
+}
+
+function formatTime(t) {
+  if (!t) return '';
+  return new Date(`1970-01-01T${t}`).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit'
+  });
+}
+
+function formatHoursWithTime(r) {
+  const hours = Number(r.requested_hours ?? 0);
+
+  if (!hours) return '—';
+
+  // Timed partial day (rare but supported)
+  if (r.start_time && r.end_time) {
+    return `${hours} hrs (${formatTime(r.start_time)}–${formatTime(r.end_time)})`;
+  }
+
+  // Half Day label
+  if (r.requested_duration_label === 'Half Day') {
+    return `Half Day (${hours} hrs)`;
+  }
+
+  return `${hours} hrs`;
+}
+
+async function loadSchoolPtoTypes() {
+  const { data, error } = await supabase
+    .from('school_pto_types')
+    .select('pto_type')
+    .eq('school_id', currentProfile.school_id)
+    .eq('enabled', true);
+
+  if (error) {
+    console.error('Failed to load PTO types:', error);
+    return;
+  }
+  currentSchoolPtoTypes = data.map(r => r.pto_type);
+}
+
+async function loadPto() {
+  const tbody = document.querySelector('#ptoTable tbody');
+  const emptyState = document.getElementById('pendingEmpty');
+  if (!currentProfile.can_approve_pto) return;
+  
+  if (!tbody) return;
+
+  // Clear table
+  tbody.innerHTML = '';
+
+  const { data, error } = await supabase
+    .from('pto_requests')
+.select(`
+  id,
+  pto_type,
+  start_date,
+  end_date,
+  requested_hours,
+  requested_duration_label,
+  start_time,
+  end_time,
+  notes,
+  status,
+  employees(first_name, last_name)
+`)
+
+    .eq('status', 'PENDING')
+    .order('submitted_at', { ascending: true })
+    .limit(50);
+
+  if (error) {
+    console.error(error);
+    if (emptyState) emptyState.hidden = false;
+    return;
+  }
+
+  // ✅ EMPTY STATE DECISION (THIS IS THE IMPORTANT PART)
+  if (!data || data.length === 0) {
+    if (emptyState) emptyState.hidden = false;
+    return; // nothing to render
+  }
+
+  // ✅ DATA EXISTS — hide empty state
+  if (emptyState) emptyState.hidden = true;
+
+  // Render rows
+  data.forEach(r => {
+    const emp = r.employees
+      ? `${r.employees.first_name} ${r.employees.last_name}`
+      : '';
+
+    const dates =
+      r.start_date === r.end_date
+        ? r.start_date
+        : `${r.start_date} → ${r.end_date}`;
+		
+	
+	const hoursText = formatHoursWithTime(r);
+
+
+    const tr = document.createElement('tr');
+     
+    const notesText = r.notes ? r.notes : '—';
+
+    tr.innerHTML = `
+      <td>${emp}</td>
+      <td>${r.pto_type}</td>
+      <td>${dates}</td>
+	  <td>${hoursText}</td>
+      <td>${notesText}</td>
+      <td>${r.status}</td>
+ 
+<td>
+    <span class="action-buttons">
+      <button class="btn btn-approve">Approve</button>
+      <button class="btn btn-deny">Deny</button>
+    </span>
+  </td>
+
+
+    `;
+
+    // Wire actions
+
+tr.querySelector('.btn-approve').addEventListener('click', () => {
+  if (!currentProfile.can_approve_pto) {
+    alert('You are not authorized to approve PTO requests.');
+    return;
+  }
+  updatePtoStatus(r.id, 'APPROVED');
+});
+
+tr.querySelector('.btn-deny').addEventListener('click', () => {
+  if (!currentProfile.can_approve_pto) {
+    alert('You are not authorized to deny PTO requests.');
+    return;
+  }
+  updatePtoStatus(r.id, 'DENIED');
+});
+
+
+    tbody.appendChild(tr);
+  });
+}
+
+function formatStatus(status) {
+  switch (status) {
+    case 'RESCIND_REQUESTED':
+      return 'Rescind Requested';
+    case 'RESCINDED':
+      return 'Rescinded';
+    case 'CANCEL_REQUESTED':
+      return 'Cancel Requested';
+    default:
+      return status.replace('_', ' ');
+  }
+}
+async function loadPtoCancellationRequests() {
+  // ✅ Permission guard
+  if (!currentProfile.can_approve_pto) return;
+
+  const tbody = document.querySelector('#ptoCancelTable tbody');
+  const emptyState = document.getElementById('cancellationsEmpty');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  const { data, error } = await supabase
+    .from('pto_requests')
+    
+.select(`
+  id,
+  pto_type,
+  start_date,
+  end_date,
+  requested_hours,
+  requested_duration_label,
+  start_time,
+  end_time,
+  notes,
+  status,
+  employees(first_name, last_name)
+`)
+
+    .in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED'])
+    .order('submitted_at', { ascending: true });
+
+  if (error) {
+    console.error(error);
+    if (emptyState) emptyState.hidden = false;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    if (emptyState) emptyState.hidden = false;
+    return;
+  }
+
+  if (emptyState) emptyState.hidden = true;
+
+  data.forEach(r => {
+    const emp = r.employees
+      ? `${r.employees.first_name} ${r.employees.last_name}`
+      : '';
+
+    const dates =
+      r.start_date === r.end_date
+        ? r.start_date
+        : `${r.start_date} → ${r.end_date}`;
+
+    const hoursText = formatHoursWithTime(r);
+    const notesText = r.notes || '—';
+
+    const tr = document.createElement('tr');
+
+tr.innerHTML = `
+  <td>${emp}</td>
+  <td>${r.pto_type}</td>
+  <td>${dates}</td>
+  <td>${hoursText}</td>
+  <td>
+    ${renderCancelBadge(r.status, r.start_date)}
+    <div class="muted">${notesText}</div>
+  </td>
+  <td class="status warn">
+    ${formatStatus(r.status)}
+  </td>
+  <td>
+    <span class="action-buttons">
+      <button class="btn btn-approve">
+        ${r.status === 'RESCIND_REQUESTED'
+          ? 'Approve Rescind'
+          : 'Approve Cancel'}
+      </button>
+      <button class="btn btn-deny">
+        ${r.status === 'RESCIND_REQUESTED'
+          ? 'Deny Rescind'
+          : 'Deny Cancel'}
+      </button>
+    </span>
+  </td>
+`;
+
+
+
+    // ✅ Approve cancellation
+    tr.querySelector('.btn-approve').addEventListener('click', () => {
+      if (!currentProfile.can_approve_pto) {
+        alert('You are not authorized to approve PTO cancellations.');
+        return;
+      }
+      approveCancellation(r);
+    });
+
+    // ✅ Deny cancellation
+    tr.querySelector('.btn-deny').addEventListener('click', () => {
+      if (!currentProfile.can_approve_pto) {
+        alert('You are not authorized to deny PTO cancellations.');
+        return;
+      }
+      denyCancellation(r);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+function renderCancelBadge(status, startDate) {
+  if (status === 'RESCIND_REQUESTED') {
+    return '<span class="badge badge-warn">Rescind (Past PTO)</span>';
+  }
+  return '<span class="badge badge-muted">Future Cancel</span>';
+}
+
+async function approveCancellation(r) {
+  if (!currentProfile.can_approve_pto) {
+    alert('You are not authorized to approve PTO cancellations.');
+    return;
+  }
+
+  // ✅ Confirm based on type
+  if (r.status === 'RESCIND_REQUESTED') {
+    const confirmed = confirm(
+`Approve PTO Rescind?
+
+This PTO was approved for past dates.
+By approving this rescind, you confirm that the employee did NOT take this time off.
+
+✔ PTO hours will be credited back
+✔ Ledger and balance will be updated
+✔ This action is audit-logged`
+    );
+    if (!confirmed) return;
+  } else {
+    if (!confirm('Approve this PTO cancellation and credit time back?')) return;
+  }
+
+  // ✅ CRITICAL FIX: choose correct final status
+  const finalStatus =
+    r.status === 'RESCIND_REQUESTED'
+      ? 'RESCINDED'
+      : 'CANCELLED';
+
+  const { error } = await supabase
+    .from('pto_requests')
+    .update({
+      status: finalStatus,
+      decided_at: new Date().toISOString(),
+      decided_by: currentProfile.user_id
+    })
+    .eq('id', r.id);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to approve cancellation.');
+    return;
+  }
+
+  await loadPtoRequestCounts();
+  loadPto();
+  loadPtoCancellationRequests();
+}
+
+async function denyCancellation(r) {
+  if (!currentProfile.can_approve_pto) {
+    alert('You are not authorized to deny PTO requests.');
+    return;
+  }
+
+  // ✅ Different messaging for rescinds vs future cancels
+  const reason = prompt(
+    r.status === 'RESCIND_REQUESTED'
+      ? 'Reason for denying this PTO rescind request:'
+      : 'Reason for denying this PTO cancellation request:'
+  );
+
+  if (!reason) return;
+
+  // ✅ Build audit note
+  const noteLabel =
+    r.status === 'RESCIND_REQUESTED'
+      ? 'RESCIND DENIED'
+      : 'CANCEL DENIED';
+
+  const updatedNotes = r.notes
+    ? `${r.notes}\n\n[${noteLabel}]: ${reason}`
+    : `[${noteLabel}]: ${reason}`;
+
+  // ✅ Critical logic difference:
+  // - Rescind denied → PTO stays APPROVED
+  // - Cancel denied → PTO stays APPROVED
+  const { error } = await supabase
+    .from('pto_requests')
+    .update({
+      status: 'APPROVED',
+      notes: updatedNotes,
+      decided_at: new Date().toISOString(),
+      decided_by: currentProfile.user_id
+    })
+    .eq('id', r.id);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to deny request.');
+    return;
+  }
+
+  // ✅ NO ledger entry
+  // ✅ NO balance change
+  // ✅ PTO remains counted as used
+
+  await loadPtoRequestCounts();
+  loadPto();
+  loadPtoCancellationRequests();
+}
+
+async function updatePtoStatus(requestId, newStatus) {
+  // ✅ Permission guard
+  if (!currentProfile.can_approve_pto) {
+    alert('You are not authorized to approve or deny PTO requests.');
+    return;
+  }
+
+  const confirmMsg =
+    newStatus === 'APPROVED'
+      ? 'Approve this PTO request?'
+      : 'Deny this PTO request?';
+
+  if (!confirm(confirmMsg)) return;
+
+  const { error } = await supabase
+    .from('pto_requests')
+    .update({
+      status: newStatus,
+      decided_at: new Date().toISOString(),
+      decided_by: currentProfile.user_id
+    })
+    .eq('id', requestId);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to update PTO request.');
+    return;
+  }
+
+  // ✅ Trigger fires automatically:
+  // - pto_ledger insert
+  // - pto_balances update
+  await loadPtoRequestCounts();
+  loadPto(); // ✅ reload same table
+}
+
+async function loadPtoStaffOptions() {
+  const select = document.getElementById('ptoStaffSelect');
+  select.innerHTML = '<option value="">Select staff member…</option>';
+
+  const { data, error } = await supabase
+    .from('employees')
+    .select('id, first_name, last_name')
+    .order('last_name');
+
+  if (error) {
+    console.error('Failed to load staff list:', error);
+    return;
+  }
+
+  data.forEach(emp => {
+    const opt = document.createElement('option');
+    opt.value = emp.id;
+    opt.textContent = `${emp.last_name}, ${emp.first_name}`;
+    select.appendChild(opt);
+  });
+}
+
+async function loadPtoRequestCounts() {
+  if (!currentProfile.can_approve_pto) return;
+
+  const schoolId = currentProfile.school_id;
+
+  // ✅ Pending PTO requests (scoped)
+  const { count: pendingCount } = await supabase
+    .from('pto_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('school_id', schoolId)
+    .eq('status', 'PENDING');
+
+  // ✅ Cancellation + Rescind requests (scoped)
+  const { count: cancelCount } = await supabase
+    .from('pto_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('school_id', schoolId)
+    .in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED']);
+
+  updateTabBadge('pendingCount', pendingCount);
+  updateTabBadge('cancelCount', cancelCount);
+}
+
+function updateTabBadge(id, count) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  if (!count || count === 0) {
+    el.hidden = true;
+  } else {
+    el.textContent = count;
+    el.hidden = false;
+  }
+}
+
+async function loadStaffPtoBalances(employeeId) {
+  const container = document.getElementById('ptoBalancesAdmin');
+  container.innerHTML = '';
+
+  if (!employeeId) return;
+
+  const { data, error } = await supabase
+    .from('pto_balances')
+    .select('pto_type, balance_hours')
+    .eq('employee_id', employeeId);
+
+  if (error) {
+    console.error('Failed to load PTO balances:', error);
+    return;
+  }
+
+  // Map balances by type
+  const balanceMap = {};
+  data.forEach(b => {
+    balanceMap[b.pto_type] = b.balance_hours;
+  });
+
+  // ✅ Use enabled PTO types for the school
+  currentSchoolPtoTypes.forEach(type => {
+    const hours = balanceMap[type] ?? 0;
+
+    const div = document.createElement('div');
+    div.innerHTML = `
+      <div class="muted">${type}</div>
+      <div style="font-size:18px;">${hours} hrs</div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+async function getCurrentPtoBalanceMap(employeeId) {
+  const { data, error } = await supabase
+    .from('pto_balances')
+    .select('pto_type, balance_hours')
+    .eq('employee_id', employeeId);
+
+  if (error) {
+    console.error('Failed to load current PTO balances:', error);
+    return {};
+  }
+
+  const map = {};
+  data.forEach(b => {
+    map[b.pto_type] = b.balance_hours;
+  });
+
+  return map;
+}
+
+async function loadStaffPtoHistory(employeeId) {
+  const table = document.getElementById('ptoHistoryAdminTable');
+  const tbody = table.querySelector('tbody');
+  const emptyState = document.getElementById('ptoHistoryEmpty');
+  if (!currentProfile.can_review_pto) return;
+  if (!tbody) return;
+
+  // Clear previous results
+  tbody.innerHTML = '';
+
+  // ✅ NO STAFF SELECTED → coordinated empty state
+  if (!employeeId) {
+    resetStaffHistoryView();
+    return;
+  }
+
+  // ✅ Reset summary values
+  let approvedUsed = 0;
+  let cancelled = 0;
+  let pending = 0;
+
+  /* -------------------------------------------------
+     1. LOAD LEDGER (for usage math ONLY)
+  ------------------------------------------------- */
+  const { data: ledger, error: ledgerError } = await supabase
+    .from('pto_ledger')
+    .select('delta_hours, reason')
+    .eq('employee_id', employeeId);
+
+  if (ledgerError) {
+    console.error('Failed to load PTO ledger:', ledgerError);
+    resetStaffHistoryView();
+    return;
+  }
+
+  ledger.forEach(l => {
+    if (l.reason === 'REQUEST_APPROVED') {
+      approvedUsed += Math.abs(l.delta_hours);
+    }
+
+    if (l.reason === 'REQUEST_CANCELLED') {
+      cancelled += l.delta_hours;
+    }
+  });
+
+  /* -------------------------------------------------
+     2. LOAD PTO REQUEST HISTORY
+  ------------------------------------------------- */
+  const { data, error } = await supabase
+    .from('pto_requests')
+    .select(`
+      pto_type,
+      start_date,
+      end_date,
+      partial_day,
+      partial_hours,
+	  start_time,
+      end_time,
+	  requested_hours,
+      status,
+      notes,
+      submitted_at,
+      decided_at,
+      profiles:decided_by (
+        display_name
+      )
+    `)
+    .eq('employee_id', employeeId)
+    .order('submitted_at', { ascending: false });
+     
+
+
+  if (error) {
+    console.error('Failed to load PTO history:', error);
+    resetStaffHistoryView();
+    return;
+  }
+
+  // ✅ STAFF SELECTED BUT NO HISTORY
+  if (!data || data.length === 0) {
+    table.style.display = 'none';
+    emptyState.hidden = false;
+    return;
+  }
+
+  // ✅ ✅ ✅ THIS WAS MISSING
+  // ✅ DATA EXISTS — SHOW TABLE & HIDE EMPTY STATE
+  table.style.display = '';
+  emptyState.hidden = true;
+
+
+// ✅ Render rows
+data.forEach(r => {
+  const hours = Number(r.requested_hours ?? 0);
+
+  if (r.status === 'PENDING') {
+    pending += hours;
+  }
+
+
+    const dates =
+      r.start_date === r.end_date
+        ? r.start_date
+        : `${r.start_date} → ${r.end_date}`;
+
+    let decisionHtml = '';
+    let decisionClass = '';
+
+    if (r.status === 'PENDING') {
+      decisionHtml = '⏳ Pending';
+      decisionClass = 'muted';
+    } else if (r.status === 'APPROVED') {
+      const name = r.profiles?.display_name || 'Admin';
+      const date = r.decided_at
+        ? new Date(r.decided_at).toLocaleDateString()
+        : '';
+      decisionHtml = `Approved<br><span class="muted">by ${name} • ${date}</span>`;
+      decisionClass = 'ok';
+    } else if (r.status === 'DENIED') {
+      const name = r.profiles?.display_name || 'Admin';
+      const date = r.decided_at
+        ? new Date(r.decided_at).toLocaleDateString()
+        : '';
+      decisionHtml = `Denied<br><span class="muted">by ${name} • ${date}</span>`;
+      decisionClass = 'err';
+    } else if (r.status === 'CANCELLED') {
+      decisionHtml = `Cancelled<br><span class="muted">by employee</span>`;
+      decisionClass = 'warn';
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${r.pto_type}</td>
+      <td>${dates}</td>
+      <td>${formatHoursWithTime(r)}</td>
+      <td class="${decisionClass}">${decisionHtml}</td>
+      <td>${r.notes || '—'}</td>
+      <td>${new Date(r.submitted_at).toLocaleDateString()}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+
+  /* -------------------------------------------------
+     3. UPDATE SUMMARY UI
+  ------------------------------------------------- */
+  const netUsed = approvedUsed - cancelled;
+
+  
+
+const approvedEl  = document.getElementById('ptoSumApproved');
+const cancelledEl = document.getElementById('ptoSumCancelled');
+const pendingEl   = document.getElementById('ptoSumPending');
+const netEl       = document.getElementById('ptoSumNet');
+
+if (approvedEl)  approvedEl.textContent  = `${approvedUsed} hrs`;
+if (cancelledEl) cancelledEl.textContent = `${cancelled} hrs`;
+if (pendingEl)   pendingEl.textContent   = `${pending} hrs`;
+if (netEl)       netEl.textContent       = `${netUsed} hrs`;
+
+
+}
+
+async function loadStaffPtoLedger(employeeId) {
+  const table = document.getElementById('ptoLedgerAdminTable');
+  const tbody = table?.querySelector('tbody');
+  const emptyState = document.getElementById('ptoLedgerEmpty');
+  if (!currentProfile.can_review_pto) return;
+  if (!tbody || !table) return;
+
+  // Clear previous rows
+  tbody.innerHTML = '';
+
+  // ✅ No employee selected
+  if (!employeeId) {
+    table.style.display = 'none';
+    if (emptyState) emptyState.hidden = false;
+    return;
+  }
+
+  // ✅ Load starting balances
+  const balanceMap = await getCurrentPtoBalanceMap(employeeId);
+
+  // ✅ Load ledger entries
+  const { data: ledger, error } = await supabase
+    .from('pto_ledger')
+    .select(`
+      pto_type,
+      delta_hours,
+      reason,
+      created_at
+    `)
+    .eq('employee_id', employeeId)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Failed to load PTO ledger:', error);
+    table.style.display = 'none';
+    if (emptyState) emptyState.hidden = false;
+    return;
+  }
+
+  // ✅ EMPTY LEDGER
+  if (!ledger || ledger.length === 0) {
+    table.style.display = 'none';
+    if (emptyState) emptyState.hidden = false;
+    return;
+  }
+
+  // ✅ We HAVE entries
+  table.style.display = '';
+  if (emptyState) emptyState.hidden = true;
+
+  const runningBalance = { ...balanceMap };
+
+  ledger.forEach(entry => {
+    const type = entry.pto_type;
+
+    if (runningBalance[type] === undefined) {
+      runningBalance[type] = 0;
+    }
+
+    const balanceAfter = runningBalance[type];
+    const hoursClass = entry.delta_hours < 0 ? 'err' : 'ok';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${type}</td>
+      <td class="${hoursClass}">${entry.delta_hours} hrs</td>
+      <td>${entry.reason}</td>
+      <td>${new Date(entry.created_at).toLocaleDateString()}</td>
+      <td>${balanceAfter.toFixed(2)} hrs</td>
+    `;
+
+    tbody.appendChild(tr);
+
+    runningBalance[type] -= entry.delta_hours;
+  });
+}
+
+async function applyAnnualPto(employeeId, ptoType, hours) {
+  if (!currentProfile.can_adjust_pto) {
+    alert('Not authorized');
+    return;
+  }
+
+  const year = new Date().getFullYear();
+  const reason = `ANNUAL_ALLOTMENT_${year}`;
+
+  // ✅ 1. Guard: prevent double application
+  const { data: existing } = await supabase
+    .from('pto_ledger')
+    .select('id')
+    .eq('employee_id', employeeId)
+    .eq('pto_type', ptoType)
+    .eq('reason', reason)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    alert('Annual PTO has already been applied for this year.');
+    return;
+  }
+
+  // ✅ 2. Insert ledger entry
+  const { error } = await supabase
+    .from('pto_ledger')
+    .insert({
+      school_id: currentProfile.school_id,
+      employee_id: employeeId,
+      pto_type: ptoType,
+      delta_hours: hours,
+      reason,
+      created_by: currentProfile.user_id
+    });
+
+  if (error) {
+    console.error(error);
+    alert('Failed to apply annual PTO allotment.');
+    return;
+  }
+
+  alert(`Annual PTO allotment (${hours} hrs) applied.`);
+}
+
+async function loadPtoPolicies() {
+ 
+  if (!currentProfile || !currentProfile.school_id) {
+    // Profile not loaded yet — silently skip
+    return;
+  }
+
+  const tbody = document.querySelector('#ptoPoliciesTable tbody');
+  const headerRow = document.getElementById('ptoPoliciesHeader');
+
+  tbody.innerHTML = '';
+
+  // ✅ Reset header (keep Employee column)
+  headerRow.innerHTML = '<th>Employee</th>';
+
+  // ✅ PTO type columns
+  currentSchoolPtoTypes.forEach(type => {
+    const th = document.createElement('th');
+    th.textContent = type;
+    headerRow.appendChild(th);
+  });
+
+  // ✅ Load employees
+  const { data: employees, error: empErr } = await supabase
+    .from('employees')
+    .select('id, first_name, last_name')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true)
+    .order('last_name');
+
+  
+
+  if (empErr) return;
+
+  // ✅ Load policies
+  const { data: policies, error: polErr } = await supabase
+    .from('employee_pto_policies')
+    .select('employee_id, pto_type, annual_hours');
+
+
+  if (polErr) return;
+
+  // ✅ Build map: employee → PTO type → hours
+  const policyMap = {};
+  policies.forEach(p => {
+    if (!policyMap[p.employee_id]) {
+      policyMap[p.employee_id] = {};
+    }
+    policyMap[p.employee_id][p.pto_type] = p.annual_hours;
+  });
+
+  // ✅ ONE ROW PER EMPLOYEE
+  employees.forEach(emp => {
+    const tr = document.createElement('tr');
+
+    // Employee column
+    tr.innerHTML = `<td>${emp.last_name}, ${emp.first_name}</td>`;
+
+    // PTO type columns
+    currentSchoolPtoTypes.forEach(type => {
+      const hours = policyMap[emp.id]?.[type] ?? '';
+
+
+const td = document.createElement('td');
+
+td.innerHTML = `
+  <div class="pto-policy-cell">
+<input
+ step="0.5"  type="number"
+  min="0"
+  value="${hours}"
+  class="pto-policy-input"
+  data-employee="${emp.id}"
+  data-type="${type}"
+  ${currentProfile.can_adjust_pto ? '' : 'disabled'}
+/>
+    <span class="save-indicator"></span>
+  </div>
+`;
+
+
+      tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+async function promptForPtoType() {
+  if (!currentSchoolPtoTypes || currentSchoolPtoTypes.length === 0) {
+    alert('No PTO types are enabled for this school.');
+    return null;
+  }
+
+  const choice = prompt(
+    `Select PTO type for annual allotment:\n\n` +
+    currentSchoolPtoTypes.map(t => `• ${t}`).join('\n')
+  );
+
+  if (!choice) return null;
+
+  const normalized = choice.trim().toUpperCase();
+
+  if (!currentSchoolPtoTypes.includes(normalized)) {
+    alert('Invalid PTO type selected.');
+    return null;
+  }
+
+  return normalized;
+}
+
+async function previewAnnualAllotments(employees, ptoType, year) {
+  let willApply = 0;
+  let willSkip = 0;
+
+  for (const emp of employees) {
+    if (!emp.annual_pto_hours || emp.annual_pto_hours <= 0) {
+      willSkip++;
+      continue;
+    }
+
+    const { data: existing } = await supabase
+      .from('pto_ledger')
+      .select('id')
+      .eq('employee_id', emp.id)
+      .eq('pto_type', ptoType)
+      .eq('reason', `ANNUAL_ALLOTMENT_${year}`)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      willSkip++;
+    } else {
+      willApply++;
+    }
+  }
+
+  return { willApply, willSkip };
+}
+
+async function applyAnnualAllotmentIfEligible(employee, ptoType, year) {
+  if (!employee.annual_pto_hours || employee.annual_pto_hours <= 0) {
+    return { skipped: true, reason: 'No annual PTO configured' };
+  }
+
+  const reason = `ANNUAL_ALLOTMENT_${year}`;
+
+  // ✅ Check if already applied
+  const { data: existing } = await supabase
+    .from('pto_ledger')
+    .select('id')
+    .eq('employee_id', employee.id)
+    .eq('pto_type', ptoType)
+    .eq('reason', reason)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    return { skipped: true, reason: 'Already applied' };
+  }
+
+  // ✅ Apply ledger entry
+  const { error } = await supabase
+    .from('pto_ledger')
+    .insert({
+      school_id: currentProfile.school_id,
+      employee_id: employee.id,
+      pto_type: ptoType,
+      delta_hours: employee.annual_pto_hours,
+      reason,
+      created_by: currentProfile.user_id
+    });
+
+  if (error) {
+    console.error('Bulk allotment error:', error);
+    return { error: true };
+  }
+
+  return { applied: true };
+}
+
+async function hasAnnualAllotmentBeenApplied(employeeId, ptoType, year) {
+  const { data, error } = await supabase
+    .from('pto_ledger')
+    .select('id')
+    .eq('employee_id', employeeId)
+    .eq('pto_type', ptoType)
+    .eq('reason', `ANNUAL_ALLOTMENT_${year}`)
+    .limit(1);
+
+  if (error) {
+    console.error('Failed to check annual allotment:', error);
+    return false;
+  }
+
+  return data.length > 0;
+}
+
+async function loadPtoAdjustStaff() {
+  const select = document.getElementById('ptoAdjustStaff');
+  select.innerHTML = '<option value="">Select staff…</option>';
+
+  const { data } = await supabase
+    .from('employees')
+    .select('id, first_name, last_name')
+    .order('last_name');
+
+  data.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id;
+    opt.textContent = `${e.last_name}, ${e.first_name}`;
+    select.appendChild(opt);
+  });
+}
+
+async function updateAnnualAllotmentUI() {
+  const employeeId = document.getElementById('ptoAdjustStaff').value;
+  const ptoType = document.getElementById('ptoAdjustType').value;
+  const btn = document.getElementById('applyAnnualAllotmentBtn');
+  const status = document.getElementById('annualAllotmentStatus');
+
+  status.style.display = 'none';
+  btn.disabled = false;
+
+  if (!employeeId || !ptoType) return;
+
+  const year = new Date().getFullYear();
+  const applied =
+    await hasAnnualAllotmentBeenApplied(employeeId, ptoType, year);
+
+  if (applied) {
+    btn.disabled = true;
+    status.textContent =
+      `Annual allotment already applied for ${year}.`;
+    status.style.display = 'inline';
+  }
+}
+
+function populateBulkAnnualPtoTypes() {
+  const select = document.getElementById('bulkAnnualPtoType');
+  select.innerHTML = '<option value="">Select PTO type…</option>';
+
+  currentSchoolPtoTypes.forEach(type => {
+    const opt = document.createElement('option');
+    opt.value = type;
+    opt.textContent = type;
+    select.appendChild(opt);
+  });
+}
+
+function populateAdjustPtoTypes() {
+  const select = document.getElementById('ptoAdjustType');
+  select.innerHTML = '';
+
+  currentSchoolPtoTypes.forEach(type => {
+    const opt = document.createElement('option');
+    opt.value = type;
+    opt.textContent = type;
+    select.appendChild(opt);
+  });
+}
+
+async function initPtoCalendar() {
+  const calendarEl = document.getElementById('pto-calendar');
+
+  ptoCalendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'dayGridMonth',
+    height: 'auto',
+	fixedWeekCount: false, // ✅ avoids empty last row
+	dayMaxEvents: 3,       // ✅ "+ more" instead of overflow
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,timeGridWeek,timeGridDay'
+    },
+
+    events: async (info, success, failure) => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+
+        if (!sessionData?.session) {
+          setTimeout(() => ptoCalendar.refetchEvents(), 250);
+          return;
+        }
+
+        const { data, error } = await supabase.functions.invoke(
+          'get_pto_calendar_events_v2',
+          {
+            body: {
+              start_date: info.startStr,
+              end_date: info.endStr
+            }
+          }
+        );
+
+        if (error) throw error;
+ 
+success(
+  data.map(e => {
+    // ✅ Partial-day PTO → timed event
+    if (e.partial_day && e.start_time && e.end_time && e.start_date) {
+      return {
+        id: e.id,
+        title: e.title,
+        start: `${e.start_date}T${e.start_time}`,
+        end: `${e.start_date}T${e.end_time}`,
+        allDay: false,
+        backgroundColor: colorForPtoType(e.pto_type),
+        borderColor: colorForPtoType(e.pto_type)
+      };
+    }
+
+    // ✅ Full-day PTO → use edge function dates AS-IS
+    return {
+      id: e.id,
+      title: e.title,
+      start: e.start,   // ✅ FIX
+      end: e.end,       // ✅ FIX
+      allDay: e.allDay ?? true,
+      backgroundColor: colorForPtoType(e.pto_type),
+      borderColor: colorForPtoType(e.pto_type)
+    };
+  })
+);
+
+      } catch (err) {
+        console.error(err);
+        failure(err);
+      }
+    }
+  });
+
+  ptoCalendar.render();
+}
+
+function colorForPtoType(type) {
+  switch (type) {
+    case 'VACATION':
+      return '#2563eb'; // blue
+    case 'SICK':
+      return '#16a34a'; // green
+    case 'PERSONAL':
+      return '#9333ea'; // purple
+    default:
+      return '#64748b'; // gray
+  }
+}
+
+const ptoTabs = document.querySelectorAll('#ptoTabs .tab');
+
+async function setPtoView(view) {
+  
+  // -------------------------
+  // 1. Update tab active state
+  // -------------------------
+  ptoTabs.forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.view === view);
+  });
+  
+  if (view === 'history' && !currentProfile.can_review_pto) {
+  alert('You are not authorized to view staff PTO history.');
+  return;
+}
+  // ✅ Adjust PTO + Policies hard guard
+  if (
+    (view === 'adjust' || view === 'policies') &&
+    !currentProfile.can_adjust_pto
+  ) {
+    alert('You are not authorized to modify PTO policies or balances.');
+    return;
+  }
+
+if (view === 'reports' && !currentProfile.can_generate_pto_reports) {
+  alert('You are not authorized to generate PTO reports.');
+  return;
+}
+
+
+  // -------------------------
+  // 2. Hide all PTO sections & skeletons
+  // -------------------------
+  document.querySelectorAll('.admin-section').forEach(section => {
+    section.classList.remove('active');
+
+    const skel = section.querySelector('.skeleton-container');
+    if (skel) skel.style.display = 'none';
+  });
+
+  // -------------------------
+  // 3. Activate the target section
+  // -------------------------
+  const activeSection = document.getElementById(`pto-${view}`);
+  if (!activeSection) {
+    console.warn('Missing PTO section:', `pto-${view}`);
+    return;
+  }
+
+  activeSection.classList.add('active');
+
+  // -------------------------
+  // 4. Show skeleton + reset fade
+  // -------------------------
+  const skeleton = activeSection.querySelector('.skeleton-container');
+  if (skeleton) skeleton.style.display = 'block';
+
+
+const content = activeSection.querySelector('.admin-content.fade-in');
+if (content && view !== 'reports') {
+  content.classList.remove('visible');
+}
+
+
+
+// ✅ Only use skeletons for data-loading views
+if (skeleton && view !== 'reports') {
+  skeleton.style.display = 'block';
+}
+
+if (content && view !== 'reports') {
+  content.classList.remove('visible');
+}
+
+  // -------------------------
+  // 5. LOAD DATA PER VIEW
+  // -------------------------
+  try {
+	
+if (view === 'calendar' && ptoCalendar) {
+  requestAnimationFrame(() => {
+    ptoCalendar.updateSize();
+  });
+}
+
+    if (view === 'pending') {
+      await loadPto(); 
+    }
+
+    if (view === 'cancellations') {
+      await loadPtoCancellationRequests();
+    }
+
+    
+
+if (view === 'history') {
+  const select = document.getElementById('ptoStaffSelect');
+  const employeeId = select?.value || null;
+
+  if (employeeId === currentPtoHistoryEmployeeId) {
+    if (!employeeId) {
+      resetStaffHistoryView();
+    }
+  } else {
+    currentPtoHistoryEmployeeId = employeeId;
+    resetStaffHistoryView();
+
+    if (employeeId) {
+      loadStaffPtoHistory(employeeId);
+      loadStaffPtoLedger(employeeId);
+    }
+  }
+}
+
+
+
+    if (view === 'adjust') {
+      await populateAdjustPtoTypes();
+      await loadPtoAdjustStaff();
+	  await populateBulkAnnualPtoTypes();
+    }
+	
+	
+if (view === 'reports') {
+  initPtoReportsView();
+}
+
+
+    if (view === 'policies') {
+      await loadPtoPolicies();
+    }
+  } catch (err) {
+    console.error(`Error loading PTO view "${view}"`, err);
+    return;
+  }
+
+  // -------------------------
+  // 6. Fade content in + hide skeleton
+  // -------------------------
+  if (content) {
+    requestAnimationFrame(() => {
+      content.classList.add('visible');
+    });
+  }
+
+if (skeleton && view !== 'reports') {
+  skeleton.style.display = 'none';
+}
+
+}
+
+async function loadAdjustPtoBalances(employeeId) {
+  const container = document.getElementById('adjustPtoBalances');
+
+  // Hide when no staff selected
+  if (!employeeId) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  container.style.display = 'grid';
+  container.innerHTML = '';
+
+  const balanceMap = await getCurrentPtoBalanceMap(employeeId);
+
+  currentSchoolPtoTypes.forEach(type => {
+    const hours = balanceMap[type] ?? 0;
+
+    const div = document.createElement('div');
+    div.innerHTML = `
+      <div class="muted">${type}</div>
+      <div style="font-size:16px; font-weight:600;">
+        ${hours} hrs
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function resetStaffHistoryView() {
+  document.getElementById('ptoHistoryAdminTable').style.display = 'none';
+  document.getElementById('ptoHistoryEmpty').hidden = false;
+
+  document.getElementById('ptoLedgerAdminTable').style.display = 'none';
+  document.getElementById('ptoLedgerEmpty').hidden = false;
+
+  // ✅ Reset summary
+  ['ptoSumApproved', 'ptoSumPending', 'ptoSumCancelled', 'ptoSumNet']
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = '—';
+    });
+}
+let reportsFlatpickrInitialized = false;
+
+function initPtoReportsView() {
+  if (reportsFlatpickrInitialized) return;
+
+  flatpickr('#exportStartDate', {
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'M j, Y'
+  });
+
+  flatpickr('#exportEndDate', {
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'M j, Y'
+  });
+
+  reportsFlatpickrInitialized = true;
+}
+
+async function handlePtoExport() {
+
+  if (!currentProfile.can_generate_pto_reports) {
+    alert('You are not authorized to generate PTO reports.');
+    return;
+  }
+
+
+  const reportType = document.getElementById('exportReportType')?.value;
+  const startDate  = document.getElementById('exportStartDate')?.value;
+  const endDate    = document.getElementById('exportEndDate')?.value;
+  
+  if (!reportType) {
+    alert('Please select a report type.');
+    return;
+  }
+
+  if (
+    (reportType === 'transactions' || reportType === 'payroll') &&
+    (!startDate || !endDate)
+  ) {
+    alert('Please select a start and end date.');
+    return;
+  }
+
+  try {
+    const btn = document.getElementById('generateExportBtn');
+    btn.disabled = true;
+    btn.textContent = 'Generating…';
+
+    const { data, error } =
+      await supabase.functions.invoke('export_pto_report_v2', {
+        body: {
+          report_type: reportType,
+          start_date: startDate,
+          end_date: endDate
+        }
+      });
+
+    if (error) throw error;
+
+    const binary = atob(data.file);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    const blob = new Blob([bytes], {
+      type:
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = data.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error(err);
+    alert('Failed to generate export.');
+  } finally {
+    const btn = document.getElementById('generateExportBtn');
+    btn.disabled = false;
+    btn.textContent = 'Generate';
+  }
+}
+
+
+// Tab click wiring
+ptoTabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    setPtoView(tab.dataset.view);
+  });
+});
+
+// ✅ REQUIRED — initial activation
+if (currentProfile.can_approve_pto) {
+  setPtoView('pending');
+} else if (currentProfile.can_view_pto_calendar) {
+  setPtoView('calendar');
+} else if (currentProfile.can_review_pto) {
+  setPtoView('history');
+} else if (currentProfile.can_adjust_pto) {
+  setPtoView('adjust');
+} else if (currentProfile.can_generate_pto_reports) {
+  setPtoView('reports');
+} else {
+  alert('You do not have access to any PTO views.');
+}
+
+document.addEventListener('change', async e => {
+  if (!e.target.classList.contains('pto-policy-input')) return;
+
+  const input = e.target;
+  const employeeId = input.dataset.employee;
+  const ptoType = input.dataset.type;
+  const hours = Number(input.value);
+
+  const indicator =
+    input.parentElement.querySelector('.save-indicator');
+
+  if (hours < 0) {
+    alert('Annual hours must be 0 or greater.');
+    return;
+  }
+
+ 
+// ✅ Show "Saving..."
+indicator.textContent = 'Saving…';
+indicator.classList.remove('success', 'error');
+indicator.classList.add('saving');
+
+const { error } = await supabase
+  .from('employee_pto_policies')
+  .upsert({
+    employee_id: employeeId,
+    pto_type: ptoType,
+    annual_hours: hours
+  });
+
+if (error) {
+  console.error(error);
+
+  // ❌ Error state
+  indicator.textContent = 'Error';
+  indicator.classList.remove('saving');
+  indicator.classList.add('error');
+
+  return;
+}
+
+// ✅ Success state
+indicator.textContent = 'Saved ✓';
+indicator.classList.remove('saving');
+indicator.classList.add('success');
+
+// ✅ Fade out after 2s (no layout shift)
+setTimeout(() => {
+  indicator.classList.remove('success', 'error', 'saving');
+  indicator.textContent = '';
+}, 2000);
+
+});
+
+document.getElementById('applyPtoAdjustment')
+  .addEventListener('click', async () => {
+
+  
+if (!currentProfile?.can_adjust_pto) {
+  alert('Not authorized');
+  return;
+}
+
+
+    const employeeId = document.getElementById('ptoAdjustStaff').value;
+    const ptoType = document.getElementById('ptoAdjustType').value;
+    const hours = Number(document.getElementById('ptoAdjustHours').value);
+
+    if (!employeeId || !hours) {
+      alert('Select staff and enter hours');
+      return;
+    }
+
+const reasonInput = document
+  .getElementById('ptoAdjustReason')
+  .value
+  .trim();
+
+    const reason = `MANUAL_ADJUSTMENT_${new Date().getFullYear()}: ${reasonInput}`;
+
+if (!reasonInput) {
+  alert('Please enter a reason for this adjustment');
+  return;
+}
+
+   
+const { error } = await supabase
+  .from('pto_ledger')
+  .insert({
+    school_id: currentProfile.school_id, // ✅ REQUIRED
+    employee_id: employeeId,
+    pto_type: ptoType,
+    delta_hours: hours,
+    reason,
+    created_by: currentProfile.user_id
+  });
+
+
+    if (error) {
+      console.error(error);
+      alert('Failed to apply PTO adjustment');
+      return;
+    }
+
+    alert('PTO adjustment applied');
+	document.getElementById('ptoAdjustHours').value = '';
+    document.getElementById('ptoAdjustReason').value = '';
+	loadAdjustPtoBalances(employeeId);
+    closeModal('adjustPtoModal');
+  });
+
+document
+  .getElementById('applyAnnualAllotmentBtn')
+  .addEventListener('click', async () => {
+    
+if (!currentProfile.can_adjust_pto) {
+      alert('You are not authorized to apply PTO allotments.');
+      return;
+    }
+
+    const employeeId =
+      document.getElementById('ptoAdjustStaff').value;
+    const ptoType =
+      document.getElementById('ptoAdjustType').value;
+
+    if (!employeeId || !ptoType) {
+      alert('Select staff member and PTO type first.');
+      return;
+    }
+
+    const year = new Date().getFullYear();
+
+    // ✅ REPLACEMENT STARTS HERE
+    // Load PTO policy for this employee + PTO type
+    const { data: policy, error } = await supabase
+      .from('employee_pto_policies')
+      .select('annual_hours')
+      .eq('employee_id', employeeId)
+      .eq('pto_type', ptoType)
+      .single();
+
+    if (error || !policy) {
+      alert(
+        'No annual PTO policy configured for this employee and PTO type.'
+      );
+      return;
+    }
+
+    const hours = policy.annual_hours;
+    // ✅ REPLACEMENT ENDS HERE
+
+    // ✅ Guard against double application
+    const alreadyApplied =
+      await hasAnnualAllotmentBeenApplied(employeeId, ptoType, year);
+
+    const statusEl =
+      document.getElementById('annualAllotmentStatus');
+
+    if (alreadyApplied) {
+      statusEl.textContent =
+        `Annual allotment already applied for ${year}.`;
+      statusEl.style.display = 'inline';
+      return;
+    }
+
+    // ✅ Apply allotment (ledger write)
+    await applyAnnualPto(
+      employeeId,
+      ptoType,
+      hours
+    );
+
+    statusEl.textContent =
+      `Annual allotment (${hours} hrs) applied for ${year}.`;
+    statusEl.style.display = 'inline';
+
+    // ✅ Refresh balances if viewing history
+ 
+
+    if (staffSelect?.value === employeeId) {
+      loadStaffPtoBalances(employeeId);
+      loadStaffPtoLedger(employeeId);
+    }
+  });
+
+
+document
+  .getElementById('applyAnnualAllotmentsBulk')
+  .addEventListener('click', async () => {
+    
+if (!currentProfile.can_adjust_pto) {
+  alert('You are not authorized to perform bulk PTO changes.');
+  return;
+}
+
+    const ptoType =
+      document.getElementById('bulkAnnualPtoType').value;
+
+    if (!ptoType) {
+      alert('Please select a PTO type.');
+      return;
+    }
+
+    const year = new Date().getFullYear();
+
+
+    // ✅ Load eligible staff
+// ✅ Load PTO policies for this PTO type (policy-driven)
+const { data: policies, error } = await supabase
+  .from('employee_pto_policies')
+  .select(`
+    employee_id,
+    annual_hours,
+    employees!inner(id, active)
+  `)
+  .eq('pto_type', ptoType)
+  .eq('employees.active', true);
+
+if (error) {
+  console.error(error);
+  alert('Failed to load PTO policies.');
+  return;
+}
+
+// ✅ Preview
+let willApply = 0;
+let willSkip = 0;
+
+for (const p of policies) {
+  const { data: existing } = await supabase
+    .from('pto_ledger')
+    .select('id')
+    .eq('employee_id', p.employee_id)
+    .eq('pto_type', ptoType)
+    .eq('reason', `ANNUAL_ALLOTMENT_${year}`)
+    .limit(1);
+
+  if (existing && existing.length > 0) {
+    willSkip++;
+  } else {
+    willApply++;
+  }
+}
+
+const confirmRun = confirm(
+  `Annual PTO Allotment Preview (${year})\n\n` +
+  `PTO Type: ${ptoType}\n\n` +
+  `✅ Will Apply: ${willApply}\n` +
+  `⏭️ Will Skip: ${willSkip}\n\n` +
+  `Proceed with applying allotments?`
+);
+
+if (!confirmRun) return;
+
+// ✅ Apply
+let applied = 0;
+let skipped = 0;
+let failed = 0;
+
+for (const p of policies) {
+  const result = await applyAnnualAllotmentIfEligible(
+    { id: p.employee_id, annual_pto_hours: p.annual_hours },
+    ptoType,
+    year
+  );
+
+  if (result.applied) applied++;
+  else if (result.skipped) skipped++;
+  else failed++;
+}
+
+alert(
+  `Annual PTO Allotment Results (${year})\n\n` +
+  `✅ Applied: ${applied}\n` +
+  `⏭️ Skipped: ${skipped}\n` +
+  `❌ Failed: ${failed}`
+);
+
+  });
+  
+  
+  function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  if (!modal) {
+    // Modal not present (likely removed due to permissions)
+    return;
+  }
+  modal.classList.remove('open');
+}
+
+
+  const openExportBtn = document.getElementById('openExportModal');
+  const exportModal = document.getElementById('exportModal');
+
+if (openExportBtn && exportModal) {
+  openExportBtn.addEventListener('click', () => {
+    openModal('exportModal');
+
+    const generateBtn = document.getElementById('generateExportBtn');
+
+    if (generateBtn && !generateBtn.dataset.bound) {
+      generateBtn.dataset.bound = 'true';
+
+     
+
+
+
+generateBtn.addEventListener('click', async () => {
+  const reportType =
+    document.getElementById('exportReportType').value;
+
+  const startDate =
+    document.getElementById('exportStartDate')?.value;
+
+  const endDate =
+    document.getElementById('exportEndDate')?.value;
+
+  if (!reportType) {
+    alert('Please select a report type.');
+    return;
+  }
+
+  if (
+    (reportType === 'transactions' || reportType === 'payroll') &&
+    (!startDate || !endDate)
+  ) {
+    alert('Please select a start and end date.');
+    return;
+  }
+
+  generateBtn.disabled = true;
+  generateBtn.textContent = 'Generating…';
+
+  try {
+    const { data, error } =
+      await supabase.functions.invoke(
+        'export_pto_report_v2',
+        {
+          body: {
+            report_type: reportType,
+            start_date: startDate,
+            end_date: endDate
+          }
+        }
+      );
+
+   
+if (error) {
+  console.error(error);
+
+
+const status = error.context?.status;
+
+if (status === 401) {
+  alert("You must be signed in to export PTO reports.");
+} else if (status === 403) {
+  alert("You are not authorized to export PTO reports.");
+} else {
+  alert("Failed to generate export.");
+}
+
+
+  return;
+}
+
+
+    // ✅ Base64 → binary
+    const binary = atob(data.file);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+
+    const blob = new Blob(
+      [bytes],
+      {
+        type:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }
+    );
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = data.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error(err);
+    alert('Failed to generate export.');
+  } finally {
+    generateBtn.disabled = false;
+    generateBtn.textContent = 'Generate Export';
+  }
+});
+
+    }
+  });
+}
+
+
+  // ✅ Reset summary + table
+    document.getElementById('ptoStaffSelect').value = '';
+    document.querySelector('#ptoHistoryAdminTable tbody').innerHTML = '';
+
+
+    loadPtoStaffOptions();
+	loadPtoPolicies();
+  
+
+document.querySelectorAll('.modal-close').forEach(btn => {
+  btn.addEventListener('click', () =>
+    closeModal(btn.dataset.close)
+  );
+});
+
+
+
+
+// ✅ Update annual allotment UI when selection changes
+
+document
+  .getElementById('ptoAdjustStaff')
+  .addEventListener('change', e => {
+    const employeeId = e.target.value;
+    updateAnnualAllotmentUI();
+    loadAdjustPtoBalances(employeeId); // ✅ add
+  });
+
+
+document
+  .getElementById('ptoAdjustType')
+  .addEventListener('change', updateAnnualAllotmentUI);
+
+
+  </script>
+</body>
+</html>

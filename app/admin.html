@@ -1,0 +1,2440 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>School Admin Portal</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+  main section {
+    display: none;
+  }
+	</style>
+
+  <link rel="stylesheet" href="/admin-ui.css" />
+  <style>
+
+
+  </style>
+</head>
+<body class="admin-page">
+  
+<header>
+  <!-- LEFT: optional utility -->
+  <div>
+    <!-- You can add Back to Staff later if needed -->
+  </div>
+
+  <!-- CENTER: Product identity -->
+  <div class="page-header">
+    <div class="page-title">Belltower</div>
+    <div class="page-subtitle">Administration</div>
+  </div>
+
+  <!-- RIGHT: Admin actions -->
+  <div class="header-actions">
+    <span id="adminName" class="muted"></span>
+    <button id="signOut" class="btn">Sign out</button>
+  </div>
+</header>
+
+
+  <div class="wrap">
+    <nav>
+      <a href="#dashboard" class="active">Dashboard</a>
+      <a href="#staff" data-cap="can_manage_staff">👥 Staff</a>
+	  <a href="#access"
+      id="navAccess"
+      data-cap="can_manage_access">
+      🔐 Manage Access</a>
+      <a href="#students" data-cap="can_manage_students">🎓 Students</a>
+	  <a href="#families" data-cap="can_manage_families">👨‍👩‍👧 Families</a>
+	  <a href="#guardians" data-cap="can_manage_guardians">👪 Guardians</a>
+      <a href="#bus" data-cap="can_manage_bus_groups">🚌 Bus Groups</a>
+	  <a href="#bulk-upload" data-cap="can_bulk_upload">⬆️ Bulk Upload</a>
+      <a href="/pto.html?from=admin" data-cap-group="pto">🗓️ PTO Management</a>
+	  <a href="/staff.html?from=admin#pto">👤 My Portal</a>
+	  <a href="/carline.html" data-cap="can_view_carline">🚗 Carline Live</a>
+
+    </nav>
+    <main>
+      <div id="pending" class="notice" style="display:none;">Your account is <strong>pending</strong>. An administrator must approve your domain or activate your profile.</div>
+
+<section id="dashboard" class="admin-section">
+        <h2>Overview</h2>
+        <div class="muted" id="schoolInfo">Loading…</div>
+      </section>
+<section id="staff" class="admin-section">
+  <!-- Skeleton (always visible initially) -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content (fades in) -->
+  <div class="admin-content fade-in">
+    <!-- Add Staff -->
+    <div class="panel panel-action">
+      <h3>Add Staff</h3>
+
+      <div class="admin-form-row compact">
+        <input id="staffFirst" placeholder="First" />
+        <input id="staffLast" placeholder="Last" />
+        <input id="staffEmail" placeholder="Email" />
+        <input id="staffPosition" placeholder="Position" />
+        <button id="addStaff" class="btn btn-primary">Add</button>
+      </div>
+    </div>
+
+    <!-- Staff Directory -->
+    <div class="panel panel-history">
+      <h3>Staff Directory</h3>
+
+      <table id="staffTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Position</th>
+            <th>Active</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="access" class="admin-section">
+
+  <!-- Skeleton -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content -->
+  <div class="admin-content fade-in">
+
+    <!-- User selection -->
+    <div class="panel panel-action">
+      <h3>User Access & Permissions</h3>
+ 
+
+<small class="muted" style="opacity:0.75;">
+  Only staff who have signed in will appear in this list.
+</small>
+
+
+      <div class="admin-form-row compact">
+        <select id="accessUserSelect">
+          <option value="">Select staff member…</option>
+        </select>
+
+        <select id="accessPreset">
+          <option value="">Apply role preset…</option>
+          <option value="teacher">Teacher</option>
+          <option value="office">Office</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      <div id="accessUserMeta" class="muted" style="margin-top:8px;"></div>
+    </div>
+
+    <!-- ✅ Account Status (USER-SCOPED) -->
+    <div class="panel" id="accountStatusPanel" style="display:none;">
+      <h4>Account Status</h4>
+
+      <label class="row">
+        <select id="accessStatusSelect">
+          <option value="active">Active</option>
+          <option value="pending">Pending</option>
+        </select>
+      </label>
+
+    </div>
+
+    <!-- ✅ Permissions (USER-SCOPED) -->
+    <div id="accessPermissions" style="display:none;">
+
+      <div class="panel">
+        <h4>Login & Portal Access</h4>
+        <label><input type="checkbox" data-field="can_login"> Can log in</label>
+        <label><input type="checkbox" data-field="can_access_admin"> Admin portal</label>
+        <label><input type="checkbox" data-field="can_manage_access"> Manage access</label>
+      </div>
+
+      <div class="panel">
+        <h4>PTO</h4>
+        <label><input type="checkbox" data-field="can_view_pto_calendar"> View calendar</label>
+        <label><input type="checkbox" data-field="can_review_pto"> Review history</label>
+        <label><input type="checkbox" data-field="can_approve_pto"> Approve requests</label>
+        <label><input type="checkbox" data-field="can_adjust_pto"> Adjust balances</label>
+        <label><input type="checkbox" data-field="can_generate_pto_reports"> Reports</label>
+      </div>
+
+      <div class="panel">
+        <h4>Operations</h4>
+         <div class="permission-grid">        
+        <label><input type="checkbox" data-field="can_view_carline"> View carline</label>
+		<label><input type="checkbox" data-field="can_manage_staff"> Manage staff</label>
+		<label><input type="checkbox" data-field="can_manage_students"> Manage students</label>
+		<label><input type="checkbox" data-field="can_manage_families"> Manage families</label>
+		<label><input type="checkbox" data-field="can_manage_guardians"> Manage guardians</label>
+		<label><input type="checkbox" data-field="can_manage_bus_groups"> Manage bus groups</label>
+		<label><input type="checkbox" data-field="can_manage_substitutes"> Manage substitutes</label>
+		<label><input type="checkbox" data-field="can_bulk_upload"> Bulk upload</label>
+</div>
+      </div>
+
+    </div>
+
+    <!-- ✅ Pending users (GLOBAL, stays visible) -->
+    <div class="panel" id="pendingUsersPanel" style="margin-top:16px;">
+  <h4>Pending Users</h4>
+
+  <table style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Approve</th>
+      </tr>
+    </thead>
+    <tbody id="pendingUsersTable">
+      <tr>
+        <td colspan="3" class="muted">Loading…</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+  </div>
+</section>
+
+<section id="families" class="admin-section">
+  <!-- Skeleton (visible immediately) -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content (fades in after data loads) -->
+  <div class="admin-content fade-in">
+    <!-- Add Family -->
+    <div class="panel panel-action">
+      <h3>Add Family</h3>
+
+      <div class="admin-form-row compact">
+        <input
+          id="familyName"
+          placeholder="Family name (optional)"
+        />
+
+        <input
+          id="familyTag"
+          placeholder="Carline tag #"
+        />
+
+        <button id="addFamily" class="btn btn-primary">
+          Add
+        </button>
+      </div>
+    </div>
+
+    <!-- Family Directory -->
+    <div class="panel panel-history">
+      <h3>Family Directory</h3>
+
+      <table id="familiesTable">
+        <thead>
+          <tr>
+            <th>Carline Tag</th>
+            <th>Family Name</th>
+            <th>Active</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<section id="guardians" class="admin-section">
+
+  <!-- Skeleton -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content -->
+  <div class="admin-content fade-in">
+
+    <!-- Add Guardian -->
+    <div class="panel panel-action">
+      <h3>Add Guardian</h3>
+      <div class="admin-form-row compact">
+        <input id="guardianFirst" placeholder="First name" />
+        <input id="guardianLast" placeholder="Last name" />
+        <input id="guardianEmail" placeholder="Email" />
+        <input id="guardianPhone" placeholder="Phone" />
+        <select id="guardianFamily"></select>
+        <button id="addGuardian" class="btn btn-primary">
+          Add
+        </button>
+      </div>
+    </div>
+
+    <!-- Guardian Directory -->
+    <div class="panel panel-history">
+      <h3>Guardian Directory</h3>
+      <table id="guardiansTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Family</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Active</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+<section id="students" class="admin-section">
+  <!-- Skeleton (shown immediately while data loads) -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content (fades in after data loads) -->
+  <div class="admin-content fade-in">
+    <!-- Add Student -->
+    <div class="panel panel-action">
+      <h3>Add Student</h3>
+
+      <div class="admin-form-row compact">
+        <input id="studentFirst" placeholder="First name" />
+        <input id="studentLast" placeholder="Last name" />
+        <input id="studentGrade" placeholder="Grade" />
+        <input id="studentHomeroom" placeholder="Homeroom" />
+        <select id="studentFamily"></select>
+        <select id="studentBusGroup"></select>
+        <button id="addStudent" class="btn btn-primary">
+          Add
+        </button>
+      </div>
+    </div>
+
+    <!-- Student Directory -->
+    <div class="panel panel-history">
+      <h3>Student Directory</h3>
+
+      <table id="studentsTable">
+       
+		<thead>
+		  <tr>
+			<th>Name</th>
+			<th>Student #</th>
+			<th>Family</th>
+			<th>Grade</th>
+			<th>Homeroom</th>
+			<th>Bus Group</th>
+			<th>Active</th>
+			<th></th>
+		  </tr>
+		</thead>
+
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<section id="bus" class="admin-section">
+
+  <!-- Skeleton (shows while loading) -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content -->
+  <div class="admin-content fade-in">
+
+    <!-- Add Bus Group -->
+    <div class="panel panel-action">
+      <h3>Add Bus Group</h3>
+
+      <div class="admin-form-row compact">
+        <input id="busName" placeholder="Group name (e.g. Blue)" />
+        <input id="busRoute" placeholder="Route # (e.g. R12)" />
+
+        <button id="addBusGroup" class="btn btn-primary">
+          Add
+        </button>
+      </div>
+    </div>
+
+    <!-- Bus Groups Directory -->
+    <div class="panel panel-history">
+      <h3>Bus Groups</h3>
+
+      <table id="busTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Route</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+<section id="bulk-upload" class="admin-section">
+  <div class="admin-content fade-in">
+    <div class="panel panel-action">
+      <h3>Bulk Upload</h3>
+
+      <!-- Template downloads -->
+      <div class="row" style="gap:12px; margin-bottom:12px;">
+        <a
+          href="https://lmvpjbzwdyfziedpeytd.supabase.co/storage/v1/object/sign/Templates/Bulk%20Upload%20Template.xlsx?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9kZmNjODdmMS1lNGE1LTRjNWQtYWFjZC1iYjU3MWVkZDYyMmQiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUZW1wbGF0ZXMvQnVsayBVcGxvYWQgVGVtcGxhdGUueGxzeCIsImlhdCI6MTc3NDg5MjY5MywiZXhwIjoyNTUyNDkyNjkzfQ.xWxEDuBg4YtJEfdKbmIZ9dSKAMbkN6pl6HTJBURiBwA"
+          class="btn"
+          download
+        >
+          Download Excel Template
+        </a>
+
+        <a
+          href="https://docs.google.com/..."
+          target="_blank"
+          class="btn"
+        >
+          Open Google Sheets Template
+        </a>
+      </div>
+
+      <hr />
+
+      <!-- Upload area -->
+      <div id="bulkUploadDropzone"
+        class="upload-dropzone"
+      >
+        Drag & drop Excel file here<br />
+        or<br />
+        <input type="file"
+          id="bulkUploadFile"
+          accept=".xlsx,.xls"
+        />
+      </div>
+
+      <!-- Sheet selection (hidden initially) -->
+      <div
+        id="bulkUploadSheets"
+        style="display:none; margin-top:12px;"
+      >
+        <h4>Select Sheets to Upload</h4>
+        <div id="bulkSheetCheckboxes"></div>
+      </div>
+
+		
+      <!-- Dry run -->
+      <div class="row" style="margin-top:12px;">
+        <button
+          id="bulkPreviewBtn"
+          class="btn-primary"
+          disabled
+        >
+          Preview (Dry Run)
+        </button>
+      </div>
+	  
+<label style="display:block; margin:6px 0;">
+  <input type="checkbox" id="allowUpdatesToggle">
+  Allow updates to existing records
+</label>
+
+
+      <!-- Preview results -->
+      <div id="bulkUploadPreview"></div>
+
+      <!-- Commit -->
+      <div
+        id="bulkUploadCommit"
+        style="display:none; margin-top:12px;"
+      >
+        <button class="btn warn" id="bulkCommitBtn">
+          Commit Bulk Upload
+        </button>
+      </div>
+	  
+	  
+<div style="margin-top:12px">
+  <button class="btn warn" id="bulkRollbackBtn">
+    Undo Last Bulk Upload
+  </button>
+</div>
+
+	  
+    </div>
+  </div>
+</section>
+
+ </main>
+ </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+	
+	let currentProfile = null;
+	let currentCarlineEventId = null;
+	
+	
+// ===============================
+// Access role presets
+// ===============================
+
+const ACCESS_ROLE_PRESETS = {
+  teacher: {
+    can_login: true,
+
+    can_manage_staff: false,
+    can_manage_students: false,
+    can_manage_families: false,
+    can_manage_guardians: false,
+    can_manage_bus_groups: false,
+    can_manage_substitutes: false,
+
+    can_view_pto_calendar: false,
+    can_review_pto: false,
+    can_approve_pto: false,
+    can_adjust_pto: false,
+    can_generate_pto_reports: false,
+
+    can_view_carline: false,
+    can_bulk_upload: false,
+    can_manage_access: false,
+    can_access_admin: false
+  },
+
+  office: {
+    can_login: true,
+
+    can_manage_staff: false,
+    can_manage_students: true,
+    can_manage_families: true,
+    can_manage_guardians: true,
+    can_manage_bus_groups: true,
+    can_manage_substitutes: true,
+
+    can_view_pto_calendar: true,
+    can_review_pto: false,
+    can_approve_pto: false,
+    can_adjust_pto: false,
+    can_generate_pto_reports: false,
+
+    can_view_carline: true,
+    can_bulk_upload: false,
+    can_manage_access: false,
+    can_access_admin: true
+  },
+
+  admin: {
+    can_login: true,
+
+    can_manage_staff: true,
+    can_manage_students: true,
+    can_manage_families: true,
+    can_manage_guardians: true,
+    can_manage_bus_groups: true,
+    can_manage_substitutes: true,
+
+    can_view_pto_calendar: true,
+    can_review_pto: true,
+    can_approve_pto: true,
+    can_adjust_pto: true,
+    can_generate_pto_reports: true,
+
+    can_view_carline: true,
+    can_bulk_upload: true,
+    can_manage_access: true,
+    can_access_admin: true
+  }
+};
+
+
+document  .getElementById('accessPreset')
+  .addEventListener('change', async (e) => {
+    const presetKey = e.target.value;
+    if (!presetKey) return;
+
+    const userId = document.getElementById('accessUserSelect').value;
+    if (!userId) {
+      alert('Please select a staff member first.');
+      e.target.value = '';
+      return;
+    }
+
+
+    
+	// ===============================
+	// Self-lockout protection for presets
+	// ===============================
+	if (userId === currentProfile.user_id &&
+		ACCESS_ROLE_PRESETS[presetKey].can_manage_access === false) {
+	  alert(
+		'You cannot apply a role preset to yourself that removes access-management privileges.'
+	  );
+	  e.target.value = '';
+	  return;
+	}
+
+    const preset = ACCESS_ROLE_PRESETS[presetKey];
+    if (!preset) return;
+
+    const confirmText =
+      `Apply "${presetKey}" role preset?\n\n` +
+      `This will overwrite existing permissions for this user.`;
+
+    if (!confirm(confirmText)) {
+      e.target.value = '';
+      return;
+    }
+
+    const { error } = await supabase
+      .from('profiles')
+      .update(preset)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error(error);
+      alert('Failed to apply role preset.');
+      e.target.value = '';
+      return;
+    }
+
+    // ✅ Refresh permissions UI
+    await loadAccessProfile(userId);
+
+    // ✅ Reset dropdown
+    e.target.value = '';
+  });
+
+    
+    const SUPABASE_URL = 'https://lmvpjbzwdyfziedpeytd.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdnBqYnp3ZHlmemllZHBleXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODY5MTcsImV4cCI6MjA4OTI2MjkxN30.b1X1ru4NYlkDjHlsxZ82ZOwbVoZ_PhRsjf4Atfwa5G0';
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true }
+    });
+
+    const userEmailEl = document.getElementById('userEmail');
+    const signOutBtn = document.getElementById('signOut');
+    const badge = document.getElementById('adminBadge');
+    const pendingNotice = document.getElementById('pending');
+
+const BULK_SUPPORTED_SHEETS = [
+  'Families',
+  'Guardians',
+  'Students',
+  'Staff',
+  'Bus Groups'
+];
+
+// ===============================
+// Bulk Upload
+// ===============================
+// Bulk Upload Preview Wiring
+// ===============================
+
+const previewBtn = document.getElementById('bulkPreviewBtn');
+const fileInput = document.getElementById('bulkUploadFile');
+const sheetsContainer = document.getElementById('bulkUploadSheets');
+const checkboxesContainer = document.getElementById('bulkSheetCheckboxes');
+const allowUpdatesToggle = document.getElementById('allowUpdatesToggle');
+
+let uploadedFileBase64 = null;
+
+if (previewBtn && fileInput && sheetsContainer && checkboxesContainer) {
+
+  // FILE SELECT
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      uploadedFileBase64 = reader.result.split(',')[1];
+
+      // Parse workbook to detect sheet names
+      const binary = atob(uploadedFileBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+
+      const workbook = XLSX.read(bytes, { type: 'array' });
+      const sheetNames = workbook.SheetNames;
+
+      checkboxesContainer.innerHTML = '';
+      let validSheetsFound = false;
+
+      sheetNames.forEach(name => {
+        if (!BULK_SUPPORTED_SHEETS.includes(name)) return;
+
+        validSheetsFound = true;
+
+        const label = document.createElement('label');
+        label.style.display = 'block';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = name;
+        checkbox.checked = true;
+
+        label.appendChild(checkbox);
+        label.append(` ${name}`);
+        checkboxesContainer.appendChild(label);
+      });
+
+      sheetsContainer.style.display = validSheetsFound ? 'block' : 'none';
+      previewBtn.disabled = !validSheetsFound;
+    };
+
+    reader.readAsDataURL(file);
+  });
+
+  // PREVIEW CLICK
+  previewBtn.addEventListener('click', async () => {
+    if (!uploadedFileBase64) {
+      alert('Please select a file first.');
+      return;
+    }
+
+    const selectedSheets = Array.from(
+      document.querySelectorAll('#bulkSheetCheckboxes input:checked')
+    ).map(cb => cb.value);
+
+    if (selectedSheets.length === 0) {
+      alert('Select at least one sheet to upload.');
+      return;
+    }
+
+    const allowUpdates = allowUpdatesToggle?.checked === true;
+
+    const { data, error } = await supabase.functions.invoke(
+      'bulk_upload_preview',
+      {
+        body: {
+          file_base64: uploadedFileBase64,
+          selected_sheets: selectedSheets,
+          allow_updates: allowUpdates
+        }
+      }
+    );
+
+    if (error) {
+      console.error(error);
+      alert(error.message || 'Preview failed.');
+      return;
+    }
+
+    renderBulkPreview(data);
+    window.lastBulkPreviewResult = data;
+    window.lastBulkUploadFilename = fileInput.files[0]?.name;
+  });
+}
+
+// ===============================
+// Bulk Upload Commit Handler
+// ===============================
+
+const commitBtn = document.getElementById('bulkCommitBtn');
+
+if (commitBtn) {
+  commitBtn.addEventListener('click', async () => {
+    console.log('Commit button clicked');
+
+    if (!window.lastBulkPreviewResult) {
+      alert('No preview data available to commit.');
+      return;
+    }
+
+    commitBtn.disabled = true;
+    commitBtn.textContent = 'Committing...';
+
+    const { data, error } = await supabase.functions.invoke(
+      'bulk_upload_commit',
+      {
+        body: {
+          preview_result: window.lastBulkPreviewResult,
+          filename: window.lastBulkUploadFilename ?? null
+        }
+      }
+    );
+
+    commitBtn.disabled = false;
+    commitBtn.textContent = 'Commit Bulk Upload';
+
+    if (error) {
+      console.error(error);
+      alert(error.message || 'Commit failed.');
+      return;
+    }
+
+    alert('Bulk upload committed successfully!');
+  });
+}
+
+// ===============================
+// Bulk Upload Rollback Handler
+// ===============================
+
+const rollbackBtn = document.getElementById('bulkRollbackBtn');
+
+if (rollbackBtn) {
+  rollbackBtn.addEventListener('click', async () => {
+
+    if (!confirm(
+      'This will undo ALL inserts and updates from the most recent bulk upload.\n\nThis action cannot be undone.'
+    )) {
+      return;
+    }
+
+    const { data, error } = await supabase.functions.invoke(
+      'bulk_upload_rollback'
+    );
+
+	
+   // 👈 ADD THE CHECK RIGHT HERE
+    if (error && error.message?.includes('No rollback data')) {
+      alert('There is no completed bulk upload available to undo yet.');
+      return;
+    }
+
+
+    if (error) {
+      alert(error.message || 'Rollback failed');
+      return;
+    }
+
+    // ✅ Render rollback success preview
+    renderRollbackSuccess(data.summary);
+
+    // Optional: hide commit + rollback buttons
+    document.getElementById('bulkUploadCommit').style.display = 'none';
+    rollbackBtn.style.display = 'none';
+  });
+}
+
+async function setActive(hash) {
+  const target = hash || '#dashboard';
+
+  // Update nav active state
+  document.querySelectorAll('nav a').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === target);
+  });
+
+  // Hide all admin sections
+  document.querySelectorAll('.admin-section').forEach(section => {
+    section.classList.remove('active');
+  });
+
+  const activeSection = document.querySelector(target);
+  if (!activeSection) return;
+
+  activeSection.classList.add('active');
+
+  // Find fade target inside the section
+  const content = activeSection.querySelector('.admin-content.fade-in');
+  if (content) {
+    content.classList.remove('visible'); // reset animation
+  }
+
+  // --- Load data based on section ---
+  if (target === '#staff') {
+    await loadStaff();
+  }
+
+if (target === '#access') {
+  // ✅ Hard guard (defense in depth)
+  if (!currentProfile.is_superadmin && !currentProfile.can_manage_access) {
+    alert('You are not authorized to manage user access.');
+    return;
+  }
+  await loadAccessUserOptions();
+  await loadAccessManagement();
+  await loadPendingUsers();
+}
+
+
+if (target === '#students') {if (target === '#students') Promise.all([
+    loadFamilyOptions(),
+    loadBusGroupOptions()
+  ]);
+
+  await loadStudents();
+}
+
+
+  if (target === '#families') {
+    await loadFamilies();
+  }
+  
+if (target === '#guardians') {
+  await loadGuardianFamilyOptions();
+  await loadGuardians();
+}
+
+
+  if (target === '#bus') {
+    await loadBusGroups();
+  }
+
+  // Trigger fade-in AFTER data is loaded and skeletons are replaced
+
+// Trigger fade-in AFTER data is loaded
+requestAnimationFrame(() => {
+  if (content) {
+    content.classList.add('visible');
+  }
+
+  // Hide skeleton once real content is visible
+  const skeleton = activeSection.querySelector('.skeleton-container');
+  if (skeleton) {
+    skeleton.style.display = 'none';
+  }
+});
+
+}
+    window.addEventListener('hashchange', () => setActive(location.hash || '#dashboard'));
+
+async function waitForSession() {
+  // First, try to get an existing session
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (sessionData?.session) return sessionData.session;
+
+  // If not ready yet, wait for auth state change
+return new Promise((resolve) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        sub.subscription.unsubscribe();
+        resolve(session);
+      }
+    });
+  });
+}
+
+// ✅ Handle nav clicks manually (SPA-style)
+
+document.querySelectorAll('nav a').forEach(link => {
+  link.addEventListener('click', (e) => {
+    const href = link.getAttribute('href');
+
+    // ✅ Allow normal navigation for external / full-page links
+    if (!href.startsWith('#')) {
+      return; // let browser handle it normally
+    }
+
+    e.preventDefault(); // SPA navigation only for hash links
+    history.pushState(null, '', href);
+    setActive(href);
+  });
+});
+
+async function init() {
+  const session = await waitForSession();
+
+  if (!session?.user) {
+    window.location.href = '/login.html';
+    return;
+  }
+
+  const user = session.user;
+  
+if (userEmailEl) {
+  userEmailEl.textContent = user.email || '';
+}
+
+
+  /* -----------------------------
+     1. Load profile
+  ----------------------------- */
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
+
+  if (error) {
+    console.error('Profile load error:', error);
+    alert(JSON.stringify(error, null, 2));
+    return;
+  }
+
+  currentProfile = profile;
+
+
+
+
+  /* -----------------------------
+     2. Gate UI by capability
+  ----------------------------- */
+
+// ✅ PTO Management nav gating (viewer-based, OR permissions)
+const ptoNav = document.querySelector('nav a[data-cap-group="pto"]');
+
+const hasAnyPtoAccess =
+  currentProfile.is_superadmin === true ||
+  currentProfile.can_view_pto_calendar === true ||
+  currentProfile.can_review_pto === true ||
+  currentProfile.can_approve_pto === true ||
+  currentProfile.can_adjust_pto === true ||
+  currentProfile.can_generate_pto_reports === true;
+
+if (ptoNav) {
+  if (hasAnyPtoAccess) {
+    ptoNav.style.display = 'flex';
+  } else {
+    ptoNav.remove();
+  }
+}
+
+
+document
+  .querySelectorAll('nav a[data-cap]')
+  .forEach(link => {
+    const cap = link.dataset.cap;
+
+    if (currentProfile.is_superadmin || currentProfile[cap] === true) {
+      link.style.display = 'flex';   // ✅ reveal allowed items
+	  link.style.opacity = '1';
+    } else {
+      link.remove();                 // ✅ permanently remove disallowed
+    }
+  });
+
+
+
+ 
+  
+  if (!currentProfile.can_adjust_pto) {
+    const btn = document.getElementById('openAdjustPto');
+    if (btn) btn.style.display = 'none';
+  }
+  
+
+  
+if (profile.is_superadmin && badge) {
+  badge.style.display = 'inline-block';
+}
+
+  if (profile.status === 'pending') pendingNotice.style.display = 'block';
+
+  /* -----------------------------
+     3. Load school info
+  ----------------------------- */
+  if (profile.school_id) {
+    const { data: school } = await supabase
+      .from('schools')
+      .select('name, short_name, id')
+      .eq('id', profile.school_id)
+      .single();
+
+    const schoolInfo = document.getElementById('schoolInfo');
+    schoolInfo.textContent = school
+      ? `${school.name} (${school.short_name || school.id.slice(0, 8)})`
+      : 'No school assigned';
+  }
+
+
+  /* -----------------------------
+     5. Load remaining data
+  ----------------------------- */
+  await loadFamilyOptions();
+  await loadBusGroupOptions();
+
+
+  /* -----------------------------
+     6. Activate correct section
+  ----------------------------- */
+  setActive(location.hash || '#dashboard');
+    
+}
+
+async function loadStaff() {
+      const tbody = document.querySelector('#staffTable tbody');
+      tbody.innerHTML = '';
+      const { data, error } = await supabase
+        .from('employees')
+        .select('id, first_name, last_name, email, position, active')
+        .order('last_name', { ascending: true })
+        .limit(50);
+      if (error) { console.error(error); return; }
+      (data || []).forEach(r => {
+      
+const tr = document.createElement('tr');
+tr.innerHTML = `
+  <td>
+    <span class="view">${r.first_name} ${r.last_name}</span>
+    <div class="edit" style="display:none; gap:4px;">
+      <input class="form-input first" value="${r.first_name}" placeholder="First" style="width:48%;" />
+      <input class="form-input last" value="${r.last_name}" placeholder="Last" style="width:48%;" />
+    </div>
+  </td>
+
+  <td>
+    <span class="view">${r.email || ''}</span>
+    <input class="form-input edit email" value="${r.email || ''}" style="display:none;" />
+  </td>
+
+  <td>
+    <span class="view">${r.position || ''}</span>
+    <input class="form-input edit position" value="${r.position || ''}" style="display:none;" />
+  </td>
+
+  <td>
+    <span class="view">${r.active ? 'Yes' : 'No'}</span>
+    <input type="checkbox" class="edit active" ${r.active ? 'checked' : ''} style="display:none;" />
+  </td>
+
+  <td>
+    <button class="btn editBtn">Edit</button>
+    <button class="btn saveBtn" style="display:none;">Save</button>
+    <button class="btn deleteBtn">Delete</button>
+  </td>
+`;
+const editBtn = tr.querySelector('.editBtn');
+const saveBtn = tr.querySelector('.saveBtn');
+const deleteBtn = tr.querySelector('.deleteBtn');
+
+const views = tr.querySelectorAll('.view');
+const edits = tr.querySelectorAll('.edit');
+
+editBtn.addEventListener('click', () => {
+  views.forEach(v => v.style.display = 'none');
+  edits.forEach(e => e.style.display = 'inline-flex');
+  editBtn.style.display = 'none';
+  saveBtn.style.display = 'inline-block';
+});
+
+saveBtn.addEventListener('click', async () => {
+  const updated = {
+    first_name: tr.querySelector('.first').value.trim(),
+    last_name: tr.querySelector('.last').value.trim(),
+    email: tr.querySelector('.email').value.trim(),
+    position: tr.querySelector('.position').value.trim(),
+    active: tr.querySelector('.active').checked
+  };
+
+  if (!updated.first_name || !updated.last_name) {
+    alert('First and last name are required.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('employees')
+    .update(updated)
+    .eq('id', r.id);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to update staff');
+    return;
+  }
+
+  loadStaff();
+});
+
+deleteBtn.addEventListener('click', () => {
+  deleteStaff(r.id);
+});
+
+        tbody.appendChild(tr);
+      });
+    }
+	
+async function createStaff() {
+  if (!currentProfile) return;
+
+  const first = document.getElementById('staffFirst').value.trim();
+  const last = document.getElementById('staffLast').value.trim();
+  const email = document.getElementById('staffEmail').value.trim();
+  const position = document.getElementById('staffPosition').value.trim();
+  const isApprover = document.getElementById('staffApprover').checked;
+
+  if (!first || !last) {
+    alert('First and last name are required.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('employees')
+    .insert({
+      school_id: currentProfile.school_id,
+      first_name: first,
+      last_name: last,
+      email,
+      position,
+      active: true
+    });
+
+  if (error) {
+    console.error(error);
+    alert('Failed to add staff');
+    return;
+  }
+
+  document.getElementById('staffFirst').value = '';
+  document.getElementById('staffLast').value = '';
+  document.getElementById('staffEmail').value = '';
+  document.getElementById('staffPosition').value = '';
+  document.getElementById('staffApprover').checked = false;
+
+  loadStaff();
+}
+
+async function deleteStaff(id) {
+  if (!confirm('Delete this staff member?')) return;
+
+  const { error } = await supabase
+    .from('employees')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to delete staff');
+    return;
+  }
+
+  loadStaff();
+}
+
+async function loadFamilyOptions() {
+  const select = document.getElementById('studentFamily');
+  select.innerHTML = '<option value="">Select family</option>';
+
+  const { data } = await supabase
+    .from('families')
+    .select('id, carline_tag_number, family_name')
+    .eq('active', true)
+    .order('carline_tag_number');
+
+  (data || []).forEach(f => {
+    const label = `${f.carline_tag_number} – ${f.family_name || '(no name)'}`;
+    const opt = document.createElement('option');
+    opt.value = f.id;
+    opt.textContent = label;
+    select.appendChild(opt);
+  });
+}
+
+async function loadBusGroupOptions() {
+  const select = document.getElementById('studentBusGroup');
+  select.innerHTML = '<option value="">No bus</option>';
+
+  const { data } = await supabase
+    .from('bus_groups')
+    .select('id, name')
+    .order('name');
+
+  (data || []).forEach(bg => {
+    const opt = document.createElement('option');
+    opt.value = bg.id;
+    opt.textContent = bg.name;
+    select.appendChild(opt);
+  });
+}
+
+async function loadStudents() {
+  const tbody = document.querySelector('#studentsTable tbody');
+  if (!tbody) return;
+  
+  tbody.innerHTML = '';
+
+  const { data } = await supabase
+    .from('students')
+    .select(`
+	  id,
+	  student_number,
+	  first_name,
+	  last_name,
+	  grade_level,
+	  homeroom_teacher,
+	  active,
+	  families(carline_tag_number, family_name),
+	  bus_groups(id, name)
+	`)
+    .order('last_name');
+
+  (data || []).forEach(r => {
+    const familyLabel = r.families
+      ? `${r.families.carline_tag_number} – ${r.families.family_name || '(no name)'}`
+      : '';
+
+    const tr = document.createElement('tr');
+   tr.innerHTML = `
+  <td>
+    <span class="view">${r.first_name} ${r.last_name}</span>
+    <div class="edit" style="display:none; gap:4px;">
+      <input class="form-input first" value="${r.first_name}" placeholder="First" style="width:48%;" />
+      <input class="form-input last" value="${r.last_name}" placeholder="Last" style="width:48%;" />
+    </div>
+  </td>
+
+<td>
+  <input
+    class="form-input readonly student-number"
+    value="${r.student_number || ''}"
+    readonly
+    title="Student Number"
+    style="width:120px;"
+  />
+</td>
+
+  <td>${familyLabel}</td>
+
+  <td>
+    <span class="view">${r.grade_level || ''}</span>
+    <input class="form-input edit grade" value="${r.grade_level || ''}" style="display:none; width:60px;" />
+  </td>
+
+  <td>
+    <span class="view">${r.homeroom_teacher || ''}</span>
+    <input class="form-input edit homeroom" value="${r.homeroom_teacher || ''}" style="display:none;" />
+  </td>
+
+  <td>
+    <span class="view">${r.bus_groups?.name || ''}</span>
+    <select class="edit bus" style="display:none;"></select>
+  </td>
+
+  <td>
+    <span class="view">${r.active ? 'Yes' : 'No'}</span>
+    <input type="checkbox" class="edit active" ${r.active ? 'checked' : ''} style="display:none;" />
+  </td>
+
+  <td>
+    <button class="btn editBtn">Edit</button>
+    <button class="btn saveBtn" style="display:none;">Save</button>
+    <button class="btn deleteBtn">Delete</button>
+  </td>
+`;
+
+
+ // 2️Populate the bus group dropdown FOR THIS ROW
+  const busSelect = tr.querySelector('.bus');
+  document.querySelectorAll('#studentBusGroup option').forEach(opt => {
+    busSelect.appendChild(opt.cloneNode(true));
+  });
+  busSelect.value = r.bus_groups?.id || '';
+
+  // 3️Wire buttons (Edit / Save / Delete)
+  const editBtn = tr.querySelector('.editBtn');
+  const saveBtn = tr.querySelector('.saveBtn');
+  const deleteBtn = tr.querySelector('.deleteBtn');
+
+  const views = tr.querySelectorAll('.view');
+  const edits = tr.querySelectorAll('.edit');
+
+  editBtn.addEventListener('click', () => {
+    views.forEach(v => v.style.display = 'none');
+    edits.forEach(e => e.style.display = 'inline-flex');
+    editBtn.style.display = 'none';
+    saveBtn.style.display = 'inline-block';
+  });
+
+ saveBtn.addEventListener('click', async () => {
+  const updated = {
+    first_name: tr.querySelector('.first').value.trim(),
+    last_name: tr.querySelector('.last').value.trim(),
+    grade_level: tr.querySelector('.grade').value.trim(),
+    homeroom_teacher: tr.querySelector('.homeroom').value.trim(),
+    bus_group_id: tr.querySelector('.bus').value || null,
+    active: tr.querySelector('.active').checked
+  };
+
+  if (!updated.first_name || !updated.last_name) {
+    alert('First and last name are required.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('students')
+    .update(updated)
+    .eq('id', r.id);
+
+  if (error) {
+    console.error('Student update error:', error);
+    alert('Failed to update student');
+    return;
+  }
+
+  loadStudents();
+});
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteStudent(r.id);
+  });
+
+  // 4️Finally append the row to the table
+  tbody.appendChild(tr);
+});
+}
+
+async function createStudent() {
+  if (!currentProfile) return;
+
+  const student = {
+    school_id: currentProfile.school_id,
+    family_id: document.getElementById('studentFamily').value,
+    first_name: document.getElementById('studentFirst').value.trim(),
+    last_name: document.getElementById('studentLast').value.trim(),
+    grade_level: document.getElementById('studentGrade').value.trim(),
+    homeroom_teacher: document.getElementById('studentHomeroom').value.trim(),
+    bus_group_id: document.getElementById('studentBusGroup').value || null,
+    active: true
+  };
+
+  if (!student.first_name || !student.last_name || !student.family_id) {
+    alert('First name, last name, and family are required.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('students')
+    .insert(student);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to add student');
+    return;
+  }
+
+  loadStudents();
+}
+
+async function deleteStudent(id) {
+  if (!confirm('Delete this student?')) return;
+
+  const { error } = await supabase
+    .from('students')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to delete student');
+    return;
+  }
+
+  loadStudents();
+}
+
+async function loadBusGroups() {
+      const tbody = document.querySelector('#busTable tbody');
+      tbody.innerHTML = '';
+      const { data, error } = await supabase
+        .from('bus_groups')
+        .select('id, name, route_number')
+        .order('name', { ascending: true });
+      if (error) { console.error(error); return; }
+     (data || []).forEach(r => {
+  const tr = document.createElement('tr');
+tr.innerHTML = `
+  <td>
+    <span class="view">${r.name}</span>
+    <input class="form-input edit" value="${r.name}" style="display:none;" />
+  </td>
+  <td>
+    <span class="view">${r.route_number || ''}</span>
+    <input class="form-input edit" value="${r.route_number || ''}" style="display:none;" />
+  </td>
+  <td>
+    <button class="btn editBtn">Edit</button>
+    <button class="btn saveBtn" style="display:none;">Save</button>
+    <button class="btn deleteBtn">Delete</button>
+  </td>
+`;
+const editBtn = tr.querySelector('.editBtn');
+const saveBtn = tr.querySelector('.saveBtn');
+const deleteBtn = tr.querySelector('.deleteBtn');
+
+const views = tr.querySelectorAll('.view');
+const edits = tr.querySelectorAll('.edit');
+
+editBtn.addEventListener('click', () => {
+  views.forEach(v => v.style.display = 'none');
+  edits.forEach(e => e.style.display = 'inline-block');
+  editBtn.style.display = 'none';
+  saveBtn.style.display = 'inline-block';
+});
+
+saveBtn.addEventListener('click', async () => {
+  const newName = edits[0].value.trim();
+  const newRoute = edits[1].value.trim();
+
+  if (!newName) {
+    alert('Name is required');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('bus_groups')
+    .update({
+      name: newName,
+      route_number: newRoute
+    })
+    .eq('id', r.id);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to update bus group');
+    return;
+  }
+
+  loadBusGroups();
+});
+
+deleteBtn.addEventListener('click', () => {
+  deleteBusGroup(r.id);
+});
+
+  tbody.appendChild(tr);
+});
+    }
+	
+async function createBusGroup() {
+  const name = document.getElementById('busName').value.trim();
+  const route = document.getElementById('busRoute').value.trim();
+
+  if (!name) {
+    alert('Please enter a bus group name.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('bus_groups')
+    .insert({
+  name,
+  route_number: route,
+  school_id: currentProfile.school_id
+});
+
+  if (error) {
+    console.error(error);
+    alert('Failed to create bus group');
+    return;
+  }
+
+  // Clear inputs
+  document.getElementById('busName').value = '';
+  document.getElementById('busRoute').value = '';
+
+  // Reload table
+  loadBusGroups();
+}
+
+async function deleteBusGroup(id) {
+  if (!confirm('Delete this bus group?')) return;
+
+  const { error } = await supabase
+    .from('bus_groups')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Delete failed:', error);
+    alert('Failed to delete bus group');
+    return; // ⛔ STOP here if delete fails
+  }
+
+  loadBusGroups(); // ✅ only reload if delete succeeded
+}
+
+async function loadFamilies() {
+  const tbody = document.querySelector('#familiesTable tbody');
+  tbody.innerHTML = '';
+
+  const { data, error } = await supabase
+    .from('families')
+    .select('id, carline_tag_number, family_name, active')
+    .order('carline_tag_number');
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  (data || []).forEach(r => {
+    const tr = document.createElement('tr');
+   tr.innerHTML = `
+  <td>
+    <span class="view">${r.carline_tag_number}</span>
+    <input class="form-input edit tag" value="${r.carline_tag_number}" style="display:none; width:80px;" />
+  </td>
+
+  <td>
+    <span class="view">${r.family_name || ''}</span>
+    <input class="form-input edit name" value="${r.family_name || ''}" style="display:none;" />
+  </td>
+
+  <td>
+    <span class="view">${r.active ? 'Yes' : 'No'}</span>
+    <input type="checkbox" class="edit active" ${r.active ? 'checked' : ''} style="display:none;" />
+  </td>
+
+  <td>
+    <button class="btn editBtn">Edit</button>
+    <button class="btn saveBtn" style="display:none;">Save</button>
+    <button class="btn deleteBtn">Delete</button>
+  </td>
+`;
+
+const editBtn = tr.querySelector('.editBtn');
+const saveBtn = tr.querySelector('.saveBtn');
+const deleteBtn = tr.querySelector('.deleteBtn');
+
+const views = tr.querySelectorAll('.view');
+const edits = tr.querySelectorAll('.edit');
+
+// EDIT
+editBtn.addEventListener('click', () => {
+  views.forEach(v => v.style.display = 'none');
+  edits.forEach(e => e.style.display = 'inline-block');
+  editBtn.style.display = 'none';
+  saveBtn.style.display = 'inline-block';
+});
+
+// SAVE
+saveBtn.addEventListener('click', async () => {
+  const updated = {
+    carline_tag_number: tr.querySelector('.tag').value.trim(),
+    family_name: tr.querySelector('.name').value.trim() || null,
+    active: tr.querySelector('.active').checked
+  };
+
+  if (!updated.carline_tag_number) {
+    alert('Carline tag number is required.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('families')
+    .update(updated)
+    .eq('id', r.id);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to update family (duplicate tag?)');
+    return;
+  }
+
+  loadFamilies();
+});
+
+// DELETE (make sure this is the ONLY delete wiring)
+deleteBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  deleteFamily(r.id);
+});
+    tbody.appendChild(tr);
+  });
+}
+
+async function createFamily() {
+  if (!currentProfile) return;
+
+  const tag = document.getElementById('familyTag').value.trim();
+  const name = document.getElementById('familyName').value.trim();
+
+  if (!tag) {
+    alert('Carline tag number is required.');
+    return;
+  }
+
+  const { error } = await supabase
+    .from('families')
+    .insert({
+      school_id: currentProfile.school_id,
+      carline_tag_number: tag,
+      family_name: name || null,
+      active: true
+    });
+
+  if (error) {
+    console.error(error);
+    alert('Failed to add family (check for duplicate tag).');
+    return;
+  }
+
+  document.getElementById('familyTag').value = '';
+  document.getElementById('familyName').value = '';
+
+  loadFamilies();
+  await loadFamilyOptions();
+}
+
+async function deleteFamily(id) {
+  if (!confirm('Delete this family?')) return;
+
+  const { error } = await supabase
+    .from('families')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to delete family.');
+    return;
+  }
+
+  loadFamilies();
+  await loadFamilyOptions();
+}
+
+async function loadGuardianFamilyOptions() {
+  const select = document.getElementById('guardianFamily');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">Select family</option>';
+
+  const result = await supabase
+    .from('families')
+    .select('id, carline_tag_number, family_name')
+    .eq('active', true)
+    .order('carline_tag_number');
+
+  if (result.error) {
+    console.error('Failed to load families for guardians:', result.error);
+    return;
+  }
+
+  (result.data || []).forEach(function (f) {
+    const opt = document.createElement('option');
+    opt.value = f.id;
+    opt.textContent =
+      f.carline_tag_number +
+      ' – ' +
+      (f.family_name || '(no name)');
+    select.appendChild(opt);
+  });
+}
+
+async function loadGuardians() {
+  const tbody = document.querySelector('#guardiansTable tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  const result = await supabase
+    .from('guardians')
+    .select(`
+      id,
+      first_name,
+      last_name,
+      email,
+      phone,
+      active,
+      families(carline_tag_number, family_name)
+    `)
+    .order('last_name');
+	console.log('Guardians query result:', result);
+
+  if (result.error) {
+    console.error('Failed to load guardians:', result.error);
+    return;
+  }
+
+  (result.data || []).forEach(function (g) {
+    const tr = document.createElement('tr');
+
+    const familyLabel = g.families
+      ? g.families.carline_tag_number +
+        ' – ' +
+        (g.families.family_name || '(no name)')
+      : '';
+
+    tr.innerHTML = `
+      <td>
+        <span class="view">${g.first_name} ${g.last_name}</span>
+        <div class="edit" style="display:none; gap:4px;">
+          <input class="form-input first" value="${g.first_name}" />
+          <input class="form-input last" value="${g.last_name}" />
+        </div>
+      </td>
+
+      <td>${familyLabel}</td>
+
+      <td>
+        <span class="view">${g.email || ''}</span>
+        <input class="form-input edit email" value="${g.email || ''}" style="display:none;" />
+      </td>
+
+      <td>
+        <span class="view">${g.phone || ''}</span>
+        <input class="form-input edit phone" value="${g.phone || ''}" style="display:none;" />
+      </td>
+
+      <td>
+        <span class="view">${g.active ? 'Yes' : 'No'}</span>
+        <input type="checkbox" class="edit active" ${g.active ? 'checked' : ''} style="display:none;" />
+      </td>
+
+      <td>
+        <button class="btn editBtn">Edit</button>
+        <button class="btn saveBtn" style="display:none;">Save</button>
+        <button class="btn deleteBtn">Delete</button>
+      </td>
+    `;
+
+    wireGuardianRow(tr, g.id);
+    tbody.appendChild(tr);
+  });
+}
+
+function wireGuardianRow(tr, guardianId) {
+  const editBtn   = tr.querySelector('.editBtn');
+  const saveBtn   = tr.querySelector('.saveBtn');
+  const deleteBtn = tr.querySelector('.deleteBtn');
+
+  const views = tr.querySelectorAll('.view');
+  const edits = tr.querySelectorAll('.edit');
+
+  // ✅ Permission guard
+  if (!currentProfile || currentProfile.can_manage_guardians !== true) {
+    if (editBtn) editBtn.style.display = 'none';
+    if (deleteBtn) deleteBtn.style.display = 'none';
+    return;
+  }
+
+  editBtn.onclick = function () {
+    views.forEach(function (v) {
+      v.style.display = 'none';
+    });
+    edits.forEach(function (e) {
+      e.style.display = 'inline-flex';
+    });
+    editBtn.style.display = 'none';
+    saveBtn.style.display = 'inline-block';
+  };
+
+  saveBtn.onclick = async function () {
+    const updated = {
+      first_name: tr.querySelector('.first').value.trim(),
+      last_name:  tr.querySelector('.last').value.trim(),
+      email:      tr.querySelector('.email').value.trim(),
+      phone:      tr.querySelector('.phone').value.trim(),
+      active:     tr.querySelector('.active').checked
+    };
+
+    const result = await supabase
+      .from('guardians')
+      .update(updated)
+      .eq('id', guardianId);
+
+    if (result.error) {
+      alert('Failed to update guardian');
+      console.error(result.error);
+      return;
+    }
+
+    loadGuardians();
+  };
+
+  deleteBtn.onclick = function () {
+    if (!confirm('Delete this guardian?')) return;
+
+    supabase
+      .from('guardians')
+      .delete()
+      .eq('id', guardianId)
+      .then(loadGuardians);
+  };
+}
+
+async function createGuardian() {
+  // ✅ Permission guard
+  if (!currentProfile || currentProfile.can_manage_guardians !== true) {
+    alert('You do not have permission to manage guardians.');
+    return;
+  }
+
+  const guardian = {
+    school_id: currentProfile.school_id,
+    family_id: document.getElementById('guardianFamily').value,
+    first_name: document.getElementById('guardianFirst').value.trim(),
+    last_name: document.getElementById('guardianLast').value.trim(),
+    email: document.getElementById('guardianEmail').value.trim(),
+    phone: document.getElementById('guardianPhone').value.trim(),
+    active: true
+  };
+
+  // ✅ Required field validation
+  if (!guardian.first_name || !guardian.last_name || !guardian.family_id) {
+    alert('First name, last name, and family are required.');
+    return;
+  }
+
+  const result = await supabase
+    .from('guardians')
+    .insert(guardian);
+
+  if (result.error) {
+    alert('Failed to add guardian');
+    console.error(result.error);
+    return;
+  }
+
+  // ✅ Clear inputs (optional UX polish)
+  document.getElementById('guardianFirst').value = '';
+  document.getElementById('guardianLast').value = '';
+  document.getElementById('guardianEmail').value = '';
+  document.getElementById('guardianPhone').value = '';
+  document.getElementById('guardianFamily').value = '';
+
+  loadGuardians();
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function renderBulkPreview(result) {
+  const container = document.getElementById('bulkUploadPreview');
+  container.innerHTML = '';
+
+  /* ======================
+     Helper lookups (safe fallback)
+     ====================== */
+  const busGroupIdToName = window.busGroupIdToName || {};
+
+  /* ======================
+     Preview guidance
+     ====================== */
+  const note = document.createElement('div');
+  note.style.fontSize = '13px';
+  note.style.color = '#555';
+  note.style.marginBottom = '8px';
+  note.textContent =
+    'Updates only show details when values will actually change. Rows marked “no changes” are already up to date.';
+  container.appendChild(note);
+
+  /* ======================
+     SUMMARY (Badges per sheet)
+     ====================== */
+  Object.entries(result.summary || {}).forEach(([sheet, counts]) => {
+    const row = document.createElement('div');
+    row.style.marginBottom = '10px';
+
+    row.innerHTML = `
+      <strong>${sheet}</strong><br>
+      <span class="badge badge-insert">Insert: ${counts.insert ?? 0}</span>
+      <span class="badge badge-update">Update: ${counts.update ?? 0}</span>
+      <span class="badge badge-skip">Skip: ${counts.skip ?? 0}</span>
+      <span class="badge badge-error">Error: ${counts.error ?? 0}</span>
+    `;
+
+    container.appendChild(row);
+  });
+
+  /* ======================
+     DETAILS / DIFF PREVIEW
+     ====================== */
+  Object.entries(result.details || {}).forEach(([sheetName, rows]) => {
+    rows.forEach(row => {
+      if (
+        row.action !== 'update' &&
+        row.action !== 'skip' &&
+        row.action !== 'error'
+      ) return;
+
+      const box = document.createElement('div');
+      box.style.margin = '10px 0';
+      box.style.padding = '8px';
+      box.style.border = '1px solid #ddd';
+      box.style.borderRadius = '6px';
+
+      let badgeClass = 'badge-insert';
+      if (row.action === 'update') badgeClass = 'badge-update';
+      if (row.action === 'skip')   badgeClass = 'badge-skip';
+      if (row.action === 'error')  badgeClass = 'badge-error';
+
+      const header = document.createElement('div');
+      header.innerHTML = `
+        <span class="badge ${badgeClass}">${row.action.toUpperCase()}</span>
+        <strong>${sheetName} — Row ${row.row}</strong>
+      `;
+      box.appendChild(header);
+	  
+	
+if (row.meta?.student_number_generated) {
+  const gen = document.createElement('div');
+  gen.style.fontSize = '12px';
+  gen.style.marginTop = '4px';
+  gen.style.color = '#8d6e00';
+  gen.innerHTML = `
+    <span class="badge badge-generated">AUTO-GENERATED</span>
+    Student Number: ${row.data.student_number}
+  `;
+  box.appendChild(gen);
+}
+
+
+      /* ----- UPDATE with NO changes ----- */
+      if (row.action === 'update' && (!row.diff || Object.keys(row.diff).length === 0)) {
+        const note = document.createElement('div');
+        note.style.fontSize = '12px';
+        note.style.color = '#666';
+        note.textContent = 'No changes detected (already up to date)';
+        box.appendChild(note);
+      }
+
+      /* ----- UPDATE with DIFF ----- */
+      if (row.action === 'update' && row.diff && Object.keys(row.diff).length > 0) {
+        const normalizedDiff = JSON.parse(JSON.stringify(row.diff));
+
+        Object.entries(normalizedDiff).forEach(([field, change]) => {
+          if (field === 'bus_group_name' && change.before) {
+            change.before =
+              busGroupIdToName[change.before] ?? 'Previously Assigned';
+          }
+        });
+
+        const diffPre = document.createElement('pre');
+        diffPre.style.marginTop = '6px';
+        diffPre.textContent = JSON.stringify(normalizedDiff, null, 2);
+        box.appendChild(diffPre);
+      }
+
+      /* ----- SKIP reason ----- */
+      if (row.action === 'skip' && row.reason) {
+        const reason = document.createElement('div');
+        reason.style.marginTop = '4px';
+        reason.style.fontSize = '12px';
+        reason.style.color = '#666';
+        reason.textContent = row.reason;
+        box.appendChild(reason);
+      }
+
+      /* ----- ERROR message ----- */
+      if (row.action === 'error' && row.error) {
+        const err = document.createElement('div');
+        err.style.marginTop = '4px';
+        err.style.fontSize = '12px';
+        err.style.color = '#c62828';
+        err.textContent = row.error;
+        box.appendChild(err);
+      }
+
+      container.appendChild(box);
+    });
+  });
+
+  /* ======================
+     COMMIT BUTTON GUARD
+     ====================== */
+  const totalInserts = Object.values(result.summary || {})
+    .reduce((sum, s) => sum + (s.insert ?? 0), 0);
+
+  const totalUpdates = Object.values(result.summary || {})
+    .reduce((sum, s) => sum + (s.update ?? 0), 0);
+
+  const commitSection = document.getElementById('bulkUploadCommit');
+
+  if (!result.blockingErrors && (totalInserts + totalUpdates > 0)) {
+    commitSection.style.display = 'block';
+  } else {
+    commitSection.style.display = 'none';
+  }
+}
+
+function renderRollbackSuccess(summary) {
+  const container = document.getElementById('bulkUploadPreview');
+  container.innerHTML = '';
+
+  const title = document.createElement('h3');
+  title.textContent = '✅ Rollback Complete';
+  container.appendChild(title);
+
+  const note = document.createElement('div');
+  note.style.marginBottom = '10px';
+  note.style.color = '#555';
+  note.textContent = 'The following changes were successfully undone:';
+  container.appendChild(note);
+
+  
+Object.entries(summary || {}).forEach(([sheet, counts]) => {
+  if (
+    counts.reverted_updates === 0 &&
+    counts.removed_inserts === 0
+  ) return;
+
+  const block = document.createElement('div');
+  block.style.marginBottom = '8px';
+
+  let html = `<strong>${sheet}</strong><br>`;
+
+  if (counts.reverted_updates > 0) {
+    html += `
+      <span class="badge badge-update">
+        ${counts.reverted_updates} update(s) reverted
+      </span>
+    `;
+  }
+
+  if (counts.removed_inserts > 0) {
+    html += `
+      <span class="badge badge-skip">
+        ${counts.removed_inserts} insert(s) removed
+      </span>
+    `;
+  }
+
+  block.innerHTML = html;
+  container.appendChild(block);
+});
+}
+
+async function loadAccessManagement() {
+  const tbody = document.querySelector('#accessTable tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  const { data, error } = await supabase
+    .from('profiles')
+    
+.select(`
+  user_id,
+  display_name,
+  email,
+  is_superadmin,
+  can_login,
+  can_access_admin,
+  can_manage_access,
+
+  can_review_pto,
+  can_approve_pto,
+  can_adjust_pto,
+  can_generate_pto_reports,
+
+  can_manage_staff,
+  can_manage_students,
+  can_manage_families,
+  can_manage_guardians,
+  can_manage_bus_groups,
+  can_manage_substitutes,
+  can_view_carline,
+  can_bulk_upload
+`)
+
+    .eq('school_id', currentProfile.school_id)
+    .order('display_name');
+
+  if (error) {
+    console.error(error);
+    alert('Failed to load access list.');
+    return;
+  }
+
+  (data || []).forEach(p => {
+    const tr = document.createElement('tr');
+
+    // Superadmin rows are read-only
+    const disabled = p.is_superadmin ? 'disabled' : '';
+
+    tr.innerHTML = `
+      <td>${p.display_name || '—'}</td>
+      <td>${p.email}</td>
+      ${checkboxCell('can_login', p, disabled)}
+      ${checkboxCell('can_access_admin', p, disabled)}
+      ${checkboxCell('can_review_pto', p, disabled)}
+      ${checkboxCell('can_approve_pto', p, disabled)}
+      ${checkboxCell('can_adjust_pto', p, disabled)}
+      ${checkboxCell('can_generate_pto_reports', p, disabled)}
+      ${checkboxCell('can_manage_access', p, disabled)}
+    `;
+
+    tbody.appendChild(tr);
+  });
+  
+document.querySelectorAll('.access-toggle').forEach(cb => {
+  cb.addEventListener('change', () => {
+    toggleProfilePermission(cb);
+  });
+});
+  const tr = document.createElement('tr');
+
+}
+
+async function loadAccessUserOptions() {
+  const select = document.getElementById('accessUserSelect');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">Select staff member…</option>';
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('user_id, display_name, email')
+    .eq('school_id', currentProfile.school_id)
+    .order('display_name');
+
+  if (error) {
+    console.error(error);
+    alert('Failed to load staff list.');
+    return;
+  }
+
+  (data || []).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.user_id;
+    opt.textContent = `${p.display_name || '(No name)'} — ${p.email}`;
+    select.appendChild(opt);
+  });
+}
+
+async function loadAccessProfile(userId) {
+  if (!userId) return;
+
+  const { data: p, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', userId)
+    .single();
+
+  if (error) {
+    console.error(error);
+    alert('Failed to load user access profile.');
+    return;
+  }
+
+  // Populate identity info
+  document.getElementById('accessUserMeta').innerHTML = `
+    <strong>${p.display_name || '—'}</strong><br>
+    ${p.email}
+  `;
+
+  // Populate permission checkboxes
+  document
+    .querySelectorAll('#accessPermissions input[type="checkbox"]')
+    .forEach(cb => {
+      const field = cb.dataset.field;
+      cb.checked = p[field] === true;
+      cb.disabled = p.is_superadmin === true ||
+  (p.user_id === currentProfile.user_id &&
+   cb.dataset.field === 'can_manage_access');
+      cb.dataset.user = p.user_id;
+    });
+	
+	
+const statusSelect = document.getElementById('accessStatusSelect');
+if (statusSelect) {
+  statusSelect.value = p.status;
+  statusSelect.dataset.user = p.user_id;
+}
+
+
+const statusPanel = document.getElementById('accountStatusPanel');
+if (statusPanel) {
+  statusPanel.style.display = 'block';
+}
+
+
+  // Show permissions panel
+  document.getElementById('accessPermissions').style.display = 'block';
+
+  // ✅ Wire change handlers AFTER checkboxes are populated
+  document
+    .querySelectorAll('#accessPermissions input[type="checkbox"]')
+    .forEach(cb => {
+      cb.onchange = () => toggleAccessPermission(cb);
+    });
+}
+
+async function toggleAccessPermission(cb) {
+
+  const userId = cb.dataset.user;
+  const field = cb.dataset.field;
+  const newValue = cb.checked;
+ 
+  
+// ===============================
+// Self-lockout protection
+// ===============================
+if (
+  cb.dataset.field === 'can_manage_access' &&
+  cb.dataset.user === currentProfile.user_id &&
+  cb.checked === false
+) {
+  alert(
+    'You cannot remove your own access-management permissions.\n\n' +
+    'Ask another administrator if this change is required.'
+  );
+
+  // Revert the toggle immediately
+  cb.checked = true;
+  return;
+}
+
+  // Fetch old value (for audit later)
+  const { data: existing, error: fetchErr } = await supabase
+    .from('profiles')
+    .select(field)
+    .eq('user_id', userId)
+    .single();
+
+  if (fetchErr) {
+    cb.checked = !newValue;
+    return;
+  }
+
+  const oldValue = existing[field];
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ [field]: newValue })
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error(error);
+    alert('Permission update failed.');
+    cb.checked = !newValue;
+    return;
+  }
+
+  // Audit logging added in next step
+}
+
+async function loadPendingUsers() {
+  const tbody = document.getElementById('pendingUsersTable');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('user_id, display_name, email')
+    .eq('status', 'pending')
+    .order('email');
+
+  if (error || !data || data.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="3" class="muted">No pending users</td>
+      </tr>
+    `;
+    return;
+  }
+
+  data.forEach(p => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${p.display_name ?? '—'}</td>
+      <td>${p.email}</td>
+      <td>
+        <button class="btn btn-primary">Activate</button>
+      </td>
+    `;
+
+    tr.querySelector('button').addEventListener('click', async () => {
+      await supabase
+        .from('profiles')
+        .update({ status: 'active' })
+        .eq('user_id', p.user_id);
+
+      loadPendingUsers();
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+    signOutBtn.addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      window.location.href = '/login.html';
+    });
+	
+	
+
+document.getElementById('accessStatusSelect')?.addEventListener('change', async (e) => {
+  const userId = e.target.dataset.user;
+  const newStatus = e.target.value;
+
+  if (!userId) return;
+
+  const confirmed = confirm(
+    `Set this user to "${newStatus.toUpperCase()}"?\n\n` +
+    (newStatus === 'pending'
+      ? 'They will lose access immediately.'
+      : 'They will be able to access staff/admin portals.')
+  );
+
+  if (!confirmed) {
+    await loadAccessProfile(userId);
+    return;
+  }
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ status: newStatus })
+    .eq('user_id', userId);
+
+  if (error) {
+    alert('Failed to update user status.');
+    console.error(error);
+    return;
+  }
+
+  await loadAccessProfile(userId);
+});
+
+	
+//Wire Buttons
+
+document
+  .getElementById('accessUserSelect')
+  .addEventListener('change', e => {
+    loadAccessProfile(e.target.value);
+  });
+
+	
+document.getElementById('addStaff')
+ .addEventListener('click', createStaff);
+	
+document.getElementById('addFamily')
+  .addEventListener('click', createFamily);
+
+document.getElementById('addStudent')
+  .addEventListener('click', createStudent);
+
+document.getElementById('addBusGroup')
+  .addEventListener('click', createBusGroup);
+  
+document
+  .getElementById('addGuardian')
+  ?.addEventListener('click', createGuardian);
+
+
+    init();
+  </script>
+</body>
+</html>
