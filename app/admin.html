@@ -14,7 +14,7 @@
   }
 	</style>
 
-  <link rel="stylesheet" href="/app/assets/admin-ui.css" />
+  <link rel="stylesheet" href="/admin-ui.css" />
   <style>
 
 
@@ -322,6 +322,7 @@
     <!-- Add Student -->
     <div class="panel panel-action">
       <h3>Add Student</h3>
+<div id="studentFormError" class="form-error" style="display:none;"></div>
 
       <div class="admin-form-row compact">
         <input id="studentFirst" placeholder="First name" />
@@ -330,6 +331,14 @@
         <input id="studentHomeroom" placeholder="Homeroom" />
         <select id="studentFamily"></select>
         <select id="studentBusGroup"></select>
+		<input
+		  id="studentNumber"
+		  placeholder="Student Number (optional)"
+		/>
+		<small class="muted">
+		  Leave blank to auto-generate a student number.
+		</small>
+
         <button id="addStudent" class="btn btn-primary">
           Add
         </button>
@@ -633,11 +642,9 @@ document  .getElementById('accessPreset')
     e.target.value = '';
   });
 
-  
-const SUPABASE_URL = 'https://xrhwjjkxlshfarlxuxsa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s';
-
-
+    
+    const SUPABASE_URL = 'https://lmvpjbzwdyfziedpeytd.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdnBqYnp3ZHlmemllZHBleXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODY5MTcsImV4cCI6MjA4OTI2MjkxN30.b1X1ru4NYlkDjHlsxZ82ZOwbVoZ_PhRsjf4Atfwa5G0';
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true }
@@ -1398,37 +1405,94 @@ async function loadStudents() {
 });
 }
 
+
 async function createStudent() {
   if (!currentProfile) return;
+
+  const errorBox = document.getElementById('studentFormError');
+  if (errorBox) errorBox.style.display = 'none';
+
+  const studentNumberInput = document
+    .getElementById('studentNumber')
+    ?.value
+    .trim();
 
   const student = {
     school_id: currentProfile.school_id,
     family_id: document.getElementById('studentFamily').value,
     first_name: document.getElementById('studentFirst').value.trim(),
     last_name: document.getElementById('studentLast').value.trim(),
-    grade_level: document.getElementById('studentGrade').value.trim(),
-    homeroom_teacher: document.getElementById('studentHomeroom').value.trim(),
-    bus_group_id: document.getElementById('studentBusGroup').value || null,
-    active: true
+    grade_level: document.getElementById('studentGrade').value.trim() || null,
+    homeroom_teacher:
+      document.getElementById('studentHomeroom').value.trim() || null,
+    bus_group_id:
+      document.getElementById('studentBusGroup').value || null,
+    active: true,
+    student_number: studentNumberInput || null
   };
 
-  if (!student.first_name || !student.last_name || !student.family_id) {
-    alert('First name, last name, and family are required.');
-    return;
-  }
 
   const { error } = await supabase
     .from('students')
     .insert(student);
 
   if (error) {
-    console.error(error);
-    alert('Failed to add student');
+    console.error('Create student error:', error);
+
+    // ✅ Duplicate student (unique constraint)
+    
+if (error.code === '23505') {
+  // ✅ Show user-friendly message
+  if (errorBox) {
+    errorBox.textContent =
+      'A student with the same name already exists in this family.';
+    errorBox.style.display = 'block';
+  } else {
+    alert(
+      'A student with the same name already exists in this family.'
+    );
+  }
+
+  // ✅ Highlight the fields that caused the conflict
+  document.getElementById('studentFirst')?.classList.add('error');
+
+console.log(
+  'studentFirst classes:',
+  document.getElementById('studentFirst').className
+);
+
+  document.getElementById('studentLast')?.classList.add('error');
+
+  return;
+}
+
+
+    // ✅ Generic fallback
+    if (errorBox) {
+      errorBox.textContent =
+        'Failed to add student. Please try again.';
+      errorBox.style.display = 'block';
+    } else {
+      alert('Failed to add student.');
+    }
+
     return;
   }
 
-  loadStudents();
+  // ✅ Success → refresh list + clear inputs
+  document.getElementById('studentFirst').value = '';
+  document.getElementById('studentLast').value = '';
+  document.getElementById('studentGrade').value = '';
+  document.getElementById('studentHomeroom').value = '';
+  document.getElementById('studentNumber').value = '';
+
+document.getElementById('studentFirst')?.classList.remove('error');
+document.getElementById('studentLast')?.classList.remove('error');
+
+
+  await loadStudents();
 }
+
 
 async function deleteStudent(id) {
   if (!confirm('Delete this student?')) return;
