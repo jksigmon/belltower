@@ -1,344 +1,713 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>BellTower | Streamline Your School</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Belltower – School Management</title>
 
-  <style>
-    :root {
-      --blue-dark: #0b2d4f;
-      --blue-main: #1f5fa8;
-      --blue-light: #eaf3ff;
-      --gold: #f5a623;
-      --text-dark: #1f2937;
-      --text-light: #6b7280;
-      --white: #ffffff;
-    }
+<style>
+:root {
+  --blue-dark:#0b2d4f;
+  --blue-main:#1f5fa8;
+  --blue-light:#eaf3ff;
+  --gold:#f5a623;
+  --white:#ffffff;
+  --gray:#6b7280;
+}
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+* { box-sizing:border-box; margin:0; padding:0 }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: var(--text-dark);
-      background: linear-gradient(#0b2d4f, #1f5fa8);
-      line-height: 1.6;
-    }
+body {
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:#f8fafc;
+  color:#1f2937;
+}
 
-    a {
-      text-decoration: none;
-      color: inherit;
-    }
 
-    /* ---------- HEADER ---------- */
-    header {
-      background: var(--blue-dark);
-      color: var(--white);
-      padding: 1rem 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
 
-    .logo {
-      font-weight: 700;
-      font-size: 1.25rem;
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-    }
+/* ---------- FULL-WIDTH FLOATING HEADER ---------- */
 
-    nav a {
-      margin: 0 0.75rem;
-      font-size: 0.95rem;
-      opacity: 0.9;
-    }
+.floating-header {
+  position: absolute;   
+  top: 1rem;
+  left: 0;
+  width: 100%;
+  z-index: 50;
 
-    nav a:hover {
-      opacity: 1;
-    }
+  background: #0b2d4f;
+  padding: 0.85rem 2rem;
 
-    .btn {
-      background: var(--gold);
-      color: #1b1b1b;
-      padding: 0.6rem 1.1rem;
-      border-radius: 6px;
-      font-weight: 600;
-      display: inline-block;
-    }
+  display: flex;
+  height: 64px;     
+  justify-content: space-between;
+  align-items: center;
 
-    .btn.secondary {
-      background: var(--white);
-      color: var(--blue-dark);
-    }
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+}
 
-    /* ---------- HERO ---------- */
-    .hero {
-      background: linear-gradient(135deg, #1f5fa8, #2f80ed);
-      color: var(--white);
-      padding: 4rem 2rem;
-    }
 
-    .hero-inner {
-      max-width: 1100px;
-      margin: auto;
-      display: grid;
-      grid-template-columns: 1.1fr 0.9fr;
-      gap: 3rem;
-      align-items: center;
-    }
+/* LOGO */
+.logo {
+  font-weight: 700;
+  font-size: 1.25rem;
+}
 
-    .hero h1 {
-      font-size: 2.8rem;
-      line-height: 1.2;
-      margin-bottom: 1rem;
-    }
+.logo img {
+  height: 110px;      /* ideal for header bar */
+  width: auto;
+  display: block;
+  transition: transform 0.2s ease;
+}
 
-    .hero h1 span {
-      color: var(--gold);
-    }
+.logo img:hover {
+  transform: translateY(-1px);
+}
 
-    .hero p {
-      color: #e5effa;
-      max-width: 520px;
-      margin-bottom: 1.5rem;
-    }
 
-    .hero .checks {
-      margin: 1.5rem 0;
-    }
 
-    .checks div {
-      margin-bottom: 0.6rem;
-      font-weight: 600;
-    }
+/* NAV LINKS */
+header nav a,
+header nav a:visited,
+header nav a:hover,
+header nav a:active {
+  color: #ffffff;
+  text-decoration: none;
+  margin: 0 0.75rem;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
 
-    .hero img {
-      width: 100%;
-      border-radius: 12px;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.25);
-    }
+header nav a:hover {
+  opacity: 1;
+}
 
-    /* ---------- FEATURE CARDS ---------- */
-    .features {
-      background: var(--white);
-      padding: 4rem 2rem;
-    }
+/* CTA BUTTON */
+.header-actions button {
+  background: #f5a623;
+  border: none;
+  border-radius: 6px; /* button can stay rounded */
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
 
-    .feature-grid {
-      max-width: 1100px;
-      margin: auto;
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 2rem;
-    }
+.header-actions button:hover {
+  filter: brightness(1.05);
+}
 
-    .card {
-      background: var(--blue-light);
-      padding: 1.8rem;
-      border-radius: 12px;
-      text-align: left;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-    }
+/* ---------- HERO SECTION ---------- */
 
-    .card h3 {
-      margin-bottom: 0.7rem;
-    }
+.hero {
+  min-height: 560px;
 
-    .card p {
-      color: var(--text-light);
-      margin-bottom: 1rem;
-    }
+  /* HERO IMAGE + OVERLAY */
+  background:
+    linear-gradient(
+      rgba(15, 45, 75, 0.5),
+      rgba(15, 45, 75, 0.1)
+    ),
+    url("images/hero-belltower-wide.png");
 
-    .card a {
-      color: var(--blue-main);
-      font-weight: 600;
-    }
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
 
-    /* ---------- TESTIMONIAL ---------- */
-    .testimonial {
-      background: var(--white);
-      text-align: center;
-      padding: 3rem 2rem;
-      font-style: italic;
-    }
+  display: flex;
+  align-items: center;
 
-    .testimonial span {
-      display: block;
-      margin-top: 0.8rem;
-      font-style: normal;
-      font-weight: 600;
-      color: var(--text-light);
-    }
+  padding: 7rem 2rem 4rem; /* top padding accounts for header */
+}
+.hero-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  text-align: center;
+}
+.hero h1 {
+  font-size: 2.75rem;
+  color: #ffffff;
+  margin-bottom: 0.75rem;
+  
+text-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.35);
+}
 
-    /* ---------- LOGOS ---------- */
-    .logos {
-      background: var(--white);
-      padding: 2rem;
-    }
+.hero p {
+  font-size: 1.1rem;
+  color: #e5effa;
+  max-width: 700px;
+  margin: 0 auto; /* centers paragraph itself */
 
-    .logo-row {
-      max-width: 900px;
-      margin: auto;
-      display: flex;
-      justify-content: space-around;
-      flex-wrap: wrap;
-      gap: 2rem;
-      opacity: 0.85;
-    }
+  text-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.30);
+}
 
-    .logo-box {
-      background: #f3f4f6;
-      padding: 0.8rem 1.2rem;
-      border-radius: 6px;
-      font-weight: 600;
-    }
 
-    /* ---------- CTA ---------- */
-    .cta {
-      background: linear-gradient(135deg, #1f5fa8, #0b2d4f);
-      color: var(--white);
-      padding: 3.5rem 2rem;
-      text-align: center;
-    }
+/* PLATFORM SECTION */
+.platform {
+  background: #f8fafc;
+  text-align: center;
+  padding: 3.5rem 2rem;
+    border-bottom: 1px solid #e5e7eb;
+}
 
-    .cta h2 {
-      font-size: 2rem;
-      margin-bottom: 1.5rem;
-    }
+.platform h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #11477b;
+}
 
-    /* ---------- FOOTER ---------- */
-    footer {
-      background: var(--blue-dark);
-      color: #cbd5e1;
-      padding: 2rem;
-      font-size: 0.85rem;
-    }
+.platform p {
+  color: #475569;
+  margin-top: 0.35rem;
+  margin-bottom: 1.4rem;
+}
 
-    .footer-inner {
-      max-width: 1100px;
-      margin: auto;
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
 
-    footer a {
-      margin-right: 1rem;
-    }
+.platform-heading {
+  position: relative;
+  text-align: center;
+  margin: 3rem auto 0.75rem;
+}
 
-    /* ---------- RESPONSIVE ---------- */
-    @media (max-width: 900px) {
-      .hero-inner {
-        grid-template-columns: 1fr;
-        text-align: center;
-      }
 
-      nav {
-        display: none;
-      }
-    }
-  </style>
+.platform-heading::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+
+  height: 2px;
+  
+  background: linear-gradient(
+    to right,
+    transparent,
+    #cbd5e1 15%,
+    #cbd5e1 85%,
+    transparent);
+
+  z-index: 1;
+}
+
+.platform-heading h2 {
+  position: relative;
+  display: inline-block;
+
+  padding: 0 1.25rem;
+  background: inherit;
+
+  z-index: 2;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #11477b;
+}
+
+
+.platform-heading h2::before {
+  content: "";
+  position: absolute;
+
+  top: 50%;
+  left: -0.25rem;
+  right: -0.25rem;
+
+  height: 1.6em;                 /* taller than the text */
+  transform: translateY(-50%);
+
+  background: #f8fafc;           /* EXACT section background */
+  z-index: -1;
+}
+
+
+
+.platform-subtitle {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #475569;
+  margin-bottom: 1.5rem;
+}
+
+
+
+
+
+/* CTA BUTTON ROW */
+.section-cta {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* BASE BUTTON */
+.section-cta .btn {
+  padding: 0.55rem 1.5rem;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+/* BLUE – Request a Demo */
+.btn-primary {
+  background: linear-gradient(180deg, #2563eb, #1e40af);
+  color: #ffffff;
+  border: none;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+/* WHITE – Login */
+.btn-outline {
+  background: #ffffff;
+  color: #1e40af;
+  border: 1px solid #cbd5e1;
+}
+
+.btn-outline:hover {
+  background: #f1f5f9;
+}
+
+/* ORANGE – Suggest a New Module */
+.btn-accent {
+  background: linear-gradient(180deg, #fb923c, #ea580c);
+  color: #ffffff;
+  border: none;
+}
+
+.btn-accent:hover {
+  filter: brightness(1.05);
+}
+
+/* ---------- FEATURES ---------- */
+
+
+@media (max-width: 768px) {
+  .features {
+    margin-top: -2rem;
+  }
+}
+
+.features {
+  position: relative;
+  z-index: 10;
+  margin-top: -3rem;   
+  padding-top: 0;
+  background: transparent;
+}
+
+
+.feature-grid {
+  max-width:1100px;
+  margin:auto;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:2rem;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.4rem 1.6rem;
+  text-align: left;
+
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.15);
+
+  transition: transform 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;              /* space between icon and text */
+}
+
+
+.card-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #11477b;           /* ties into brand */
+}
+
+
+.card h3 {
+  color: #11477b;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+
+.card-divider {
+  width: 100%;              /* scales with card width */
+  max-width: 300px;         /* caps it on large screens */
+  height: 1px;
+  
+  background: #1b6fc0;
+  border-radius: 2px;
+
+  margin: 0.5rem auto 0.65rem;
+}
+
+
+
+.card p {
+  color: #11477b;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+
+/* ---------- CONTENT SPLIT ---------- */
+.split {
+  max-width:1100px;
+  margin:auto;
+  padding:3.5rem 2rem;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:3rem;
+  align-items:center;
+  color: #11477b;
+}
+
+.split ul { padding-left:1.2rem }
+.split li { margin-bottom:.5rem;
+color: #11477b; }
+
+.split .preview {
+  background:#e5e7eb;
+  border-radius:12px;
+  height:250px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#6b7280;
+  font-weight:600;
+}
+
+.why-list h3 {
+  color: #11477b;
+  font-size: 1.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.why-item {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.why-icon {
+  font-size: 1.5rem;
+  color: #1f5fa8;
+}
+
+.why-item strong {
+  display: block;
+  color: #11477b;
+  margin-bottom: 0.2rem;
+}
+
+.why-item p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+
+
+/* SECTION CTA BUTTONS */
+.section-cta {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+}
+
+.section-cta .btn {
+  padding: 0.6rem 1.4rem;
+  border-radius: 6px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+/* Blue - Request a Demo */
+.btn-primary {
+  background: linear-gradient(#2563eb, #1e40af);
+  color: #ffffff;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* White - Login */
+.btn-outline {
+  background: #ffffff;
+  color: #1f5fa8;
+  border: 1px solid #d1d5db;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Orange - Suggest a New Module */
+.btn-accent {
+  background: linear-gradient(#f59e0b, #ea580c);
+  color: #ffffff;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+
+/* ---------- FOOTER ---------- */
+footer {
+  background:var(--blue-dark);
+  color:#cbd5e1;
+  text-align:center;
+  padding:2rem;
+  font-size:.85rem;
+}
+
+/* ---------- MODAL ---------- */
+.modal {
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:1000;
+}
+
+.modal.active { display:flex }
+
+.modal-box {
+  background:#fff;
+  border-radius:12px;
+  padding:2rem;
+  width:100%;
+  max-width:420px;
+}
+
+.modal h2 { margin-bottom:1rem }
+
+.modal input,
+.modal textarea {
+  width:100%;
+  padding:.6rem;
+  margin-bottom:.75rem;
+  border-radius:6px;
+  border:1px solid #d1d5db;
+}
+
+.modal textarea { resize:none }
+
+.modal-actions {
+  display:flex;
+  justify-content:flex-end;
+  gap:.5rem;
+}
+
+.modal-actions button {
+  padding:.5rem 1rem;
+  border-radius:6px;
+  border:none;
+  cursor:pointer;
+}
+
+.cancel { background:#e5e7eb }
+.submit { background:var(--gold); font-weight:600 }
+
+@media(max-width:900px){
+  .split { grid-template-columns:1fr }
+  nav { display:none }
+}
+</style>
 </head>
 
 <body>
 
-  <!-- HEADER -->
-  <header>
-    <div class="logo">🏫 BellTower</div>
-    <nav>
-      <a href="#">Features</a>
-      <a href="#">Solutions</a>
-      <a href="#">Pricing</a>
-      <a href="#">About</a>
-      <a href="#">Contact</a>
-    </nav>
-    <a class="btn" href="#">Get a Demo</a>
-  </header>
+<header class="floating-header">
+  <div class="logo">
+    <img src="images/belltower-logo.png" alt="Belltower" />
+  </div>
 
-  <!-- HERO -->
-  <section class="hero">
-    <div class="hero-inner">
-      <div>
-        <h1>Streamline Your School.<br><span>Simplify Your Day.</span></h1>
-        <p>
-          All‑in‑one platform for PTO, dismissal, substitutes, and staff management.
-          Efficient. Paperless. Connected.
-        </p>
+  <nav>
+    <a href="#">Features</a>
+    <a href="#">Solutions</a>
+    <a href="#">Pricing</a>
+    <a href="login.html">Login</a>
+  </nav>
+</header>
 
-        <div class="checks">
-          <div>✅ Carline Live</div>
-          <div>✅ PTO Requests</div>
-          <div>✅ Sub Tracking</div>
-        </div>
+<section class="hero">
+  <div class="hero-inner">
+    <h1>Streamline Your School Management</h1>
+    <p>
+      Automate PTO, Dismissal, Substitutes, and More!
+    </p>
+  </div>
+</section>
 
-        <a class="btn secondary" href="#">Book a Demo</a>
-      </div>
 
-      <img src="https://placehold.co/500x420/png?text=BellTower+Illustration" alt="BellTower Illustration">
+<section class="features">
+  <div class="feature-grid">
+
+    <div class="card">
+	<div class="card-header">
+      <div class="card-icon">📋</div>
+      <h3>PTO &amp; Leave Management</h3>
+	  	  </div>
+      <div class="card-divider"></div>
+      <p>Easily manage requests, approvals, and staff visibility.</p>
     </div>
-  </section>
 
-  <!-- FEATURES -->
-  <section class="features">
-    <div class="feature-grid">
-      <div class="card">
-        <h3>Manage PTO & Approvals</h3>
-        <p>Submit, approve, and track PTO requests effortlessly.</p>
-        <a href="#">Learn More →</a>
-      </div>
+  
+	<div class="card">
+	  <div class="card-header">
+		<div class="card-icon">🚗</div>
+		<h3>Carline Dismissal</h3>
+	  </div>
+	  <div class="card-divider"></div>
+	  <p>Organize safe, efficient student pickup flows.</p>
+	</div>
 
-      <div class="card">
-        <h3>Dismissal & Carline</h3>
-        <p>Coordinate student pickups and real‑time dismissal flow.</p>
-        <a href="#">Learn More →</a>
-      </div>
 
-      <div class="card">
-        <h3>Licenses & Substitutes</h3>
-        <p>Track certifications and manage substitutes easily.</p>
-        <a href="#">Learn More →</a>
-      </div>
+    <div class="card">
+	<div class="card-header">
+      <div class="card-icon">🏫</div>
+      <h3>School Administration</h3>
+	  	  </div>
+      <div class="card-divider"></div>
+      <p>Centralize staff, student, and family information.</p>
     </div>
-  </section>
 
-  <!-- TESTIMONIAL -->
-  <section class="testimonial">
-    “BellTower has transformed how we run our school. It’s a game changer.”
-    <span>— Principal Harris, Westside Elementary</span>
-  </section>
+  </div>
+</section>
 
-  <!-- LOGOS -->
-  <section class="logos">
-    <div class="logo-row">
-      <div class="logo-box">Crestwood SD</div>
-      <div class="logo-box">Northview Academy</div>
-      <div class="logo-box">Saint Mark School</div>
-      <div class="logo-box">Riverside Unified</div>
+
+<section class="platform">
+ <div class="platform-heading">
+  <h2>Empowering Schools to Operate Efficiently</h2>
+  </div>
+  <p class="platform-subtitle">All‑in‑One Platform for Charter &amp; Private Schools</p>
+
+  <div class="section-cta">
+    <button
+      class="btn btn-primary"
+      onclick="openModal('Request a Demo')">
+      Request a Demo
+    </button>
+
+    <a href="login.html" class="btn btn-outline">
+      Login to Belltower
+    </a>
+
+    <button
+      class="btn btn-accent"
+      onclick="openModal('Suggest a New Module')">
+      Suggest a New Module
+    </button>
+  </div>
+</section>
+
+
+
+<section class="split">
+ 
+<div class="why-list">
+  <h3>Why Choose Belltower?</h3>
+
+  <div class="why-item">
+    <div class="why-icon">⚡</div>
+    <div>
+      <strong>Automate workflows</strong>
+      <p>Reduce manual effort and eliminate paperwork.</p>
     </div>
-  </section>
+  </div>
 
-  <!-- CTA -->
-  <section class="cta">
-    <h2>Ready to Make School Management Simple?</h2>
-    <a class="btn" href="#">Get Started Today</a>
-  </section>
-
-  <!-- FOOTER -->
-  <footer>
-    <div class="footer-inner">
-      <div>© 2026 BellTower. All Rights Reserved.</div>
-      <div>
-        <a href="#">Privacy Policy</a>
-        <a href="#">Terms of Service</a>
-      </div>
+  <div class="why-item">
+    <div class="why-icon">🚀</div>
+    <div>
+      <strong>Improve efficiency</strong>
+      <p>Streamline daily operations for staff and admins.</p>
     </div>
-  </footer>
+  </div>
+
+  <div class="why-item">
+    <div class="why-icon">🛡️</div>
+    <div>
+      <strong>Ensure compliance</strong>
+      <p>Stay aligned with policies and reporting needs.</p>
+    </div>
+  </div>
+</div>
+
+</section>
+
+
+<footer>
+  © 2026 Belltower · All Rights Reserved
+</footer>
+
+<!-- ✅ MODAL -->
+<div class="modal" id="emailModal">
+  <div class="modal-box">
+    <h2 id="modalTitle"></h2>
+    <input id="name" placeholder="Your Name" />
+    <input id="email" placeholder="Your Email" />
+    <textarea id="message" rows="4" placeholder="Message"></textarea>
+    <div class="modal-actions">
+      <button class="cancel" onclick="closeModal()">Cancel</button>
+      <button class="submit" onclick="sendEmail()">Send</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+let modalContext = "";
+
+function openModal(type) {
+  modalContext = type;
+  document.getElementById("modalTitle").textContent = type;
+  document.getElementById("emailModal").classList.add("active");
+}
+
+function closeModal() {
+  document.getElementById("emailModal").classList.remove("active");
+}
+
+function sendEmail() {
+  const name = document.getElementById("name").value;
+  const email = document.getElementById("email").value;
+  const message = document.getElementById("message").value;
+
+  const body =
+    `Request Type: ${modalContext}\n` +
+    `Name: ${name}\n` +
+    `Email: ${email}\n\n` +
+    message;
+
+  window.location.href =
+    `mailto:jksigmon@gmail.com?subject=${encodeURIComponent(modalContext)}&body=${encodeURIComponent(body)}`;
+
+  closeModal();
+}
+</script>
+
 
 </body>
 </html>
