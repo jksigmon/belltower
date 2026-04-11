@@ -1,0 +1,29 @@
+
+{
+  "rewrites": [
+    {
+      "source": "/login.html",
+      "destination": "/app/login.html"
+    },
+    {
+      "source": "/admin.html",
+      "destination": "/app/admin.html"
+    },
+    {
+      "source": "/staff.html",
+      "destination": "/app/staff.html"
+    },
+    {
+      "source": "/pto.html",
+      "destination": "/app/pto.html"
+    },
+    {
+      "source": "/carline.html",
+      "destination": "/app/carline.html"
+    },
+    {
+      "source": "/pending.html",
+      "destination": "/app/pending.html"
+    }
+  ]
+}

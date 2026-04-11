@@ -1,0 +1,43 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Account Pending – School Suite</title>
+  <link rel="stylesheet" href="/app/assets/admin-ui.css" />
+</head>
+<body class="auth-layout">
+
+  <div class="surface auth-card">
+    <h2>Account Pending</h2>
+
+    <p>
+      Your account has been created, but access to School Suite has not yet been approved.
+    </p>
+
+    <p class="muted">
+      A school administrator must review and activate your account before you can continue.
+    </p>
+
+    <button class="btn" id="signOutBtn">Sign out</button>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+
+const SUPABASE_URL = 'https://xrhwjjkxlshfarlxuxsa.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s';
+
+
+
+
+    document.getElementById('signOutBtn').onclick = async () => {
+      await supabase.auth.signOut();
+      window.location.href = '/login.html';
+    };
+  </script>
+
+</body>
+</html>

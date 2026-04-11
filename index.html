@@ -1,0 +1,713 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Belltower – School Management</title>
+
+<style>
+:root {
+  --blue-dark:#0b2d4f;
+  --blue-main:#1f5fa8;
+  --blue-light:#eaf3ff;
+  --gold:#f5a623;
+  --white:#ffffff;
+  --gray:#6b7280;
+}
+
+* { box-sizing:border-box; margin:0; padding:0 }
+
+body {
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:#f8fafc;
+  color:#1f2937;
+}
+
+
+
+/* ---------- FULL-WIDTH FLOATING HEADER ---------- */
+
+.floating-header {
+  position: absolute;   
+  top: 1rem;
+  left: 0;
+  width: 100%;
+  z-index: 50;
+
+  background: #0b2d4f;
+  padding: 0.85rem 2rem;
+
+  display: flex;
+  height: 64px;     
+  justify-content: space-between;
+  align-items: center;
+
+  box-shadow: 0 8px 20px rgba(0,0,0,0.35);
+}
+
+
+/* LOGO */
+.logo {
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.logo img {
+  height: 110px;      /* ideal for header bar */
+  width: auto;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.logo img:hover {
+  transform: translateY(-1px);
+}
+
+
+
+/* NAV LINKS */
+header nav a,
+header nav a:visited,
+header nav a:hover,
+header nav a:active {
+  color: #ffffff;
+  text-decoration: none;
+  margin: 0 0.75rem;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+header nav a:hover {
+  opacity: 1;
+}
+
+/* CTA BUTTON */
+.header-actions button {
+  background: #f5a623;
+  border: none;
+  border-radius: 6px; /* button can stay rounded */
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.header-actions button:hover {
+  filter: brightness(1.05);
+}
+
+/* ---------- HERO SECTION ---------- */
+
+.hero {
+  min-height: 560px;
+
+  /* HERO IMAGE + OVERLAY */
+  background:
+    linear-gradient(
+      rgba(15, 45, 75, 0.5),
+      rgba(15, 45, 75, 0.1)
+    ),
+    url("images/hero-belltower-wide.png");
+
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+
+  display: flex;
+  align-items: center;
+
+  padding: 7rem 2rem 4rem; /* top padding accounts for header */
+}
+.hero-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  text-align: center;
+}
+.hero h1 {
+  font-size: 2.75rem;
+  color: #ffffff;
+  margin-bottom: 0.75rem;
+  
+text-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.hero p {
+  font-size: 1.1rem;
+  color: #e5effa;
+  max-width: 700px;
+  margin: 0 auto; /* centers paragraph itself */
+
+  text-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.30);
+}
+
+
+/* PLATFORM SECTION */
+.platform {
+  background: #f8fafc;
+  text-align: center;
+  padding: 3.5rem 2rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.platform h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #11477b;
+}
+
+.platform p {
+  color: #475569;
+  margin-top: 0.35rem;
+  margin-bottom: 1.4rem;
+}
+
+
+.platform-heading {
+  position: relative;
+  text-align: center;
+  margin: 3rem auto 0.75rem;
+}
+
+
+.platform-heading::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+
+  height: 2px;
+  
+  background: linear-gradient(
+    to right,
+    transparent,
+    #cbd5e1 15%,
+    #cbd5e1 85%,
+    transparent);
+
+  z-index: 1;
+}
+
+.platform-heading h2 {
+  position: relative;
+  display: inline-block;
+
+  padding: 0 1.25rem;
+  background: inherit;
+
+  z-index: 2;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #11477b;
+}
+
+
+.platform-heading h2::before {
+  content: "";
+  position: absolute;
+
+  top: 50%;
+  left: -0.25rem;
+  right: -0.25rem;
+
+  height: 1.6em;                 /* taller than the text */
+  transform: translateY(-50%);
+
+  background: #f8fafc;           /* EXACT section background */
+  z-index: -1;
+}
+
+
+
+.platform-subtitle {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #475569;
+  margin-bottom: 1.5rem;
+}
+
+
+
+
+
+/* CTA BUTTON ROW */
+.section-cta {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* BASE BUTTON */
+.section-cta .btn {
+  padding: 0.55rem 1.5rem;
+  font-size: 0.9rem;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+/* BLUE – Request a Demo */
+.btn-primary {
+  background: linear-gradient(180deg, #2563eb, #1e40af);
+  color: #ffffff;
+  border: none;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+/* WHITE – Login */
+.btn-outline {
+  background: #ffffff;
+  color: #1e40af;
+  border: 1px solid #cbd5e1;
+}
+
+.btn-outline:hover {
+  background: #f1f5f9;
+}
+
+/* ORANGE – Suggest a New Module */
+.btn-accent {
+  background: linear-gradient(180deg, #fb923c, #ea580c);
+  color: #ffffff;
+  border: none;
+}
+
+.btn-accent:hover {
+  filter: brightness(1.05);
+}
+
+/* ---------- FEATURES ---------- */
+
+
+@media (max-width: 768px) {
+  .features {
+    margin-top: -2rem;
+  }
+}
+
+.features {
+  position: relative;
+  z-index: 10;
+  margin-top: -3rem;   
+  padding-top: 0;
+  background: transparent;
+}
+
+
+.feature-grid {
+  max-width:1100px;
+  margin:auto;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  gap:2rem;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.4rem 1.6rem;
+  text-align: left;
+
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.15);
+
+  transition: transform 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;              /* space between icon and text */
+}
+
+
+.card-icon {
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #11477b;           /* ties into brand */
+}
+
+
+.card h3 {
+  color: #11477b;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+
+.card-divider {
+  width: 100%;              /* scales with card width */
+  max-width: 300px;         /* caps it on large screens */
+  height: 1px;
+  
+  background: #1b6fc0;
+  border-radius: 2px;
+
+  margin: 0.5rem auto 0.65rem;
+}
+
+
+
+.card p {
+  color: #11477b;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+
+/* ---------- CONTENT SPLIT ---------- */
+.split {
+  max-width:1100px;
+  margin:auto;
+  padding:3.5rem 2rem;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:3rem;
+  align-items:center;
+  color: #11477b;
+}
+
+.split ul { padding-left:1.2rem }
+.split li { margin-bottom:.5rem;
+color: #11477b; }
+
+.split .preview {
+  background:#e5e7eb;
+  border-radius:12px;
+  height:250px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#6b7280;
+  font-weight:600;
+}
+
+.why-list h3 {
+  color: #11477b;
+  font-size: 1.4rem;
+  margin-bottom: 1.25rem;
+}
+
+.why-item {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.why-icon {
+  font-size: 1.5rem;
+  color: #1f5fa8;
+}
+
+.why-item strong {
+  display: block;
+  color: #11477b;
+  margin-bottom: 0.2rem;
+}
+
+.why-item p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+
+
+/* SECTION CTA BUTTONS */
+.section-cta {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.25rem;
+}
+
+.section-cta .btn {
+  padding: 0.6rem 1.4rem;
+  border-radius: 6px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+/* Blue - Request a Demo */
+.btn-primary {
+  background: linear-gradient(#2563eb, #1e40af);
+  color: #ffffff;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* White - Login */
+.btn-outline {
+  background: #ffffff;
+  color: #1f5fa8;
+  border: 1px solid #d1d5db;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Orange - Suggest a New Module */
+.btn-accent {
+  background: linear-gradient(#f59e0b, #ea580c);
+  color: #ffffff;
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.15);
+}
+
+
+/* ---------- FOOTER ---------- */
+footer {
+  background:var(--blue-dark);
+  color:#cbd5e1;
+  text-align:center;
+  padding:2rem;
+  font-size:.85rem;
+}
+
+/* ---------- MODAL ---------- */
+.modal {
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.55);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  z-index:1000;
+}
+
+.modal.active { display:flex }
+
+.modal-box {
+  background:#fff;
+  border-radius:12px;
+  padding:2rem;
+  width:100%;
+  max-width:420px;
+}
+
+.modal h2 { margin-bottom:1rem }
+
+.modal input,
+.modal textarea {
+  width:100%;
+  padding:.6rem;
+  margin-bottom:.75rem;
+  border-radius:6px;
+  border:1px solid #d1d5db;
+}
+
+.modal textarea { resize:none }
+
+.modal-actions {
+  display:flex;
+  justify-content:flex-end;
+  gap:.5rem;
+}
+
+.modal-actions button {
+  padding:.5rem 1rem;
+  border-radius:6px;
+  border:none;
+  cursor:pointer;
+}
+
+.cancel { background:#e5e7eb }
+.submit { background:var(--gold); font-weight:600 }
+
+@media(max-width:900px){
+  .split { grid-template-columns:1fr }
+  nav { display:none }
+}
+</style>
+</head>
+
+<body>
+
+<header class="floating-header">
+  <div class="logo">
+    <img src="images/belltower-logo.png" alt="Belltower" />
+  </div>
+
+  <nav>
+    <a href="#">Features</a>
+    <a href="#">Solutions</a>
+    <a href="#">Pricing</a>
+    <a href="login.html">Login</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-inner">
+    <h1>Streamline Your School Management</h1>
+    <p>
+      Automate PTO, Dismissal, Substitutes, and More!
+    </p>
+  </div>
+</section>
+
+
+<section class="features">
+  <div class="feature-grid">
+
+    <div class="card">
+	<div class="card-header">
+      <div class="card-icon">📋</div>
+      <h3>PTO &amp; Leave Management</h3>
+	  	  </div>
+      <div class="card-divider"></div>
+      <p>Easily manage requests, approvals, and staff visibility.</p>
+    </div>
+
+  
+	<div class="card">
+	  <div class="card-header">
+		<div class="card-icon">🚗</div>
+		<h3>Carline Dismissal</h3>
+	  </div>
+	  <div class="card-divider"></div>
+	  <p>Organize safe, efficient student pickup flows.</p>
+	</div>
+
+
+    <div class="card">
+	<div class="card-header">
+      <div class="card-icon">🏫</div>
+      <h3>School Administration</h3>
+	  	  </div>
+      <div class="card-divider"></div>
+      <p>Centralize staff, student, and family information.</p>
+    </div>
+
+  </div>
+</section>
+
+
+<section class="platform">
+ <div class="platform-heading">
+  <h2>Empowering Schools to Operate Efficiently</h2>
+  </div>
+  <p class="platform-subtitle">All‑in‑One Platform for Charter &amp; Private Schools</p>
+
+  <div class="section-cta">
+    <button
+      class="btn btn-primary"
+      onclick="openModal('Request a Demo')">
+      Request a Demo
+    </button>
+
+    <a href="login.html" class="btn btn-outline">
+      Login to Belltower
+    </a>
+
+    <button
+      class="btn btn-accent"
+      onclick="openModal('Suggest a New Module')">
+      Suggest a New Module
+    </button>
+  </div>
+</section>
+
+
+
+<section class="split">
+ 
+<div class="why-list">
+  <h3>Why Choose Belltower?</h3>
+
+  <div class="why-item">
+    <div class="why-icon">⚡</div>
+    <div>
+      <strong>Automate workflows</strong>
+      <p>Reduce manual effort and eliminate paperwork.</p>
+    </div>
+  </div>
+
+  <div class="why-item">
+    <div class="why-icon">🚀</div>
+    <div>
+      <strong>Improve efficiency</strong>
+      <p>Streamline daily operations for staff and admins.</p>
+    </div>
+  </div>
+
+  <div class="why-item">
+    <div class="why-icon">🛡️</div>
+    <div>
+      <strong>Ensure compliance</strong>
+      <p>Stay aligned with policies and reporting needs.</p>
+    </div>
+  </div>
+</div>
+
+</section>
+
+
+<footer>
+  © 2026 Belltower · All Rights Reserved
+</footer>
+
+<!-- ✅ MODAL -->
+<div class="modal" id="emailModal">
+  <div class="modal-box">
+    <h2 id="modalTitle"></h2>
+    <input id="name" placeholder="Your Name" />
+    <input id="email" placeholder="Your Email" />
+    <textarea id="message" rows="4" placeholder="Message"></textarea>
+    <div class="modal-actions">
+      <button class="cancel" onclick="closeModal()">Cancel</button>
+      <button class="submit" onclick="sendEmail()">Send</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+let modalContext = "";
+
+function openModal(type) {
+  modalContext = type;
+  document.getElementById("modalTitle").textContent = type;
+  document.getElementById("emailModal").classList.add("active");
+}
+
+function closeModal() {
+  document.getElementById("emailModal").classList.remove("active");
+}
+
+function sendEmail() {
+  const name = document.getElementById("name").value;
+  const email = document.getElementById("email").value;
+  const message = document.getElementById("message").value;
+
+  const body =
+    `Request Type: ${modalContext}\n` +
+    `Name: ${name}\n` +
+    `Email: ${email}\n\n` +
+    message;
+
+  window.location.href =
+    `mailto:jksigmon@gmail.com?subject=${encodeURIComponent(modalContext)}&body=${encodeURIComponent(body)}`;
+
+  closeModal();
+}
+</script>
+
+
+</body>
+</html>
