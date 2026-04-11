@@ -1,15 +1,144 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Belltower – Sign in</title>
-  <link rel="stylesheet" href="/app/assets/admin-ui.css" />
-  </head>
+  <title>Belltower – Sign In</title>
+
+  <style>
+    :root {
+      --blue-dark: #0b2d4f;
+      --blue-main: #1f5fa8;
+      --blue-light: #eaf3ff;
+      --gray: #475569;
+      --white: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+   
+body.auth-layout {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+ 
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(15, 45, 75, 0.15) 0%,
+      rgba(15, 45, 75, 0.15) 40%,
+      rgba(235, 241, 246, 1) 75%,
+      rgba(235, 241, 246, 1) 100%
+    ),
+    url("images/hero-belltower-wide.png");
+
+  background-size:230%;              /* ✅ zoom OUT slightly */
+  background-position: 27% top;       /* ✅ shift image right */
+  background-repeat: no-repeat;
+
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+
+
+
+
+
+
+    /* ---------- AUTH CARD ---------- */
+    .auth-card {
+      background: #0b2d4f;
+      width: 100%;
+      max-width: 420px;
+      padding: 2.25rem;
+      border-radius: 14px;
+
+      box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.25);
+
+      text-align: center;
+    }
+
+    .auth-card h1 {
+      color: var(--blue-main);
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .auth-card p {
+      color: var(--white);
+      font-size: 0.95rem;
+      margin-bottom: 1.75rem;
+    }
+
+.auth-card {
+  backdrop-filter: blur(2px);
+}
+
+
+.auth-logo {
+  max-height: 56px;          /* controls layout height */
+  width: auto;
+  margin-bottom: 1rem;
+
+  transform: scale(2.25);     /* visual size only */
+  transform-origin: center;
+}
+
+
+    /* ---------- GOOGLE BUTTON ---------- */
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
+
+      width: 100%;
+      padding: 0.7rem 1rem;
+
+      background: var(--white);
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary:hover {
+      background: #f8fafc;
+      box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.32);
+    }
+
+    .btn-primary svg {
+      width: 18px;
+      height: 18px;
+    }
+  </style>
+</head>
+
 <body class="auth-layout">
+
   <div class="surface auth-card">
-    <h1>Belltower</h1>
+    
+<img
+  src="images/belltower-logo.png"
+  alt="Belltower"
+  class="auth-logo"
+/>
+
     <p>Sign in with Google to access Belltower.</p>
 
     <button class="btn-primary" id="googleBtn">
@@ -29,12 +158,11 @@
   <script type="module">
     import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+console.log('LOGIN PAGE LOADED');
 
-
-const SUPABASE_URL = 'https://xrhwjjkxlshfarlxuxsa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s';
-
-
+    // TODO: Replace with your project values
+    const SUPABASE_URL = 'https://lmvpjbzwdyfziedpeytd.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdnBqYnp3ZHlmemllZHBleXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODY5MTcsImV4cCI6MjA4OTI2MjkxN30.b1X1ru4NYlkDjHlsxZ82ZOwbVoZ_PhRsjf4Atfwa5G0';
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true }
