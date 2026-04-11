@@ -1,0 +1,22 @@
+
+{
+  "rewrites": [
+    { "source": "/login.html", "destination": "/app/login.html" },
+    { "source": "/admin.html", "destination": "/app/admin.html" },
+    { "source": "/staff.html", "destination": "/app/staff.html" },
+    { "source": "/pto.html", "destination": "/app/pto.html" },
+    { "source": "/carline.html", "destination": "/app/carline.html" },
+    { "source": "/pending.html", "destination": "/app/pending.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline'; script-src-elem 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; style-src-elem 'self' https://cdn.jsdelivr.net; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self' https:;"
+        }
+      ]
+    }
+  ]
+}
