@@ -5,6 +5,7 @@
 :root {
   --app-bg: #f8fafc;              /* slate-50 */
   --surface: #ffffff;
+  --border: #e5e7eb;              /* gray-200 *
   --border: #e5e7eb;              /* gray-200 */
 
   --text-primary: #0f172a;        /* slate-900 */
@@ -76,23 +77,35 @@ p {
 /* =============================================
    Layout
    ============================================= */
-header {
-  background: #0b2d4f !important;   /* same dark blue */
-  height: 64px !important;          /* match index header height */
-  padding: 0 18px !important;       /* similar horizontal padding */
-  border-bottom: none !important;
 
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
+header {
+  height: 72px;                 /* fixed header height */
+  background: #0b2d4f;
+  display: flex;                /* ✅ flex, not grid */
+  align-items: center;          /* ✅ vertical centering */
+  justify-content: space-between;
+  padding: 0 18px;
+  box-sizing: border-box;
 }
 
-page-header {
+
+
+header .page-title,
+header .page-subtitle,
+header .muted,
+header .header-link {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+
+.page-header {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  pointer-events: none; /* optional, prevents logo stealing clicks */
 }
+
 
 .page-title {
   font-size: 18px;
@@ -100,12 +113,13 @@ page-header {
   color: var(--text-primary);
 }
 
-/* Subtitle text */
+
 .page-subtitle {
-  color: #eaf3ff !important; /* light blue */
+  margin-top: -6px;
   font-size: 12px;
-  margin-top: 2px;
+  color: rgba(255,255,255,0.85);
 }
+
 
 .header-link {
   display: inline-flex;
@@ -131,6 +145,15 @@ page-header {
   height: 30px;
   padding: 0 10px;
   font-size: 13px;
+  
+background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+
+.header-actions .btn:hover {
+  background: rgba(255, 255, 255, 0.18);
 }
 
 
@@ -154,6 +177,18 @@ body.admin-page {
   overflow: hidden; /* page itself never scrolls */
 }
 
+
+.admin-logo {
+  height: 46px;            /* base size */
+  width: auto;
+  transform: scale(2.35);  /* ≈ 108–110px visual height */
+  transform-origin: center;
+  object-fit: contain;
+  display: block;
+}
+
+
+
 /* Side-nav layout */
 .wrap {
   display: grid;
@@ -170,8 +205,14 @@ body.admin-page {
 
 
 nav {
-    background: #1f5fa8 !important; /* main blue */
-  border-right: none !important;
+ 
+background: linear-gradient(
+    to bottom,
+    #0b2d4f 0%,
+    #123f6d 100%
+  );
+  border-right: none;
+
   padding: 10px;
 }
 
@@ -187,7 +228,7 @@ nav a {
   font-size: 16px;
   font-weight: 500;
 
-   color: #eaf3ff !important;
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
 
   transition: background-color 120ms ease, color 120ms ease;
@@ -199,13 +240,17 @@ nav a[data-module] {
 }
 
 nav a:hover {
-  background: rgba(255,255,255,0.10) !important;
-  color: white !important;
+  
+ background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+
 }
 
 nav a.active {
-  background: rgba(255,255,255,0.15) !important;
-  color: white !important;
+  
+ background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+
 }
 
 nav a svg,
@@ -543,13 +588,6 @@ main {
   inset: 0;
   z-index: 2;
   display: none;
-}
-
-.admin-logo {
-  max-height: 80px;
-  width: auto;
-  object-fit: contain;
-  display: block;
 }
 
 /* Skeletons are hidden until explicitly shown */
@@ -908,11 +946,17 @@ select {
 .staff-page::before {
   content: "";
   position: fixed;
-  top: 0;
+  top: 72px;
   left: 0;
   bottom: 0;
   width: 220px;              /* same as nav width */
-  background: var(--surface);
+  
+background: linear-gradient(
+    to bottom,
+    #0b2d4f 0%,
+    #123f6d 100%
+  );
+
   z-index: 0;
 }
 
@@ -922,6 +966,25 @@ select {
   background: transparent;
   z-index: 1;
 }
+
+
+.staff-page {
+  display: flex;              /* stack header + content vertically */
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.staff-page > header {
+  flex-shrink: 0;             /* header keeps its height */
+}
+
+.staff-page .wrap {
+  flex: 1;                    /* content fills remaining space */
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 0;              /* critical for scroll behavior */
+}
+
 
 
 /* PTO Request Form */
@@ -1098,10 +1161,15 @@ select {
   background: #fee2e2;
 }
 
+
 .page-header {
+  width: fit-content;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
+  align-items: center;
 }
+
 
 .page-title {
   font-size: 18px;
@@ -1626,25 +1694,25 @@ select {
 
 
 /* Admin return button */
+
 .btn-admin {
-  background: #f8fafc;        /* lighter surface tone */
-  color: #4f46e5;             /* indigo-600 */
-  border: 1px solid #e5e7eb;  /* neutral border */
-  font-weight: 500;
-  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  height: 34px;
+  padding: 0 12px;
   border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   text-decoration: none;
-  transition:
-    background 120ms ease,
-    color 120ms ease;
 }
 
 .btn-admin:hover {
-  background: #eef2ff;        /* subtle admin hint */
-  color: #3730a3;             /* indigo-700 */
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
 }
 
 
