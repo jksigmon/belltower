@@ -543,6 +543,11 @@ main {
   display: none;
 }
 
+.admin-logo {
+  height: 40px;
+  width: auto;
+}
+
 /* Skeletons are hidden until explicitly shown */
 
 .skeleton-container {
