@@ -77,21 +77,21 @@ p {
    Layout
    ============================================= */
 header {
+  background: #0b2d4f !important;   /* same dark blue */
+  height: 64px !important;          /* match index header height */
+  padding: 0 18px !important;       /* similar horizontal padding */
+  border-bottom: none !important;
+
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 
-.page-header {
-  text-align: center;
+page-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .page-title {
@@ -100,9 +100,11 @@ header {
   color: var(--text-primary);
 }
 
+/* Subtitle text */
 .page-subtitle {
+  color: #eaf3ff !important; /* light blue */
   font-size: 12px;
-  color: var(--text-muted);
+  margin-top: 2px;
 }
 
 .header-link {
@@ -168,8 +170,8 @@ body.admin-page {
 
 
 nav {
-  border-right: 1px solid var(--border);
-  background: var(--surface);
+    background: #1f5fa8 !important; /* main blue */
+  border-right: none !important;
   padding: 10px;
 }
 
@@ -185,7 +187,7 @@ nav a {
   font-size: 16px;
   font-weight: 500;
 
-  color: var(--text-secondary);
+   color: #eaf3ff !important;
   text-decoration: none;
 
   transition: background-color 120ms ease, color 120ms ease;
@@ -197,13 +199,13 @@ nav a[data-module] {
 }
 
 nav a:hover {
-  background: rgba(37, 99, 235, 0.06);
-  color: var(--text-primary);
+  background: rgba(255,255,255,0.10) !important;
+  color: white !important;
 }
 
 nav a.active {
-  background: rgba(37, 99, 235, 0.12);
-  color: var(--text-primary);
+  background: rgba(255,255,255,0.15) !important;
+  color: white !important;
 }
 
 nav a svg,
@@ -544,8 +546,10 @@ main {
 }
 
 .admin-logo {
-  height: 40px;
+  max-height: 80px;
   width: auto;
+  object-fit: contain;
+  display: block;
 }
 
 /* Skeletons are hidden until explicitly shown */
