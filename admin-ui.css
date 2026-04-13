@@ -204,17 +204,18 @@ body.admin-page {
 }
 
 
-nav {
- 
-background: linear-gradient(
-    to bottom,
-    #0b2d4f 0%,
-    #123f6d 100%
-  );
-  border-right: none;
 
+
+nav {
+  background: linear-gradient(
+    to bottom,
+    #f1f5f9 0%,   /* slate-100 */
+    #e5e7eb 100%  /* gray-200 */
+  );
+  border-right: 1px solid #d1d5db;
   padding: 10px;
 }
+
 
 nav a {
   display: flex;
@@ -225,13 +226,19 @@ nav a {
   margin: 6px 0;
   border-radius: 10px;
 
-  font-size: 16px;
-  font-weight: 500;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #d1d5db;
 
-  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  font-weight: 500;
+  color: #0f172a; /* slate-900 */
+
   text-decoration: none;
 
-  transition: background-color 120ms ease, color 120ms ease;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 80ms ease;
 }
 
 
@@ -239,26 +246,21 @@ nav a[data-module] {
   display: none;
 }
 
-nav a:hover {
-  
- background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
 
+nav a:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateX(2px);
 }
 
 nav a.active {
-  
- background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-
+  background: #eef2ff; /* soft blue */
+  border-color: #c7d2fe;
+  color: #1e3a8a; /* indigo-900 */
+  font-weight: 600;
 }
 
-nav a svg,
-nav a .icon,
-nav a span:first-child {
-  font-size: 18px;
-  line-height: 1;
-}
+
 
 /* =============================================
    PTO Rail – matches Admin side nav
@@ -314,11 +316,6 @@ nav a span:first-child {
 }
 
 
-.pto-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 16px 20px 32px;
-}
 
 .pto-history-header {
   display: flex;
@@ -939,52 +936,6 @@ select {
   background-repeat: no-repeat;
   padding-right: 36px;
 }
-
-
-
-/* Staff sidebar background column */
-.staff-page::before {
-  content: "";
-  position: fixed;
-  top: 72px;
-  left: 0;
-  bottom: 0;
-  width: 220px;              /* same as nav width */
-  
-background: linear-gradient(
-    to bottom,
-    #0b2d4f 0%,
-    #123f6d 100%
-  );
-
-  z-index: 0;
-}
-
-/* Keep nav content above the background */
-.staff-page nav {
-  position: relative;
-  background: transparent;
-  z-index: 1;
-}
-
-
-.staff-page {
-  display: flex;              /* stack header + content vertically */
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.staff-page > header {
-  flex-shrink: 0;             /* header keeps its height */
-}
-
-.staff-page .wrap {
-  flex: 1;                    /* content fills remaining space */
-  display: grid;
-  grid-template-columns: 220px 1fr;
-  min-height: 0;              /* critical for scroll behavior */
-}
-
 
 
 /* PTO Request Form */
