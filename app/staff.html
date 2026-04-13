@@ -181,10 +181,10 @@
 
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
+    
+  
 const SUPABASE_URL = 'https://xrhwjjkxlshfarlxuxsa.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s';
-
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     auth: { persistSession: true, autoRefreshToken: true }
@@ -192,6 +192,26 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 let SCHOOL_WORKDAY_HOURS = 8;
 // ---------- PTO Cancel Modal Helpers ----------
 let pendingCancel = null;
+
+
+function isPastPto(startDateStr) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const startDate = parseLocalDate(startDateStr);
+  startDate.setHours(0, 0, 0, 0);
+
+  return startDate <= today; // ✅ today counts as past per your rule
+}
+
+function rescindWasDenied(notes) {
+  return typeof notes === 'string' && notes.includes('[RESCIND DENIED]');
+}
+
+function parseLocalDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d); // ✅ LOCAL midnight
+}
 
 function openCancelModal({ type, request }) {
   pendingCancel = { type, request };
@@ -232,7 +252,6 @@ function openCancelModal({ type, request }) {
   document.body.classList.add('modal-open');
 }
 
-
 function closeCancelModal() {
   pendingCancel = null;
   document.getElementById('cancelModal').classList.remove('open');
@@ -248,6 +267,8 @@ function addHoursToTime(startTime, hours) {
 
   return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
 }
+
+
 
 document.getElementById('cancelModalClose').onclick = closeCancelModal;
 document.getElementById('cancelModalAbort').onclick = closeCancelModal;
@@ -714,15 +735,20 @@ const notesText = r.notes && r.notes.trim() !== '' ? r.notes : '—';
 const today = new Date();
 today.setHours(0, 0, 0, 0);
 
-const startDate = new Date(r.start_date);
-startDate.setHours(0, 0, 0, 0);
+
+const startDate = parseLocalDate(r.start_date);
+startDate.setHours(0,0,0,0);
 
 const canCancelFuture =
   r.status === 'PENDING' ||
   (r.status === 'APPROVED' && startDate > today);
 
+
 const canRescindPast =
-  r.status === 'APPROVED' && startDate <= today;
+  r.status === 'APPROVED' &&
+  startDate <= today &&
+  !rescindWasDenied(r.notes);
+
 
 let actionButton = '';
 
@@ -737,9 +763,15 @@ if (canCancelFuture) {
     <td>${dateText}</td>
     <td class="col-hours">${hoursText}</td>
     <td>${notesText}</td>
-    <td class="status ${r.status}">
-  ${formatStatus(r.status)}
-	</td>
+    
+
+<td class="status ${r.status}">
+  <span class="status-label">
+    ${formatStatus(r.status, r.notes)}
+  </span>
+</td>
+
+
     <td>${new Date(r.submitted_at).toLocaleDateString()}</td>
     <td>${actionButton}</td>
   `;
@@ -770,7 +802,8 @@ if (rescindBtn) {
 
 }
 
-function formatStatus(status) {
+
+function formatStatus(status, notes) {
   switch (status) {
     case 'RESCIND_REQUESTED':
       return 'Rescind Requested';
@@ -778,9 +811,16 @@ function formatStatus(status) {
       return 'Rescinded';
     case 'CANCEL_REQUESTED':
       return 'Cancel Requested';
-case 'PENDING':
+    case 'PENDING':
       return 'Pending';
-case 'APPROVED':
+	   case 'CANCELLED':
+      return 'Cancelled';
+	   case 'DENIED':
+      return 'Denied';
+    case 'APPROVED':
+      if (rescindWasDenied(notes)) {
+        return 'Approved (Rescind Denied)';
+      }
       return 'Approved';
     default:
       return status.replace('_', ' ');
@@ -1097,19 +1137,23 @@ document.getElementById('cancelModalConfirm').onclick = async () => {
   let newStatus;
   let noteLabel;
 
-  if (type === 'RESCIND') {
-    newStatus = 'RESCIND_REQUESTED';
-    noteLabel = 'RESCIND REQUESTED';
-  } else {
-    newStatus =
-      request.status === 'APPROVED'
-        ? 'CANCEL_REQUESTED'
-        : 'CANCELLED';
-    noteLabel =
-      newStatus === 'CANCEL_REQUESTED'
-        ? 'CANCEL REQUESTED'
-        : 'CANCELLED';
-  }
+
+const past = isPastPto(request.start_date);
+
+if (past) {
+  newStatus = 'RESCIND_REQUESTED';
+  noteLabel = 'RESCIND REQUESTED';
+} else {
+  newStatus =
+    request.status === 'APPROVED'
+      ? 'CANCEL_REQUESTED'
+      : 'CANCELLED';
+  noteLabel =
+    newStatus === 'CANCEL_REQUESTED'
+      ? 'CANCEL REQUESTED'
+      : 'CANCELLED';
+}
+
 
   const updatedNotes = request.notes
     ? `${request.notes}\n\n[${noteLabel}]: ${reason}`

@@ -61,8 +61,14 @@
  <nav>
    
 <a href="/pto.html#calendar">📅 PTO Calendar</a>
-<a href="/pto.html#pending">🕒 Pending Requests</a>
-<a href="/pto.html#cancellations">❌ Cancellations</a>
+<a href="/pto.html#pending">
+  🕒 Pending Requests
+  <span class="badge-count" id="pendingCount"></span>
+</a>
+<a href="/pto.html#cancellations">
+  ❌ Cancellations
+  <span class="badge-count" id="cancelCount"></span>
+</a>
 <a href="/pto.html#history">📚 Staff PTO History</a>
 <a href="/pto.html#adjust">✏️ Adjust PTO</a>
 <a href="/pto.html#reports">📊 PTO Reports</a>
@@ -182,7 +188,20 @@
       <div id="ptoSumNet">—</div>
     </div>
   </div>
+  
+<div
+  id="ptoHistoryBalancesWrap"
+  style="margin-left:auto; display:none;"
+>
+  <div class="muted" style="font-size:11px; margin-bottom:6px;">
+    PTO Balances
+  </div>
+
+  <div id="ptoHistoryBalances" class="pto-balances compact"></div>
 </div>
+
+</div>
+
 
 
       <!-- ============================
@@ -363,7 +382,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
     let lastPendingPtoCount = 0;
     let lastCancelPtoCount = 0;
 	let currentPtoHistoryEmployeeId = null;
-
+    
+  
 const SUPABASE_URL = 'https://xrhwjjkxlshfarlxuxsa.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s';
 
@@ -491,12 +511,11 @@ if (generateBtn) {
 
 if (staffSelect) {
 
+
 staffSelect.addEventListener('change', e => {
   const employeeId = e.target.value;
 
-  // ✅ Prevent duplicate reloads
   if (employeeId === currentPtoHistoryEmployeeId) return;
-
   currentPtoHistoryEmployeeId = employeeId;
 
   resetStaffHistoryView();
@@ -504,8 +523,13 @@ staffSelect.addEventListener('change', e => {
   if (employeeId) {
     loadStaffPtoHistory(employeeId);
     loadStaffPtoLedger(employeeId);
+    loadPtoHistoryBalances(employeeId); // ✅ already added earlier
+    showPtoHistoryBalances(true);        // ✅ ADD THIS
+  } else {
+    showPtoHistoryBalances(false);       // ✅ ADD THIS
   }
 });
+
 }
 
 function formatTime(t) {
@@ -532,6 +556,13 @@ function formatHoursWithTime(r) {
   }
 
   return `${hours} hrs`;
+}
+
+function showPtoHistoryBalances(show) {
+  const wrap = document.getElementById('ptoHistoryBalancesWrap');
+  if (!wrap) return;
+
+  wrap.style.display = show ? 'block' : 'none';
 }
 
 async function loadSchoolPtoTypes() {
@@ -965,16 +996,48 @@ async function loadPtoRequestCounts() {
   updateTabBadge('cancelCount', cancelCount);
 }
 
+
 function updateTabBadge(id, count) {
   const el = document.getElementById(id);
   if (!el) return;
 
   if (!count || count === 0) {
-    el.hidden = true;
+    el.textContent = '';
   } else {
     el.textContent = count;
-    el.hidden = false;
   }
+}
+
+
+async function loadPtoHistoryBalances(employeeId) {
+  const container = document.getElementById('ptoHistoryBalances');
+  if (!container) return;
+
+  container.innerHTML = '';
+  container.style.display = 'none';
+
+  if (!employeeId) return;
+
+  const { data, error } = await supabase
+    .from('pto_balances')
+    .select('pto_type, balance_hours')
+    .eq('employee_id', employeeId);
+
+  if (error || !data || data.length === 0) {
+    return;
+  }
+
+  data.forEach(b => {
+    const div = document.createElement('div');
+    div.className = 'pto-balance';
+    div.innerHTML = `
+      <span>${b.pto_type}</span>
+      <strong>${b.balance_hours} hrs</strong>
+    `;
+    container.appendChild(div);
+  });
+
+  container.style.display = 'grid';
 }
 
 async function loadStaffPtoBalances(employeeId) {
@@ -1738,18 +1801,22 @@ async function setPtoView(view) {
       await loadPtoCancellationRequests();
     }
 
-    if (view === 'history') {
-      const select = document.getElementById('ptoStaffSelect');
-      const employeeId = select?.value || null;
+   
+if (view === 'history') {
+  const select = document.getElementById('ptoStaffSelect');
+  const employeeId = select?.value || null;
 
-      resetStaffHistoryView();
-      currentPtoHistoryEmployeeId = employeeId;
+  resetStaffHistoryView();
+  currentPtoHistoryEmployeeId = employeeId;
 
-      if (employeeId) {
-        loadStaffPtoHistory(employeeId);
-        loadStaffPtoLedger(employeeId);
-      }
-    }
+  if (employeeId) {
+    loadStaffPtoHistory(employeeId);
+    loadStaffPtoLedger(employeeId);
+    loadPtoHistoryBalances(employeeId); 
+    showPtoHistoryBalances(true);       
+  }
+}
+
 
     if (view === 'adjust') {
       await populateAdjustPtoTypes();
@@ -1817,17 +1884,21 @@ async function loadAdjustPtoBalances(employeeId) {
 function resetStaffHistoryView() {
   document.getElementById('ptoHistoryAdminTable').style.display = 'none';
   document.getElementById('ptoHistoryEmpty').hidden = false;
-
   document.getElementById('ptoLedgerAdminTable').style.display = 'none';
   document.getElementById('ptoLedgerEmpty').hidden = false;
+  
+    showPtoHistoryBalances(false);
 
-  // ✅ Reset summary
+  const balances = document.getElementById('ptoHistoryBalances');
+  if (balances) balances.style.display = 'none';
+
   ['ptoSumApproved', 'ptoSumPending', 'ptoSumCancelled', 'ptoSumNet']
     .forEach(id => {
       const el = document.getElementById(id);
       if (el) el.textContent = '—';
     });
 }
+
 let reportsFlatpickrInitialized = false;
 
 function initPtoReportsView() {
@@ -1918,22 +1989,6 @@ async function handlePtoExport() {
   }
 }
 
-
-
-// ✅ REQUIRED — initial activation
-if (currentProfile.can_approve_pto) {
-  setPtoView('pending');
-} else if (currentProfile.can_view_pto_calendar) {
-  setPtoView('calendar');
-} else if (currentProfile.can_review_pto) {
-  setPtoView('history');
-} else if (currentProfile.can_adjust_pto) {
-  setPtoView('adjust');
-} else if (currentProfile.can_generate_pto_reports) {
-  setPtoView('reports');
-} else {
-  alert('You do not have access to any PTO views.');
-}
 
 document.addEventListener('change', async e => {
   if (!e.target.classList.contains('pto-policy-input')) return;
