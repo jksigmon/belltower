@@ -49,7 +49,6 @@
 </div>
 
 
-
   <!-- Right: User actions -->
   <div class="header-actions">
     <span id="adminName" class="muted"></span>
@@ -57,37 +56,23 @@
   </div>
 </header>
 
-<div class="pto-shell">
-  <div class="pto-rail">
-    <div class="pto-tabs" id="ptoTabs">
+<div class="wrap">
 
-  <button class="tab active" data-view="calendar" id="ptoTabCalendar">
-  Calendar</button>
+ <nav>
+   
+<a href="/pto.html#calendar">📅 PTO Calendar</a>
+<a href="/pto.html#pending">🕒 Pending Requests</a>
+<a href="/pto.html#cancellations">❌ Cancellations</a>
+<a href="/pto.html#history">📚 Staff PTO History</a>
+<a href="/pto.html#adjust">✏️ Adjust PTO</a>
+<a href="/pto.html#reports">📊 PTO Reports</a>
+<a href="/pto.html#policies">📄 PTO Policies</a>
 
-<button class="tab badge-btn" data-view="pending" id="ptoTabPending">
-  Pending Requests
-  <span class="badge-count" id="pendingCount" hidden></span>
-</button>
+  </nav>
 
-<button class="tab badge-btn" data-view="cancellations" id="ptoTabCancellations">
-  Cancellation Requests
-  <span class="badge-count" id="cancelCount" hidden></span>
-</button>
+<main>
 
 
-  <button class="tab" data-view="history">Staff PTO History</button>
-  <button class="tab" data-view="adjust" id="ptoTabAdjust">
-  Adjust PTO
-  </button>
-  <button class="tab" data-view="reports" id="ptoTabReports">
-  Reports
-  </button>
-  <button class="tab" data-view="policies" id="ptoTabPolicies">
-  Policies
-  </button>
-
-   </div>
-  </div>
 
 <main class="pto-main">
 <section id="pto-calendar" class="admin-section">
@@ -379,11 +364,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
     let lastCancelPtoCount = 0;
 	let currentPtoHistoryEmployeeId = null;
 
-
 const SUPABASE_URL = 'https://xrhwjjkxlshfarlxuxsa.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s';
-
-
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
@@ -465,9 +447,11 @@ const backToAdmin = document.getElementById('backToAdmin');
 const params = new URLSearchParams(window.location.search);
 const cameFromAdmin = params.get('from') === 'admin';
 
-if (backToAdmin && cameFromAdmin && hasAdminAccess(currentProfile)) {
+
+if (backToAdmin && hasAdminAccess(currentProfile)) {
   backToAdmin.style.visibility = 'visible';
 }
+
 
 
 
@@ -1679,20 +1663,17 @@ function colorForPtoType(type) {
 
 const ptoTabs = document.querySelectorAll('#ptoTabs .tab');
 
+
 async function setPtoView(view) {
-  
+
   // -------------------------
-  // 1. Update tab active state
+  // 1. Permission guards
   // -------------------------
-  ptoTabs.forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.view === view);
-  });
-  
   if (view === 'history' && !currentProfile.can_review_pto) {
-  alert('You are not authorized to view staff PTO history.');
-  return;
-}
-  // ✅ Adjust PTO + Policies hard guard
+    alert('You are not authorized to view staff PTO history.');
+    return;
+  }
+
   if (
     (view === 'adjust' || view === 'policies') &&
     !currentProfile.can_adjust_pto
@@ -1701,11 +1682,10 @@ async function setPtoView(view) {
     return;
   }
 
-if (view === 'reports' && !currentProfile.can_generate_pto_reports) {
-  alert('You are not authorized to generate PTO reports.');
-  return;
-}
-
+  if (view === 'reports' && !currentProfile.can_generate_pto_reports) {
+    alert('You are not authorized to generate PTO reports.');
+    return;
+  }
 
   // -------------------------
   // 2. Hide all PTO sections & skeletons
@@ -1729,92 +1709,69 @@ if (view === 'reports' && !currentProfile.can_generate_pto_reports) {
   activeSection.classList.add('active');
 
   // -------------------------
-  // 4. Show skeleton + reset fade
+  // 4. Skeleton handling
   // -------------------------
   const skeleton = activeSection.querySelector('.skeleton-container');
-  if (skeleton) skeleton.style.display = 'block';
+  if (skeleton && view !== 'reports') {
+    skeleton.style.display = 'block';
+  }
 
-
-const content = activeSection.querySelector('.admin-content.fade-in');
-if (content && view !== 'reports') {
-  content.classList.remove('visible');
-}
-
-
-
-// ✅ Only use skeletons for data-loading views
-if (skeleton && view !== 'reports') {
-  skeleton.style.display = 'block';
-}
-
-if (content && view !== 'reports') {
-  content.classList.remove('visible');
-}
+  const content = activeSection.querySelector('.admin-content.fade-in');
+  if (content && view !== 'reports') {
+    content.classList.remove('visible');
+  }
 
   // -------------------------
-  // 5. LOAD DATA PER VIEW
+  // 5. Load data per section
   // -------------------------
   try {
-	
-if (view === 'calendar' && ptoCalendar) {
-  requestAnimationFrame(() => {
-    ptoCalendar.updateSize();
-  });
-}
+
+    if (view === 'calendar' && ptoCalendar) {
+      requestAnimationFrame(() => ptoCalendar.updateSize());
+    }
 
     if (view === 'pending') {
-      await loadPto(); 
+      await loadPto();
     }
 
     if (view === 'cancellations') {
       await loadPtoCancellationRequests();
     }
 
-    
+    if (view === 'history') {
+      const select = document.getElementById('ptoStaffSelect');
+      const employeeId = select?.value || null;
 
-if (view === 'history') {
-  const select = document.getElementById('ptoStaffSelect');
-  const employeeId = select?.value || null;
-
-  if (employeeId === currentPtoHistoryEmployeeId) {
-    if (!employeeId) {
       resetStaffHistoryView();
+      currentPtoHistoryEmployeeId = employeeId;
+
+      if (employeeId) {
+        loadStaffPtoHistory(employeeId);
+        loadStaffPtoLedger(employeeId);
+      }
     }
-  } else {
-    currentPtoHistoryEmployeeId = employeeId;
-    resetStaffHistoryView();
-
-    if (employeeId) {
-      loadStaffPtoHistory(employeeId);
-      loadStaffPtoLedger(employeeId);
-    }
-  }
-}
-
-
 
     if (view === 'adjust') {
       await populateAdjustPtoTypes();
       await loadPtoAdjustStaff();
-	  await populateBulkAnnualPtoTypes();
+      await populateBulkAnnualPtoTypes();
     }
-	
-	
-if (view === 'reports') {
-  initPtoReportsView();
-}
 
+    if (view === 'reports') {
+      initPtoReportsView();
+    }
 
     if (view === 'policies') {
       await loadPtoPolicies();
     }
+
   } catch (err) {
     console.error(`Error loading PTO view "${view}"`, err);
     return;
   }
 
   // -------------------------
-  // 6. Fade content in + hide skeleton
+  // 6. Fade content in
   // -------------------------
   if (content) {
     requestAnimationFrame(() => {
@@ -1822,11 +1779,11 @@ if (view === 'reports') {
     });
   }
 
-if (skeleton && view !== 'reports') {
-  skeleton.style.display = 'none';
+  if (skeleton && view !== 'reports') {
+    skeleton.style.display = 'none';
+  }
 }
 
-}
 
 async function loadAdjustPtoBalances(employeeId) {
   const container = document.getElementById('adjustPtoBalances');
@@ -1962,12 +1919,6 @@ async function handlePtoExport() {
 }
 
 
-// Tab click wiring
-ptoTabs.forEach(tab => {
-  tab.addEventListener('click', () => {
-    setPtoView(tab.dataset.view);
-  });
-});
 
 // ✅ REQUIRED — initial activation
 if (currentProfile.can_approve_pto) {
@@ -2264,11 +2215,19 @@ alert(
 
   });
   
-  
-  function openModal(id) {
-  document.getElementById(id).classList.add('open');
+function handlePtoRoute() {
+  const view = location.hash.replace('#', '') || 'pending';
+  setPtoView(view);
 }
 
+window.addEventListener('hashchange', handlePtoRoute);
+
+// initial load
+handlePtoRoute();
+  
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
 
 function closeModal(id) {
   const modal = document.getElementById(id);
