@@ -1191,7 +1191,7 @@ async function createStaff() {
   const last = document.getElementById('staffLast').value.trim();
   const email = document.getElementById('staffEmail').value.trim();
   const position = document.getElementById('staffPosition').value.trim();
-  const isApprover = document.getElementById('staffApprover').checked;
+
 
   if (!first || !last) {
     alert('First and last name are required.');
@@ -1219,7 +1219,6 @@ async function createStaff() {
   document.getElementById('staffLast').value = '';
   document.getElementById('staffEmail').value = '';
   document.getElementById('staffPosition').value = '';
-  document.getElementById('staffApprover').checked = false;
 
   loadStaff();
 }
