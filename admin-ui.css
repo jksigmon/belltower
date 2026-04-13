@@ -225,7 +225,7 @@ nav a {
   padding: 12px 14px;
   margin: 6px 0;
   border-radius: 10px;
-
+  position: relative;
   background: rgba(255, 255, 255, 0.7);
   border: 1px solid #d1d5db;
 
@@ -260,6 +260,29 @@ nav a.active {
   font-weight: 600;
 }
 
+
+nav a .badge-count {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background-color: #dc2626; /* red */
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+
+  border-radius: 999px;
+  padding: 0 6px;
+}
+
+
+nav a .badge-count:empty {
+  display: none;
+}
 
 
 /* =============================================
@@ -321,7 +344,9 @@ nav a.active {
   display: flex;
   align-items: center;
   gap: 16px;
-  margin: 12px 0;
+   margin-top: 4px;
+  margin-bottom: 12px;
+
 }
 
 .pto-summary {
@@ -872,6 +897,9 @@ body.modal-open .panel:hover {
 .badge-btn {
   position: relative;
 }
+
+
+
 
 .badge-count {
   position: absolute;
@@ -1677,3 +1705,49 @@ nav a[data-cap-group] {
   display: none;
 }
 
+
+
+/* Staff PTO History – compact balance layout (no double border) */
+.pto-balances.compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+
+  /* ✅ Remove outer "card" feeling */
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.pto-balances.compact .pto-balance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+
+  padding: 8px 10px;
+
+  /* ✅ Single, light card per PTO type */
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.pto-balances.compact .pto-balance span {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+.pto-balances.compact .pto-balance strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+#ptoHistoryBalancesWrap {
+  align-self: flex-start;
+}
