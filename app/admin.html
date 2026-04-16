@@ -91,6 +91,9 @@
         <input id="staffLast" placeholder="Last" />
         <input id="staffEmail" placeholder="Email" />
         <input id="staffPosition" placeholder="Position" />
+		<select id="staffSupervisor">
+		<option value="">Supervisor / PTO Approver (optional)</option>
+		</select>
         <button id="addStaff" class="btn btn-primary">Add</button>
       </div>
     </div>
@@ -105,6 +108,7 @@
             <th>Name</th>
             <th>Email</th>
             <th>Position</th>
+			<th>Supervisor</th>
             <th>Active</th>
             <th></th>
           </tr>
@@ -647,8 +651,6 @@ document  .getElementById('accessPreset')
     // ✅ Reset dropdown
     e.target.value = '';
   });
-
-    
   
 const SUPABASE_URL = 'https://xrhwjjkxlshfarlxuxsa.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s';
@@ -733,6 +735,52 @@ if (previewBtn && fileInput && sheetsContainer && checkboxesContainer) {
     reader.readAsDataURL(file);
   });
 
+
+// ===============================
+// Bulk Upload Drag & Drop FIX
+// ===============================
+
+const dropzone = document.getElementById('bulkUploadDropzone');
+
+
+if (dropzone && fileInput) {
+
+  // Prevent browser defaults for drag events
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, e => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  });
+
+  // Visual feedback (optional but recommended)
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropzone.addEventListener(eventName, () => {
+      dropzone.classList.add('drag-active');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropzone.addEventListener(eventName, () => {
+      dropzone.classList.remove('drag-active');
+    });
+  });
+
+  // ✅ Handle drop
+  dropzone.addEventListener('drop', e => {
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+
+    // Assign files to the file input so existing logic works
+    fileInput.files = files;
+
+    // ✅ Trigger your existing change handler
+    fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
+
+
   // PREVIEW CLICK
   previewBtn.addEventListener('click', async () => {
     if (!uploadedFileBase64) {
@@ -812,6 +860,7 @@ if (commitBtn) {
     }
 
     alert('Bulk upload committed successfully!');
+	resetBulkUploadUI(true);
   });
 }
 
@@ -882,7 +931,7 @@ async function setActive(hash) {
 
   // --- Load data based on section ---
   if (target === '#staff') {
-    await loadStaff();
+    await loadSupervisorOptions(); 
   }
 
 if (target === '#access') {
@@ -1002,7 +1051,10 @@ if (userEmailEl) {
   }
 
   currentProfile = profile;
+await loadSupervisorOptions();
+await loadSupervisorLookup();
 
+await loadStaff();
 
 
 
@@ -1094,11 +1146,21 @@ if (profile.is_superadmin && badge) {
 async function loadStaff() {
       const tbody = document.querySelector('#staffTable tbody');
       tbody.innerHTML = '';
-      const { data, error } = await supabase
-        .from('employees')
-        .select('id, first_name, last_name, email, position, active')
-        .order('last_name', { ascending: true })
-        .limit(50);
+
+const { data, error } = await supabase
+  .from('employees')
+  .select(`
+    id,
+    first_name,
+    last_name,
+    email,
+    position,
+    active,
+    supervisor_id
+  `)
+  .order('last_name', { ascending: true })
+  .limit(50);
+
       if (error) { console.error(error); return; }
       (data || []).forEach(r => {
       
@@ -1122,6 +1184,19 @@ tr.innerHTML = `
     <input class="form-input edit position" value="${r.position || ''}" style="display:none;" />
   </td>
 
+<td>
+  <span class="view">
+    ${r.supervisor_id
+  ? supervisorLookup[r.supervisor_id] || '—'
+  : '—'}
+
+  </span>
+
+  <select class="form-input edit supervisor" style="display:none;">
+    <option value="">No supervisor</option>
+  </select>
+</td>
+
   <td>
     <span class="view">${r.active ? 'Yes' : 'No'}</span>
     <input type="checkbox" class="edit active" ${r.active ? 'checked' : ''} style="display:none;" />
@@ -1136,25 +1211,31 @@ tr.innerHTML = `
 const editBtn = tr.querySelector('.editBtn');
 const saveBtn = tr.querySelector('.saveBtn');
 const deleteBtn = tr.querySelector('.deleteBtn');
+const supervisorSelect = tr.querySelector('.supervisor'); 
 
 const views = tr.querySelectorAll('.view');
 const edits = tr.querySelectorAll('.edit');
 
-editBtn.addEventListener('click', () => {
+
+editBtn.addEventListener('click', async () => {
   views.forEach(v => v.style.display = 'none');
   edits.forEach(e => e.style.display = 'inline-flex');
   editBtn.style.display = 'none';
   saveBtn.style.display = 'inline-block';
+  await populateSupervisorSelect(supervisorSelect, r.supervisor_id);
 });
+
 
 saveBtn.addEventListener('click', async () => {
   const updated = {
-    first_name: tr.querySelector('.first').value.trim(),
-    last_name: tr.querySelector('.last').value.trim(),
-    email: tr.querySelector('.email').value.trim(),
-    position: tr.querySelector('.position').value.trim(),
-    active: tr.querySelector('.active').checked
-  };
+  first_name: tr.querySelector('.first').value.trim(),
+  last_name: tr.querySelector('.last').value.trim(),
+  email: tr.querySelector('.email').value.trim(),
+  position: tr.querySelector('.position').value.trim(),
+  supervisor_id: supervisorSelect.value || null, 
+  active: tr.querySelector('.active').checked
+};
+
 
   if (!updated.first_name || !updated.last_name) {
     alert('First and last name are required.');
@@ -1182,6 +1263,103 @@ deleteBtn.addEventListener('click', () => {
         tbody.appendChild(tr);
       });
     }
+
+
+let supervisorLookup = {};
+
+async function loadSupervisorLookup() {
+  if (!currentProfile?.school_id) return;
+
+  const { data, error } = await supabase
+    .from('employees')
+    .select('id, first_name, last_name')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true);
+
+  if (error) {
+    console.error('Failed to load supervisor lookup', error);
+    return;
+  }
+
+  supervisorLookup = {};
+  data.forEach(e => {
+    supervisorLookup[e.id] = `${e.first_name} ${e.last_name}`;
+  });
+}
+
+async function populateSupervisorSelect(selectEl, currentValue) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      employee_id,
+      employees!profiles_employee_id_fkey (
+        id,
+        first_name,
+        last_name,
+        active
+      )
+    `)
+    .eq('school_id', currentProfile.school_id)
+    .eq('can_approve_pto', true)
+    .not('employee_id', 'is', null);
+
+  if (error) {
+    console.error('Failed to load supervisors', error);
+    return;
+  }
+
+  data
+    .filter(p => p.employees?.active)
+    .forEach(p => {
+      const emp = p.employees;
+      const opt = document.createElement('option');
+      opt.value = emp.id;
+      opt.textContent = `${emp.last_name}, ${emp.first_name}`;
+      if (emp.id === currentValue) opt.selected = true;
+      selectEl.appendChild(opt);
+    });
+}
+
+async function loadSupervisorOptions() {
+  if (!currentProfile?.school_id) return;
+
+  const select = document.getElementById('staffSupervisor');
+  if (!select) return;
+
+  select.innerHTML =
+    '<option value="">Supervisor / PTO Approver (optional)</option>';
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`
+      employee_id,
+      employees!profiles_employee_id_fkey (
+        id,
+        first_name,
+        last_name,
+        active
+      )
+    `)
+    .eq('school_id', currentProfile.school_id)
+    .eq('can_approve_pto', true)
+    .not('employee_id', 'is', null);
+
+  if (error) {
+    console.error('Failed to load supervisors', error);
+    return;
+  }
+
+  data
+    .filter(p => p.employees?.active)
+    .forEach(p => {
+      const emp = p.employees;
+      const opt = document.createElement('option');
+      opt.value = emp.id;
+      opt.textContent = `${emp.last_name}, ${emp.first_name}`;
+      select.appendChild(opt);
+    });
+}
+
 	
 async function createStaff() {
   if (!currentProfile) return;
@@ -1197,16 +1375,21 @@ async function createStaff() {
     return;
   }
 
-  const { error } = await supabase
-    .from('employees')
-    .insert({
-      school_id: currentProfile.school_id,
-      first_name: first,
-      last_name: last,
-      email,
-      position,
-      active: true
-    });
+const supervisorId =
+  document.getElementById('staffSupervisor').value || null;
+
+const { error } = await supabase
+  .from('employees')
+  .insert({
+    school_id: currentProfile.school_id,
+    first_name: first,
+    last_name: last,
+    email,
+    position,
+    supervisor_id: supervisorId,
+    active: true
+  });
+
 
   if (error) {
     console.error(error);
@@ -1218,6 +1401,7 @@ async function createStaff() {
   document.getElementById('staffLast').value = '';
   document.getElementById('staffEmail').value = '';
   document.getElementById('staffPosition').value = '';
+  document.getElementById('staffSupervisor').value = '';
 
 
   loadStaff();
@@ -1411,7 +1595,6 @@ async function loadStudents() {
   tbody.appendChild(tr);
 });
 }
-
 
 async function createStudent() {
   if (!currentProfile) return;
@@ -2186,6 +2369,54 @@ Object.entries(summary || {}).forEach(([sheet, counts]) => {
   container.appendChild(block);
 });
 }
+
+
+function resetBulkUploadUI(showSuccess = true) {
+  // Clear preview DOM
+  const preview = document.getElementById('bulkUploadPreview');
+  if (preview) preview.innerHTML = '';
+
+  // Hide commit section
+  const commitSection = document.getElementById('bulkUploadCommit');
+  if (commitSection) commitSection.style.display = 'none';
+
+  // Reset file input
+  const fileInput = document.getElementById('bulkUploadFile');
+  if (fileInput) fileInput.value = '';
+
+  // Hide sheets selector
+  const sheetsContainer = document.getElementById('bulkUploadSheets');
+  if (sheetsContainer) sheetsContainer.style.display = 'none';
+
+  // Reset sheet checkboxes
+  const checkboxes = document.querySelectorAll(
+    '#bulkSheetCheckboxes input[type="checkbox"]'
+  );
+  checkboxes.forEach(cb => (cb.checked = true));
+
+  // Reset preview button
+  const previewBtn = document.getElementById('bulkPreviewBtn');
+  if (previewBtn) previewBtn.disabled = true;
+
+  // Clear in-memory state
+  window.lastBulkPreviewResult = null;
+  window.lastBulkUploadFilename = null;
+  uploadedFileBase64 = null;
+
+  // Optional success banner
+  if (showSuccess) {
+    const msg = document.createElement('div');
+    msg.className = 'notice success';
+    msg.style.marginTop = '12px';
+    msg.textContent = '✅ Bulk upload completed successfully.';
+
+    const panel = document.querySelector('#bulk-upload .panel-action');
+    if (panel) panel.appendChild(msg);
+
+    setTimeout(() => msg.remove(), 4000);
+  }
+}
+
 
 async function loadAccessManagement() {
   const tbody = document.querySelector('#accessTable tbody');
