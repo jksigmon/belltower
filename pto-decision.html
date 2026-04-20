@@ -45,12 +45,13 @@
   </div>
 
 
+
 <script type="module">
   import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
   const supabase = createClient(
     "https://lmvpjbzwdyfziedpeytd.supabase.co",
-    "PUBLIC_ANON_KEY"
+    "YOUR_PUBLIC_ANON_KEY"
   );
 
   const params = new URLSearchParams(window.location.search);
@@ -65,11 +66,17 @@
     throw new Error("Missing requestId");
   }
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("pto_requests")
     .select("status")
     .eq("id", requestId)
     .single();
+
+  if (error || !data) {
+    title.textContent = "PTO Request";
+    message.textContent = "Unable to load PTO status.";
+    throw error;
+  }
 
   switch (data.status) {
     case "APPROVED":
@@ -84,7 +91,7 @@
 
     case "CANCELLED":
       title.textContent = "ℹ️ PTO Cancelled";
-      message.textContent = "The PTO has been cancelled.";
+      message.textContent = "The approved PTO has been cancelled.";
       break;
 
     case "RESCINDED":
@@ -94,10 +101,11 @@
       break;
 
     default:
-      title.textContent = "PTO Processed";
-      message.textContent = "This PTO request has been processed.";
+      title.textContent = "PTO Request";
+      message.textContent = "The request has been processed.";
   }
 </script>
+
 
 
 </body>
