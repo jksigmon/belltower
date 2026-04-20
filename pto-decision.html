@@ -45,46 +45,60 @@
   </div>
 
 
-<script>
+<script type="module">
+  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+  const supabase = createClient(
+    "https://lmvpjbzwdyfziedpeytd.supabase.co",
+    "PUBLIC_ANON_KEY"
+  );
+
   const params = new URLSearchParams(window.location.search);
-  const status = params.get("status");
+  const requestId = params.get("requestId");
 
   const title = document.getElementById("title");
   const message = document.getElementById("message");
 
-  switch (status) {
+  if (!requestId) {
+    title.textContent = "Invalid Request";
+    message.textContent = "Missing PTO request reference.";
+    throw new Error("Missing requestId");
+  }
+
+  const { data } = await supabase
+    .from("pto_requests")
+    .select("status")
+    .eq("id", requestId)
+    .single();
+
+  switch (data.status) {
     case "APPROVED":
       title.textContent = "✅ PTO Approved";
-      title.className = "approved";
-      message.textContent =
-        "The PTO request has been approved successfully.";
+      message.textContent = "The PTO request has been approved.";
       break;
 
     case "DENIED":
       title.textContent = "❌ PTO Denied";
-      title.className = "denied";
-      message.textContent =
-        "The PTO request has been denied.";
+      message.textContent = "The PTO request was denied.";
       break;
 
     case "CANCELLED":
       title.textContent = "ℹ️ PTO Cancelled";
-      message.textContent =
-        "The approved PTO has been cancelled.";
+      message.textContent = "The PTO has been cancelled.";
       break;
 
     case "RESCINDED":
       title.textContent = "ℹ️ PTO Rescinded";
       message.textContent =
-        "The previously approved PTO has been rescinded. PTO hours will be credited back.";
+        "The PTO has been rescinded and hours were credited back.";
       break;
 
     default:
-      title.textContent = "PTO Request Processed";
-      message.textContent =
-        "This PTO request has been processed.";
+      title.textContent = "PTO Processed";
+      message.textContent = "This PTO request has been processed.";
   }
 </script>
+
 
 </body>
 </html>
