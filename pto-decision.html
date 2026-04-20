@@ -45,15 +45,7 @@
   </div>
 
 
-
-<script type="module">
-  import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-  const supabase = createClient(
-    "https://lmvpjbzwdyfziedpeytd.supabase.co",
-    "YOUR_PUBLIC_ANON_KEY"
-  );
-
+<script>
   const params = new URLSearchParams(window.location.search);
   const requestId = params.get("requestId");
 
@@ -62,51 +54,44 @@
 
   if (!requestId) {
     title.textContent = "Invalid Request";
-    message.textContent = "Missing PTO request reference.";
-    throw new Error("Missing requestId");
+    message.textContent = "Missing PTO reference.";
+    return;
   }
 
-  const { data, error } = await supabase
-    .from("pto_requests")
-    .select("status")
-    .eq("id", requestId)
-    .single();
-
-  if (error || !data) {
-    title.textContent = "PTO Request";
-    message.textContent = "Unable to load PTO status.";
-    throw error;
-  }
-
-  switch (data.status) {
-    case "APPROVED":
-      title.textContent = "✅ PTO Approved";
-      message.textContent = "The PTO request has been approved.";
-      break;
-
-    case "DENIED":
-      title.textContent = "❌ PTO Denied";
-      message.textContent = "The PTO request was denied.";
-      break;
-
-    case "CANCELLED":
-      title.textContent = "ℹ️ PTO Cancelled";
-      message.textContent = "The approved PTO has been cancelled.";
-      break;
-
-    case "RESCINDED":
-      title.textContent = "ℹ️ PTO Rescinded";
-      message.textContent =
-        "The PTO has been rescinded and hours were credited back.";
-      break;
-
-    default:
+  fetch(`https://lmvpjbzwdyfziedpeytd.functions.supabase.co/get_pto_status?requestId=${requestId}`)
+    .then(res => {
+      if (!res.ok) throw new Error();
+      return res.json();
+    })
+    .then(({ status }) => {
+      switch (status) {
+        case "APPROVED":
+          title.textContent = "✅ PTO Approved";
+          message.textContent = "The PTO request has been approved.";
+          break;
+        case "DENIED":
+          title.textContent = "❌ PTO Denied";
+          message.textContent = "The PTO request was denied.";
+          break;
+        case "CANCELLED":
+          title.textContent = "ℹ️ PTO Cancelled";
+          message.textContent = "The PTO was cancelled.";
+          break;
+        case "RESCINDED":
+          title.textContent = "ℹ️ PTO Rescinded";
+          message.textContent =
+            "The PTO was rescinded and hours were credited back.";
+          break;
+        default:
+          title.textContent = "PTO Request";
+          message.textContent = "The request has been processed.";
+      }
+    })
+    .catch(() => {
       title.textContent = "PTO Request";
-      message.textContent = "The request has been processed.";
-  }
+      message.textContent = "Unable to load PTO status.";
+    });
 </script>
-
-
 
 </body>
 </html>
