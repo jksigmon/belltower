@@ -47,51 +47,45 @@
 
 <script>
   const params = new URLSearchParams(window.location.search);
-  const requestId = params.get("requestId");
+  const status = params.get("status");
 
   const title = document.getElementById("title");
   const message = document.getElementById("message");
 
-  if (!requestId) {
-    title.textContent = "Invalid Request";
-    message.textContent = "Missing PTO reference.";
-    return;
-  }
+  switch (status) {
+    case "APPROVED":
+      title.textContent = "✅ PTO Approved";
+      title.className = "approved";
+      message.textContent =
+        "The PTO request has been approved successfully.";
+      break;
 
-  fetch(`https://lmvpjbzwdyfziedpeytd.functions.supabase.co/get_pto_status?requestId=${requestId}`)
-    .then(res => {
-      if (!res.ok) throw new Error();
-      return res.json();
-    })
-    .then(({ status }) => {
-      switch (status) {
-        case "APPROVED":
-          title.textContent = "✅ PTO Approved";
-          message.textContent = "The PTO request has been approved.";
-          break;
-        case "DENIED":
-          title.textContent = "❌ PTO Denied";
-          message.textContent = "The PTO request was denied.";
-          break;
-        case "CANCELLED":
-          title.textContent = "ℹ️ PTO Cancelled";
-          message.textContent = "The PTO was cancelled.";
-          break;
-        case "RESCINDED":
-          title.textContent = "ℹ️ PTO Rescinded";
-          message.textContent =
-            "The PTO was rescinded and hours were credited back.";
-          break;
-        default:
-          title.textContent = "PTO Request";
-          message.textContent = "The request has been processed.";
-      }
-    })
-    .catch(() => {
-      title.textContent = "PTO Request";
-      message.textContent = "Unable to load PTO status.";
-    });
+    case "DENIED":
+      title.textContent = "❌ PTO Denied";
+      title.className = "denied";
+      message.textContent =
+        "The PTO request has been denied.";
+      break;
+
+    case "CANCELLED":
+      title.textContent = "ℹ️ PTO Cancelled";
+      message.textContent =
+        "The approved PTO has been cancelled.";
+      break;
+
+    case "RESCINDED":
+      title.textContent = "ℹ️ PTO Rescinded";
+      message.textContent =
+        "The previously approved PTO has been rescinded. PTO hours will be credited back.";
+      break;
+
+    default:
+      title.textContent = "PTO Request Processed";
+      message.textContent =
+        "This PTO request has been processed.";
+  }
 </script>
+
 
 </body>
 </html>
