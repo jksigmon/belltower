@@ -47,7 +47,7 @@
 
 <script>
   const params = new URLSearchParams(window.location.search);
-  const status = params.get("status");
+  const status = (params.get("status") || "").toUpperCase();
 
   const title = document.getElementById("title");
   const message = document.getElementById("message");
