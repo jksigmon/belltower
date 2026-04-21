@@ -527,14 +527,6 @@ nav a .badge-count:empty {
   color: var(--danger);
 }
 
-
-
-
-
-
-
-
-
 main {
 	overflow-y: auto;
   padding: 18px;
@@ -603,6 +595,49 @@ main {
   display: none;
   position: relative;
 }
+
+/* Admin directory tables must NOT resize based on content */
+.admin-section table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.admin-section table input,
+.admin-section table select {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Numeric/small-value columns */
+.admin-section th.col-id,
+.admin-section td.col-id {
+  width: 90px;
+}
+
+.admin-section th.col-grade,
+.admin-section td.col-grade {
+  width: 70px;
+}
+
+.admin-section th.col-active,
+.admin-section td.col-active {
+  width: 80px;
+}
+
+/* Action buttons */
+.admin-section th.col-actions,
+.admin-section td.col-actions {
+  width: 140px;
+  white-space: nowrap;
+}
+
+.admin-section .action-buttons {
+  display: inline-flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 
 /* Skeleton should overlay, not take layout space */
 .admin-section .skeleton-container {
@@ -1052,6 +1087,36 @@ select {
 }
 
 
+/* PTO tables – allow action buttons to breathe */
+#ptoTable th:last-child,
+#ptoTable td:last-child,
+#ptoCancelTable th:last-child,
+#ptoCancelTable td:last-child {
+  width: 260px;
+}
+
+
+#pto-pending .panel,
+#pto-cancellations .panel {
+  overflow-x: auto;
+}
+
+/* Force PTO action buttons into a single row */
+#ptoTable .action-buttons,
+#ptoCancelTable .action-buttons {
+  display: inline-flex;
+  gap: 8px;
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
+
+/* Compact action buttons */
+.btn-approve,
+.btn-deny {
+  padding: 0 10px;
+  font-size: 12px;
+}
+
 
 /* PTO time input should match other inputs */
 #ptoStartTime {
@@ -1392,6 +1457,12 @@ select {
 }
 
 .fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Fade content becomes visible when its section is active */
+.admin-section.active .fade-in {
   opacity: 1;
   transform: translateY(0);
 }
@@ -1757,3 +1828,58 @@ nav a[data-cap-group] {
 #ptoHistoryBalancesWrap {
   align-self: flex-start;
 }
+
+
+[hidden] {
+  display: none !important;
+}
+
+.nav.hidden {
+  visibility: hidden;
+}
+
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+  max-width: 800px;
+}
+
+.stat {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 16px 18px;
+  border: 1px solid #e6e8eb;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.stat:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+}
+
+.stat strong {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #1f2937; /* dark gray */
+}
+
+.stat span {
+  font-size: 0.85rem;
+  color: #6b7280; /* muted gray */
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.school-name {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
