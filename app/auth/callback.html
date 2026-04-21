@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signing you in…</title>
+
+  <style>
+    :root {
+      --navy-900: #071c2f;
+      --navy-800: #0b2d4f;
+      --blue-main: #1f5fa8;
+      --text-muted: #cbd5e1;
+      --white: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+      background:
+        linear-gradient(
+          to bottom,
+          rgba(7, 28, 47, 0.45),
+          rgba(7, 28, 47, 0.65)
+        ),
+        url("/images/hero-belltower-wide.png");
+
+      background-size: 230%;
+      background-position: 27% top;
+      background-repeat: no-repeat;
+    }
+
+    .callback-card {
+      width: 100%;
+      max-width: 420px;
+      padding: 2.25rem;
+      text-align: center;
+
+      border-radius: 16px;
+      background: rgba(11, 45, 79, 0.7);
+      backdrop-filter: blur(14px) saturate(1.2);
+      -webkit-backdrop-filter: blur(14px) saturate(1.2);
+
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    .callback-logo {
+      max-height: 42px;
+      margin-bottom: 1.5rem;
+      transform: scale(1.8);
+    }
+
+    .callback-text {
+      color: var(--white);
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+    }
+
+    .callback-subtext {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      margin: 0 auto 1.25rem;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: var(--white);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="callback-card">
+    <img
+      src="/images/belltower-logo.png"
+      alt="Belltower"
+      class="callback-logo"
+    />
+
+    <div class="spinner"></div>
+
+    <div class="callback-text">Signing you in…</div>
+    <div class="callback-subtext">Securing your session</div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const SUPABASE_URL = 'https://lmvpjbzwdyfziedpeytd.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdnBqYnp3ZHlmemllZHBleXRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2ODY5MTcsImV4cCI6MjA4OTI2MjkxN30.b1X1ru4NYlkDjHlsxZ82ZOwbVoZ_PhRsjf4Atfwa5G0';
+
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
+
+    let handled = false;
+
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (handled || !session) return;
+      handled = true;
+
+      // ✅ Immediately clear OAuth data from URL
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+
+      const user = session.user;
+
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select(`
+          status,
+          can_login,
+          is_superadmin,
+          can_access_admin,
+          can_manage_access,
+          can_approve_pto,
+          can_adjust_pto,
+          can_bulk_upload
+        `)
+        .eq('user_id', user.id)
+        .single();
+
+      if (error || !profile || profile.can_login !== true) {
+        await supabase.auth.signOut();
+        window.location.replace('/login.html');
+        return;
+      }
+
+      if (profile.status === 'pending') {
+        window.location.replace('/pending.html');
+        return;
+      }
+
+      const hasAdminAccess =
+        profile.is_superadmin ||
+        profile.can_access_admin ||
+        profile.can_manage_access ||
+        profile.can_approve_pto ||
+        profile.can_adjust_pto ||
+        profile.can_bulk_upload;
+
+      window.location.replace(
+        hasAdminAccess ? '/admin.html' : '/staff.html'
+      );
+    });
+  </script>
+</body>
+</html>
