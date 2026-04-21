@@ -382,8 +382,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
     let lastPendingPtoCount = 0;
     let lastCancelPtoCount = 0;
 	let currentPtoHistoryEmployeeId = null;
-    
-  
+
 const SUPABASE_URL = 'https://xrhwjjkxlshfarlxuxsa.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s';
 
@@ -471,9 +470,6 @@ const cameFromAdmin = params.get('from') === 'admin';
 if (backToAdmin && hasAdminAccess(currentProfile)) {
   backToAdmin.style.visibility = 'visible';
 }
-
-
-
 
 /* ✅ MODULE GATE */
 const { data: moduleRow } = await supabase
@@ -589,25 +585,30 @@ async function loadPto() {
   // Clear table
   tbody.innerHTML = '';
 
-  const { data, error } = await supabase
-    .from('pto_requests')
-.select(`
-  id,
-  pto_type,
-  start_date,
-  end_date,
-  requested_hours,
-  requested_duration_label,
-  start_time,
-  end_time,
-  notes,
-  status,
-  employees(first_name, last_name)
-`)
+const { data, error } = await supabase
+  .from('pto_requests')
+  .select(`
+    id,
+    pto_type,
+    start_date,
+    end_date,
+    requested_hours,
+    requested_duration_label,
+    start_time,
+    end_time,
+    notes,
+    status,
+    employees!pto_requests_employee_id_fkey (
+      first_name,
+      last_name
+    )
+  `)
+  .eq('status', 'PENDING')
+  .eq('school_id', currentProfile.school_id)
+  .order('submitted_at', { ascending: true })
+  .limit(50);
 
-    .eq('status', 'PENDING')
-    .order('submitted_at', { ascending: true })
-    .limit(50);
+
 
   if (error) {
     console.error(error);
@@ -671,13 +672,11 @@ tr.querySelector('.btn-approve').addEventListener('click', () => {
   updatePtoStatus(r.id, 'APPROVED');
 });
 
+
 tr.querySelector('.btn-deny').addEventListener('click', () => {
-  if (!currentProfile.can_approve_pto) {
-    alert('You are not authorized to deny PTO requests.');
-    return;
-  }
-  updatePtoStatus(r.id, 'DENIED');
+  denyInitialPto(r);
 });
+
 
 
     tbody.appendChild(tr);
@@ -720,7 +719,11 @@ async function loadPtoCancellationRequests() {
   end_time,
   notes,
   status,
-  employees(first_name, last_name)
+  employees!pto_requests_employee_id_fkey (
+  first_name,
+  last_name
+)
+
 `)
 
     .in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED'])
@@ -847,7 +850,7 @@ By approving this rescind, you confirm that the employee did NOT take this time 
     .update({
       status: finalStatus,
       decided_at: new Date().toISOString(),
-      decided_by: currentProfile.user_id
+      decided_by: currentProfile.employee_id
     })
     .eq('id', r.id);
 
@@ -860,6 +863,42 @@ By approving this rescind, you confirm that the employee did NOT take this time 
   await loadPtoRequestCounts();
   loadPto();
   loadPtoCancellationRequests();
+}
+
+async function denyInitialPto(r) {
+  if (!currentProfile.can_approve_pto) {
+    alert('You are not authorized to deny PTO requests.');
+    return;
+  }
+
+  const reason = prompt('Reason for denying this PTO request:');
+  if (!reason) return;
+
+  // Audit-style note (same pattern you use elsewhere)
+ 
+const updatedNotes = r.notes
+  ? `${r.notes}\n\n[DENIED]: ${reason}`
+  : `[DENIED]: ${reason}`;
+
+
+  const { error } = await supabase
+    .from('pto_requests')
+    .update({
+      status: 'DENIED',
+      notes: updatedNotes,
+      decided_at: new Date().toISOString(),
+      decided_by: currentProfile.employee_id
+    })
+    .eq('id', r.id);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to deny PTO request.');
+    return;
+  }
+
+  await loadPtoRequestCounts();
+  loadPto();
 }
 
 async function denyCancellation(r) {
@@ -896,7 +935,7 @@ async function denyCancellation(r) {
       status: 'APPROVED',
       notes: updatedNotes,
       decided_at: new Date().toISOString(),
-      decided_by: currentProfile.user_id
+      decided_by: currentProfile.employee_id
     })
     .eq('id', r.id);
 
@@ -934,7 +973,7 @@ async function updatePtoStatus(requestId, newStatus) {
     .update({
       status: newStatus,
       decided_at: new Date().toISOString(),
-      decided_by: currentProfile.user_id
+      decided_by: currentProfile.employee_id
     })
     .eq('id', requestId);
 
@@ -1007,7 +1046,6 @@ function updateTabBadge(id, count) {
     el.textContent = count;
   }
 }
-
 
 async function loadPtoHistoryBalances(employeeId) {
   const container = document.getElementById('ptoHistoryBalances');
@@ -1157,9 +1195,10 @@ async function loadStaffPtoHistory(employeeId) {
       notes,
       submitted_at,
       decided_at,
-      profiles:decided_by (
-        display_name
-      )
+  employees!pto_requests_decided_by_fkey(
+  first_name,
+  last_name
+)
     `)
     .eq('employee_id', employeeId)
     .order('submitted_at', { ascending: false });
@@ -1206,14 +1245,21 @@ data.forEach(r => {
       decisionHtml = '⏳ Pending';
       decisionClass = 'muted';
     } else if (r.status === 'APPROVED') {
-      const name = r.profiles?.display_name || 'Admin';
+      const name = r.employees
+  ? `${r.employees.first_name} ${r.employees.last_name}`
+  : 'Admin';
+
       const date = r.decided_at
         ? new Date(r.decided_at).toLocaleDateString()
         : '';
       decisionHtml = `Approved<br><span class="muted">by ${name} • ${date}</span>`;
       decisionClass = 'ok';
     } else if (r.status === 'DENIED') {
-      const name = r.profiles?.display_name || 'Admin';
+      
+const name = r.employees
+  ? `${r.employees.first_name} ${r.employees.last_name}`
+  : 'Admin';
+
       const date = r.decided_at
         ? new Date(r.decided_at).toLocaleDateString()
         : '';
@@ -1366,7 +1412,7 @@ async function applyAnnualPto(employeeId, ptoType, hours) {
       pto_type: ptoType,
       delta_hours: hours,
       reason,
-      created_by: currentProfile.user_id
+      created_by: currentProfile.employee_id
     });
 
   if (error) {
@@ -1546,7 +1592,7 @@ async function applyAnnualAllotmentIfEligible(employee, ptoType, year) {
       pto_type: ptoType,
       delta_hours: employee.annual_pto_hours,
       reason,
-      created_by: currentProfile.user_id
+      created_by: currentProfile.employee_id
     });
 
   if (error) {
@@ -2084,7 +2130,7 @@ const { error } = await supabase
     pto_type: ptoType,
     delta_hours: hours,
     reason,
-    created_by: currentProfile.user_id
+    created_by: currentProfile.employee_id
   });
 
 
