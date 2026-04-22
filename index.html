@@ -91,12 +91,14 @@ nav a:hover { opacity: 1; }
 /* ======================================================
    HERO
 ====================================================== */
+
 .hero {
-  min-height: 90vh;
+  min-height: calc(100vh - 80px); /* subtract header height */
+  padding: 4rem 2rem 3rem;
   display: flex;
   align-items: center;
-  padding: 7rem 2rem 3rem;
 }
+
 
 .hero-inner {
   max-width: 1200px;
@@ -116,6 +118,25 @@ nav a:hover { opacity: 1; }
   max-width: 620px;
   color: var(--text-muted);
 }
+
+.hero-glass {
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.18),
+    rgba(255,255,255,0.08)
+  );
+  backdrop-filter: blur(18px);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 24px;
+  padding: 3rem;
+  max-width: 760px;
+  box-shadow:
+    0 20px 50px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.3);
+}
+
+
+
 
 /* ======================================================
    CTA BUTTONS
@@ -161,6 +182,20 @@ nav a:hover { opacity: 1; }
   box-shadow: 0 12px 30px rgba(0,0,0,0.35);
 }
 
+
+.hero-login {
+  margin-top: 1.25rem;
+  font-size: 0.9rem;
+  color: rgba(255,255,255,0.85);
+}
+
+.hero-login a {
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+
 /* ======================================================
    FEATURES – FROSTED CARDS
 ====================================================== */
@@ -169,7 +204,11 @@ nav a:hover { opacity: 1; }
     rgba(7,28,47,0.85),
     rgba(7,28,47,0.95)
   );
-  padding: 4rem 2rem;
+
+  scroll-margin-top: 96px;
+  margin-top: 0; /* ENSURE no negative margin */
+
+  padding: 6rem 2rem 4rem;
 }
 
 .feature-grid {
@@ -209,10 +248,24 @@ nav a:hover { opacity: 1; }
   color: var(--text-muted);
 }
 
+
+
+.card::before,
+.hero-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at top left,
+    rgba(255,255,255,0.25),
+    transparent 60%
+  );
+  pointer-events: none;
+}
 .card:hover {
   transform: translateY(-6px);
 }
-
 
 .reveal {
   opacity: 0;
@@ -225,6 +278,58 @@ nav a:hover { opacity: 1; }
 .reveal.visible {
   opacity: 1;
   transform: none;
+}
+
+
+.card-icon {
+  width: 26px;
+  height: 26px;
+  color: white;
+  opacity: 0.95;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
+}
+
+
+.features-inner {
+  max-width: 1200px;
+  margin: auto;
+}
+
+.features-header {
+  max-width: 720px;
+  margin-bottom: 2rem;
+}
+
+.features-header h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+}
+
+.features-header p {
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.features-value {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+}
+
+.value-block h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.value-block p {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 
 
@@ -287,6 +392,56 @@ footer {
   nav { display:none }
   .hero h1 { font-size: 2.3rem }
 }
+
+/* =========================
+ MODAL BUTTONS
+========================= */
+
+.modal-actions button {
+  padding: 0.55rem 1.1rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition:
+    transform 0.2s var(--ease-out-soft),
+    box-shadow 0.2s var(--ease-out-soft),
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Cancel – subtle glass */
+.modal-actions .cancel {
+  background: rgba(255,255,255,0.85);
+  color: #1e293b;
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.4);
+}
+
+.modal-actions .cancel:hover {
+  background: rgba(255,255,255,0.95);
+  transform: translateY(-1px);
+}
+
+.modal-actions .submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(234,88,12,0.6);
+}
+
+/* Press state */
+.modal-actions button:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.modal-actions {
+  padding-top: 0.75rem;
+  margin-top: 1.25rem;
+  border-top: 1px solid rgba(255,255,255,0.15);
+}
+
+
 </style>
 </head>
 
@@ -304,45 +459,136 @@ footer {
   </div>
 </header>
 
+
 <section class="hero">
   <div class="hero-inner">
     <h1 class="reveal">
       Streamline Your School Management
     </h1>
+
     <p>
       Automate PTO, Dismissal, Substitutes, and More!
     </p>
 
+    <!-- Primary CTAs -->
     <div class="section-cta reveal">
       <button class="btn btn-primary" onclick="openModal('Request a Demo')">
         Request a Demo
       </button>
-      <a href="login.html" class="btn btn-outline">
-        Login
-      </a>
+
       <button class="btn btn-accent" onclick="openModal('Suggest a New Module')">
         Suggest a New Module
       </button>
     </div>
+
+    <!-- Utility CTA -->
+    <div class="hero-login reveal">
+      Already use Belltower?
+      <a href="login.html">Log in</a>
+    </div>
   </div>
 </section>
+
 
 <section class="features" id="features">
   <div class="feature-grid">
     <div class="card reveal">
-      <div class="card-header">📋 <h3>PTO & Leave Management</h3></div>
+      <div class="card-header">
+<svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <rect x="5" y="4" width="14" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/>
+  <path d="M9 2h6v4H9z" fill="none" stroke="currentColor" stroke-width="2"/>
+  <path d="M8 10h8M8 14h8M8 18h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+</svg>
+ <h3>PTO & Leave Management</h3></div>
       <p>Easily manage requests, approvals, and staff visibility.</p>
     </div>
     <div class="card reveal">
-      <div class="card-header">🚗 <h3>Carline Dismissal</h3></div>
+      <div class="card-header">
+
+<svg
+  class="card-icon"
+  viewBox="0 0 16 16"
+  aria-hidden="true"
+>
+  <path d="M2.52 3.515A2.5 2.5 0 0 1 4.82 2h6.362c1 0
+    1.904.596 2.298 1.515l.792 1.848c.075.175.21.319.38.404
+    .5.25.855.715.965 1.262l.335 1.679q.05.242.049.49v.413
+    c0 .814-.39 1.543-1 1.997V13.5a.5.5 0 0 1-.5.5h-2a.5.5
+    0 0 1-.5-.5v-1.338c-1.292.048-2.745.088-4 .088s-2.708
+    -.04-4-.088V13.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5
+    -.5v-1.892c-.61-.454-1-1.183-1-1.997v-.413a2.5 2.5
+    0 0 1 .049-.49l.335-1.68c.11-.546.465-1.012.964
+    -1.261a.8.8 0 0 0 .381-.404l.792-1.848ZM3 10a1
+    1 0 1 0 0-2 1 1 0 0 0 0 2m10 0a1 1 0 1 0 0-2
+    1 1 0 0 0 0 2M6 8a1 1 0 0 0 0 2h4a1 1 0 1 0
+    0-2zM2.906 5.189a.51.51 0 0 0 .497.731c.91-.073
+    3.35-.17 4.597-.17s3.688.097 4.597.17a.51.51
+    0 0 0 .497-.731l-.956-1.913A.5.5 0 0 0
+    11.691 3H4.309a.5.5 0 0 0-.447.276z"
+    fill="currentColor"
+  />
+</svg>
+
+
+ <h3>Carline Dismissal</h3></div>
       <p>Organize safe, efficient student pickup flows.</p>
     </div>
     <div class="card reveal">
-      <div class="card-header">🏫 <h3>School Administration</h3></div>
+      <div class="card-header">
+<svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true">
+  <path d="M3 9l9-5 9 5" fill="none" stroke="currentColor" stroke-width="2"/>
+  <path d="M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2"/>
+  <path d="M9 20v-6h6v6" fill="none" stroke="currentColor" stroke-width="2"/>
+</svg>
+<h3>School Administration</h3></div>
       <p>Centralize staff, student, and family information.</p>
     </div>
   </div>
+
+
+
+
+  <div class="features-inner">
+
+    <!-- WHAT -->
+    <div class="features-header reveal">
+      <h2>Built for the tasks that slow schools down</h2>
+      <p>
+        Belltower replaces manual, repetitive school operations with simple,
+        purpose‑built tools.  So staff spend less time managing logistics
+        and more time supporting students.
+      </p>
+    </div>
+
+    <!-- FEATURE CARDS -->
+    <div class="feature-grid">
+      <!-- your existing cards go here -->
+    </div>
+
+    <!-- WHO + WHY -->
+    <div class="features-value reveal">
+      <div class="value-block">
+        <h3>Who it’s for</h3>
+        <p>
+          School administrators, office staff, and leadership teams
+          who manage daily operations across students, staff, and families.
+        </p>
+      </div>
+
+      <div class="value-block">
+        <h3>Why it matters</h3>
+        <p>
+          PTO requests, dismissal coordination, and administrative tracking
+          create constant interruptions. By removing friction from those
+          workflows, schools reduce errors, regain hours each week, and
+          operate with clarity instead of chaos.
+        </p>
+      </div>
+    </div>
+
+  </div>
 </section>
+
 
 <footer>
   © 2026 Belltower · All Rights Reserved
