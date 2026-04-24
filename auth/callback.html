@@ -6,11 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Signing you in…</title>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+
   <link rel="manifest" href="/icons/site.webmanifest">
-  <!-- Fallback for older browsers -->
-  <link rel="icon" href="/icons/favicon.ico">
   <style>
     :root {
       --navy-900: #071c2f;
@@ -110,73 +110,89 @@
     <div class="callback-subtext">Securing your session</div>
   </div>
 
-  <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-const SUPABASE_URL = 'https://xrhwjjkxlshfarlxuxsa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s';
+ 
+ <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true
+    const supabase = createClient(
+          'https://xrhwjjkxlshfarlxuxsa.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s',
+      {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
       }
-    });
+    )
 
-    let handled = false;
+    let handled = false
 
     supabase.auth.onAuthStateChange(async (event, session) => {
-      if (handled || !session) return;
-      handled = true;
+      if (handled || !session) return
+      handled = true
 
-      // ✅ Immediately clear OAuth data from URL
-      window.history.replaceState(
-        {},
-        document.title,
-        window.location.pathname
-      );
+      // ✅ Clean OAuth params from URL
+      window.history.replaceState({}, document.title, window.location.pathname)
 
-      const user = session.user;
+      const user = session.user
 
-      const { data: profile, error } = await supabase
+      // ✅ Attempt to load profile (may not exist)
+      const { data: profile } = await supabase
         .from('profiles')
-        .select(`
-          status,
-          can_login,
-          is_superadmin,
-          can_access_admin,
-          can_manage_access,
-          can_approve_pto,
-          can_adjust_pto,
-          can_bulk_upload
-        `)
+        .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle()
 
-      if (error || !profile || profile.can_login !== true) {
-        await supabase.auth.signOut();
-        window.location.replace('/login.html');
-        return;
+      // ✅ NEW USER → create pending profile
+      if (!profile) {
+        const { error } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            display_name: user.user_metadata?.full_name ?? user.email,
+            status: 'pending',
+            can_login: false
+          })
+
+        if (error) {
+          console.error('Profile creation failed:', error)
+          await supabase.auth.signOut()
+          window.location.replace('/login.html')
+          return
+        }
+
+        window.location.replace('/pending.html')
+        return
       }
 
+      // ✅ Existing user but login not allowed
+      if (profile.can_login !== true) {
+        await supabase.auth.signOut()
+        window.location.replace('/login.html')
+        return
+      }
+
+      // ✅ Pending approval
       if (profile.status === 'pending') {
-        window.location.replace('/pending.html');
-        return;
+        window.location.replace('/pending.html')
+        return
       }
 
+      // ✅ Route by permissions
       const hasAdminAccess =
         profile.is_superadmin ||
         profile.can_access_admin ||
         profile.can_manage_access ||
         profile.can_approve_pto ||
         profile.can_adjust_pto ||
-        profile.can_bulk_upload;
+        profile.can_bulk_upload
 
       window.location.replace(
         hasAdminAccess ? '/admin.html' : '/staff.html'
-      );
-    });
+      )
+    })
   </script>
 </body>
 </html>
