@@ -111,90 +111,94 @@
   </div>
 
  
- <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+ 
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-    const supabase = createClient(
-          'https://xrhwjjkxlshfarlxuxsa.supabase.co',
+const supabase = createClient(
+  'https://xrhwjjkxlshfarlxuxsa.supabase.co',
       'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s',
       {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true
-        }
-      }
-    )
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  }
+)
 
-    let handled = false
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return
+  if (!session) return
 
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (handled || !session) return
-      handled = true
+  const user = session.user
 
-      // ✅ Clean OAuth params from URL
-      window.history.replaceState({}, document.title, window.location.pathname)
+  // Load profile (may not exist)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle()
 
-      const user = session.user
+  const email = user.email.toLowerCase()
+  const domain = email.split('@')[1]
 
-      // ✅ Attempt to load profile (may not exist)
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle()
+  // Look up school by domain
+  const { data: school } = await supabase
+    .from('schools')
+    .select('id')
+    .eq('email_domain', domain)
+    .maybeSingle()
 
-      // ✅ NEW USER → create pending profile
-      if (!profile) {
-        const { error } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: user.id,
-            email: user.email,
-            display_name: user.user_metadata?.full_name ?? user.email,
-            status: 'pending',
-            can_login: false
-          })
+  // ✅ FIRST LOGIN → CREATE PROFILE
+  if (!profile) {
+    const { error } = await supabase
+      .from('profiles')
+      .insert({
+        user_id: user.id,
+        email: user.email,
+        display_name: user.user_metadata?.full_name ?? user.email,
+        role: 'staff',   
+        status: 'pending',
+        can_login: false,
+        school_id: school?.id ?? null
+      })
 
-        if (error) {
-          console.error('Profile creation failed:', error)
-          await supabase.auth.signOut()
-          window.location.replace('/login.html')
-          return
-        }
+    if (error) {
+      console.error('Profile creation failed:', error)
+      await supabase.auth.signOut()
+      window.location.replace('/login.html')
+      return
+    }
 
-        window.location.replace('/pending.html')
-        return
-      }
+    window.location.replace('/app/pending.html')
+    return
+  }
 
-    
-// ✅ Pending users FIRST — do not sign out
-if (profile.status === 'pending') {
-  window.location.replace('/app/pending.html')
-  return
-}
+  // ✅ Pending users stay signed in
+  if (profile.status === 'pending') {
+    window.location.replace('/app/pending.html')
+    return
+  }
 
-// ✅ Only block non‑pending users without login rights
-if (profile.can_login !== true) {
-  await supabase.auth.signOut()
-  window.location.replace('/login.html')
-  return
-}
+  // ✅ Block inactive users
+  if (profile.can_login !== true) {
+    await supabase.auth.signOut()
+    window.location.replace('/login.html')
+    return
+  }
 
+  const isAdmin =
+    profile.is_superadmin ||
+    profile.can_access_admin ||
+    profile.can_manage_access ||
+    profile.can_approve_pto ||
+    profile.can_adjust_pto ||
+    profile.can_bulk_upload
 
-      // ✅ Route by permissions
-      const hasAdminAccess =
-        profile.is_superadmin ||
-        profile.can_access_admin ||
-        profile.can_manage_access ||
-        profile.can_approve_pto ||
-        profile.can_adjust_pto ||
-        profile.can_bulk_upload
+  window.location.replace(isAdmin ? '/admin.html' : '/staff.html')
+})
+</script>
 
-      window.location.replace(
-        hasAdminAccess ? '/admin.html' : '/staff.html'
-      )
-    })
-  </script>
 </body>
 </html>
