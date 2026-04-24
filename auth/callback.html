@@ -150,6 +150,13 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     .eq('email_domain', domain)
     .maybeSingle()
 
+
+  // 🔍 DEBUG LOGS — PUT THEM HERE
+  console.log('Email:', user.email)
+  console.log('Extracted domain:', domain)
+  console.log('School lookup result:', school)
+
+
   // ✅ FIRST LOGIN → CREATE PROFILE
   if (!profile) {
     const { error } = await supabase
