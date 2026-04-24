@@ -271,14 +271,79 @@ async function loadPendingUsers() {
       <td>${p.email}</td>
       <td><button class="btn btn-primary">Activate</button></td>
     `;
-    tr.querySelector('button').onclick = async () => {
-      await supabase
-        .from('profiles')
-        .update({ status: 'active', can_login: true })
-        .eq('user_id', p.user_id);
+ 
+tr.querySelector('button').onclick = async () => {
+  try {
+    // 1️⃣ Load pending user's profile (we need name/email)
+    const { data: userProfile, error: profileFetchError } = await supabase
+      .from('profiles')
+      .select('user_id, display_name, email, school_id, employee_id')
+      .eq('user_id', p.user_id)
+      .single();
 
-      loadPendingUsers();
-    };
+    if (profileFetchError || !userProfile) {
+      console.error('Failed to load pending profile:', profileFetchError);
+      alert('Failed to load user profile.');
+      return;
+    }
+
+    // 2️⃣ Check for existing employee row
+    let employeeId = userProfile.employee_id;
+
+    if (!employeeId) {
+      // Split name safely
+      const nameParts = (userProfile.display_name || '').trim().split(' ');
+      const firstName = nameParts[0] || null;
+      const lastName = nameParts.slice(1).join(' ') || null;
+
+      const { data: newEmployee, error: employeeError } = await supabase
+        .from('employees')
+        .insert({
+          user_id: userProfile.user_id,
+          school_id: userProfile.school_id,
+          first_name: firstName,
+          last_name: lastName,
+          email: userProfile.email,
+          position: 'Staff',
+          active: true
+        })
+        .select('id')
+        .single();
+
+      if (employeeError || !newEmployee) {
+        console.error('Failed to create employee:', employeeError);
+        alert('Failed to create employee record.');
+        return;
+      }
+
+      employeeId = newEmployee.id;
+    }
+
+    // 3️⃣ Activate the profile and link employee
+    const { error: activateError } = await supabase
+      .from('profiles')
+      .update({
+        status: 'active',
+        can_login: true,
+        employee_id: employeeId
+      })
+      .eq('user_id', userProfile.user_id);
+
+    if (activateError) {
+      console.error('Failed to activate user:', activateError);
+      alert('Failed to activate user.');
+      return;
+    }
+
+    // ✅ Refresh pending list
+    await loadPendingUsers();
+  } catch (err) {
+    console.error('Activation failed:', err);
+    alert('Unexpected error during activation.');
+  }
+};
+
+
     tbody.appendChild(tr);
   });
 }
