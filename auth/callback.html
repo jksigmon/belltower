@@ -141,7 +141,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     .maybeSingle()
 
   const email = user.email.toLowerCase()
-  const domain = email.split('@')[1]
+  const domain = email.split('@')[1].trim().toLowerCase
 
   // Look up school by domain
   const { data: school } = await supabase
