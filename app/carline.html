@@ -8,6 +8,12 @@
       href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <link rel="stylesheet" href="/admin-ui.css" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <!-- Fallback for older browsers -->
+  <link rel="icon" href="/icons/favicon.ico">
   <style>
    
 	.carline-grid {
@@ -92,18 +98,10 @@
 </section>
 
 <script type="module">
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { supabase } from '/app/admin.supabase.js';
 
-	let currentCarlineEventId = null;
+let currentCarlineEventId = null;
 
-const SUPABASE_URL = 'https://xrhwjjkxlshfarlxuxsa.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s';
-
-
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true }
-});
 
 /* ✅ AUTH */
 const { data: sessionData } = await supabase.auth.getSession();
