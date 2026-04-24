@@ -143,6 +143,24 @@ supabase.auth.onAuthStateChange(async (event, session) => {
   const email = user.email.toLowerCase()
   const domain = email.split('@')[1].trim().toLowerCase
 
+const rawEmail = user.email
+const splitResult = rawEmail.split('@')
+
+console.log('RAW EMAIL:', rawEmail)
+console.log('SPLIT RESULT:', splitResult)
+console.log('SPLIT LENGTH:', splitResult.length)
+
+const domain =
+  splitResult.length === 2
+    ? splitResult[1].trim().toLowerCase()
+    : '__INVALID__'
+
+console.log('CALCULATED DOMAIN:', domain)
+console.log(
+  'DOMAIN CHAR CODES:',
+  [...domain].map(c => c.charCodeAt(0))
+)
+
   // Look up school by domain
   const { data: school } = await supabase
     .from('schools')
