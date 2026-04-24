@@ -244,6 +244,7 @@ async function applyRolePreset(presetKey) {
 /* ===============================
    PENDING USERS
 ================================ */
+
 async function loadPendingUsers() {
   const tbody = document.getElementById('pendingUsersTable');
   if (!tbody) return;
@@ -254,6 +255,7 @@ async function loadPendingUsers() {
     .from('profiles')
     .select('user_id, display_name, email')
     .eq('status', 'pending')
+    .eq('school_id', currentProfile.school_id) // ✅ REQUIRED
     .order('email');
 
   if (error || !data.length) {
@@ -272,13 +274,15 @@ async function loadPendingUsers() {
     tr.querySelector('button').onclick = async () => {
       await supabase
         .from('profiles')
-        .update({ status: 'active' })
+        .update({ status: 'active', can_login: true })
         .eq('user_id', p.user_id);
+
       loadPendingUsers();
     };
     tbody.appendChild(tr);
   });
 }
+
 
 /* ===============================
    EVENTS
