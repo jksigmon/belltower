@@ -140,39 +140,29 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     .eq('user_id', user.id)
     .maybeSingle()
 
-  const email = user.email.toLowerCase()
-  //const domain = email.split('@')[1].trim().toLowerCase
 
-const rawEmail = user.email
-const splitResult = rawEmail.split('@')
+// Normalize email + extract domain
+const email = user.email.trim().toLowerCase();
+const domain = email.split('@')[1]?.trim().toLowerCase();
 
-console.log('RAW EMAIL:', rawEmail)
-console.log('SPLIT RESULT:', splitResult)
-console.log('SPLIT LENGTH:', splitResult.length)
+// Safety check (should never fail, but prevents hard-to-debug issues)
+if (!domain) {
+  console.error('Unable to extract domain from email:', email);
+  await supabase.auth.signOut();
+  window.location.replace('/login.html');
+  return;
+}
 
-const domain =
-  splitResult.length === 2
-    ? splitResult[1].trim().toLowerCase()
-    : '__INVALID__'
+// Look up school by email domain
+const { data: school, error: schoolError } = await supabase
+  .from('schools')
+  .select('id')
+  .eq('email_domain', domain)
+  .maybeSingle();
 
-console.log('CALCULATED DOMAIN:', domain)
-console.log(
-  'DOMAIN CHAR CODES:',
-  [...domain].map(c => c.charCodeAt(0))
-)
-
-  // Look up school by domain
-  const { data: school } = await supabase
-    .from('schools')
-    .select('id')
-    .eq('email_domain', domain)
-    .maybeSingle()
-
-
-  // 🔍 DEBUG LOGS — PUT THEM HERE
-  console.log('Email:', user.email)
-  console.log('Extracted domain:', domain)
-  console.log('School lookup result:', school)
+if (schoolError) {
+  console.error('School lookup failed:', schoolError);
+}
 
 
   // ✅ FIRST LOGIN → CREATE PROFILE
