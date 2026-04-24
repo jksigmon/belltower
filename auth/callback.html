@@ -158,6 +158,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
         user_id: user.id,
         email: user.email,
         display_name: user.user_metadata?.full_name ?? user.email,
+        role: 'staff',   
         status: 'pending',
         can_login: false,
         school_id: school?.id ?? null
