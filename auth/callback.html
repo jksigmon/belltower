@@ -141,7 +141,7 @@ supabase.auth.onAuthStateChange(async (event, session) => {
     .maybeSingle()
 
   const email = user.email.toLowerCase()
-  const domain = email.split('@')[1].trim().toLowerCase
+  //const domain = email.split('@')[1].trim().toLowerCase
 
 const rawEmail = user.email
 const splitResult = rawEmail.split('@')
