@@ -167,18 +167,20 @@
         return
       }
 
-      // ✅ Existing user but login not allowed
-      if (profile.can_login !== true) {
-        await supabase.auth.signOut()
-        window.location.replace('/login.html')
-        return
-      }
+    
+// ✅ Pending users FIRST — do not sign out
+if (profile.status === 'pending') {
+  window.location.replace('/app/pending.html')
+  return
+}
 
-      // ✅ Pending approval
-      if (profile.status === 'pending') {
-        window.location.replace('/pending.html')
-        return
-      }
+// ✅ Only block non‑pending users without login rights
+if (profile.can_login !== true) {
+  await supabase.auth.signOut()
+  window.location.replace('/login.html')
+  return
+}
+
 
       // ✅ Route by permissions
       const hasAdminAccess =
