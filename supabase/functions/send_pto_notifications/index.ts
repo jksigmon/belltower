@@ -171,11 +171,21 @@ const { data: request, error } = await supabase
 
  
 // ----------------------------------------------------
-// Resolve approvers (profiles.can_approve_pto)
+// Resolve approvers
 // ----------------------------------------------------
 let approvers: any[] = [];
 
-// ✅ 1. Try supervisor first (if supervisor has PTO approval rights)
+// 1. Fallback approvers always receive every request for their school
+const { data: fallbackData } = await supabase
+  .from("profiles")
+  .select("employee_id, email")
+  .eq("school_id", employee.school_id)
+  .eq("is_fallback_approver", true)
+  .eq("can_approve_pto", true);
+
+approvers = fallbackData || [];
+
+// 2. If the employee has a supervisor, add them too (deduplicated)
 if (employee.supervisor_id) {
   const { data: supervisorProfile } = await supabase
     .from("profiles")
@@ -185,19 +195,24 @@ if (employee.supervisor_id) {
     .maybeSingle();
 
   if (supervisorProfile?.email) {
-    approvers = [supervisorProfile];
+    const alreadyIncluded = approvers.some(
+      (a) => a.employee_id === supervisorProfile.employee_id
+    );
+    if (!alreadyIncluded) {
+      approvers.push(supervisorProfile);
+    }
   }
 }
 
-// ✅ 2. Fallback: all PTO approvers in the school
+// 3. Last resort: no fallback approvers configured — notify all approvers in the school
 if (approvers.length === 0) {
-  const { data: approversData } = await supabase
+  const { data: allApprovers } = await supabase
     .from("profiles")
-    .select("user_id, employee_id, email")
+    .select("employee_id, email")
     .eq("school_id", employee.school_id)
     .eq("can_approve_pto", true);
 
-  approvers = approversData || [];
+  approvers = allApprovers || [];
 }
 
 

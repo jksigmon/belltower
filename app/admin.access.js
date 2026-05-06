@@ -97,7 +97,7 @@ async function loadAccessUserOptions() {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('user_id, display_name, email')
+    .select('id, user_id, display_name, email')
     .eq('school_id', currentProfile.school_id)
     .order('display_name');
 
@@ -108,7 +108,7 @@ async function loadAccessUserOptions() {
 
   data.forEach(p => {
     const opt = document.createElement('option');
-    opt.value = p.user_id;
+    opt.value = p.id;
     opt.textContent = `${p.display_name ?? '—'} — ${p.email}`;
     select.appendChild(opt);
   });
@@ -117,13 +117,17 @@ async function loadAccessUserOptions() {
 /* ===============================
    LOAD PROFILE
 ================================ */
-async function loadAccessProfile(userId) {
-  if (!userId) return;
+async function loadAccessProfile(profileId) {
+  if (!profileId) return;
+
+  document.getElementById('accountStatusPanel').style.display = 'none';
+  document.getElementById('accessPermissions').style.display = 'none';
+  document.getElementById('accessUserMeta').innerHTML = '';
 
   const { data: p, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('user_id', userId)
+    .eq('id', profileId)
     .single();
 
   if (error) {
@@ -134,6 +138,15 @@ async function loadAccessProfile(userId) {
   document.getElementById('accessUserMeta').innerHTML = `
     <strong>${p.display_name ?? '—'}</strong><br>${p.email}
   `;
+
+  if (!p.user_id) {
+    document.getElementById('accessUserMeta').innerHTML += `
+      <p style="margin-top:0.5rem;color:#f59e0b;">
+        This person has a profile but has not signed in yet. Access permissions can be assigned after their first login.
+      </p>
+    `;
+    return;
+  }
 
   document
     .querySelectorAll('#accessPermissions input[type="checkbox"]')

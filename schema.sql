@@ -109,34 +109,34 @@ COMMENT ON TYPE public.role_type IS 'Role Types';
 
 CREATE FUNCTION public.assign_student_number() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-declare
-  next_num integer;
-begin
-  -- ✅ If student_number already provided (bulk upload or admin input),
-  -- do NOTHING
-  if new.student_number is not null then
-    return new;
-  end if;
-
-  -- ✅ Ensure a sequence row exists for this school
-  insert into public.school_student_sequences (school_id)
-  values (new.school_id)
-  on conflict (school_id) do nothing;
-
-  -- ✅ Atomically increment and fetch next number
-  update public.school_student_sequences
-  set
-    next_number = next_number + 1,
-    updated_at = now()
-  where school_id = new.school_id
-  returning next_number - 1 into next_num;
-
-  -- ✅ Assign the generated number
-  new.student_number := lpad(next_num::text, 6, '0');
-
-  return new;
-end;
+    AS $$
+declare
+  next_num integer;
+begin
+  -- ✅ If student_number already provided (bulk upload or admin input),
+  -- do NOTHING
+  if new.student_number is not null then
+    return new;
+  end if;
+
+  -- ✅ Ensure a sequence row exists for this school
+  insert into public.school_student_sequences (school_id)
+  values (new.school_id)
+  on conflict (school_id) do nothing;
+
+  -- ✅ Atomically increment and fetch next number
+  update public.school_student_sequences
+  set
+    next_number = next_number + 1,
+    updated_at = now()
+  where school_id = new.school_id
+  returning next_number - 1 into next_num;
+
+  -- ✅ Assign the generated number
+  new.student_number := lpad(next_num::text, 6, '0');
+
+  return new;
+end;
 $$;
 
 
@@ -147,94 +147,94 @@ $$;
 CREATE FUNCTION public.claim_or_create_profile_for_user() RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
-    AS $$
-declare
-  normalized_email text;
-  email_domain text;
-  emp record;
-  matched_school_id uuid;
-begin
-  -- Normalize email from auth context
-  normalized_email := lower(trim(auth.email()));
-  email_domain := split_part(normalized_email, '@', 2);
-
-  ------------------------------------------------------------------
-  -- 1️⃣ Try to claim an existing (preloaded) profile
-  ------------------------------------------------------------------
-  update profiles
-  set user_id   = auth.uid(),
-      status    = 'active',
-      can_login = true
-  where user_id is null
-    and lower(email) = normalized_email;
-
-  if found then
-    return;
-  end if;
-
-  ------------------------------------------------------------------
-  -- 2️⃣ If employee exists, create a PENDING profile from employee
-  ------------------------------------------------------------------
-  select *
-  into emp
-  from employees
-  where lower(email) = normalized_email
-  limit 1;
-
-  if found then
-    insert into profiles (
-      user_id,
-      email,
-      display_name,
-      role,
-      status,
-      can_login,
-      school_id
-    )
-    values (
-      auth.uid(),
-      normalized_email,
-      concat(emp.first_name, ' ', emp.last_name),
-      'staff',
-      'pending',
-      false,
-      emp.school_id
-    )
-    on conflict (email) do nothing;
-
-    return;
-  end if;
-
-  ------------------------------------------------------------------
-  -- 3️⃣ Fallback: ALWAYS create a pending profile (domain optional)
-  ------------------------------------------------------------------
-  select sd.school_id
-  into matched_school_id
-  from school_domains sd
-  where lower(sd.domain) = email_domain
-  limit 1;
-
-  insert into profiles (
-    user_id,
-    email,
-    display_name,
-    role,
-    status,
-    can_login,
-    school_id
-  )
-  values (
-    auth.uid(),
-    normalized_email,
-    split_part(normalized_email, '@', 1),
-    'staff',
-    'pending',
-    false,
-    matched_school_id -- may be NULL, this is OK
-  )
-  on conflict (email) do nothing;
-
-end;
+    AS $$
+declare
+  normalized_email text;
+  email_domain text;
+  emp record;
+  matched_school_id uuid;
+begin
+  -- Normalize email from auth context
+  normalized_email := lower(trim(auth.email()));
+  email_domain := split_part(normalized_email, '@', 2);
+
+  ------------------------------------------------------------------
+  -- 1️⃣ Try to claim an existing (preloaded) profile
+  ------------------------------------------------------------------
+  update profiles
+  set user_id   = auth.uid(),
+      status    = 'active',
+      can_login = true
+  where user_id is null
+    and lower(email) = normalized_email;
+
+  if found then
+    return;
+  end if;
+
+  ------------------------------------------------------------------
+  -- 2️⃣ If employee exists, create a PENDING profile from employee
+  ------------------------------------------------------------------
+  select *
+  into emp
+  from employees
+  where lower(email) = normalized_email
+  limit 1;
+
+  if found then
+    insert into profiles (
+      user_id,
+      email,
+      display_name,
+      role,
+      status,
+      can_login,
+      school_id
+    )
+    values (
+      auth.uid(),
+      normalized_email,
+      concat(emp.first_name, ' ', emp.last_name),
+      'staff',
+      'pending',
+      false,
+      emp.school_id
+    )
+    on conflict (email) do nothing;
+
+    return;
+  end if;
+
+  ------------------------------------------------------------------
+  -- 3️⃣ Fallback: ALWAYS create a pending profile (domain optional)
+  ------------------------------------------------------------------
+  select sd.school_id
+  into matched_school_id
+  from school_domains sd
+  where lower(sd.domain) = email_domain
+  limit 1;
+
+  insert into profiles (
+    user_id,
+    email,
+    display_name,
+    role,
+    status,
+    can_login,
+    school_id
+  )
+  values (
+    auth.uid(),
+    normalized_email,
+    split_part(normalized_email, '@', 1),
+    'staff',
+    'pending',
+    false,
+    matched_school_id -- may be NULL, this is OK
+  )
+  on conflict (email) do nothing;
+
+end;
 $$;
 
 
@@ -245,15 +245,15 @@ $$;
 CREATE FUNCTION public.claim_profile_for_user() RETURNS void
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
-    AS $$
-begin
-  update profiles
-  set user_id = auth.uid(),
-      status = 'active',
-      can_login = true
-  where user_id is null
-    and lower(email) = lower(auth.email());
-end;
+    AS $$
+begin
+  update profiles
+  set user_id = auth.uid(),
+      status = 'active',
+      can_login = true
+  where user_id is null
+    and lower(email) = lower(auth.email());
+end;
 $$;
 
 
@@ -264,85 +264,85 @@ $$;
 CREATE FUNCTION public.create_profile_for_new_user() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
-    AS $$
-declare
-  email_domain text;
-  matched_school_id uuid;
-  default_display_name text;
-begin
-  -- Normalize email
-  new.email := lower(trim(new.email));
-
-  email_domain := split_part(new.email, '@', 2);
-  default_display_name := split_part(new.email, '@', 1);
-
-  -- Match school by domain
-  select sd.school_id
-  into matched_school_id
-  from public.school_domains sd
-  where lower(sd.domain) = email_domain
-  limit 1;
-
-  -- Atomic claim-or-create
-  insert into public.profiles (
-    user_id,
-    school_id,
-    role,
-    display_name,
-    email,
-    status,
-    is_superadmin,
-    can_login,
-    can_view_carline,
-    can_view_pto_calendar,
-    can_review_pto,
-    can_approve_pto,
-    can_adjust_pto,
-    can_bulk_upload,
-    can_manage_guardians,
-    can_access_admin,
-    can_generate_pto_reports,
-    can_manage_access,
-    can_manage_staff,
-    can_manage_families,
-    can_manage_substitutes,
-    can_manage_students,
-    can_manage_bus_groups
-  )
-  values (
-    new.id,
-    matched_school_id,
-    'staff',
-    default_display_name,
-    new.email,
-    'active',
-    false,
-    true,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false
-  )
-  on conflict on constraint profiles_unique_email
-  do update
-    set user_id   = excluded.user_id,
-        status    = 'active',
-        can_login = true
-  where profiles.user_id is null;
-
-  return new;
-end;
+    AS $$
+declare
+  email_domain text;
+  matched_school_id uuid;
+  default_display_name text;
+begin
+  -- Normalize email
+  new.email := lower(trim(new.email));
+
+  email_domain := split_part(new.email, '@', 2);
+  default_display_name := split_part(new.email, '@', 1);
+
+  -- Match school by domain
+  select sd.school_id
+  into matched_school_id
+  from public.school_domains sd
+  where lower(sd.domain) = email_domain
+  limit 1;
+
+  -- Atomic claim-or-create
+  insert into public.profiles (
+    user_id,
+    school_id,
+    role,
+    display_name,
+    email,
+    status,
+    is_superadmin,
+    can_login,
+    can_view_carline,
+    can_view_pto_calendar,
+    can_review_pto,
+    can_approve_pto,
+    can_adjust_pto,
+    can_bulk_upload,
+    can_manage_guardians,
+    can_access_admin,
+    can_generate_pto_reports,
+    can_manage_access,
+    can_manage_staff,
+    can_manage_families,
+    can_manage_substitutes,
+    can_manage_students,
+    can_manage_bus_groups
+  )
+  values (
+    new.id,
+    matched_school_id,
+    'staff',
+    default_display_name,
+    new.email,
+    'active',
+    false,
+    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false
+  )
+  on conflict on constraint profiles_unique_email
+  do update
+    set user_id   = excluded.user_id,
+        status    = 'active',
+        can_login = true
+  where profiles.user_id is null;
+
+  return new;
+end;
 $$;
 
 
@@ -354,14 +354,14 @@ CREATE FUNCTION public.current_user_can_manage_access() RETURNS boolean
     LANGUAGE sql SECURITY DEFINER
     SET search_path TO 'public'
     SET row_security TO 'off'
-    AS $$
-  select
-    coalesce(
-      bool_or(can_manage_access or is_superadmin),
-      false
-    )
-  from profiles
-  where user_id = auth.uid();
+    AS $$
+  select
+    coalesce(
+      bool_or(can_manage_access or is_superadmin),
+      false
+    )
+  from profiles
+  where user_id = auth.uid();
 $$;
 
 
@@ -373,11 +373,11 @@ CREATE FUNCTION public.current_user_school_id() RETURNS uuid
     LANGUAGE sql SECURITY DEFINER
     SET search_path TO 'public'
     SET row_security TO 'off'
-    AS $$
-  select school_id
-  from profiles
-  where user_id = auth.uid()
-  limit 1;
+    AS $$
+  select school_id
+  from profiles
+  where user_id = auth.uid()
+  limit 1;
 $$;
 
 
@@ -387,26 +387,44 @@ $$;
 
 CREATE FUNCTION public.enforce_supervisor_is_pto_approver() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$
-begin
-  -- Allow null supervisor
-  if new.supervisor_id is null then
-    return new;
-  end if;
-
-  -- Check supervisor has a profile with PTO approval
-  if not exists (
-    select 1
-    from profiles p
-    where p.employee_id = new.supervisor_id
-      and p.can_approve_pto = true
-  ) then
-    raise exception
-      'Supervisor must have PTO approval access';
-  end if;
-
-  return new;
-end;
+    AS $$
+begin
+  -- Allow null supervisor
+  if new.supervisor_id is null then
+    return new;
+  end if;
+
+  -- Check supervisor has a profile with PTO approval
+  if not exists (
+    select 1
+    from profiles p
+    where p.employee_id = new.supervisor_id
+      and p.can_approve_pto = true
+  ) then
+    raise exception
+      'Supervisor must have PTO approval access';
+  end if;
+
+  return new;
+end;
+$$;
+
+
+--
+-- Name: enforce_fallback_approver_has_pto_access(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.enforce_fallback_approver_has_pto_access() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+begin
+  if new.is_fallback_approver = true and new.can_approve_pto = false then
+    raise exception
+      'Fallback approver must also have PTO approval access';
+  end if;
+
+  return new;
+end;
 $$;
 
 
@@ -416,26 +434,26 @@ $$;
 
 CREATE FUNCTION public.handle_new_auth_user() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
-    AS $$
-begin
-  insert into public.profiles (
-    user_id,
-    email,
-    status,
-    can_login,
-    is_superadmin
-  )
-  values (
-    new.id,
-    new.email,
-    'active',      -- ✅ rollout mode
-    true,
-    false
-  )
-  on conflict (user_id) do nothing;
-
-  return new;
-end;
+    AS $$
+begin
+  insert into public.profiles (
+    user_id,
+    email,
+    status,
+    can_login,
+    is_superadmin
+  )
+  values (
+    new.id,
+    new.email,
+    'active',      -- ✅ rollout mode
+    true,
+    false
+  )
+  on conflict (user_id) do nothing;
+
+  return new;
+end;
 $$;
 
 
@@ -447,30 +465,30 @@ CREATE FUNCTION public.handle_pto_ledger_insert() RETURNS trigger
     LANGUAGE plpgsql SECURITY DEFINER
     SET search_path TO 'public'
     SET row_security TO 'off'
-    AS $$
-BEGIN
-  INSERT INTO public.pto_balances (
-    school_id,
-    employee_id,
-    pto_type,
-    balance_hours,
-    updated_at
-  )
-  VALUES (
-    NEW.school_id,        -- ✅ FIX: propagate school_id
-    NEW.employee_id,
-    NEW.pto_type,
-    NEW.delta_hours,
-    now()
-  )
-  ON CONFLICT (employee_id, pto_type)
-  DO UPDATE
-    SET balance_hours =
-          pto_balances.balance_hours + EXCLUDED.balance_hours,
-        updated_at = now();
-
-  RETURN NEW;
-END;
+    AS $$
+BEGIN
+  INSERT INTO public.pto_balances (
+    school_id,
+    employee_id,
+    pto_type,
+    balance_hours,
+    updated_at
+  )
+  VALUES (
+    NEW.school_id,        -- ✅ FIX: propagate school_id
+    NEW.employee_id,
+    NEW.pto_type,
+    NEW.delta_hours,
+    now()
+  )
+  ON CONFLICT (employee_id, pto_type)
+  DO UPDATE
+    SET balance_hours =
+          pto_balances.balance_hours + EXCLUDED.balance_hours,
+        updated_at = now();
+
+  RETURN NEW;
+END;
 $$;
 
 
@@ -480,142 +498,142 @@ $$;
 
 CREATE FUNCTION public.handle_pto_status_change() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$begin
-  if tg_op = 'UPDATE' and new.status <> old.status then
-
-    -- 🔒 Guard: RESCINDED can ONLY come from RESCIND_REQUESTED
-    if new.status = 'RESCINDED'
-       and old.status <> 'RESCIND_REQUESTED' then
-      raise exception 'Invalid PTO state transition to RESCINDED';
-    end if;
-
-    -- ✅ APPROVAL: subtract requested hours (ONLY if balance-counting PTO)
-if new.status = 'APPROVED'
-   and old.status <> 'RESCIND_REQUESTED'
-   and exists (
-     select 1
-     from public.school_pto_types t
-     where t.school_id = new.school_id
-       and t.pto_type = new.pto_type::text
-       and t.counts_against_balance = true
-   )
-   and not exists (
-     select 1
-     from public.pto_ledger l
-     where l.related_request_id = new.id
-       and l.delta_hours < 0
-   ) then
-
-  insert into public.pto_ledger (
-    school_id,
-    employee_id,
-    pto_type,
-    delta_hours,
-    reason,
-    related_request_id,
-    created_by
-  )
-  values (
-    new.school_id,
-    new.employee_id,
-    new.pto_type,
-    -new.requested_hours,
-    'REQUEST APPROVED',
-    new.id,
-    new.decided_by
-  );
-
-
--- ✅ FUTURE PTO CANCELLATION → credit back
-elsif (
-  new.status = 'CANCELLED'
-  and old.status in ('APPROVED', 'CANCEL_REQUESTED')
-
-  -- ✅ Only if this PTO type counts against balance
-  and exists (
-    select 1
-    from public.school_pto_types t
-    where t.school_id = new.school_id
-      and t.pto_type = new.pto_type::text
-      and t.counts_against_balance = true
-  )
-
-  -- ✅ Only if a debit was previously recorded
-  and exists (
-    select 1
-    from public.pto_ledger l
-    where l.related_request_id = new.id
-      and l.delta_hours < 0
-  )
-) then
-
-  insert into public.pto_ledger (
-    school_id,
-    employee_id,
-    pto_type,
-    delta_hours,
-    reason,
-    related_request_id,
-    created_by
-  )
-  values (
-    new.school_id,
-    new.employee_id,
-    new.pto_type,
-    new.requested_hours,
-    'REQUEST CANCELLED FUTURE',
-    new.id,
-    new.decided_by
-  );
-
-
--- ✅ RETROACTIVE PTO RESCIND → credit back
-elsif (
-  new.status = 'RESCINDED'
-  and old.status = 'RESCIND_REQUESTED'
-
-  -- ✅ Only if this PTO type counts against balance
-  and exists (
-    select 1
-    from public.school_pto_types t
-    where t.school_id = new.school_id
-      and t.pto_type = new.pto_type::text
-      and t.counts_against_balance = true
-  )
-
-  -- ✅ Only if a debit was previously recorded
-  and exists (
-    select 1
-    from public.pto_ledger l
-    where l.related_request_id = new.id
-      and l.delta_hours < 0
-  )
-) then
-
-  insert into public.pto_ledger (
-    school_id,
-    employee_id,
-    pto_type,
-    delta_hours,
-    reason,
-    related_request_id,
-    created_by
-  )
-  values (
-    new.school_id,
-    new.employee_id,
-    new.pto_type,
-    new.requested_hours,
-    'REQUEST RESCINDED RETROACTIVE',
-    new.id,
-    new.decided_by
-  );
-
-    end if;
-
-  end if;
-
-  return new;
+    AS $$begin
+  if tg_op = 'UPDATE' and new.status <> old.status then
+
+    -- 🔒 Guard: RESCINDED can ONLY come from RESCIND_REQUESTED
+    if new.status = 'RESCINDED'
+       and old.status <> 'RESCIND_REQUESTED' then
+      raise exception 'Invalid PTO state transition to RESCINDED';
+    end if;
+
+    -- ✅ APPROVAL: subtract requested hours (ONLY if balance-counting PTO)
+if new.status = 'APPROVED'
+   and old.status <> 'RESCIND_REQUESTED'
+   and exists (
+     select 1
+     from public.school_pto_types t
+     where t.school_id = new.school_id
+       and t.pto_type = new.pto_type::text
+       and t.counts_against_balance = true
+   )
+   and not exists (
+     select 1
+     from public.pto_ledger l
+     where l.related_request_id = new.id
+       and l.delta_hours < 0
+   ) then
+
+  insert into public.pto_ledger (
+    school_id,
+    employee_id,
+    pto_type,
+    delta_hours,
+    reason,
+    related_request_id,
+    created_by
+  )
+  values (
+    new.school_id,
+    new.employee_id,
+    new.pto_type,
+    -new.requested_hours,
+    'REQUEST APPROVED',
+    new.id,
+    new.decided_by
+  );
+
+
+-- ✅ FUTURE PTO CANCELLATION → credit back
+elsif (
+  new.status = 'CANCELLED'
+  and old.status in ('APPROVED', 'CANCEL_REQUESTED')
+
+  -- ✅ Only if this PTO type counts against balance
+  and exists (
+    select 1
+    from public.school_pto_types t
+    where t.school_id = new.school_id
+      and t.pto_type = new.pto_type::text
+      and t.counts_against_balance = true
+  )
+
+  -- ✅ Only if a debit was previously recorded
+  and exists (
+    select 1
+    from public.pto_ledger l
+    where l.related_request_id = new.id
+      and l.delta_hours < 0
+  )
+) then
+
+  insert into public.pto_ledger (
+    school_id,
+    employee_id,
+    pto_type,
+    delta_hours,
+    reason,
+    related_request_id,
+    created_by
+  )
+  values (
+    new.school_id,
+    new.employee_id,
+    new.pto_type,
+    new.requested_hours,
+    'REQUEST CANCELLED FUTURE',
+    new.id,
+    new.decided_by
+  );
+
+
+-- ✅ RETROACTIVE PTO RESCIND → credit back
+elsif (
+  new.status = 'RESCINDED'
+  and old.status = 'RESCIND_REQUESTED'
+
+  -- ✅ Only if this PTO type counts against balance
+  and exists (
+    select 1
+    from public.school_pto_types t
+    where t.school_id = new.school_id
+      and t.pto_type = new.pto_type::text
+      and t.counts_against_balance = true
+  )
+
+  -- ✅ Only if a debit was previously recorded
+  and exists (
+    select 1
+    from public.pto_ledger l
+    where l.related_request_id = new.id
+      and l.delta_hours < 0
+  )
+) then
+
+  insert into public.pto_ledger (
+    school_id,
+    employee_id,
+    pto_type,
+    delta_hours,
+    reason,
+    related_request_id,
+    created_by
+  )
+  values (
+    new.school_id,
+    new.employee_id,
+    new.pto_type,
+    new.requested_hours,
+    'REQUEST RESCINDED RETROACTIVE',
+    new.id,
+    new.decided_by
+  );
+
+    end if;
+
+  end if;
+
+  return new;
 end;$$;
 
 
@@ -625,22 +643,22 @@ end;$$;
 
 CREATE FUNCTION public.notify_pto_event() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$BEGIN
-  PERFORM
-    net.http_post(
-      url := 'https://xrhwjjkxlshfarlxuxsa.functions.supabase.co/send_pto_notifications',
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json'
-      ),
-      body := jsonb_build_object(
-        'event', TG_OP,
-        'old_status', OLD.status,
-        'new_status', NEW.status,
-        'pto_request_id', NEW.id
-      )
-    );
-
-  RETURN NEW;
+    AS $$BEGIN
+  PERFORM
+    net.http_post(
+      url := 'https://xrhwjjkxlshfarlxuxsa.functions.supabase.co/send_pto_notifications',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json'
+      ),
+      body := jsonb_build_object(
+        'event', TG_OP,
+        'old_status', OLD.status,
+        'new_status', NEW.status,
+        'pto_request_id', NEW.id
+      )
+    );
+
+  RETURN NEW;
 END;$$;
 
 
@@ -848,6 +866,7 @@ CREATE TABLE public.profiles (
     can_view_pto_calendar boolean DEFAULT false NOT NULL,
     can_review_pto boolean DEFAULT false NOT NULL,
     can_approve_pto boolean DEFAULT false NOT NULL,
+    is_fallback_approver boolean DEFAULT false NOT NULL,
     can_adjust_pto boolean DEFAULT false NOT NULL,
     can_bulk_upload boolean DEFAULT false NOT NULL,
     can_manage_guardians boolean DEFAULT false NOT NULL,
@@ -1590,6 +1609,13 @@ CREATE TRIGGER before_insert_assign_student_number BEFORE INSERT ON public.stude
 --
 
 CREATE TRIGGER employees_supervisor_pto_check BEFORE INSERT OR UPDATE OF supervisor_id ON public.employees FOR EACH ROW EXECUTE FUNCTION public.enforce_supervisor_is_pto_approver();
+
+
+--
+-- Name: profiles profiles_fallback_approver_check; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER profiles_fallback_approver_check BEFORE INSERT OR UPDATE OF is_fallback_approver, can_approve_pto ON public.profiles FOR EACH ROW EXECUTE FUNCTION public.enforce_fallback_approver_has_pto_access();
 
 
 --
