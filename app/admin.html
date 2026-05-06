@@ -1,0 +1,754 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>School Admin Portal</title>
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <link rel="stylesheet" href="admin-ui.css">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <!-- Fallback for older browsers -->
+  <link rel="icon" href="/icons/favicon.ico">
+  <style>
+
+  </style>
+</head>
+<body class="admin-page">
+  
+<header>
+  <!-- LEFT: optional utility -->
+  <div>
+    <!-- You can add Back to Staff later if needed -->
+  </div>
+
+  <!-- CENTER: Product identity -->
+ 
+<div class="page-header">
+  <img
+    src="/images/belltower-logo.png"
+    alt="Belltower"
+    class="admin-logo"
+  />
+  <div class="page-subtitle">Administration</div>
+</div>
+
+  <!-- RIGHT: Admin actions -->
+  <div class="header-actions">
+    <span id="adminName" class="muted"></span>
+    <button id="signOut" class="btn">Sign out</button>
+  </div>
+</header>
+
+  <div class="wrap">
+    <nav id="adminNav" class="nav hidden">
+      <a href="#dashboard" class="active">Dashboard</a>
+      <a href="#staff" data-cap="can_manage_staff">👥 Staff</a>
+	  <a href="#access"
+      id="navAccess"
+      data-cap="can_manage_access">
+      🔐 Manage Access</a>
+      <a href="#students" data-cap="can_manage_students">🎓 Students</a>
+	  <a href="#families" data-cap="can_manage_families">👨‍👩‍👧 Families</a>
+	  <a href="#guardians" data-cap="can_manage_guardians">👪 Guardians</a>
+      <a href="#bus" data-cap="can_manage_bus_groups">🚌 Bus Groups</a>
+	  <a href="#bulk-upload" data-cap="can_bulk_upload">⬆️ Bulk Upload</a>
+	  <a href="#exports" data-cap="can_export_data">📤 Exports</a>
+      <a href="/pto.html?from=admin" data-cap-group="pto">🗓️ PTO Management</a>
+	  <a href="/substitutes.html?from=admin" data-cap-group="substitutes">👥 Substitutes</a>
+	  <a href="/staff.html?from=admin#pto">👤 My Portal</a>
+	  <a href="/carline.html" data-cap="can_view_carline">🚗 Carline Live</a>
+
+    </nav>
+    <main>
+      <div id="pending" class="notice" style="display:none;">Your account is <strong>pending</strong>. An administrator must approve your domain or activate your profile.</div>
+
+<section id="dashboard" class="admin-section">
+        
+<h1>Dashboard</h1>
+
+<p class="muted">
+  Signed in as <strong id="dashboardUser"></strong><br>
+  <span id="dashboardSchool" class="school-name"></span>
+</p>
+
+
+<div class="stat-grid">
+  <div class="stat">
+    <strong id="statStudents">–</strong>
+    <span>Students</span>
+  </div>
+  <div class="stat">
+    <strong id="statStaff">–</strong>
+    <span>Staff</span>
+  </div>
+  <div class="stat">
+    <strong id="statFamilies">–</strong>
+    <span>Families</span>
+  </div>
+  <div class="stat">
+    <strong id="statBusGroups">–</strong>
+    <span>Bus Groups</span>
+  </div>
+</div>
+
+      </section>
+<section id="staff" class="admin-section">
+  <!-- Skeleton (always visible initially) -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content (fades in) -->
+  <div class="admin-content fade-in">
+    <!-- Add Staff -->
+    <div class="panel panel-action">
+      <h3>Add Staff</h3>
+
+      <div class="admin-form-row compact">
+        <input id="staffFirst" placeholder="First" />
+        <input id="staffLast" placeholder="Last" />
+        <input id="staffEmail" placeholder="Email" />
+        <input id="staffPosition" placeholder="Position" />
+		<select id="staffSupervisor">
+		<option value="">Supervisor / PTO Approver (optional)</option>
+		</select>
+        <button id="addStaff" class="btn btn-primary">Add</button>
+      </div>
+    </div>
+
+    <!-- Staff Directory -->
+    <div class="panel panel-history">
+      <h3>Staff Directory</h3>
+
+<div class="directory-header">
+  <!-- LEFT: search + filters -->
+  <div class="directory-filters">
+    <input
+      id="staffSearch"
+      type="text"
+      placeholder="Search staff…"
+    />
+
+    <select id="staffActiveFilter">
+      <option value="">All</option>
+      <option value="true">Active</option>
+      <option value="false">Inactive</option>
+    </select>
+
+    <select id="staffSort">
+      <option value="last_name.asc">Last name (A–Z)</option>
+      <option value="last_name.desc">Last name (Z–A)</option>
+      <option value="first_name.asc">First name</option>
+      <option value="position.asc">Position</option>
+    </select>
+  </div>
+
+  <!-- RIGHT: actions -->
+  <div class="directory-actions">
+    <button id="exportStaffCurrent" class="btn">
+      Export view
+    </button>
+    <button id="exportStaffAll" class="btn">
+      Export all
+    </button>
+  </div>
+</div>
+
+
+
+<div id="staffPagination" class="pagination"></div>
+
+      <table id="staffTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Position</th>
+			<th>Supervisor</th>
+            <th>Active</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<section id="access" class="admin-section">
+
+  <!-- Skeleton -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content -->
+  <div class="admin-content fade-in">
+
+    <!-- User selection -->
+    <div class="panel panel-action">
+      <h3>User Access & Permissions</h3>
+ 
+
+<small class="muted" style="opacity:0.75;">
+  Only staff who have signed in will appear in this list.
+</small>
+
+
+      <div class="admin-form-row compact">
+        <select id="accessUserSelect">
+          <option value="">Select staff member…</option>
+        </select>
+
+        <select id="accessPreset">
+          <option value="">Apply role preset…</option>
+          <option value="teacher">Teacher</option>
+          <option value="office">Office</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+
+      <div id="accessUserMeta" class="muted" style="margin-top:8px;"></div>
+    </div>
+
+    <!-- ✅ Account Status (USER-SCOPED) -->
+    <div class="panel" id="accountStatusPanel" style="display:none;">
+      <h4>Account Status</h4>
+
+      <label class="row">
+        <select id="accessStatusSelect">
+          <option value="active">Active</option>
+          <option value="pending">Pending</option>
+        </select>
+      </label>
+
+    </div>
+
+    <!-- ✅ Permissions (USER-SCOPED) -->
+    <div id="accessPermissions" style="display:none;">
+
+      <div class="panel">
+        <h4>Login & Portal Access</h4>
+        <label><input type="checkbox" data-field="can_login"> Can log in</label>
+        <label><input type="checkbox" data-field="can_access_admin"> Admin portal</label>
+        <label><input type="checkbox" data-field="can_manage_access"> Manage access</label>
+      </div>
+
+      <div class="panel">
+        <h4>PTO</h4>
+        <label><input type="checkbox" data-field="can_view_pto_calendar"> View calendar</label>
+        <label><input type="checkbox" data-field="can_review_pto"> Review history</label>
+        <label><input type="checkbox" data-field="can_approve_pto"> Approve requests</label>
+        <label><input type="checkbox" data-field="can_adjust_pto"> Adjust balances</label>
+        <label><input type="checkbox" data-field="can_generate_pto_reports"> Reports</label>
+      </div>
+
+      <div class="panel">
+        <h4>Operations</h4>
+         <div class="permission-grid">        
+        <label><input type="checkbox" data-field="can_view_carline"> View carline</label>
+		<label><input type="checkbox" data-field="can_manage_staff"> Manage staff</label>
+		<label><input type="checkbox" data-field="can_manage_students"> Manage students</label>
+		<label><input type="checkbox" data-field="can_manage_families"> Manage families</label>
+		<label><input type="checkbox" data-field="can_manage_guardians"> Manage guardians</label>
+		<label><input type="checkbox" data-field="can_manage_bus_groups"> Manage bus groups</label>
+		<label><input type="checkbox" data-field="can_manage_substitutes"> Manage substitutes</label>
+		<label><input type="checkbox" data-field="can_bulk_upload"> Bulk upload</label>
+		<label><input type="checkbox" data-field="can_export_data"> Export data</label>
+</div>
+      </div>
+
+    </div>
+
+    <!-- ✅ Pending users (GLOBAL, stays visible) -->
+    <div class="panel" id="pendingUsersPanel" style="margin-top:16px;">
+  <h4>Pending Users</h4>
+
+  <table style="width:100%; border-collapse:collapse;">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Approve</th>
+      </tr>
+    </thead>
+    <tbody id="pendingUsersTable">
+      <tr>
+        <td colspan="3" class="muted">Loading…</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+  </div>
+</section>
+<section id="families" class="admin-section">
+  <!-- Skeleton (visible immediately) -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content (fades in after data loads) -->
+  <div class="admin-content fade-in">
+    <!-- Add Family -->
+    <div class="panel panel-action">
+      <h3>Add Family</h3>
+
+      <div class="admin-form-row compact">
+        <input
+          id="familyName"
+          placeholder="Family name (optional)"
+        />
+
+        <input
+          id="familyTag"
+          placeholder="Carline tag #"
+        />
+
+        <button id="addFamily" class="btn btn-primary">
+          Add
+        </button>
+      </div>
+    </div>
+
+    <!-- Family Directory -->
+    <div class="panel panel-history">
+      <h3>Family Directory</h3>
+
+
+<div class="directory-header">
+  <div class="directory-filters">
+    <input
+      id="familySearch"
+	  type="text"
+      placeholder="Search families…"
+    />
+
+    <select id="familySort">
+      <option value="carline_tag_number.asc">Tag #</option>
+      <option value="family_name.asc">Family name</option>
+    </select>
+  </div>
+
+  <div class="directory-actions">
+    <button id="exportFamiliesCurrent" class="btn">
+      Export view
+    </button>
+    <button id="exportFamiliesAll" class="btn">
+      Export all
+    </button>
+  </div>
+</div>
+
+<div id="familiesPagination"></div>
+
+
+      <table id="familiesTable">
+        <thead>
+          <tr>
+            <th>Carline Tag</th>
+            <th>Family Name</th>
+            <th>Active</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<section id="guardians" class="admin-section">
+
+  <!-- Skeleton -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content -->
+  <div class="admin-content fade-in">
+
+    <!-- Add Guardian -->
+    <div class="panel panel-action">
+      <h3>Add Guardian</h3>
+      <div class="admin-form-row compact">
+        <input id="guardianFirst" placeholder="First name" />
+        <input id="guardianLast" placeholder="Last name" />
+        <input id="guardianEmail" placeholder="Email" />
+        <input id="guardianPhone" placeholder="Phone" />
+        <select id="guardianFamily"></select>
+        <button id="addGuardian" class="btn btn-primary">
+          Add
+        </button>
+      </div>
+    </div>
+
+    <!-- Guardian Directory -->
+    <div class="panel panel-history">
+      <h3>Guardian Directory</h3>
+	  
+<div class="directory-header">
+  <div class="directory-filters">
+    <input
+      id="guardianSearch"
+      type="text"
+      placeholder="Search guardians…"
+    />
+
+    <select id="guardianSort">
+      <option value="last_name.asc">Last name</option>
+      <option value="first_name.asc">First name</option>
+    </select>
+  </div>
+
+  <div class="directory-actions">
+    <button id="exportGuardiansCurrent" class="btn">
+      Export view
+    </button>
+    <button id="exportGuardiansAll" class="btn">
+      Export all
+    </button>
+  </div>
+</div>
+
+<div id="guardiansPagination"></div>
+
+      <table id="guardiansTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Family</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th>Active</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+<section id="students" class="admin-section">
+  <!-- Skeleton (shown immediately while data loads) -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content (fades in after data loads) -->
+  <div class="admin-content fade-in">
+    <!-- Add Student -->
+    <div class="panel panel-action">
+      <h3>Add Student</h3>
+<div id="studentFormError" class="form-error" style="display:none;"></div>
+
+      <div class="admin-form-row compact">
+        <input id="studentFirst" placeholder="First name" />
+        <input id="studentLast" placeholder="Last name" />
+        <input id="studentGrade" placeholder="Grade" />
+        <select id="studentHomeroom" class="form-input">
+  <option value="">Select homeroom teacher</option>
+</select>
+        <select id="studentFamily"></select>
+        <select id="studentBusGroup"></select>
+		<input
+		  id="studentNumber"
+		  placeholder="Student Number (optional)"
+		/>
+		<small class="muted">
+		  Leave blank to auto-generate a student number.
+		</small>
+
+        <button id="addStudent" class="btn btn-primary">
+          Add
+        </button>
+      </div>
+    </div>
+
+    <!-- Student Directory -->
+    <div class="panel panel-history">
+      <h3>Student Directory</h3>
+
+<div class="directory-header">
+  <div class="directory-filters">
+    <input
+      id="studentSearch"
+      type="text"
+      placeholder="Search students…"
+    />
+
+    <select id="studentGradeFilter">
+        <option value="">All grades</option>
+  <option value="K">K</option>
+  <option value="1">1</option>
+  <option value="2">2</option>
+  <option value="3">3</option>
+  <option value="4">4</option>
+  <option value="5">5</option>
+  <option value="6">6</option>
+  <option value="7">7</option>
+  <option value="8">8</option>
+  <option value="9">9</option>
+  <option value="10">10</option>
+  <option value="11">11</option>
+  <option value="12">12</option>
+
+    </select>
+
+    <select id="studentHomeroomFilter">
+      <option value="">All homerooms</option>
+      <!-- populate options server-side or statically -->
+    </select>
+
+    <select id="studentSort">
+      <option value="last_name.asc">Last name</option>
+      <option value="first_name.asc">First name</option>
+      <option value="grade_level.asc">Grade</option>
+    </select>
+  </div>
+
+  <div class="directory-actions">
+    <button id="exportStudentsCurrent" class="btn">Export view</button>
+    <button id="exportStudentsAll" class="btn">Export all</button>
+  </div>
+</div>
+
+<div id="studentsPagination"></div>
+
+      <table id="studentsTable">
+       
+	
+<thead>
+  <tr>
+    <th>Name</th>
+    <th class="col-id">Student #</th>
+    <th>Family</th>
+    <th class="col-grade">Grade</th>
+    <th>Homeroom</th>
+    <th>Bus Group</th>
+    <th class="col-active">Active</th>
+    <th class="col-actions"></th>
+  </tr>
+</thead>
+
+
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<section id="bus" class="admin-section">
+
+  <!-- Skeleton (shows while loading) -->
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <!-- Real content -->
+  <div class="admin-content fade-in">
+
+    <!-- Add Bus Group -->
+    <div class="panel panel-action">
+      <h3>Add Bus Group</h3>
+
+      <div class="admin-form-row compact">
+        <input id="busName" placeholder="Group name (e.g. Blue)" />
+        <input id="busRoute" placeholder="Route # (e.g. R12)" />
+
+        <button id="addBusGroup" class="btn btn-primary">
+          Add
+        </button>
+      </div>
+    </div>
+
+    <!-- Bus Groups Directory -->
+    <div class="panel panel-history">
+      <h3>Bus Groups</h3>
+
+<div class="directory-header">
+  <div class="directory-filters">
+    <input
+      id="busSearch"
+      type="text"
+      placeholder="Search bus groups…"
+    />
+
+    <select id="busSort">
+      <option value="name.asc">Name (A–Z)</option>
+      <option value="name.desc">Name (Z–A)</option>
+      <option value="route_number.asc">Route #</option>
+    </select>
+  </div>
+
+  <div class="directory-actions">
+    <button id="exportBusGroupsCurrent" class="btn">
+      Export view
+    </button>
+    <button id="exportBusGroupsAll" class="btn">
+      Export all
+    </button>
+  </div>
+</div>
+
+      <table id="busTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Route</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+  </div>
+</section>
+<section id="bulk-upload" class="admin-section">
+  <div class="admin-content fade-in">
+    <div class="panel panel-action">
+      <h3>Bulk Upload</h3>
+
+      <!-- Template downloads -->
+      <div class="row" style="gap:12px; margin-bottom:12px;">
+        <a
+          href="https://xrhwjjkxlshfarlxuxsa.supabase.co/storage/v1/object/sign/Templates/Bulk%20Upload%20Template.xlsx?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zZTBiMmRhNi00NzIwLTQ5ZTItYjdkZS0wNmVhYmUyMWJhYjYiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUZW1wbGF0ZXMvQnVsayBVcGxvYWQgVGVtcGxhdGUueGxzeCIsImlhdCI6MTc3Njg1MTA5MiwiZXhwIjo0OTMwNDUxMDkyfQ._coPwP1rYyrr0n8ahjQYktn-9dHPgJMnpr-HDXCtBrU"
+          class="btn"
+          download
+        >
+
+          Download Excel Template
+        </a>
+
+        <a
+          href="https://docs.google.com/..."
+          target="_blank"
+          class="btn"
+        >
+          Open Google Sheets Template
+        </a>
+      </div>
+
+      <hr />
+
+      <!-- Upload area -->
+      <div id="bulkUploadDropzone"
+        class="upload-dropzone"
+      >
+        Drag & drop Excel file here<br />
+        or<br />
+        <input type="file"
+          id="bulkUploadFile"
+          accept=".xlsx,.xls"
+        />
+      </div>
+
+      <!-- Sheet selection (hidden initially) -->
+      <div
+        id="bulkUploadSheets"
+        style="display:none; margin-top:12px;"
+      >
+        <h4>Select Sheets to Upload</h4>
+        <div id="bulkSheetCheckboxes"></div>
+      </div>
+
+		
+      <!-- Dry run -->
+      <div class="row" style="margin-top:12px;">
+        <button
+          id="bulkPreviewBtn"
+          class="btn-primary"
+          disabled
+        >
+          Preview (Dry Run)
+        </button>
+      </div>
+	  
+<label style="display:block; margin:6px 0;">
+  <input type="checkbox" id="allowUpdatesToggle">
+  Allow updates to existing records
+</label>
+
+
+      <!-- Preview results -->
+      <div id="bulkUploadPreview"></div>
+
+      <!-- Commit -->
+      <div
+        id="bulkUploadCommit"
+        style="display:none; margin-top:12px;"
+      >
+        <button class="btn warn" id="bulkCommitBtn">
+          Commit Bulk Upload
+        </button>
+      </div>
+	  
+	  
+<div style="margin-top:12px">
+  <button class="btn warn" id="bulkRollbackBtn">
+    Undo Last Bulk Upload
+  </button>
+</div>
+
+	  
+    </div>
+  </div>
+</section>
+<section id="exports" class="admin-section">
+  <div class="fade-in">
+
+    <div class="panel panel-history" id="exportsPanel">
+      <h3>Exports</h3>
+
+      <div class="directory-actions">
+
+        <button id="exportClassPlacement" class="btn">
+          Class Placement (Excel)
+        </button>
+
+        <button id="exportTeacherRosters" class="btn">
+          Teacher Rosters
+        </button>
+
+        <button id="exportGradeRosters" class="btn">
+          Grade Rosters
+        </button>
+
+        <button id="exportBusAssignments" class="btn">
+          Bus Group Assignments
+        </button>
+
+        <!-- ✅ Contact Lists with split selector -->
+        <div class="export-group">
+          <select id="contactSplitSelect" class="form-input">
+            <option value="">All Contacts</option>
+            <option value="grade">By Grade</option>
+            <option value="homeroom">By Homeroom</option>
+          </select>
+
+          <button id="exportContactLists" class="btn">
+            Contact Lists
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>
+ </main>
+ </div>
+<script type="module" src="/app/admin.core.js"></script>
+ </body>
+</html>

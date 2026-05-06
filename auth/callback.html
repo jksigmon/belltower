@@ -1,0 +1,192 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Signing you in…</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <style>
+    :root {
+      --navy-900: #071c2f;
+      --navy-800: #0b2d4f;
+      --blue-main: #1f5fa8;
+      --text-muted: #cbd5e1;
+      --white: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+      background:
+        linear-gradient(
+          to bottom,
+          rgba(7, 28, 47, 0.45),
+          rgba(7, 28, 47, 0.65)
+        ),
+        url("/images/hero-belltower-wide.png");
+
+      background-size: 230%;
+      background-position: 27% top;
+      background-repeat: no-repeat;
+    }
+
+    .callback-card {
+      width: 100%;
+      max-width: 420px;
+      padding: 2.25rem;
+      text-align: center;
+
+      border-radius: 16px;
+      background: rgba(11, 45, 79, 0.7);
+      backdrop-filter: blur(14px) saturate(1.2);
+      -webkit-backdrop-filter: blur(14px) saturate(1.2);
+
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+    }
+
+    .callback-logo {
+      max-height: 42px;
+      margin-bottom: 1.5rem;
+      transform: scale(1.8);
+    }
+
+    .callback-text {
+      color: var(--white);
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+    }
+
+    .callback-subtext {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      margin: 0 auto 1.25rem;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: var(--white);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="callback-card">
+    <img
+      src="/images/belltower-logo.png"
+      alt="Belltower"
+      class="callback-logo"
+    />
+
+    <div class="spinner"></div>
+
+    <div class="callback-text">Signing you in…</div>
+    <div class="callback-subtext">Securing your session</div>
+  </div>
+
+ 
+ 
+<script type="module">
+import { supabase } from '/app/admin.supabase.js'
+
+supabase.auth.onAuthStateChange(async (event, session) => {
+  if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return
+  if (!session) return
+
+  const user = session.user
+
+  // Load profile (may not exist)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  const email = user.email.toLowerCase()
+  const domain = email.split('@')[1]
+
+  // Look up school by domain
+  const { data: school } = await supabase
+    .from('schools')
+    .select('id')
+    .eq('email_domain', domain)
+    .maybeSingle()
+
+  // ✅ FIRST LOGIN → CREATE PROFILE
+  if (!profile) {
+    const { error } = await supabase
+      .from('profiles')
+      .insert({
+        user_id: user.id,
+        email: user.email,
+        display_name: user.user_metadata?.full_name ?? user.email,
+        role: 'staff',   
+        status: 'pending',
+        can_login: false,
+        school_id: school?.id ?? null
+      })
+
+    if (error) {
+      console.error('Profile creation failed:', error)
+      await supabase.auth.signOut()
+      window.location.replace('/login.html')
+      return
+    }
+
+    window.location.replace('/app/pending.html')
+    return
+  }
+
+  // ✅ Pending users stay signed in
+  if (profile.status === 'pending') {
+    window.location.replace('/app/pending.html')
+    return
+  }
+
+  // ✅ Block inactive users
+  if (profile.can_login !== true) {
+    await supabase.auth.signOut()
+    window.location.replace('/login.html')
+    return
+  }
+
+  const isAdmin =
+    profile.is_superadmin ||
+    profile.can_access_admin ||
+    profile.can_manage_access ||
+    profile.can_approve_pto ||
+    profile.can_adjust_pto ||
+    profile.can_bulk_upload
+
+  window.location.replace(isAdmin ? '/admin.html' : '/staff.html')
+})
+</script>
+
+</body>
+</html>

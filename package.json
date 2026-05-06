@@ -1,0 +1,11 @@
+{
+  "name": "belltower",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build-config.js"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.5"
+  }
+}

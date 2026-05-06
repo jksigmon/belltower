@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+
+  <link rel="manifest" href="/icons/site.webmanifest">
+
+  <!-- Fallback for older browsers -->
+  <link rel="icon" href="/icons/favicon.ico">
+
+<link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+/>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<link rel="stylesheet" href="/admin-ui.css" />
+  <style>
+
+.pto-balance-warning {
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #065f46;
+  font-size: 13px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-top: 8px;
+  white-space: normal;
+}
+
+
+/* ✅ Force the PTO form to align left */
+.pto-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+/* ✅ Main row aligned left */
+.pto-form-row-main {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+
+/* ✅ Conditional row aligned left */
+.pto-form-row-conditional {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  display: none;
+}
+
+/* ✅ Ensure helper hugs the left edge */
+.pto-balance-warning {
+  margin-left: 0;
+  align-self: flex-start;
+}
+
+.pto-form.partial-day-active .pto-form-row-conditional {
+  display: flex; /* matches your row layout */
+}
+
+
+  </style>
+ </head>
+
+<body class="admin-page staff-page">
+<header>
+
+
+<div class="header-left">
+  <a id="backToAdmin"
+     href="/admin.html"
+     class="btn btn-admin">
+    ← Back to Admin
+  </a>
+</div>
+
+
+<div class="page-header">
+  <img
+    src="/images/belltower-logo.png"
+    alt="Belltower"
+    class="admin-logo"
+  />
+  <div class="page-subtitle" id="pageSubtitle">
+    Time off, requests, and daily services
+  </div>
+</div>
+
+  
+<div class="header-actions">
+  <span id="staffName" class="muted"></span>
+  <button id="signOut" class="btn">Sign out</button>
+</div>
+
+</header>
+
+<div class="wrap">
+
+<nav>
+  <a href="#pto" data-module="pto">
+    🗓️ PTO
+  </a>
+
+  <a href="#carline" data-module="carline">
+    🚗 Carline
+  </a>
+</nav>
+
+
+
+  <main>
+  <section id="pto" class="pto-section fade-in" style="display:none;">
+  
+
+  <!-- Balances -->
+  <div class="panel panel-summary" style="margin-top:12px;">
+    <h3>PTO Balances</h3>
+    <div id="ptoBalances" class="pto-balances">
+  <div class="skeleton skeleton-text"></div>
+  <div class="skeleton skeleton-text"></div>
+  <div class="skeleton skeleton-text"></div>
+</div>
+  </div>
+
+
+<!-- PTO Request Form-->
+<div class="panel panel-action" style="margin-top:12px;">
+  <h3>Request PTO</h3>
+
+<div class="pto-form">
+
+<div class="row" id="subCoverageWrap" style="gap:10px; align-items:center; flex-wrap:wrap;">
+  <span class="muted" style="font-size:13px;">Substitute/Coverage?</span>
+
+  <label class="row" style="gap:6px;">
+    <input type="radio" name="subCoverageNeeded" value="yes" />
+    Yes
+  </label>
+
+  <label class="row" style="gap:6px;">
+    <input type="radio" name="subCoverageNeeded" value="no" />
+    No
+  </label>
+
+  <!-- ✅ Inline message (same row) -->
+  <span
+    id="subCoverageMsg"
+    class="muted"
+    style="font-size:12px; color:#0f766e; display:none; margin-left:10px;"
+  >
+    Coverage will be requested after approval.
+  </span>
+
+  <!-- ✅ Optional: inline error (stateless requirement) -->
+  <span
+    id="subCoverageErr"
+    class="muted"
+    style="font-size:12px; color:#b91c1c; display:none; margin-left:10px;"
+  >
+    Please choose Yes or No.
+  </span>
+</div>
+
+  <!-- ✅ ROW 1: Primary fields -->
+  <div class="pto-form-row pto-form-row-main">
+    <select id="ptoType">
+      <option value="">Select PTO Type</option>
+    </select>
+
+    <input
+      type="text"
+      id="ptoDateRange"
+      placeholder="Select date(s)"
+      readonly
+    />
+
+    <label class="row">
+      Duration
+      <select id="ptoDuration">
+        <option value="full">Full day</option>
+        <option value="half">Half day</option>
+        <option value="custom">Custom hours…</option>
+      </select>
+    </label>
+	
+
+    <input
+      type="text"
+      id="ptoNotes"
+      placeholder="Notes: Add context for this request"
+      style="flex:1;"
+    />
+
+    <button id="submitPtoRequest" class="btn">
+      Submit Request
+    </button>
+  </div>
+
+  <!-- ✅ ROW 2: Conditional fields (hidden unless needed) -->
+  <div class="pto-form-row pto-form-row-conditional">
+
+    <!-- Custom hours (already controlled by JS/CSS) -->
+   
+<label class="row">
+  Start:
+  <select id="ptoStartTime" class="pto-conditional"></select>
+</label>
+
+<label class="row">
+  End:
+  <select id="ptoEndTime" class="pto-conditional"></select>
+</label>
+
+<div id="ptoComputedHours" class="muted" style="font-size:12px; margin-left:8px;">
+  Total: —
+</div>
+
+
+    <!-- Balance helper -->
+    <div
+      id="ptoBalanceHelper"
+      class="pto-balance-warning"
+      style="display:none;"
+    >
+      📝 <strong>Tracked only:</strong>
+      This leave is recorded for scheduling but
+      <strong>does not subtract</strong> from your PTO balance.
+    </div>
+
+  </div>
+
+</div>
+
+
+  <div id="ptoRequestMessage" class="muted" style="margin-top:8px;"></div>
+</div>
+
+  <!-- Request History -->
+  <div class="panel panel-history" style="margin-top:12px;">
+    <h3>PTO Request History</h3>
+    <table id="ptoHistoryTable" style="width:100%; border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Dates</th>
+          <th class="col-hours">Hours</th>
+          <th>Notes</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      
+<tbody id="ptoHistoryBody">
+  <tr class="skeleton-row">
+    <td colspan="7" class="skeleton"></td>
+  </tr>
+  <tr class="skeleton-row">
+    <td colspan="7" class="skeleton"></td>
+  </tr>
+</tbody
+
+    </table>
+  </div>
+
+
+
+</section>
+
+
+<section id="no-modules" class="panel" style="display:none;">
+  <h3>No Modules Enabled</h3>
+  <p class="muted">
+    Your school does not currently have any staff modules enabled.
+  </p>
+  <p class="muted">
+    Please contact an administrator to enable PTO, Carline, or other services.
+  </p>
+</section>
+
+    <section id="carline" class="panel" style="display:none;"></section>
+    <section id="requests" class="panel" style="display:none;"></section>
+  </main>
+</div>
+
+<script type="module">
+import { supabase } from '/app/admin.supabase.js';
+
+let SCHOOL_WORKDAY_HOURS = 8;
+let PTO_INCREMENT_MINUTES = 30;
+let DAY_START_TIME = "08:00";
+let DAY_END_TIME = "16:00";
+
+// ---------- PTO Cancel Modal Helpers ----------
+let pendingCancel = null;
+let schoolPtoTypeMeta = {};
+
+
+function isPastPto(startDateStr) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const startDate = parseLocalDate(startDateStr);
+  startDate.setHours(0, 0, 0, 0);
+
+  return startDate <= today; // ✅ today counts as past per your rule
+}
+
+function rescindWasDenied(notes) {
+  return typeof notes === 'string' && notes.includes('[RESCIND DENIED]');
+}
+
+function parseLocalDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d); // ✅ LOCAL midnight
+}
+
+function openCancelModal({ type, request }) {
+  pendingCancel = { type, request };
+
+  const modal = document.getElementById('cancelModal');
+  const titleEl = document.getElementById('cancelModalTitle');
+  const descEl = document.getElementById('cancelModalDescription');
+  const confirmBtn = document.getElementById('cancelModalConfirm');
+  const reasonInput = document.getElementById('cancelReason');
+
+  reasonInput.value = '';
+
+  if (type === 'RESCIND') {
+    titleEl.textContent = 'Request PTO Rescind (Past Dates)';
+    descEl.innerHTML = `
+      <p class="muted">
+        This PTO was <strong>approved for past dates</strong>.
+      </p>
+      <p class="muted">
+        Use this only if you <strong>did not take the approved time off</strong>.
+        Your administrator will review this request before any time is credited back.
+      </p>
+    `;
+    confirmBtn.textContent = 'Request Rescind';
+    confirmBtn.classList.add('warn');
+  } else {
+    titleEl.textContent = 'Cancel PTO Request';
+    descEl.innerHTML = `
+      <p class="muted">
+        Please provide a reason for cancelling this PTO request.
+      </p>
+    `;
+    confirmBtn.textContent = 'Confirm Cancel';
+    confirmBtn.classList.remove('warn');
+  }
+
+  modal.classList.add('open');
+  document.body.classList.add('modal-open');
+}
+
+function closeCancelModal() {
+  pendingCancel = null;
+  document.getElementById('cancelModal').classList.remove('open');
+  document.body.classList.remove('modal-open');
+}
+
+function addHoursToTime(startTime, hours) {
+  const [h, m] = startTime.split(':').map(Number);
+  const totalMinutes = h * 60 + m + hours * 60;
+
+  const endH = Math.floor(totalMinutes / 60) % 24;
+  const endM = totalMinutes % 60;
+
+  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+}
+
+function computeHoursFromTimes(startTime, endTime) {
+  const s = normalizeStartTime(startTime);
+  const e = normalizeEndTime(endTime);
+
+  const startMin = timeToMinutes(s);
+  const endMin = timeToMinutes(e);
+  const diff = endMin - startMin;
+
+  if (!(diff > 0)) return null; // also handles NaN
+
+  // ✅ Option B: round UP to the nearest increment for charging/deduction
+  const chargedMinutes =
+    Math.ceil(diff / PTO_INCREMENT_MINUTES) * PTO_INCREMENT_MINUTES;
+
+  return Math.round((chargedMinutes / 60) * 100) / 100; // 2 decimals
+}
+
+document.getElementById('cancelModalClose').onclick = closeCancelModal;
+document.getElementById('cancelModalAbort').onclick = closeCancelModal;
+
+document.getElementById('cancelModalConfirm').onclick = async () => {
+  const reason = document.getElementById('cancelReason').value.trim();
+  if (!reason || !pendingCancel) return;
+
+  const { requestId, existingNotes, currentStatus } = pendingCancel;
+
+  const newStatus =
+    currentStatus === 'APPROVED'
+      ? 'CANCEL_REQUESTED'
+      : 'CANCELLED';
+
+  const statusLabel =
+    newStatus === 'CANCEL_REQUESTED'
+      ? 'CANCEL REQUESTED'
+      : 'CANCELLED';
+
+  const updatedNotes = existingNotes
+    ? `${existingNotes}\n\n[${statusLabel}]: ${reason}`
+    : `[${statusLabel}]: ${reason}`;
+
+  const { error } = await supabase
+    .from('pto_requests')
+    .update({
+      status: newStatus,
+      notes: updatedNotes
+    })
+    .eq('id', requestId);
+
+  closeCancelModal();
+
+  if (error) {
+    alert('Failed to submit PTO cancellation.');
+    return;
+  }
+
+  loadPtoHistory();
+};
+
+let currentProfile = null;
+
+const form = document.querySelector('.pto-form');
+
+const durationSelect = document.getElementById('ptoDuration');
+const startSel = document.getElementById('ptoStartTime');
+const endSel   = document.getElementById('ptoEndTime');
+
+durationSelect.addEventListener('change', () => {
+  const isCustom = durationSelect.value === 'custom';
+  form.classList.toggle('partial-day-active', isCustom);
+
+  if (isCustom) {
+    // ensure options exist
+    buildTimeSelectOptions();
+
+
+    // default start to day start if empty
+    if (!startSel.value) startSel.value = 'SOD';
+    // rebuild end list for that start
+    startSel.dispatchEvent(new Event('change'));
+  } else {
+    if (startSel) startSel.value = '';
+    if (endSel) endSel.value = '';
+  }
+  updateComputedHoursUI();
+});
+
+
+const ptoTypeSelect = document.getElementById('ptoType');
+const ptoBalanceHelper = document.getElementById('ptoBalanceHelper');
+
+ptoTypeSelect.addEventListener('change', () => {
+  const type = ptoTypeSelect.value;
+
+  if (!type) {
+    ptoBalanceHelper.style.display = 'none';
+    return;
+  }
+
+  const meta = schoolPtoTypeMeta[type];
+
+  if (meta && meta.countsAgainstBalance === false) {
+    ptoBalanceHelper.style.display = 'block';
+  } else {
+    ptoBalanceHelper.style.display = 'none';
+  }
+});
+
+function hasAdminAccess(profile) {
+  return (
+    profile.is_superadmin === true ||
+    profile.can_access_admin === true ||
+    profile.can_manage_access === true ||
+    profile.can_approve_pto === true ||
+    profile.can_adjust_pto === true ||
+    profile.can_bulk_upload === true
+  );
+}
+
+async function initStaff() {
+  // ✅ Get session
+  const sessionResult = await supabase.auth.getSession();
+  if (!sessionResult.data || !sessionResult.data.session) {
+    window.location.href = '/login.html';
+    return;
+  }
+
+  // ✅ Get user
+  const user = sessionResult.data.session.user;
+
+  // ✅ Load profile
+  const profileResult = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
+
+  currentProfile = profileResult.data;
+
+if (!currentProfile.employee_id) {
+  alert(
+    'Your account is active, but staff records are not fully set up yet.\n\n' +
+    'Please contact an administrator.'
+  );
+  return;
+}
+
+  await Promise.all([
+  loadSchoolSettings(currentProfile.school_id),
+  loadStaffModules(currentProfile.school_id)
+]);
+buildTimeSelectOptions();
+wireSubCoverageUI();
+
+const backToAdmin = document.getElementById('backToAdmin');
+
+function cameFromAdminContext() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('from') === 'admin') return true;
+  return window.location.hash.includes('from=admin');
+}
+
+if (backToAdmin && cameFromAdminContext() && hasAdminAccess(currentProfile)) {
+  backToAdmin.style.visibility = 'visible';
+}
+
+
+  // ✅ Apply nav visibility
+  applyModuleNavVisibility();
+
+  // ✅ Empty-state handling (THIS FIXES YOUR BUG)
+  if (!hasAnyEnabledModule()) {
+    // Hide all sections
+    document.querySelectorAll('main section').forEach(function (s) {
+      s.style.display = 'none';
+    });
+
+    // Show empty state
+    document.getElementById('no-modules').style.display = 'block';
+
+    // Update subtitle
+    const subtitle = document.getElementById('pageSubtitle');
+    subtitle.textContent = 'No services available';
+
+    return; // ✅ LEGAL because it's inside a function
+  }
+
+  // ✅ Redirect to first enabled module
+  redirectToFirstEnabledModule();
+
+  // ✅ Load enabled modules ONLY
+  if (window.staffModules['pto'] === true) {
+    
+await Promise.all([
+  loadPtoBalances(),
+  loadPtoHistory(),
+  loadStaffPtoTypes()
+]);
+
+
+    requestAnimationFrame(function () {
+      document.getElementById('pto').classList.add('visible');
+    });
+  }
+
+  if (window.staffModules['carline'] === true) {
+    // loadCarline(); (future)
+  }
+}
+
+let selectedStartDate = null;
+let selectedEndDate = null;
+
+
+requestAnimationFrame(() => {
+  flatpickr('#ptoDateRange', {
+    mode: 'range',
+    dateFormat: 'Y-m-d',
+    disable: [
+      date => date.getDay() === 0 || date.getDay() === 6 // weekends
+    ],
+
+    onChange: (selectedDates) => {
+      if (selectedDates.length === 0) return;
+
+      const durationSelect = document.getElementById('ptoDuration');
+
+      // One click (start date only)
+      if (selectedDates.length === 1) {
+        selectedStartDate = selectedDates[0];
+        selectedEndDate = selectedDates[0];
+
+        // ✅ Single-day → allow all durations
+        durationSelect.disabled = false;
+        return;
+      }
+
+      // Two clicks
+      const start = selectedDates[0];
+      const end = selectedDates[1];
+
+      selectedStartDate = start;
+      selectedEndDate = end;
+
+      const isSameDay =
+        start.toDateString() === end.toDateString();
+
+      if (isSameDay) {
+        // ✅ Single-day → allow Full / Half / Custom
+        durationSelect.disabled = false;
+      } else {
+        // ✅ Multi-day → force Full Day
+        durationSelect.value = 'full';
+        durationSelect.disabled = true;
+
+        // ✅ Clear custom UI safely
+        document
+          .querySelector('.pto-form')
+          .classList.remove('partial-day-active');
+
+        
+		startSel.value = '';
+		endSel.value = '';
+		updateComputedHoursUI();
+
+
+      }
+    }
+  });
+});
+
+
+function setActive(hash) {
+  // ✅ Guard: module must be enabled
+  const navLink = document.querySelector('nav a[href="' + hash + '"]');
+  if (!navLink || navLink.style.display === 'none') {
+    redirectToFirstEnabledModule();
+    return;
+  }
+
+  // Subtitle (optional)
+  const subtitle = document.getElementById('pageSubtitle');
+  if (hash === '#pto') subtitle.textContent = 'Manage your time off';
+  
+if (hash === '#carline') {
+  // ✅ Guard: user must have permission
+  if (currentProfile?.can_view_carline !== true) {
+    redirectToFirstEnabledModule();
+    return;
+  }
+
+  subtitle.textContent = 'Carline status and assignments';
+}
+
+
+  // Nav active state
+  document.querySelectorAll('nav a').forEach(function (a) {
+    a.classList.toggle('active', a.getAttribute('href') === hash);
+  });
+
+  // Hide all sections
+  document.querySelectorAll('main section').forEach(function (s) {
+    s.style.display = 'none';
+  });
+
+  // Show active section
+  const section = document.querySelector(hash);
+  if (section) section.style.display = 'block';
+}
+
+function redirectToFirstEnabledModule() {
+  const firstEnabled = document.querySelector(
+    'nav a[data-module]:not([style*="display: none"])'
+  );
+
+  if (firstEnabled) {
+    setActive(firstEnabled.getAttribute('href'));
+  }
+}
+
+function formatHoursAsDays(hours) {
+  const dayHours = SCHOOL_WORKDAY_HOURS;
+
+  const total = Math.round(hours * 100) / 100;
+  const days = Math.floor(total / dayHours);
+  const remainder = +(total % dayHours).toFixed(2);
+
+  const parts = [];
+
+  if (days > 0) {
+    parts.push(`${days} ${days === 1 ? 'Day' : 'Days'}`);
+  }
+
+  if (remainder > 0) {
+    parts.push(
+      `${remainder} ${remainder === 1 ? 'Hour' : 'Hours'}`
+    );
+  }
+
+  return parts.length ? parts.join(', ') : '0 Hours';
+}
+
+async function loadPtoBalances() {
+  const container = document.getElementById('ptoBalances');
+  container.className = 'pto-balances';
+  container.innerHTML = '';
+
+  const { data, error } = await supabase
+    .from('pto_balances')
+    .select('pto_type, balance_hours')
+    .eq('school_id', currentProfile.school_id)
+    .eq('employee_id', currentProfile.employee_id)
+    .order('pto_type');
+
+  if (error) {
+    console.error(error);
+    container.textContent = 'Failed to load balances.';
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    container.textContent = 'No PTO balances found.';
+    return;
+  }
+
+  data.forEach(b => {
+  const div = document.createElement('div');
+  div.className = 'pto-balance';
+  
+const breakdown = formatHoursAsDays(b.balance_hours);
+
+div.innerHTML = `
+  <span>${b.pto_type}</span>
+  <strong>
+    ${b.balance_hours.toFixed(2)} Hours
+    <span class="muted">(${breakdown})</span>
+  </strong>
+`;
+
+  container.appendChild(div);
+});
+
+}
+
+async function loadStaffPtoTypes() {
+  const select = document.getElementById('ptoType');
+  select.innerHTML = '<option value="">Select PTO Type</option>';
+
+  const { data, error } = await supabase
+    .from('school_pto_types')
+    .select('pto_type, counts_against_balance')
+    .eq('school_id', currentProfile.school_id)
+    .eq('enabled', true);
+
+  if (error) {
+    console.error('Failed to load PTO types:', error);
+    return;
+  }
+
+  schoolPtoTypeMeta = {};
+
+  data.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.pto_type;
+    opt.textContent = r.pto_type;
+    select.appendChild(opt);
+
+    // ✅ Save metadata keyed by PTO type
+    schoolPtoTypeMeta[r.pto_type] = {
+      countsAgainstBalance: r.counts_against_balance
+    };
+  });
+}
+
+function formatTimeRange(startTime, endTime) {
+  if (!startTime || !endTime) return '';
+  
+  const format = t =>
+    new Date(`1970-01-01T${t}`).toLocaleTimeString([], {
+      hour: 'numeric',
+      minute: '2-digit'
+    });
+
+  return `${format(startTime)}–${format(endTime)}`;
+}
+
+async function loadPtoHistory() {
+  const tbody = document.querySelector('#ptoHistoryTable tbody');
+  tbody.innerHTML = '';
+
+  const { data, error } = await supabase
+    .from('pto_requests')
+ 
+.select(`
+  id,
+  pto_type,
+  start_date,
+  end_date,
+  requested_hours,
+  requested_duration_label,
+  start_time,
+  end_time,
+  notes,
+  status,
+  submitted_at
+`)
+
+
+    .eq('employee_id', currentProfile.employee_id)
+    .order('submitted_at', { ascending: false });
+
+
+
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+  
+ (data || []).forEach(r => {
+  const tr = document.createElement('tr');
+  tr.classList.add('fade-row');
+
+if (!data || data.length === 0) {
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="7" class="muted" style="text-align:center; padding:24px;">
+        No PTO requests yet.
+      </td>
+    </tr>
+  `;
+  return;
+}
+
+  const dateText =
+    r.start_date === r.end_date
+      ? r.start_date
+      : `${r.start_date} → ${r.end_date}`;
+
+
+
+const hours = Number(r.requested_hours ?? 0);
+let hoursText = '—';
+
+if (hours > 0) {
+  // ✅ Half Day (special case)
+  if (r.requested_duration_label === 'Half Day') {
+    hoursText = `Half Day (${hours} Hours)`;
+  }
+  // ✅ Timed partial day
+  else if (r.start_time && r.end_time) {
+    hoursText = `${hours} Hours (${formatTimeRange(r.start_time, r.end_time)})`;
+  }
+  // ✅ All other cases (full day, multi-day)
+  else {
+    hoursText = `${hours} Hours (${formatHoursAsDays(hours)})`;
+  }
+}
+
+const notesText = r.notes && r.notes.trim() !== '' ? r.notes : '—';
+const today = new Date();
+today.setHours(0, 0, 0, 0);
+
+
+const startDate = parseLocalDate(r.start_date);
+startDate.setHours(0,0,0,0);
+
+const canCancelFuture =
+  r.status === 'PENDING' ||
+  (r.status === 'APPROVED' && startDate > today);
+
+
+const canRescindPast =
+  r.status === 'APPROVED' &&
+  startDate <= today &&
+  !rescindWasDenied(r.notes);
+
+
+let actionButton = '';
+
+if (canCancelFuture) {
+  actionButton = '<button class="btn warn cancel">Cancel</button>';
+} else if (canRescindPast) {
+  actionButton = '<button class="btn warn rescind">Request Rescind</button>';
+}
+
+  tr.innerHTML = `
+    <td>${r.pto_type}</td>
+    <td>${dateText}</td>
+    <td class="col-hours">${hoursText}</td>
+    <td>${notesText}</td>
+    
+
+<td class="status ${r.status}">
+  <span class="status-label">
+    ${formatStatus(r.status, r.notes)}
+  </span>
+</td>
+
+
+    <td>${new Date(r.submitted_at).toLocaleDateString()}</td>
+    <td>${actionButton}</td>
+  `;
+
+const cancelBtn = tr.querySelector('.cancel');
+if (cancelBtn) {
+  cancelBtn.addEventListener('click', () =>
+    openCancelModal({
+      type: 'CANCEL',
+      request: r
+    })
+  );
+}
+
+const rescindBtn = tr.querySelector('.rescind');
+if (rescindBtn) {
+  rescindBtn.addEventListener('click', () =>
+    openCancelModal({
+      type: 'RESCIND',
+      request: r
+    })
+  );
+}
+
+
+  tbody.appendChild(tr);
+});
+
+}
+
+function formatStatus(status, notes) {
+  switch (status) {
+    case 'RESCIND_REQUESTED':
+      return 'Rescind Requested';
+    case 'RESCINDED':
+      return 'Rescinded';
+    case 'CANCEL_REQUESTED':
+      return 'Cancel Requested';
+    case 'PENDING':
+      return 'Pending';
+	   case 'CANCELLED':
+      return 'Cancelled';
+	   case 'DENIED':
+      return 'Denied';
+    case 'APPROVED':
+      if (rescindWasDenied(notes)) {
+        return 'Approved (Rescind Denied)';
+      }
+      return 'Approved';
+    default:
+      return status.replace('_', ' ');
+  }
+}
+
+function calculateRequestedHours({ startDate, endDate, partialDay, partialHours }) {
+  // Multi-day: count weekdays * workday hours
+  if (startDate !== endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    let days = 0;
+
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) days++; // weekdays only
+    }
+    return days * SCHOOL_WORKDAY_HOURS;
+  }
+
+  // Single day
+  if (partialDay) return partialHours;
+  return SCHOOL_WORKDAY_HOURS;
+}
+
+function normalizeStartTime(value) {
+  if (!value || value === 'SOD') return DAY_START_TIME;
+  return value;
+}
+
+function normalizeEndTime(value) {
+  if (!value || value === 'EOD') return DAY_END_TIME;
+  return value;
+}
+
+async function submitPtoRequest() {
+
+  if (!currentProfile?.employee_id) {
+    alert('PTO requests must be submitted from a staff account.');
+    return;
+  }
+
+  const type = document.getElementById('ptoType').value;
+  const message = document.getElementById('ptoRequestMessage');
+
+  if (!selectedStartDate || !selectedEndDate) {
+    message.textContent = 'Please select PTO date(s).';
+    return;
+  }
+
+  const startDate = selectedStartDate.toISOString().slice(0, 10);
+  const endDate = selectedEndDate.toISOString().slice(0, 10);
+  const duration = document.getElementById('ptoDuration').value;
+  const startTimeInput = document.getElementById('ptoStartTime').value;
+  const endTimeRaw = document.getElementById('ptoEndTime').value;
+  const notes = document.getElementById('ptoNotes').value.trim();
+  const isHalfDay = duration === 'half';
+  const isCustom = duration === 'custom';
+  const subChoice = document.querySelector('input[name="subCoverageNeeded"]:checked')?.value;
+
+  message.textContent = '';
+
+  if (!type) {
+    message.textContent = 'Please select PTO type.';
+    return;
+  }
+
+if (isCustom) {
+  if (!startTimeInput) {
+    message.textContent = 'Please select a start time.';
+    return;
+  }
+  if (!endTimeRaw) {
+    message.textContent = 'Please select an end time.';
+    return;
+  }
+}
+
+const startTime = isCustom ? normalizeStartTime(startTimeInput) : null;
+const endTime   = isCustom ? normalizeEndTime(endTimeRaw) : null;
+
+let customHours = null;
+if (isCustom) {
+  customHours = computeHoursFromTimes(startTime, endTime);
+  if (customHours === null) {
+    message.textContent = `End time must be after start time and align to ${PTO_INCREMENT_MINUTES}-minute increments.`;
+    return;
+  }
+}
+
+const requestedHours = calculateRequestedHours({
+  startDate,
+  endDate,
+  partialDay: isCustom || isHalfDay,
+  partialHours: isHalfDay
+    ? (SCHOOL_WORKDAY_HOURS / 2)
+    : isCustom
+      ? customHours
+      : null
+});
+
+
+  let durationLabel;
+  if (isHalfDay) {
+    durationLabel = 'Half Day';
+  } else if (isCustom) {
+    durationLabel = null;
+  } else {
+    durationLabel = formatHoursAsDays(requestedHours);
+  }
+
+
+
+const subErr = document.getElementById('subCoverageErr');
+
+if (!subChoice) {
+  if (subErr) {
+    subErr.style.display = 'inline';
+  }
+  return;
+} else {
+  if (subErr) subErr.style.display = 'none';
+}
+
+const needsSubCoverage = subChoice === 'yes';
+
+  const { error } = await supabase
+    .from('pto_requests')
+    .insert({
+      school_id: currentProfile.school_id,
+      employee_id: currentProfile.employee_id,
+      pto_type: type,
+      start_date: startDate,
+      end_date: endDate,
+
+      requested_hours: requestedHours,
+      requested_duration_label: durationLabel,
+
+      partial_day: isCustom,
+       partial_hours: isCustom ? customHours : null,
+
+      start_time: startTime,
+      end_time: endTime,
+
+      notes,
+      status: 'PENDING',
+	  needs_sub_coverage: needsSubCoverage
+    });
+
+  if (error) {
+    console.error(error);
+    message.textContent = 'Failed to submit PTO request.';
+    return;
+  }
+
+  // ✅ Reset form
+  document.getElementById('ptoType').value = '';
+  document.getElementById('ptoDateRange').value = '';
+  selectedStartDate = null;
+  selectedEndDate = null;
+  document.getElementById('ptoDuration').value = 'full';
+  
+  document.getElementById('ptoStartTime').value = '';
+  document.getElementById('ptoNotes').value = '';
+
+  document
+    .querySelector('.pto-form')
+    .classList.remove('partial-day-active');
+
+document.querySelectorAll('input[name="subCoverageNeeded"]').forEach(r => r.checked = false);
+
+const msg = document.getElementById('subCoverageMsg');
+const err = document.getElementById('subCoverageErr');
+if (msg) msg.style.display = 'none';
+if (err) err.style.display = 'none';
+
+
+  showToast('✅ PTO request submitted successfully');
+  message.textContent = '';
+
+  await loadPtoHistory();
+}
+
+async function cancelPtoRequest(requestId, existingNotes, currentStatus) {
+
+console.log('Cancel clicked:', {
+  requestId,
+  currentStatus,
+  type: typeof currentStatus
+});
+  
+
+let pendingCancel = null;
+
+function openCancelModal(requestId, existingNotes, currentStatus) {
+  pendingCancel = { requestId, existingNotes, currentStatus };
+
+  document.getElementById('cancelReason').value = '';
+  document.getElementById('cancelModal').classList.add('open');
+}
+
+function closeCancelModal() {
+  pendingCancel = null;
+  document.getElementById('cancelModal').classList.remove('open');
+}
+
+
+  // ✅ Determine new status based on current status
+  const newStatus =
+    currentStatus === 'APPROVED'
+      ? 'CANCEL_REQUESTED'
+      : 'CANCELLED';
+
+  const statusLabel =
+    newStatus === 'CANCEL_REQUESTED'
+      ? 'CANCEL REQUESTED'
+      : 'CANCELLED';
+
+  const updatedNotes = existingNotes
+    ? `${existingNotes}\n\n[${statusLabel}]: ${reason}`
+    : `[${statusLabel}]: ${reason}`;
+
+  const { error } = await supabase
+    .from('pto_requests')
+    .update({
+      status: newStatus,
+      notes: updatedNotes
+    })
+    .eq('id', requestId);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to submit PTO cancellation.');
+    return;
+  }
+
+  // ✅ No ledger or balance changes here
+  // ✅ Admin will finalize cancellation if approved
+
+  loadPtoHistory();
+}
+
+function showToast(message) {
+  const toast = document.getElementById('toast');
+
+  toast.textContent = message;
+  toast.classList.remove('hidden');
+  toast.classList.add('show');
+
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.classList.add('hidden'), 250);
+  }, 3000);
+}
+
+async function loadStaffModules(schoolId) {
+  const result = await supabase
+    .from('school_modules')
+    .select('module, enabled')
+    .eq('school_id', schoolId);
+
+  if (result.error) {
+    console.warn('Failed to load school modules:', result.error);
+    window.staffModules = {};
+    return;
+  }
+
+  // ✅ Single source of truth
+  window.staffModules = {};
+
+  (result.data || []).forEach(function (row) {
+    window.staffModules[row.module] = row.enabled === true;
+  });
+}
+
+function applyModuleNavVisibility() {
+  document.querySelectorAll('nav a[data-module]').forEach(function (link) {
+    const moduleName = link.getAttribute('data-module');
+
+    // 1️⃣ School-level module gate
+    const moduleEnabled = window.staffModules[moduleName] === true;
+
+    // 2️⃣ User-level permission gate (Carline only)
+    let userAllowed = true;
+    if (moduleName === 'carline') {
+      userAllowed = currentProfile?.can_view_carline === true;
+    }
+
+    link.style.display =
+      moduleEnabled && userAllowed ? 'flex' : 'none';
+  });
+}
+
+function hasAnyEnabledModule() {
+  return Object.values(window.staffModules).some(Boolean);
+}
+
+async function loadSchoolSettings(schoolId) {
+  const { data, error } = await supabase
+    .from('school_settings')
+    .select('workday_hours, pto_time_increment_minutes, day_start_time, day_end_time')
+    .eq('school_id', schoolId)
+    .single();
+
+  if (error) {
+    console.warn('Using default settings:', error);
+    SCHOOL_WORKDAY_HOURS = 8;
+    PTO_INCREMENT_MINUTES = 30;
+    DAY_START_TIME = "08:00";
+    DAY_END_TIME = "16:00";
+    return;
+  }
+
+  SCHOOL_WORKDAY_HOURS = data.workday_hours ?? 8;
+
+  PTO_INCREMENT_MINUTES = data.pto_time_increment_minutes ?? 30;
+
+  // Supabase time may come as HH:MM:SS
+  DAY_START_TIME = (data.day_start_time ?? "08:00").slice(0,5);
+  DAY_END_TIME   = (data.day_end_time ?? "16:00").slice(0,5);
+}
+
+function timeToMinutes(t) {
+  const [h, m] = t.split(':').map(Number);
+  return (h * 60) + m;
+}
+
+function ceilToIncrement(mins, step) {
+  return Math.ceil(mins / step) * step;
+}
+
+function floorToIncrement(mins, step) {
+  return Math.floor(mins / step) * step;
+}
+
+
+function buildTimeSelectOptions() {
+  const startSel = document.getElementById('ptoStartTime');
+  const endSel = document.getElementById('ptoEndTime');
+  if (!startSel || !endSel) return;
+
+  const startMin = timeToMinutes(DAY_START_TIME); // e.g., 7:20 -> 440
+  const endMin = timeToMinutes(DAY_END_TIME);     // e.g., 3:45 -> 945
+  const step = PTO_INCREMENT_MINUTES;             // e.g., 15
+
+  // ----------------------------
+  // START OPTIONS
+  // ----------------------------
+  startSel.innerHTML = '';
+
+  // ✅ Always include Start of Day (actual)
+  const sod = document.createElement('option');
+  sod.value = 'SOD';
+  sod.textContent = `Start of day (${formatLabel(DAY_START_TIME)})`;
+  startSel.appendChild(sod);
+
+  // ✅ Then clock-aligned times: ceil(day_start) -> end - step
+  const firstAlignedStart = ceilToIncrement(startMin, step); // 7:20 -> 7:30
+  for (let m = firstAlignedStart; m <= endMin - step; m += step) {
+    const t = minutesToTime(m);
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = formatLabel(t);
+    startSel.appendChild(opt);
+  }
+
+  function normalizeStartValue(v) {
+    return (v === 'SOD' || !v) ? DAY_START_TIME : v;
+  }
+
+  // ----------------------------
+  // END OPTIONS (depends on start)
+  // ----------------------------
+  function rebuildEndTimes() {
+    const chosenStart = normalizeStartValue(startSel.value);
+    const chosenStartMin = timeToMinutes(chosenStart);
+
+    endSel.innerHTML = '';
+
+    // First end time must be > start and clock-aligned
+    // Example: start 7:20 -> first end 7:30
+    const firstAlignedEnd = ceilToIncrement(chosenStartMin + 1, step);
+
+    for (let m = firstAlignedEnd; m <= endMin; m += step) {
+      const t = minutesToTime(m);
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = formatLabel(t);
+      endSel.appendChild(opt);
+    }
+
+    // ✅ Always include End of Day (actual)
+    const eod = document.createElement('option');
+    eod.value = 'EOD';
+    eod.textContent = `End of day (${formatLabel(DAY_END_TIME)})`;
+    endSel.appendChild(eod);
+
+    // ✅ Auto-select EOD if start is within 60 minutes of end-of-day
+    const minutesRemaining = endMin - chosenStartMin;
+    if (minutesRemaining <= 60) {
+      endSel.value = 'EOD';
+    } else {
+      // If nothing selected yet, choose the first valid end time
+      if (!endSel.value) endSel.selectedIndex = 0;
+    }
+
+    updateComputedHoursUI();
+  }
+
+  // Avoid stacking listeners if called multiple times
+  startSel.onchange = rebuildEndTimes;
+  endSel.onchange = updateComputedHoursUI;
+
+  rebuildEndTimes();
+}
+
+
+function updateComputedHoursUI() {
+  const label = document.getElementById('ptoComputedHours');
+  if (!label) return;
+
+  const isCustom = document.getElementById('ptoDuration')?.value === 'custom';
+
+  // ✅ Hide + reset when not custom
+  if (!isCustom) {
+    label.style.display = 'none';
+    label.textContent = 'Total: —';
+    return;
+  }
+
+  // ✅ Show when custom
+  label.style.display = 'block';
+
+  const startRaw = document.getElementById('ptoStartTime')?.value || '';
+  const endRaw = document.getElementById('ptoEndTime')?.value || '';
+
+  const startTime = (startRaw === 'SOD' || startRaw === '') ? DAY_START_TIME : startRaw;
+  const endTime = (endRaw === 'EOD') ? DAY_END_TIME : endRaw;
+
+  if (!startTime || !endRaw) {
+    label.textContent = 'Total: —';
+    return;
+  }
+
+  const hours = computeHoursFromTimes(startTime, endTime);
+
+  if (hours === null) {
+    label.textContent = `Total: — (align to ${PTO_INCREMENT_MINUTES}-minute increments)`;
+    return;
+  }
+
+  label.textContent = `Total (rounded): ${hours} hours`;
+}
+
+function minutesToTime(mins) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+
+function formatLabel(t) {
+  // "14:00" -> "2:00 PM"
+  return new Date(`1970-01-01T${t}:00`).toLocaleTimeString([], {
+    hour: 'numeric', minute: '2-digit'
+  });
+}
+
+function wireSubCoverageUI() {
+  const yes = document.querySelector('input[name="subCoverageNeeded"][value="yes"]');
+  const no = document.querySelector('input[name="subCoverageNeeded"][value="no"]');
+  const msg = document.getElementById('subCoverageMsg');
+  const err = document.getElementById('subCoverageErr');
+
+  if (!yes || !no || !msg) return;
+
+  function update() {
+    const choice = document.querySelector('input[name="subCoverageNeeded"]:checked')?.value;
+
+    // Hide error once they interact
+    if (err) err.style.display = 'none';
+
+    // Show the info message ONLY when Yes is selected
+    msg.style.display = (choice === 'yes') ? 'inline' : 'none';
+  }
+
+  yes.addEventListener('change', update);
+  no.addEventListener('change', update);
+
+  // initialize
+  update();
+}
+
+//Button Wirings
+document
+  .getElementById('submitPtoRequest')
+  .addEventListener('click', submitPtoRequest);
+
+
+window.addEventListener('hashchange', function () {
+  setActive(location.hash || '#pto');
+});
+
+redirectToFirstEnabledModule();
+initStaff();
+
+  
+  document.getElementById('signOut')?.addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  window.location.href = '/login.html';
+});
+
+document.getElementById('cancelModalClose').onclick = closeCancelModal;
+document.getElementById('cancelModalAbort').onclick = closeCancelModal;
+
+document.getElementById('cancelModalConfirm').onclick = async () => {
+  if (!pendingCancel) return;
+
+  const reason = document.getElementById('cancelReason').value.trim();
+  if (!reason) return;
+
+  const { type, request } = pendingCancel;
+
+  let newStatus;
+  let noteLabel;
+
+
+const past = isPastPto(request.start_date);
+
+if (past) {
+  newStatus = 'RESCIND_REQUESTED';
+  noteLabel = 'RESCIND REQUESTED';
+} else {
+  newStatus =
+    request.status === 'APPROVED'
+      ? 'CANCEL_REQUESTED'
+      : 'CANCELLED';
+  noteLabel =
+    newStatus === 'CANCEL_REQUESTED'
+      ? 'CANCEL REQUESTED'
+      : 'CANCELLED';
+}
+
+
+  const updatedNotes = request.notes
+    ? `${request.notes}\n\n[${noteLabel}]: ${reason}`
+    : `[${noteLabel}]: ${reason}`;
+
+  const { error } = await supabase
+    .from('pto_requests')
+    .update({
+      status: newStatus,
+      notes: updatedNotes
+    })
+    .eq('id', request.id);
+
+  pendingCancel = null;
+  closeCancelModal();
+
+  if (error) {
+    alert('Failed to submit PTO change.');
+    return;
+  }
+
+  loadPtoHistory();
+};
+
+
+</script>
+<div id="toast" class="toast hidden"></div>
+
+
+<div id="cancelModal" class="modal modal-sm">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="cancelModalTitle">Cancel PTO Request</h3>
+      <span class="modal-close" id="cancelModalClose">&times;</span>
+    </div>
+
+    <!-- ✅ Dynamic description injected by JS -->
+    <div id="cancelModalDescription" class="modal-description"></div>
+
+    <div class="field">
+      <label for="cancelReason">Reason</label>
+      <textarea
+        id="cancelReason"
+        rows="4"
+        placeholder="Enter reason..."
+        style="width:100%; resize:vertical;"
+      ></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="cancelModalAbort">Back</button>
+      <button class="btn warn" id="cancelModalConfirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+
+
+
+</body>
+</html>

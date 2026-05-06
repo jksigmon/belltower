@@ -1,0 +1,1934 @@
+
+/* =============================================
+   Design Tokens – Light Theme
+   ============================================= */
+:root {
+  --app-bg: #f8fafc;              /* slate-50 */
+  --surface: #ffffff;
+  --border: #e5e7eb;              /* gray-200 *
+  --border: #e5e7eb;              /* gray-200 */
+
+  --text-primary: #0f172a;        /* slate-900 */
+  --text-secondary: #475569;      /* slate-600 */
+  --text-muted: #64748b;          /* slate-500 */
+
+  --primary: #2563eb;             /* blue-600 */
+  --primary-hover: #1d4ed8;       /* blue-700 */
+
+  --success: #16a34a;
+  --warning: #ca8a04;
+  --danger: #dc2626;
+
+  --elevation-1: 0 2px 8px rgba(0,0,0,.06);
+  --elevation-2: 0 12px 24px rgba(0,0,0,.10);
+}
+
+/* =============================================
+   Base Reset
+   ============================================= */
+* { box-sizing: border-box; }
+
+
+html, body {
+  height: auto;
+  overflow-y: auto;
+}
+
+
+body {
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--text-primary);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system,
+               Segoe UI, Roboto, Ubuntu, Cantarell,
+               Noto Sans, Helvetica Neue, Arial;
+}
+
+/* =============================================
+   Typography
+   ============================================= */
+h1 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+h2 {
+  margin: 0 0 12px;
+  font-size: 18px;
+}
+
+p {
+  margin: 0 0 16px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.muted,
+.text-muted {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.ok { color: var(--success); }
+.warn { color: var(--warning); }
+.err { color: var(--danger); }
+
+/* =============================================
+   Layout
+   ============================================= */
+
+header {
+  height: 72px;                 /* fixed header height */
+  background: #0b2d4f;
+  display: flex;                /* ✅ flex, not grid */
+  align-items: center;          /* ✅ vertical centering */
+  justify-content: space-between;
+  padding: 0 18px;
+  box-sizing: border-box;
+}
+
+
+
+header .page-title,
+header .page-subtitle,
+header .muted,
+header .header-link {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+
+.page-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none; /* optional, prevents logo stealing clicks */
+}
+
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+
+.page-subtitle {
+  margin-top: -6px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.85);
+}
+
+
+.header-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.header-link:hover {
+  color: var(--text-primary);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-actions .btn {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+  
+background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+
+.header-actions .btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+
+.header-left {
+  min-width: 160px;        /* adjust to match button width */
+  display: flex;
+  align-items: center;
+}
+
+
+.brand {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+
+body.admin-page {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 100vh;
+  overflow: hidden; /* page itself never scrolls */
+}
+
+
+.admin-logo {
+  height: 46px;            /* base size */
+  width: auto;
+  transform: scale(2.35);  /* ≈ 108–110px visual height */
+  transform-origin: center;
+  object-fit: contain;
+  display: block;
+}
+
+
+
+/* Side-nav layout */
+.wrap {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 0; /* CRITICAL */
+}
+
+/* Content scrolls */
+.wrap > main {
+  overflow-y: auto;
+  padding: 18px 20px;
+  box-sizing: border-box;
+}
+
+
+
+
+nav {
+  background: linear-gradient(
+    to bottom,
+    #f1f5f9 0%,   /* slate-100 */
+    #e5e7eb 100%  /* gray-200 */
+  );
+  border-right: 1px solid #d1d5db;
+  padding: 10px;
+}
+
+
+nav a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 12px 14px;
+  margin: 6px 0;
+  border-radius: 10px;
+  position: relative;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #d1d5db;
+
+  font-size: 15px;
+  font-weight: 500;
+  color: #0f172a; /* slate-900 */
+
+  text-decoration: none;
+
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 80ms ease;
+}
+
+
+nav a[data-module] {
+  display: none;
+}
+
+
+nav a:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateX(2px);
+}
+
+nav a.active {
+  background: #eef2ff; /* soft blue */
+  border-color: #c7d2fe;
+  color: #1e3a8a; /* indigo-900 */
+  font-weight: 600;
+}
+
+
+nav a .badge-count {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background-color: #dc2626; /* red */
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+
+  border-radius: 999px;
+  padding: 0 6px;
+}
+
+
+nav a .badge-count:empty {
+  display: none;
+}
+
+
+/* =============================================
+   PTO Rail – matches Admin side nav
+   ============================================= */
+
+.pto-rail {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.pto-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px 12px;
+  visibility: hidden;
+}
+
+/* Base tab style (nav-like, not pill-like) */
+.pto-tabs .tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 12px 14px;
+  border-radius: 10px;
+
+  background: transparent;
+  border: none;
+
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+
+  cursor: pointer;
+  white-space: nowrap;
+
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+/* Hover = same as nav hover */
+.pto-tabs .tab:hover {
+  background: rgba(37, 99, 235, 0.06);
+  color: var(--text-primary);
+}
+
+/* Active = same as nav active */
+.pto-tabs .tab.active {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+
+
+.pto-history-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+   margin-top: 4px;
+  margin-bottom: 12px;
+
+}
+
+.pto-summary {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 16px;
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+}
+
+.pto-summary > div {
+  min-width: 80px;
+}
+
+.pto-summary .muted {
+  font-size: 11px;
+}
+
+.pto-summary div[id] {
+  font-weight: 600;
+}
+
+.pto-balance strong {
+  font-weight: 600;
+}
+
+.pto-balance .muted {
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+
+/* =============================================
+   PTO Calendar (FullCalendar)
+   ============================================= */
+
+#pto-calendar {
+  --fc-border-color: var(--border);
+  --fc-page-bg-color: var(--surface);
+  --fc-today-bg-color: rgba(37, 99, 235, 0.06);
+  --fc-neutral-bg-color: var(--surface);
+  font-family: inherit;
+}
+
+#pto-calendar .fc-toolbar {
+  margin-bottom: 12px;
+}
+
+#pto-calendar .fc-button {
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-weight: 500;
+  padding: 6px 10px;
+}
+
+#pto-calendar .fc-button:hover {
+  background: #e5e7eb;
+}
+
+#pto-calendar .fc-button-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+}
+
+#pto-calendar .fc-button-primary:hover {
+  background: var(--primary-hover);
+}
+
+
+#pto-calendar .fc-daygrid-day {
+  padding: 4px;
+}
+
+#pto-calendar .fc-daygrid-day-number {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+#pto-calendar .fc-day-today {
+  border-radius: 8px;
+}
+
+
+#pto-calendar .fc-event {
+  border-radius: 6px;
+  border: none;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+#pto-calendar .fc-event-title {
+  white-space: normal;
+  line-height: 1.2;
+}
+
+
+#pto-calendar .fc-event {
+  box-shadow: 0 1px 0 rgba(0,0,0,0.05);
+}
+
+/* =============================================
+   PTO Calendar – Toolbar polish
+   ============================================= */
+
+#pto-calendar .fc-button-group {
+  display: flex;
+  gap: 6px;
+}
+
+#pto-calendar .fc-button {
+  font-weight: 400;
+  padding: 5px 10px;
+  height: auto;
+}
+
+#pto-calendar .fc-toolbar-chunk {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+
+.export-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.export-controls select,
+.export-controls input {
+  height: 38px;
+  min-width: 160px;
+}
+
+.export-controls .btn {
+  height: 38px;
+}
+
+
+.pto-policy-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 140px; /* input + reserved space */
+}
+
+.pto-policy-input {
+  width: 80px;
+  box-sizing: border-box;
+}
+
+.pto-policy-cell .save-indicator {
+  min-width: 48px; /* ✅ reserves space so nothing shifts */
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+/* Visible states */
+.pto-policy-cell .save-indicator.saving {
+  opacity: 1;
+  color: var(--text-muted);
+}
+
+.pto-policy-cell .save-indicator.success {
+  opacity: 1;
+  color: var(--success);
+}
+
+.pto-policy-cell .save-indicator.error {
+  opacity: 1;
+  color: var(--danger);
+}
+
+main {
+	overflow-y: auto;
+  padding: 18px;
+}
+
+/* =============================================
+   Surfaces
+   ============================================= */
+.surface,
+.panel,
+.modal-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--elevation-1);
+}
+
+.panel {
+  padding: 14px;
+  margin-bottom: 16px;
+  transition: box-shadow 120ms ease, transform 120ms ease;
+}
+
+.panel:hover {
+  box-shadow: var(--elevation-1);
+  transform: none;
+}
+
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch; /* ✔ content spans width */
+}
+
+.panel h4,
+.panel h3 {
+  margin-top: 0;
+}
+
+
+.permission-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px 16px;
+  margin-top: 8px;
+}
+
+.permission-grid label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+
+/* Admin pages should not have panel hover lift */
+.admin-page .panel:hover {
+  transform: none;
+  box-shadow: var(--elevation-1);
+}
+
+
+/* Admin sections are hidden by default */
+.admin-section {
+  display: none;
+  position: relative;
+}
+
+/* Admin directory tables must NOT resize based on content */
+.admin-section table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.admin-section table input,
+.admin-section table select {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Numeric/small-value columns */
+.admin-section th.col-id,
+.admin-section td.col-id {
+  width: 90px;
+}
+
+.admin-section th.col-grade,
+.admin-section td.col-grade {
+  width: 70px;
+}
+
+.admin-section th.col-active,
+.admin-section td.col-active {
+  width: 80px;
+}
+
+/* Action buttons */
+.admin-section th.col-actions,
+.admin-section td.col-actions {
+  width: 140px;
+  white-space: nowrap;
+}
+
+.admin-section .action-buttons {
+  display: inline-flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+
+/* Skeleton should overlay, not take layout space */
+.admin-section .skeleton-container {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: none;
+}
+
+/* Skeletons are hidden until explicitly shown */
+
+.skeleton-container {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: none;
+  pointer-events: none;
+}
+
+
+
+/* Fade content stays in normal flow */
+.admin-section .fade-in {
+  position: relative;
+  z-index: 1;
+}
+
+
+/* Active admin section layout */
+.admin-section.active {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+
+.admin-frame {
+  background: var(--app-bg, #f5f7fb);
+  min-height: auto;
+}
+
+.admin-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 20px 32px;
+}
+
+.pto-nav {
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+}
+
+.mode-tabs {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 20px;
+  display: flex;
+  gap: 8px;
+}
+
+
+.mode-tabs .tab {
+  border-radius: 8px;
+  padding: 6px 12px;
+}
+
+.mode-tabs .tab.active {
+  background: #eef3ff;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+
+.panel h3 {
+  margin-top: 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.empty-state {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.empty-text {
+  font-size: 13px;
+}
+
+.ledger-block {
+  margin-top: 16px;
+}
+
+.empty-ledger {
+  padding: 24px 0;
+}
+
+
+/* =============================================
+   Tables
+   ============================================= */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+th {
+  font-weight: 600;
+}
+
+.status {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.status.PENDING { color: #2563eb; }
+.status.APPROVED { color: #16a34a; }
+.status.DENIED { color: #dc2626; }
+.status.CANCELLED { color: #64748b; }
+.status.CANCEL_REQUESTED { color: #ca8a04; }
+
+table tr:hover {
+  background: rgba(0,0,0,.02);
+}
+
+
+/* =============================================
+   Buttons
+   ============================================= */
+.btn,
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: #f1f5f9;
+  color: var(--text-primary);
+}
+
+.btn:hover {
+  background: #e5e7eb;
+}
+
+.btn,
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: #f1f5f9;
+  color: var(--text-primary);
+}
+
+.btn:hover {
+  background: #e5e7eb;
+}
+
+.btn-primary {
+  height: 48px;
+  /*width: 100%;*/
+  border: none;
+  background: var(--primary);
+  color: white;
+}
+
+
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+
+/* =============================================
+   Forms
+   ============================================= */
+.field {
+  margin-top: 16px;
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.field input {
+  width: 100%;
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: white;
+}
+
+/* =============================================
+   Auth Layout (Login)
+   ============================================= */
+.auth-layout {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.auth-card {
+  max-width: 440px;
+  width: 100%;
+  padding: 32px;
+}
+
+/* =============================================
+   Modals
+   ============================================= */
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+
+  display: none;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 48px;
+
+  z-index: 1000;
+
+  pointer-events: auto; /* important */
+}
+
+.modal.open {
+  display: flex;
+}
+
+/* Disable background interactions while modal is open */
+body.modal-open .panel:hover {
+  transform: none;
+  box-shadow: var(--elevation-1);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.modal-close {
+  cursor: pointer;
+  font-size: 20px;
+}
+
+/* =============================================
+   Badges
+   ============================================= */
+.badge {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.badge-btn {
+  position: relative;
+}
+
+
+
+
+.badge-count {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: white;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-count[hidden] {
+  display: none !important;
+}
+
+
+.flatpickr-calendar {
+  z-index: 3000;
+}
+
+
+
+/* ---------- Icon buttons (Google sign-in) ---------- */
+.btn-primary svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+
+.btn-primary {
+  white-space: nowrap;
+}
+
+select,
+input[type="text"],
+input[type="number"] {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  font-size: 14px;
+}
+
+select {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 16px,
+    calc(100% - 12px) 16px;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 36px;
+}
+
+
+/* PTO Request Form */
+.pto-form {
+  display: grid;
+  grid-template-columns: 180px 200px auto 1fr auto;
+  grid-template-areas:
+    "type date partial notes submit"
+    "hours time .      notes submit";
+  gap: 10px;
+  align-items: center;
+}
+
+/* Area bindings */
+#ptoType            { grid-area: type; }
+#ptoDateRange       { grid-area: date; }
+#ptoPartialDay      { grid-area: partial; }
+#ptoPartialHours    { grid-area: hours; }
+#ptoStartTime       { grid-area: time; }
+#ptoNotes           { grid-area: notes; }
+#submitPtoRequest   { grid-area: submit; }
+
+
+@media (max-width: 1100px) {
+  .pto-form {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "type type"
+      "date date"
+      "partial partial"
+      "hours time"
+      "notes notes"
+      "submit submit";
+  }
+
+  #submitPtoRequest {
+    justify-self: end;
+  }
+}
+
+@media (max-width: 640px) {
+  .pto-form {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "type"
+      "date"
+      "partial"
+      "hours"
+      "time"
+      "notes"
+      "submit";
+  }
+
+  #submitPtoRequest {
+    width: 100%;
+  }
+}
+
+/* Hidden but grid-safe */
+.pto-form .pto-conditional {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* When partial day active */
+.pto-form.partial-day-active .pto-conditional {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+
+#ptoNotes,
+#submitPtoRequest {
+  align-self: start;
+}
+
+.pto-form #submitPtoRequest {
+  height: 40px; 
+}
+
+
+/* PTO History – Hours column */
+#ptoHistoryTable .col-hours {
+  width: 160px;        /* adjust if you want it wider */
+  white-space: nowrap; /* keeps time ranges on one line */
+}
+
+
+/* PTO tables – allow action buttons to breathe */
+#ptoTable th:last-child,
+#ptoTable td:last-child,
+#ptoCancelTable th:last-child,
+#ptoCancelTable td:last-child {
+  width: 260px;
+}
+
+
+#pto-pending .panel,
+#pto-cancellations .panel {
+  overflow-x: auto;
+}
+
+/* Force PTO action buttons into a single row */
+#ptoTable .action-buttons,
+#ptoCancelTable .action-buttons {
+  display: inline-flex;
+  gap: 8px;
+  white-space: nowrap;
+  flex-wrap: nowrap;
+}
+
+/* Compact action buttons */
+.btn-approve,
+.btn-deny {
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+
+/* PTO time input should match other inputs */
+#ptoStartTime {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  font-size: 14px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+
+#submitPtoRequest {
+  background: var(--primary);
+  color: white;
+  border: none;
+  white-space: nowrap;
+}
+
+#ptoNotes {
+  opacity: 0.9;
+}
+
+.pto-form .field {
+  margin-top: 0;
+}
+
+.field label input[type="checkbox"] {
+  margin-right: 6px;
+}
+
+/* Inline checkbox */
+.checkbox-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+
+
+#pto-calendar {
+  min-height: 600px;
+}
+
+/* PTO Balances list */
+.pto-balances {
+  display: grid;
+  gap: 10px;
+  max-width: 360px;   /* prevents stretching across screen */
+}
+
+.pto-balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.pto-balance span {
+  color: var(--text-secondary);
+}
+
+.pto-balance strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.btn.danger,
+
+.btn.cancel {
+  background: transparent;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 12px;
+}
+
+.btn.cancel:hover {
+  background: #fee2e2;
+}
+
+
+.page-header {
+  width: fit-content;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+
+.page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.page-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Panel variants */
+.panel.panel-summary {
+  background: #f8fafc;
+}
+
+.panel.panel-action {
+  background: #eef2ff; /* soft blue */
+  border-color: #c7d2fe;
+}
+
+.panel.panel-history {
+  background: #ffffff;
+}
+
+/* PTO section container */
+.pto-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pto-section > h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* PTO history column sizing */
+#ptoHistoryTable th:nth-child(1),
+#ptoHistoryTable td:nth-child(1) {
+  width: 90px;
+}
+
+#ptoHistoryTable th:nth-child(3),
+#ptoHistoryTable td:nth-child(3) {
+  width: 80px;
+}
+
+#ptoHistoryTable th:nth-child(5),
+#ptoHistoryTable td:nth-child(5) {
+  width: 110px;
+}
+
+#ptoHistoryTable th:last-child,
+#ptoHistoryTable td:last-child {
+  width: 120px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+#ptoHistoryTable th {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.history-block,
+.ledger-block {
+  width: 100%;
+}
+
+#pto,
+#carline,
+#requests {
+  scroll-margin-top: 72px; /* slightly larger than header height */
+}
+
+.toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 280px;
+  max-width: 420px;
+
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+
+  background: #dcfce7;      /* green-100 */
+  color: #166534;           /* green-800 */
+  border: 1px solid #86efac;
+
+  box-shadow: var(--elevation-2);
+  z-index: 2000;
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast.hidden {
+  display: none;
+}
+
+.modal textarea {
+  padding: 10px 12px;
+  min-height: 90px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.modal textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.modal-content {
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: var(--elevation-2);
+  padding: 20px 22px;
+
+  width: 100%;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.modal-close {
+  font-size: 18px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  color: var(--text-primary);
+}
+
+.modal p {
+  margin: 6px 0 14px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Modal size variants */
+.modal-sm .modal-content {
+  max-width: 420px;
+}
+
+.modal-md .modal-content {
+  max-width: 640px;
+}
+
+.modal-lg .modal-content {
+  max-width: 1000px;
+}
+
+
+.modal table {
+  table-layout: fixed;
+}
+
+.modal th,
+.modal td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+
+/* ---------- Skeleton Loading ---------- */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #eef2f7 25%,
+    #f6f8fb 37%,
+    #eef2f7 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 6px;
+  color: transparent;
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 0 }
+  100% { background-position: -100% 0 }
+}
+
+.skeleton-text {
+  height: 14px;
+  margin-bottom: 8px;
+}
+
+.skeleton-row {
+  height: 40px;
+}
+
+/* ---------- Fade-in after load ---------- */
+.fade-in {
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 240ms ease-out,
+    transform 240ms ease-out;
+}
+
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Fade content becomes visible when its section is active */
+.admin-section.active .fade-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* New row animation */
+.fade-row {
+  animation: fadeRowIn 240ms ease-out;
+}
+
+@keyframes fadeRowIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.admin-form-row .btn-primary {
+  height: 40px;
+}
+
+/* Compact admin add-row */
+.admin-form-row.compact {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Adjust per section when needed */
+.admin-form-row.compact.three {
+  grid-template-columns: repeat(3, 1fr) auto;
+}
+
+.admin-form-row.compact.two {
+  grid-template-columns: repeat(2, 1fr) auto;
+}
+
+/* Responsive fix for ALL grid-based forms */
+.pto-form > *,
+.admin-form-row > *,
+.admin-form-row.compact > * {
+  min-width: 0;
+}
+
+.panel {
+  overflow-x: hidden;
+}
+
+@media (max-width: 1200px) {
+  .admin-form-row.compact {
+    grid-template-columns: 1fr 1fr auto;
+    grid-auto-rows: auto;
+  }
+
+  /* Push buttons to the end */
+  .admin-form-row.compact .btn,
+  .admin-form-row.compact .btn-primary {
+    justify-self: end;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-form-row.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-row.compact .btn,
+  .admin-form-row.compact .btn-primary {
+    width: 100%;
+    justify-self: stretch;
+  }
+}
+
+/* Normalize inputs + selects in compact admin rows */
+.admin-form-row.compact input,
+.admin-form-row.compact select {
+  height: 38px;
+  padding: 0 12px;
+  line-height: 38px;        /* critical for equal vertical centering */
+  box-sizing: border-box;  /* prevents size inflation */
+
+  border-radius: 8px;      /* keep soft edges */
+  border: 1px solid var(--border);
+  background-color: #ffffff;
+  font-size: 14px;
+}
+
+/* Ensure text inputs NEVER show dropdown indicators */
+.admin-form-row.compact input {
+  background-image: none !important;
+}
+
+/* Show chevrons ONLY on selects */
+.admin-form-row.compact select {
+  appearance: none;
+
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+    linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) center,
+    calc(100% - 12px) center;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+
+  padding-right: 36px; /* space for chevron */
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+
+.mode-tabs .tab {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.mode-tabs .tab:hover {
+  background: rgba(37, 99, 235, 0.06);
+  color: var(--text-primary);
+}
+
+.mode-tabs .tab.active {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--text-primary);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+
+.tab.active::before,
+.tab.active::after {
+  content: none;
+}
+
+
+/* Action buttons in PTO tables */
+.action-buttons {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
+  justify-content: flex-start;
+}
+
+/* Approve actions */
+.btn-approve {
+  background: rgba(22, 163, 74, 0.12); /* green */
+  border: 1px solid rgba(22, 163, 74, 0.4);
+  color: #15803d;
+}
+
+.btn-approve:hover {
+  background: rgba(22, 163, 74, 0.20);
+}
+
+/* Deny / cancel actions */
+.btn-deny {
+  background: rgba(220, 38, 38, 0.12); /* red */
+  border: 1px solid rgba(220, 38, 38, 0.4);
+  color: #b91c1c;
+}
+
+.btn-deny:hover {
+  background: rgba(220, 38, 38, 0.20);
+}
+
+#adjustPtoBalances {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.upload-dropzone {
+  border: 2px dashed var(--border);
+  padding: 24px;
+  text-align: center;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.upload-dropzone.dragover {
+  background: #eef2ff;
+}
+
+
+.upload-dropzone.drag-active {
+  border-color: #2563eb;
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.badge-insert { background: #e6f4ea; color: #1e7f43; }
+.badge-update { background: #eef3fd; color: #2557c2; }
+.badge-skip   { background: #f5f5f5; color: #666; }
+.badge-error  { background: #fdecea; color: #c62828; }
+
+.badge-generated {.badge-generated #fff8e1;
+  color: #8d6e00;
+}
+
+
+/* Unified admin inputs (Add + Edit modes) */
+.form-input {
+  border-radius: 10px;
+  padding: 6px 10px;
+  border: 1px solid #dcdfe4;
+  font-size: 14px;
+  background-color: #fff;
+}
+
+/* Focus state */
+.form-input:focus {
+  outline: none;
+  border-color: #5b9bff;
+  box-shadow: 0 0 0 2px rgba(91, 155, 255, 0.15);
+}
+
+/* Read-only inputs (student number, IDs, etc.) */
+.form-input.readonly {
+  background-color: #f5f6f8;
+  color: #555;
+  cursor: default;
+}
+
+
+.form-error {
+  background: #ffebee;
+  color: #c62828;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+
+/* === Validation error styling === */
+
+.form-input.error {
+  background-color: #ffebee;
+
+  /* ✅ inset shadow stays inside the input box */
+  box-shadow: inset 0 0 0 2px #c62828;
+}
+
+/* Maintain error state while focused */
+.form-input.error:focus {
+  box-shadow: inset 0 0 0 2px #c62828;
+}
+
+
+
+
+
+#backToAdmin {
+  display: inline-flex;      /* ✅ force layout participation */
+  visibility: hidden;        /* ✅ hide content only */
+}
+
+
+/* Admin return button */
+
+.btn-admin {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.btn-admin:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+
+/* Hide capability-gated nav items until permissions load */
+nav a[data-cap] {
+  display: none;
+transition: opacity 120ms ease;
+}
+
+nav a[data-cap-group] {
+  display: none;
+}
+
+
+
+/* Staff PTO History – compact balance layout (no double border) */
+.pto-balances.compact {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+
+  /* ✅ Remove outer "card" feeling */
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.pto-balances.compact .pto-balance {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+
+  padding: 8px 10px;
+
+  /* ✅ Single, light card per PTO type */
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.pto-balances.compact .pto-balance span {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+.pto-balances.compact .pto-balance strong {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+#ptoHistoryBalancesWrap {
+  align-self: flex-start;
+}
+
+
+[hidden] {
+  display: none !important;
+}
+
+.nav.hidden {
+  visibility: hidden;
+}
+
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+  max-width: 800px;
+}
+
+.stat {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 16px 18px;
+  border: 1px solid #e6e8eb;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.stat:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+}
+
+.stat strong {
+  display: block;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: #1f2937; /* dark gray */
+}
+
+.stat span {
+  font-size: 0.85rem;
+  color: #6b7280; /* muted gray */
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.school-name {
+  display: inline-block;
+  margin-top: 2px;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+
+
+.directory-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.pagination {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+.pagination button {
+  min-width: 32px;
+  height: 32px;
+}
+
+.directory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.directory-filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.directory-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Optional polish */
+.directory-header select,
+.directory-header input {
+  min-width: 160px;
+}
+

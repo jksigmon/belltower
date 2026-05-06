@@ -1,0 +1,1383 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Substitute Management</title>
+
+  <!-- FullCalendar -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css"
+  />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+  
+  <link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+
+  <!-- Shared Admin UI -->
+  <link rel="stylesheet" href="/admin-ui.css" />
+  
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <style>
+  
+.substitutes-page .wrap {
+    grid-template-columns: 220px 1fr;
+}
+
+.substitutes-page .admin-main {
+  width: 100%;
+  max-width: none;
+}
+
+.substitutes-page .panel {
+  width: 100%;
+  max-width: none;
+}
+
+.substitutes-page table {
+  width: 100%;
+}
+
+.no-scroll .modal-content {
+  max-height: none;
+  overflow-y: visible;
+}
+
+.field-full textarea {
+  width: 100%;
+}
+
+.compact-actions .btn-primary {
+  width: auto;
+  height: 34px; /* matches normal buttons */
+}
+
+.compact-actions {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.sub-view {
+  display: none;
+}
+.sub-view.active {
+  display: block;
+}
+
+/* Compact buttons (shorter height) */
+.btn-sm {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 13px;
+  line-height: 32px; /* ensures vertical centering */
+  border-radius: 8px;
+}
+
+
+  </style>
+</head>
+
+<body class="admin-page substitutes-page">
+
+<header>
+  <div class="header-left">
+    <a
+      id="backToAdmin"
+      href="/admin.html"
+      class="btn btn-admin"
+      style="visibility:hidden;"
+    >
+      ← Back to Admin
+    </a>
+  </div>
+
+  <div class="page-header">
+    <img
+      src="/images/belltower-logo.png"
+      alt="Belltower"
+      class="admin-logo"
+    />
+    <div class="page-subtitle">Substitute Management</div>
+  </div>
+
+  <div class="header-actions">
+    <span id="adminName" class="muted"></span>
+    <button id="signOut" class="btn">Sign out</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav>
+    <a href="#calendar" data-view="calendar">📅 Calendar</a>
+    <a href="#directory" data-view="directory">📇 Directory</a>
+   <a href="#pending" data-view="pending">
+  🕒 Pending Coverage
+  <span class="badge-count" id="subPendingCount"></span>
+</a>
+<a href="#cancellations" data-view="cancellations">
+  ❌ Pending Cancellations
+  <span class="badge-count" id="subCancelCount"></span>
+</a>
+
+  </nav>
+
+
+  <main class="admin-main" style="max-width:none;">
+    <h1></h1>
+
+    <!-- =========================
+         CALENDAR VIEW
+    ========================== -->
+    <section id="view-calendar" class="panel panel-history sub-view">
+      <h3>Schedule</h3>
+      <div id="subs-calendar"></div>
+    </section>
+
+    <!-- =========================
+         DIRECTORY VIEW
+    ========================== -->
+    <section id="view-directory" class="panel panel-history sub-view">
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <h3 style="margin:0;">Substitutes</h3>
+        <button id="addSubBtn" class="btn btn-primary btn-sm">+ Add Substitute</button>
+      </div>
+
+      <table id="subTable" style="margin-top:12px;">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Phone</th>
+            <th class="col-active">Active</th>
+            <th>Notes</th>
+            <th class="col-actions"></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="subEmpty" class="empty-state" hidden>
+        <div class="empty-title">No substitutes</div>
+        <div class="empty-text">Add your first substitute to begin scheduling.</div>
+      </div>
+    </section>
+
+    <!-- =========================
+         PENDING COVERAGE VIEW
+    ========================== -->
+    <section id="view-pending" class="panel panel-history sub-view">
+      <h3>Pending Coverage</h3>
+      <table id="pendingCoverageTable" style="margin-top:12px; width:100%;">
+        <thead>
+          <tr>
+            <th>Out</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Type</th>
+            <th>Notes</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="pendingCoverageEmpty" class="empty-state" hidden>
+        <div class="empty-title">No pending coverage</div>
+        <div class="empty-text">All approved coverage-needed PTO days are assigned.</div>
+      </div>
+    </section>
+
+    <!-- =========================
+         PENDING CANCELLATIONS VIEW
+    ========================== -->
+    <section id="view-cancellations" class="panel panel-history sub-view">
+      <h3>Pending Cancellations</h3>
+      <table id="pendingCancelTable" style="margin-top:12px; width:100%;">
+        <thead>
+          <tr>
+            <th>Out</th>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Assigned</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="pendingCancelEmpty" class="empty-state" hidden>
+        <div class="empty-title">No pending cancellations</div>
+        <div class="empty-text">There are no future cancelled PTO days with active coverage.</div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+
+<!-- =========================
+     ADD SUBSTITUTE MODAL
+========================= -->
+<div class="modal modal-md no-scroll" id="subModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="subModalTitle">Add Substitute</h3>
+      <span class="modal-close" data-close="subModal">×</span>
+    </div>
+
+    <div class="field">
+      <label>First name</label>
+      <input id="subFirst" />
+    </div>
+
+    <div class="field">
+      <label>Last name</label>
+      <input id="subLast" />
+    </div>
+
+    <div class="field">
+      <label>Email</label>
+      <input id="subEmail" />
+    </div>
+
+    <div class="field">
+      <label>Phone</label>
+      <input id="subPhone" />
+    </div>
+
+    
+<div class="field field-full">
+  <label>Notes</label>
+  <textarea id="subNotes"></textarea>
+</div>
+
+
+    <label class="checkbox-compact">
+      <input type="checkbox" id="subActive" checked />
+      Active
+    </label>
+
+    <div class="modal-actions compact-actions">
+      <button class="btn" id="cancelSubBtn">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="saveSubBtn">
+        Save
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- =========================
+     ASSIGNMENT MODAL
+========================= -->
+<div class="modal modal-md" id="assignModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Schedule Substitute</h3>
+      <span class="modal-close" data-close="assignModal">×</span>
+    </div>
+
+<!-- Who is out / being covered -->
+<div class="field" id="coveredEmployeeReadOnlyWrap" style="display:none;">
+  <label>Covered Employee</label>
+  <input id="assignCoveredEmployeeText" disabled />
+</div>
+
+<div class="field" id="coveredEmployeeSelectWrap" style="display:none;">
+  <label>Covered Employee</label>
+  <select id="assignCoveredEmployee"></select>
+  <div class="muted" style="font-size:12px; margin-top:6px;">
+    Required for manual calendar assignments.
+  </div>
+</div>
+
+<div class="admin-form-row compact two">
+  <div class="field" style="flex:1;">
+    <label>Substitute</label>
+    <select id="assignSub"></select>
+  </div>
+
+  <div class="field" style="flex:1;">
+    <label>Internal Coverage</label>
+    <select id="assignEmployee"></select>
+  </div>
+</div>
+
+    <div class="admin-form-row compact two">
+      <input id="assignStart" placeholder="Start date" />
+      <input id="assignEnd" placeholder="End date" />
+    </div>
+
+    <div class="admin-form-row compact two">
+      <input id="assignStartTime" placeholder="Start time" />
+      <input id="assignEndTime" placeholder="End time" />
+    </div>
+
+    <div class="field">
+      <label>Reason</label>
+      <input id="assignReason" placeholder="PTO, sick, training…" />
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="cancelAssignBtn">Cancel</button>
+      <button class="btn btn-primary btn-sm" id="saveAssignBtn">
+        Save Assignment
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<script type="module">
+import { supabase } from '/app/admin.supabase.js';
+
+let currentProfile;
+let calendar;
+
+// -------------------- AUTH --------------------
+const { data: sessionData } = await supabase.auth.getSession();
+if (!sessionData?.session) {
+  window.location.href = '/login.html';
+  throw new Error('No session');
+}
+
+document.getElementById('signOut')?.addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  window.location.href = '/login.html';
+});
+
+// -------------------- PROFILE --------------------
+
+const { data: profile, error: profErr } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('user_id', sessionData.session.user.id)
+  .single();
+
+if (profErr || !profile) {
+  console.error('Profile load failed', profErr);
+  alert('Failed to load your profile.');
+  throw profErr;
+}
+
+currentProfile = profile;
+
+document.getElementById('adminName').textContent =
+  profile.display_name ?? profile.email;
+
+
+// ✅ PAGE GATE
+if (
+  !profile.is_superadmin &&
+  profile.can_manage_substitutes !== true
+) {
+  window.location.href = '/unauthorized.html';
+}
+
+if (
+  profile.is_superadmin ||
+  profile.can_access_admin ||
+  profile.can_manage_access
+) {
+  document.getElementById('backToAdmin').style.visibility = 'visible';
+}
+
+// -------------------- SUB LIST --------------------
+
+async function loadSubstitutes() {
+  const tbody = document.querySelector('#subTable tbody');
+  const empty = document.getElementById('subEmpty');
+
+  tbody.innerHTML = '';
+
+  const { data, error } = await supabase
+    .from('substitutes')
+    .select(`
+      id,
+      first_name,
+      last_name,
+      email,
+      phone,
+      notes,
+      active
+    `)
+    .eq('school_id', currentProfile.school_id)
+    .order('last_name');
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    empty.hidden = false;
+    return;
+  }
+
+  empty.hidden = true;
+  data.forEach(sub => tbody.appendChild(renderSubRow(sub)));
+}
+
+async function deleteSubstitute(subId) {
+  if (!subId) return;
+  const confirmed = confirm('Delete this substitute?');
+  if (!confirmed) return;
+
+  const { error } = await supabase
+    .from('substitutes')
+    .delete()
+    .eq('id', subId)
+    .eq('school_id', currentProfile.school_id); // extra safety
+
+  if (error) {
+    console.error('Failed to delete substitute:', error);
+    alert('Failed to delete substitute.');
+    return;
+  }
+
+  await loadSubstitutes();
+}
+
+async function loadPendingCoverage() {
+  const tbody = document.querySelector('#pendingCoverageTable tbody');
+  const empty = document.getElementById('pendingCoverageEmpty');
+  tbody.innerHTML = '';
+
+  const { data, error } = await supabase
+    .from('v_pending_coverage_days')
+    .select('*')
+    .eq('school_id', currentProfile.school_id)
+    .order('coverage_date', { ascending: true });
+
+  if (error) {
+    console.error(error);
+    empty.hidden = false;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    empty.hidden = false;
+    return;
+  }
+
+  empty.hidden = true;
+
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+
+    const outName = `${row.out_last_name}, ${row.out_first_name}`;
+    const timeText = (row.start_time && row.end_time)
+      ? `${row.start_time.slice(0,5)}–${row.end_time.slice(0,5)}`
+      : 'Full day';
+
+    tr.innerHTML = `
+      <td>${outName}</td>
+      <td>${row.coverage_date}</td>
+      <td>${timeText}</td>
+      <td>${row.pto_type}</td>
+      <td class="truncate">${row.notes ?? '—'}</td>
+      <td><button class="btn btn-primary btn-sm">Assign</button></td>
+    `;
+
+    tr.querySelector('button').addEventListener('click', () => {
+      openAssignFromPending(row);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+async function loadSubRequestCounts() {
+  const schoolId = currentProfile.school_id;
+
+  // Pending coverage days (view is already per-day)
+  const { count: pendingCount, error: pendingErr } = await supabase
+    .from('v_pending_coverage_days')
+    .select('pto_request_id', { count: 'exact', head: true })
+    .eq('school_id', schoolId);
+
+  if (pendingErr) console.error('Pending coverage count failed:', pendingErr);
+
+  // Pending cancellation days (view is already per-day)
+  const { count: cancelCount, error: cancelErr } = await supabase
+    .from('v_pending_cancellation_days')
+    .select('assignment_id', { count: 'exact', head: true })
+    .eq('school_id', schoolId);
+
+  if (cancelErr) console.error('Pending cancellation count failed:', cancelErr);
+
+  updateTabBadge('subPendingCount', pendingCount);
+  updateTabBadge('subCancelCount', cancelCount);
+}
+
+function updateTabBadge(id, count) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  if (!count || count === 0) {
+    el.textContent = '';
+  } else {
+    el.textContent = count;
+  }
+}
+
+async function openAssignFromPending(row) {
+  assignmentModalMode = 'new';
+  initAssignDatePickers();
+  await populateAssignmentDropdowns(); // you already do this 【1-699e3c】
+
+  // Clear fields
+  assignSub.value = '';
+  assignEmployee.value = ''; // internal coverage optional
+
+  // One-day assignment
+  assignStartFp.setDate(row.coverage_date, true);
+  assignEndFp.setDate(row.coverage_date, true);
+
+  // If partial-day PTO, carry times into assignment (optional)
+  assignStartTime.value = row.start_time ? row.start_time.slice(0,5) : '';
+  assignEndTime.value   = row.end_time ? row.end_time.slice(0,5) : '';
+
+  assignReason.value = `PTO: ${row.out_first_name} ${row.out_last_name}`;
+
+  // Store the PTO request id on the save button so we can write it to substitute_assignments
+  const saveBtn = document.getElementById('saveAssignBtn');
+  delete saveBtn.dataset.assignmentId;
+  delete saveBtn.dataset.ptoRequestId;
+  saveBtn.dataset.ptoRequestId = row.pto_request_id;   // ✅ new
+  saveBtn.textContent = 'Save Assignment';
+
+// Show read-only covered employee (from PTO)
+document.getElementById('coveredEmployeeSelectWrap').style.display = 'none';
+document.getElementById('coveredEmployeeReadOnlyWrap').style.display = 'block';
+document.getElementById('assignCoveredEmployeeText').value =
+  `${row.out_first_name} ${row.out_last_name}`;
+
+// For PTO assignments, no manual covered selection needed
+const coveredSelect = document.getElementById('assignCoveredEmployee');
+if (coveredSelect) coveredSelect.value = '';
+
+  openModal('assignModal');
+}
+
+function renderSubRow(sub) {
+  const tr = document.createElement('tr');
+
+  tr.innerHTML = `
+    <td>${sub.last_name}, ${sub.first_name}</td>
+    <td>${sub.email ?? '—'}</td>
+    <td>${sub.phone ?? '—'}</td>
+    <td>${sub.active ? 'Yes' : 'No'}</td>
+    <td class="truncate">
+      ${sub.notes ? sub.notes : '—'}
+    </td>
+    <td class="action-buttons">
+      <button class="btn editBtn">Edit</button>
+      <button class="btn danger deleteBtn">Delete</button>
+    </td>
+  `;
+
+  wireSubRowActions(tr, sub);
+  return tr;
+}
+
+function wireSubRowActions(tr, sub) {
+  const editBtn = tr.querySelector('.editBtn');
+  const deleteBtn = tr.querySelector('.deleteBtn');
+
+  editBtn.onclick = () => openEditSubModal(sub);
+  deleteBtn.onclick = () => deleteSubstitute(sub.id);
+}
+
+function openEditSubModal(sub) {
+  document.getElementById('subModalTitle').textContent = 'Edit Substitute';
+
+  document.getElementById('subFirst').value = sub.first_name;
+  document.getElementById('subLast').value = sub.last_name;
+  document.getElementById('subEmail').value = sub.email ?? '';
+  document.getElementById('subPhone').value = sub.phone ?? '';
+  document.getElementById('subNotes').value = sub.notes ?? '';
+  document.getElementById('subActive').checked = sub.active === true;
+
+  // store id for save
+  document.getElementById('saveSubBtn').dataset.subId = sub.id;
+
+  openModal('subModal');
+}
+
+function wireSubRow(tr, subId) {
+  const editBtn = tr.querySelector('.editBtn');
+  const saveBtn = tr.querySelector('.saveBtn');
+  const cancelBtn = tr.querySelector('.cancelBtn');
+  const deleteBtn = tr.querySelector('.deleteBtn');
+
+  const views = tr.querySelectorAll('.view');
+  const edits = tr.querySelectorAll('.edit');
+
+  // ---------- EDIT ----------
+  editBtn.onclick = () => {
+    views.forEach(v => (v.hidden = true));
+    edits.forEach(e => (e.hidden = false));
+    editBtn.hidden = true;
+    saveBtn.hidden = false;
+    cancelBtn.hidden = false;
+    deleteBtn.hidden = true;
+  };
+
+  // ---------- SAVE ----------
+  saveBtn.onclick = async () => {
+    const updated = {
+      first_name: tr.querySelector('.first').value.trim(),
+      last_name: tr.querySelector('.last').value.trim(),
+      active: tr.querySelector('.active').checked
+    };
+
+    if (!updated.first_name || !updated.last_name) {
+      alert('First and last name are required.');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('substitutes')
+      .update(updated)
+      .eq('id', subId);
+
+    if (error) {
+      console.error(error);
+      alert('Failed to save substitute.');
+      return;
+    }
+
+    loadSubstitutes(); // ✔ reset view
+  };
+
+  // ---------- CANCEL ----------
+  cancelBtn.onclick = () => {
+    loadSubstitutes(); // ✔ simple + safe
+  };
+
+  // ---------- DELETE ----------
+  deleteBtn.onclick = async () => {
+    if (!confirm('Delete this substitute?')) return;
+
+    const { error } = await supabase
+      .from('substitutes')
+      .delete()
+      .eq('id', subId);
+
+    if (error) {
+      console.error(error);
+      alert('Failed to delete substitute.');
+      return;
+    }
+
+    loadSubstitutes();
+  };
+}
+
+function wireExclusiveCovererSelects() {
+  const subSel = document.getElementById('assignSub');
+  const empSel = document.getElementById('assignEmployee');
+  if (!subSel || !empSel) return;
+
+  let suppress = false;
+
+  subSel.addEventListener('change', () => {
+    if (suppress) return;
+    if (subSel.value) {
+      suppress = true;
+      empSel.value = ''; // clear internal coverage if substitute chosen
+      suppress = false;
+    }
+  });
+
+  empSel.addEventListener('change', () => {
+    if (suppress) return;
+    if (empSel.value) {
+      suppress = true;
+      subSel.value = ''; // clear substitute if internal coverage chosen
+      suppress = false;
+    }
+  });
+}
+
+// -------------------- CALENDAR --------------------
+
+async function openEditAssignmentModal(event) {
+  assignmentModalMode = 'edit';
+  initAssignDatePickers();
+  await populateAssignmentDropdowns();
+
+  const a = event.extendedProps;
+
+  // Set coverer (mutually exclusive)
+  assignSub.value = a.substitute_id ?? '';
+  assignEmployee.value = a.employee_id ?? '';
+
+  // Dates/times
+  assignStartFp.setDate(a.start_date, true);
+  assignEndFp.setDate(a.end_date, true);
+  assignStartTime.value = a.start_time ?? '';
+  assignEndTime.value = a.end_time ?? '';
+  assignReason.value = a.reason ?? '';
+
+  // Covered employee UI
+  const roWrap = document.getElementById('coveredEmployeeReadOnlyWrap');
+  const selWrap = document.getElementById('coveredEmployeeSelectWrap');
+  const roText = document.getElementById('assignCoveredEmployeeText');
+  const coveredSel = document.getElementById('assignCoveredEmployee');
+
+  const saveBtn = document.getElementById('saveAssignBtn');
+  saveBtn.dataset.assignmentId = a.id;
+  saveBtn.textContent = 'Update Assignment';
+
+  if (a.pto_request_id) {
+    // PTO-linked: read-only covered/out
+    if (selWrap) selWrap.style.display = 'none';
+    if (roWrap) roWrap.style.display = 'block';
+    if (roText) roText.value = a.out_name ?? 'PTO-linked';
+
+    saveBtn.dataset.ptoRequestId = a.pto_request_id;
+    if (coveredSel) coveredSel.value = '';
+  } else {
+    // Manual: selectable covered employee
+    if (roWrap) roWrap.style.display = 'none';
+    if (selWrap) selWrap.style.display = 'block';
+
+    if (coveredSel) coveredSel.value = a.covered_employee_id ?? '';
+    if (roText) roText.value = '';
+
+    delete saveBtn.dataset.ptoRequestId;
+  }
+
+  openModal('assignModal');
+}
+
+function initCalendar() {
+  calendar = new FullCalendar.Calendar(
+    document.getElementById('subs-calendar'),
+    {
+      // ✅ Default view
+      initialView: 'dayGridMonth',
+      fixedWeekCount: false,
+
+      // ✅ Header controls (like PTO calendar)
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'dayGridMonth,timeGridWeek,timeGridDay'
+      },
+
+      // ✅ Make week/day views usable
+      slotMinTime: '06:00:00',
+      slotMaxTime: '19:00:00',
+      nowIndicator: true,
+      height: 'auto',
+
+      // ✅ Events
+      events: fetchSubAssignments,
+
+      // ✅ Click empty day → new assignment
+      dateClick: function (info) {
+        // ✅ Ignore clicks that started on an event
+        if (info.jsEvent?.target?.closest('.fc-event')) {
+          return;
+        }
+
+        openAssignmentModalForDate(info.dateStr);
+      },
+
+      // ✅ Click existing event → edit assignment
+      eventClick: function (info) {
+        // ✅ Prevent dateClick from also firing
+        info.jsEvent.preventDefault();
+        info.jsEvent.stopPropagation();
+
+        openEditAssignmentModal(info.event);
+      },
+
+      // ✅ Nice formatting for week/day views
+      eventDisplay: 'block',
+      eventTimeFormat: {
+        hour: 'numeric',
+        minute: '2-digit',
+        meridiem: 'short'
+      }
+    }
+  );
+
+  calendar.render();
+}
+
+let assignmentModalMode = 'new'; // 'new' | 'edit'
+
+async function openAssignmentModalForDate(dateStr) {
+  assignmentModalMode = 'new';
+
+  initAssignDatePickers();
+
+  // ✅ REQUIRED: load dropdowns for new assignments too
+  await populateAssignmentDropdowns();
+
+  assignStartFp.setDate(dateStr, true);
+  assignEndFp.setDate(dateStr, true);
+
+  assignStartTime.value = '';
+  assignEndTime.value = '';
+  assignReason.value = '';
+
+// Manual assignment: require selecting covered employee
+document.getElementById('coveredEmployeeReadOnlyWrap').style.display = 'none';
+document.getElementById('coveredEmployeeSelectWrap').style.display = 'block';
+
+const coveredSelect = document.getElementById('assignCoveredEmployee');
+if (coveredSelect) coveredSelect.value = '';
+
+  const saveBtn = document.getElementById('saveAssignBtn');
+  delete saveBtn.dataset.assignmentId;
+  delete saveBtn.dataset.ptoRequestId;
+  saveBtn.textContent = 'Save Assignment';
+
+  openModal('assignModal');
+}
+
+function setActiveView(hash) {
+  const view = (hash || '#calendar').replace('#', '');
+
+  // Activate nav
+  document.querySelectorAll('nav a[data-view]').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('data-view') === view);
+  });
+
+  // Show the right section
+  const ids = ['calendar', 'directory', 'pending', 'cancellations'];
+  ids.forEach(v => {
+    const el = document.getElementById(`view-${v}`);
+    if (!el) return;
+    el.classList.toggle('active', v === view);
+  });
+
+  // View-specific loads
+  if (view === 'directory') loadSubstitutes();
+  if (view === 'pending') loadPendingCoverage();
+  if (view === 'cancellations') loadPendingCancellations();
+
+  // Calendar needs a resize after being shown
+  if (view === 'calendar' && calendar) {
+    requestAnimationFrame(() => calendar.updateSize());
+  }
+}
+
+window.addEventListener('hashchange', () => setActiveView(location.hash));
+
+let assignmentDropdownsLoaded = false;
+loadSubRequestCounts();
+
+async function populateAssignmentDropdowns() {
+  if (assignmentDropdownsLoaded) return;
+
+  // Substitutes
+  const { data: subs } = await supabase
+    .from('substitutes')
+    .select('id, first_name, last_name')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true)
+    .order('last_name');
+
+  const subSelect = document.getElementById('assignSub');
+  subSelect.innerHTML = '<option value="">Select substitute…</option>';
+
+  subs.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = `${s.last_name}, ${s.first_name}`;
+    subSelect.appendChild(opt);
+  });
+
+  // Employees (who they are covering)
+  const { data: employees } = await supabase
+    .from('employees')
+    .select('id, first_name, last_name')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true)
+    .order('last_name');
+
+  const empSelect = document.getElementById('assignEmployee');
+  empSelect.innerHTML = '<option value="">Unassigned / General Coverage</option>';
+
+  employees.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id;
+    opt.textContent = `${e.last_name}, ${e.first_name}`;
+    empSelect.appendChild(opt);
+  });
+
+const coveredSelect = document.getElementById('assignCoveredEmployee');
+if (coveredSelect) {
+  coveredSelect.innerHTML = '<option value="">Select covered employee…</option>';
+  employees.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id;
+    opt.textContent = `${e.last_name}, ${e.first_name}`;
+    coveredSelect.appendChild(opt);
+  });
+}
+
+  assignmentDropdownsLoaded = true;
+}
+
+async function fetchSubAssignments(info, success, failure) {
+  try {
+    const { data, error } = await supabase
+      .from('substitute_assignments')
+      .select(`
+        id,
+        school_id,
+        pto_request_id,
+        covered_employee_id,
+        substitute_id,
+        employee_id,
+        start_date,
+        end_date,
+        start_time,
+        end_time,
+        reason,
+        status,
+
+        substitutes (
+          first_name,
+          last_name
+        ),
+
+        internal_coverage:employees!substitute_assignments_employee_id_fkey (
+          first_name,
+          last_name
+        ),
+
+        covered_employee:employees!substitute_assignments_covered_employee_id_fkey (
+          first_name,
+          last_name
+        ),
+
+        pto:pto_requests!substitute_assignments_pto_request_id_fkey (
+          id,
+          employees!pto_requests_employee_id_fkey (
+            first_name,
+            last_name
+          )
+        )
+      `)
+      .eq('school_id', currentProfile.school_id)
+  .eq('status', 'scheduled');
+
+
+    if (error) throw error;
+
+    const events = (data || []).map(a => {
+      // Coverer name: substitute is primary; internal coverage otherwise
+      const covererName = a.substitutes
+        ? `${a.substitutes.first_name} ${a.substitutes.last_name}`
+        : a.internal_coverage
+          ? `${a.internal_coverage.first_name} ${a.internal_coverage.last_name}`
+          : 'Coverage';
+
+      // Covered/out name:
+      // Prefer PTO out-employee; fallback to manual covered_employee_id
+      const outName = a.pto?.employees
+        ? `${a.pto.employees.first_name} ${a.pto.employees.last_name}`
+        : a.covered_employee
+          ? `${a.covered_employee.first_name} ${a.covered_employee.last_name}`
+          : 'Unassigned';
+
+      const title = `${covererName} → ${outName}`;
+
+      const start = a.start_time
+        ? `${a.start_date}T${a.start_time}`
+        : a.start_date;
+
+      const end = a.end_time
+        ? `${a.end_date}T${a.end_time}`
+        : a.end_date;
+
+      return {
+        id: a.id,
+        title,
+        start,
+        end,
+        allDay: !a.start_time,
+        backgroundColor: '#2563eb',
+        borderColor: '#2563eb',
+        extendedProps: {
+          id: a.id,
+          pto_request_id: a.pto_request_id,
+          substitute_id: a.substitute_id,
+          employee_id: a.employee_id, // internal coverage
+          covered_employee_id: a.covered_employee_id,
+          out_name: outName,          // store for modal display
+          start_date: a.start_date,
+          end_date: a.end_date,
+          start_time: a.start_time,
+          end_time: a.end_time,
+          reason: a.reason,
+          status: a.status
+        }
+      };
+    });
+
+    success(events);
+  } catch (err) {
+    console.error('fetchSubAssignments error:', err);
+    failure(err);
+  }
+}
+
+function clearAssignmentModal() {
+  if (assignStartFp) assignStartFp.clear();
+  if (assignEndFp) assignEndFp.clear();
+
+  assignSub.value = '';
+  assignEmployee.value = '';
+  assignStartTime.value = '';
+  assignEndTime.value = '';
+  assignReason.value = '';
+
+  const coveredText = document.getElementById('assignCoveredEmployeeText');
+  if (coveredText) coveredText.value = '';
+
+  const coveredSelect = document.getElementById('assignCoveredEmployee');
+  if (coveredSelect) coveredSelect.value = '';
+
+  // Hide both; opener functions decide which to show
+  const roWrap = document.getElementById('coveredEmployeeReadOnlyWrap');
+  const selWrap = document.getElementById('coveredEmployeeSelectWrap');
+  if (roWrap) roWrap.style.display = 'none';
+  if (selWrap) selWrap.style.display = 'none';
+
+  const saveBtn = document.getElementById('saveAssignBtn');
+  delete saveBtn.dataset.assignmentId;
+  delete saveBtn.dataset.ptoRequestId;
+  saveBtn.textContent = 'Save Assignment';
+
+  assignmentModalMode = 'new';
+}
+
+function handleAssignmentCancel() {
+  clearAssignmentModal();
+  closeModal('assignModal');
+}
+
+function formatTimeShort(t) {
+  if (!t) return '';
+  return t.slice(0, 5);
+}
+
+async function loadPendingCancellations() {
+  const tbody = document.querySelector('#pendingCancelTable tbody');
+  const empty = document.getElementById('pendingCancelEmpty');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+
+const { data, error } = await supabase
+  .from('v_pending_cancellation_days')
+  .select(`
+    *,
+    substitutes ( first_name, last_name ),
+    covering_employee:employees!substitute_assignments_employee_id_fkey ( first_name, last_name )
+  `)
+    .eq('school_id', currentProfile.school_id)
+    .eq('assignment_status', 'scheduled')
+    .order('coverage_date', { ascending: true });
+
+  if (error) {
+    console.error('Pending cancellations load failed:', error);
+    empty.hidden = false;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    empty.hidden = false;
+    return;
+  }
+
+  empty.hidden = true;
+
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+
+    const outName = `${row.out_last_name}, ${row.out_first_name}`;
+    const timeText = (row.start_time && row.end_time)
+      ? `${formatTimeShort(row.start_time)}–${formatTimeShort(row.end_time)}`
+      : 'Full day';
+
+    // Who is assigned? Prefer substitute, fallback to internal employee
+    let assignedText = '—';
+    if (row.substitutes) {
+      assignedText = `${row.substitutes.first_name} ${row.substitutes.last_name}`;
+    } else if (row.covering_employee) {
+  assignedText = `${row.covering_employee.first_name} ${row.covering_employee.last_name}`;
+}
+
+
+    tr.innerHTML = `
+      <td>${outName}</td>
+      <td>${row.coverage_date}</td>
+      <td>${timeText}</td>
+      <td>${assignedText}</td>
+      <td><button class="btn warn">Cancel Assignment</button></td>
+    `;
+
+    tr.querySelector('button').addEventListener('click', async () => {
+      await cancelAssignment(row.assignment_id);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+async function cancelAssignment(assignmentId) {
+  if (!assignmentId) return;
+  if (!confirm('Cancel this substitute assignment?')) return;
+
+  const { error } = await supabase
+    .from('substitute_assignments')
+    .update({ status: 'cancelled' })
+    .eq('id', assignmentId);
+
+  if (error) {
+    console.error(error);
+    alert('Failed to cancel assignment.');
+    return;
+  }
+
+  // Refresh views
+  await loadPendingCancellations();
+  await loadSubRequestCounts();
+  
+const ev = calendar?.getEventById(assignmentId);
+if (ev) ev.remove();
+
+  if (calendar) calendar.refetchEvents();
+}
+
+// -------------------- MODALS --------------------
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function clearSubModal() {
+  subFirst.value = '';
+  subLast.value = '';
+  subEmail.value = '';
+  subPhone.value = '';
+  subNotes.value = '';
+  subActive.checked = true;
+  delete saveSubBtn.dataset.subId;
+  document.getElementById('subModalTitle').textContent = 'Add Substitute';
+}
+
+function handleSubCancel() {
+  clearSubModal();
+  closeModal('subModal');
+}
+
+document.querySelectorAll('.modal-close').forEach(btn => {
+  btn.addEventListener('click', () => {
+    clearAssignmentModal();
+    closeModal(btn.dataset.close);
+  });
+});
+
+
+document.getElementById('cancelSubBtn').addEventListener('click', () => {
+  clearSubModal();
+  closeModal('subModal');
+});
+
+
+document.getElementById('cancelAssignBtn').addEventListener('click', () => {
+  clearAssignmentModal();
+  closeModal('assignModal');
+});
+
+
+
+document.getElementById('addSubBtn').addEventListener('click', () => {
+  openModal('subModal');
+});
+
+document.getElementById('saveSubBtn').addEventListener('click', async () => {
+  const first = subFirst.value.trim();
+  const last = subLast.value.trim();
+  const email = subEmail.value.trim();
+  const phone = subPhone.value.trim();
+  const notes = subNotes.value.trim();
+  const active = subActive.checked;
+
+  if (!first || !last) {
+    alert('First and last name are required.');
+    return;
+  }
+
+  const subId = saveSubBtn.dataset.subId;
+
+  const payload = {
+    first_name: first,
+    last_name: last,
+    email,
+    phone,
+    notes,
+    active
+  };
+
+  let result;
+  if (subId) {
+    // ✅ EDIT
+    result = await supabase
+      .from('substitutes')
+      .update(payload)
+      .eq('id', subId);
+  } else {
+    // ✅ ADD
+    result = await supabase
+      .from('substitutes')
+      .insert({
+        school_id: currentProfile.school_id,
+        ...payload
+      });
+  }
+
+  if (result.error) {
+    console.error(result.error);
+    alert('Failed to save substitute.');
+    return;
+  }
+
+  clearSubModal();
+  closeModal('subModal');
+  loadSubstitutes();
+});
+
+document.getElementById('saveAssignBtn').addEventListener('click', async () => {
+  const assignmentId = saveAssignBtn.dataset.assignmentId;
+  const ptoRequestId = saveAssignBtn.dataset.ptoRequestId || null;
+
+  const substituteId = document.getElementById('assignSub').value || null;
+  const internalCoverageId = document.getElementById('assignEmployee').value || null;
+
+  // ✅ Exactly one coverer (mutually exclusive)
+  if ((substituteId && internalCoverageId) || (!substituteId && !internalCoverageId)) {
+    alert('Please choose either a Substitute OR Internal Coverage (not both).');
+    return;
+  }
+
+  // ✅ Covered employee required only for manual (no PTO link)
+  const coveredSelect = document.getElementById('assignCoveredEmployee');
+  const coveredEmployeeId = coveredSelect ? (coveredSelect.value || null) : null;
+
+  if (!ptoRequestId && !coveredEmployeeId) {
+    alert('Please select the Covered Employee for manual assignments.');
+    return;
+  }
+
+  const payload = {
+    pto_request_id: ptoRequestId,
+    covered_employee_id: ptoRequestId ? null : coveredEmployeeId,
+
+    substitute_id: substituteId,
+    employee_id: internalCoverageId,
+
+    start_date: assignStart.value,
+    end_date: assignEnd.value,
+    start_time: assignStartTime.value || null,
+    end_time: assignEndTime.value || null,
+    reason: assignReason.value || null,
+    status: 'scheduled'
+  };
+
+  let result;
+  if (assignmentId) {
+    result = await supabase
+      .from('substitute_assignments')
+      .update(payload)
+      .eq('id', assignmentId);
+  } else {
+    result = await supabase
+      .from('substitute_assignments')
+      .insert({
+        school_id: currentProfile.school_id,
+        ...payload
+      });
+  }
+
+  if (result.error) {
+    console.error(result.error);
+    alert('Failed to save assignment.');
+    return;
+  }
+
+  // clean up
+  delete saveAssignBtn.dataset.assignmentId;
+  delete saveAssignBtn.dataset.ptoRequestId;
+  saveAssignBtn.textContent = 'Save Assignment';
+
+  closeModal('assignModal');
+  clearAssignmentModal();
+
+  if (calendar) calendar.refetchEvents();
+  await loadPendingCoverage();
+  await loadSubRequestCounts();
+});
+
+
+
+// -------------------- INIT --------------------
+await loadSubstitutes();
+
+let assignStartFp;
+let assignEndFp;
+let assignDatePickersInitialized = false;
+
+function initAssignDatePickers() {
+  if (assignDatePickersInitialized) return;
+
+  assignStartFp = flatpickr('#assignStart', {
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'm/d/Y',
+    allowInput: true
+  });
+
+  assignEndFp = flatpickr('#assignEnd', {
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'm/d/Y',
+    allowInput: true
+  });
+
+  assignDatePickersInitialized = true;
+}
+
+
+
+initCalendar();
+setActiveView(location.hash);
+await loadSubRequestCounts();
+wireExclusiveCovererSelects();
+</script>
+
+</body>
+</html>
