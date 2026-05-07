@@ -814,7 +814,8 @@ CREATE TABLE public.employees (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     pto_allotment_month integer DEFAULT 1,
     supervisor_id uuid,
-    profile_id uuid
+    profile_id uuid,
+    employment_months smallint
 );
 
 
@@ -985,6 +986,9 @@ CREATE TABLE public.school_pto_types (
 CREATE TABLE public.school_settings (
     school_id uuid NOT NULL,
     workday_hours numeric DEFAULT 8 NOT NULL,
+    rollover_max_hours numeric DEFAULT 8 NOT NULL,
+    payout_max_hours numeric DEFAULT 32 NOT NULL,
+    payout_eligible_months integer[] DEFAULT '{10}' NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );

@@ -16,6 +16,7 @@
   <link rel="icon" href="/icons/favicon.ico">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
   <style>
 
@@ -77,6 +78,7 @@
 <a href="/pto.html#history">📚 Staff PTO History</a>
 <a href="/pto.html#adjust">✏️ Adjust PTO</a>
 <a href="/pto.html#reports">📊 PTO Reports</a>
+<a href="/pto.html#rollover">🔄 Year-End Rollover</a>
 <a href="/pto.html#policies">📄 PTO Policies</a>
 
   </nav>
@@ -339,19 +341,90 @@
     <option value="transactions">PTO Transactions</option>
     <option value="balances">PTO Balances Snapshot</option>
     <option value="payroll">Payroll PTO Usage</option>
+    <option value="negative_balances">Negative Balances</option>
+    <option value="year_end_summary">Year-End Summary</option>
   </select>
 
-  <input id="exportStartDate" placeholder="Start date" />
-  <input id="exportEndDate" placeholder="End date" />
+  <span id="exportDateRange" style="display:none; gap:8px; align-items:center;" class="row">
+    <input id="exportStartDate" placeholder="Start date" />
+    <input id="exportEndDate" placeholder="End date" />
+  </span>
 
   <button id="generateExportBtn" class="btn">
     Generate
   </button>
 </div>
+<div id="exportReportDescription" class="muted" style="margin-top:6px; font-size:0.85rem;"></div>
 
     </div>
   </div>
 </section>
+<section id="pto-rollover" class="admin-section">
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+  <div class="admin-content fade-in">
+    <div class="panel panel-history">
+      <h3>Year-End Rollover &amp; Payout</h3>
+      <div class="muted" style="margin-bottom:16px;">
+        Select the leave type to analyze. Rollover credits go to the <strong>ROLLOVER</strong> PTO type. Payout amounts are for reference only — apply in payroll externally.
+      </div>
+
+      <div class="row" style="gap:8px; margin-bottom:16px; align-items:center;">
+        <select id="rolloverPtoTypeSelect">
+          <option value="">Select leave type…</option>
+        </select>
+        <button id="runRolloverReportBtn" class="btn btn-primary">Run Report</button>
+      </div>
+
+      <div id="rolloverReportWrap" style="display:none;">
+        <table id="rolloverReportTable">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Employment</th>
+              <th>Current Balance</th>
+              <th>Rollover Hours</th>
+              <th>Payout Hours</th>
+              <th>Payout Days</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div id="rolloverNegativeWrap" style="display:none; margin-top:20px;">
+          <h4 style="color:var(--err, #dc2626);">Negative Balances (Deduct from Pay)</h4>
+          <table id="rolloverNegativeTable">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Employment</th>
+                <th>Balance (hrs)</th>
+                <th>Balance (days)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+        <div style="margin-top:20px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button id="exportRolloverBtn" class="btn">Download Report (Excel)</button>
+          <button id="commitRolloverBtn" class="btn btn-primary">Commit Rollover &amp; Payout</button>
+          <span id="rolloverCommitStatus" class="muted" style="display:none;"></span>
+        </div>
+        <div id="rolloverPostCommit" style="display:none; margin-top:12px;">
+          <button id="downloadCommittedBtn" class="btn">Download Committed Report (Excel)</button>
+        </div>
+      </div>
+
+      <div id="rolloverEmpty" class="empty-state" style="display:none;">
+        <div class="empty-title">No employees found</div>
+        <div class="empty-text">No active employees with balances for this leave type.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="pto-policies" class="admin-section">
   <div class="admin-content skeleton-container">
     <div class="panel skeleton skeleton-row"></div>
@@ -387,6 +460,8 @@ import { supabase } from '/app/admin.supabase.js';
     let lastPendingPtoCount = 0;
     let lastCancelPtoCount = 0;
 	let currentPtoHistoryEmployeeId = null;
+	let rolloverReportData = [];
+	let committedRolloverMeta = null; // { data, ptoType, year } saved at commit time
 
 
 
@@ -1800,6 +1875,11 @@ async function setPtoView(view) {
     return;
   }
 
+  if (view === 'rollover' && !currentProfile.can_adjust_pto) {
+    alert('You are not authorized to run year-end rollover.');
+    return;
+  }
+
   // -------------------------
   // 2. Hide all PTO sections & skeletons
   // -------------------------
@@ -1878,6 +1958,10 @@ if (view === 'history') {
       initPtoReportsView();
     }
 
+    if (view === 'rollover') {
+      await initRolloverView();
+    }
+
     if (view === 'policies') {
       await loadPtoPolicies();
     }
@@ -1951,6 +2035,29 @@ function resetStaffHistoryView() {
 
 let reportsFlatpickrInitialized = false;
 
+const REPORT_META = {
+  transactions: {
+    needsDates: true,
+    description: 'All PTO ledger entries (approvals, adjustments, allotments) within the selected date range.'
+  },
+  balances: {
+    needsDates: false,
+    description: 'Current PTO balance snapshot for all active employees as of today.'
+  },
+  payroll: {
+    needsDates: true,
+    description: 'Approved PTO hours used per employee within the selected date range, for payroll processing.'
+  },
+  negative_balances: {
+    needsDates: false,
+    description: 'All employees currently carrying a negative PTO balance — use before payroll to identify pay deductions needed.'
+  },
+  year_end_summary: {
+    needsDates: true,
+    description: 'Full-year PTO summary per employee: allotted, used, adjusted, rollover credited, and current balance. Select your fiscal year start and end dates.'
+  }
+};
+
 function initPtoReportsView() {
   if (reportsFlatpickrInitialized) return;
 
@@ -1964,6 +2071,20 @@ function initPtoReportsView() {
     dateFormat: 'Y-m-d',
     altInput: true,
     altFormat: 'M j, Y'
+  });
+
+  document.getElementById('exportReportType').addEventListener('change', e => {
+    const meta = REPORT_META[e.target.value];
+    const dateRange = document.getElementById('exportDateRange');
+    const desc = document.getElementById('exportReportDescription');
+
+    if (meta) {
+      dateRange.style.display = meta.needsDates ? 'flex' : 'none';
+      desc.textContent = meta.description;
+    } else {
+      dateRange.style.display = 'none';
+      desc.textContent = '';
+    }
   });
 
   reportsFlatpickrInitialized = true;
@@ -1987,7 +2108,7 @@ async function handlePtoExport() {
   }
 
   if (
-    (reportType === 'transactions' || reportType === 'payroll') &&
+    REPORT_META[reportType]?.needsDates &&
     (!startDate || !endDate)
   ) {
     alert('Please select a start and end date.');
@@ -2376,7 +2497,7 @@ generateBtn.addEventListener('click', async () => {
   }
 
   if (
-    (reportType === 'transactions' || reportType === 'payroll') &&
+    REPORT_META[reportType]?.needsDates &&
     (!startDate || !endDate)
   ) {
     alert('Please select a start and end date.');
@@ -2489,6 +2610,397 @@ document
 document
   .getElementById('ptoAdjustType')
   .addEventListener('change', updateAnnualAllotmentUI);
+
+
+// =============================================================
+// YEAR-END ROLLOVER & PAYOUT
+// =============================================================
+
+// rolloverReportData declared at module top
+
+async function initRolloverView() {
+  const select = document.getElementById('rolloverPtoTypeSelect');
+  select.innerHTML = '<option value="">Select leave type…</option>';
+
+  // Exclude ROLLOVER type itself as a source
+  currentSchoolPtoTypes
+    .filter(t => t !== 'ROLLOVER')
+    .forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      select.appendChild(opt);
+    });
+
+  document.getElementById('rolloverReportWrap').style.display = 'none';
+  document.getElementById('rolloverEmpty').style.display = 'none';
+  rolloverReportData = [];
+}
+
+async function runRolloverReport() {
+  const ptoType = document.getElementById('rolloverPtoTypeSelect').value;
+  if (!ptoType) { alert('Select a leave type first.'); return; }
+
+  const proceed = await checkLastRolloverRun();
+  if (!proceed) return;
+
+  const btn = document.getElementById('runRolloverReportBtn');
+  btn.disabled = true;
+  btn.textContent = 'Loading…';
+
+  document.getElementById('rolloverReportWrap').style.display = 'none';
+  document.getElementById('rolloverEmpty').style.display = 'none';
+  document.getElementById('rolloverCommitStatus').style.display = 'none';
+  document.getElementById('rolloverPostCommit').style.display = 'none';
+  rolloverReportData = [];
+
+  try {
+    // Load school settings for rollover rules
+    const { data: settings } = await supabase
+      .from('school_settings')
+      .select('rollover_max_hours, payout_max_hours, payout_eligible_months, workday_hours')
+      .eq('school_id', currentProfile.school_id)
+      .single();
+
+    const rolloverMax = settings?.rollover_max_hours ?? 8;
+    const payoutMax = settings?.payout_max_hours ?? 32;
+    const payoutEligible = settings?.payout_eligible_months ?? [10];
+    const workdayHours = settings?.workday_hours ?? 8;
+
+    // Load all active employees with employment_months
+    const { data: employees, error: empErr } = await supabase
+      .from('employees')
+      .select('id, first_name, last_name, employment_months')
+      .eq('school_id', currentProfile.school_id)
+      .eq('active', true)
+      .order('last_name');
+
+    if (empErr) throw empErr;
+
+    // Load balances for selected PTO type
+    const { data: balances, error: balErr } = await supabase
+      .from('pto_balances')
+      .select('employee_id, balance_hours')
+      .eq('school_id', currentProfile.school_id)
+      .eq('pto_type', ptoType);
+
+    if (balErr) throw balErr;
+
+    const balanceMap = {};
+    (balances || []).forEach(b => { balanceMap[b.employee_id] = b.balance_hours; });
+
+    // Build rows
+    const rows = employees.map(emp => {
+      const balance = balanceMap[emp.id] ?? 0;
+      const months = emp.employment_months;
+      const isPayoutEligible = payoutEligible.includes(months);
+
+      let defaultRollover = 0;
+      let defaultPayout = 0;
+
+      if (balance > 0) {
+        defaultRollover = Math.min(balance, rolloverMax);
+        if (isPayoutEligible) {
+          defaultPayout = Math.min(balance - defaultRollover, payoutMax);
+        }
+      }
+
+      return {
+        employeeId: emp.id,
+        name: `${emp.last_name}, ${emp.first_name}`,
+        months,
+        balance,
+        rollover: defaultRollover,
+        payout: defaultPayout,
+        isPayoutEligible,
+        rolloverMax,
+        payoutMax,
+        workdayHours
+      };
+    });
+
+    rolloverReportData = rows;
+    renderRolloverReport(rows, ptoType, workdayHours);
+
+  } catch (err) {
+    console.error('Rollover report error', err);
+    alert('Failed to load rollover report.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run Report';
+  }
+}
+
+function renderRolloverReport(rows, ptoType, workdayHours) {
+  const positiveRows = rows.filter(r => r.balance >= 0);
+  const negativeRows = rows.filter(r => r.balance < 0);
+
+  const tbody = document.querySelector('#rolloverReportTable tbody');
+  tbody.innerHTML = '';
+
+  if (positiveRows.length === 0 && negativeRows.length === 0) {
+    document.getElementById('rolloverEmpty').style.display = 'block';
+    return;
+  }
+
+  positiveRows.forEach((row, i) => {
+    const payoutDays = row.isPayoutEligible
+      ? (row.payout / workdayHours).toFixed(2)
+      : '—';
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${row.name}</td>
+      <td>${row.months ? `${row.months}-month` : '—'}</td>
+      <td>${row.balance.toFixed(2)} hrs</td>
+      <td>
+        <input type="number" class="rollover-input" min="0" max="${row.rolloverMax}" step="0.5"
+          value="${row.rollover}" data-idx="${i}" style="width:80px;" />
+      </td>
+      <td>
+        ${row.isPayoutEligible
+          ? `<input type="number" class="payout-input" min="0" max="${row.payoutMax}" step="0.5"
+               value="${row.payout}" data-idx="${i}" style="width:80px;" />`
+          : '<span class="muted">N/A</span>'}
+      </td>
+      <td class="payout-days-cell" data-idx="${i}">${row.isPayoutEligible ? payoutDays : '—'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Wire input changes to update in-memory data and days cell
+  tbody.querySelectorAll('.rollover-input').forEach(input => {
+    input.addEventListener('input', () => {
+      const idx = Number(input.dataset.idx);
+      rolloverReportData[idx].rollover = Number(input.value) || 0;
+    });
+  });
+
+  tbody.querySelectorAll('.payout-input').forEach(input => {
+    input.addEventListener('input', () => {
+      const idx = Number(input.dataset.idx);
+      const val = Number(input.value) || 0;
+      rolloverReportData[idx].payout = val;
+      const daysCell = tbody.querySelector(`.payout-days-cell[data-idx="${idx}"]`);
+      if (daysCell) daysCell.textContent = (val / workdayHours).toFixed(2);
+    });
+  });
+
+  // Negative balances table
+  const negWrap = document.getElementById('rolloverNegativeWrap');
+  const negTbody = document.querySelector('#rolloverNegativeTable tbody');
+  negTbody.innerHTML = '';
+
+  if (negativeRows.length > 0) {
+    negWrap.style.display = 'block';
+    negativeRows.forEach(row => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="color:var(--err,#dc2626);">${row.name}</td>
+        <td>${row.months ? `${row.months}-month` : '—'}</td>
+        <td style="color:var(--err,#dc2626);">${row.balance.toFixed(2)} hrs</td>
+        <td style="color:var(--err,#dc2626);">${(row.balance / workdayHours).toFixed(2)} days</td>
+      `;
+      negTbody.appendChild(tr);
+    });
+  } else {
+    negWrap.style.display = 'none';
+  }
+
+  document.getElementById('rolloverReportWrap').style.display = 'block';
+}
+
+async function commitRollover() {
+  if (!currentProfile.can_adjust_pto) {
+    alert('Not authorized.');
+    return;
+  }
+
+  const ptoType = document.getElementById('rolloverPtoTypeSelect').value;
+  const year = new Date().getFullYear();
+
+  const toProcess = rolloverReportData.filter(
+    r => r.balance > 0 && (r.rollover > 0 || r.payout > 0)
+  );
+
+  if (toProcess.length === 0) {
+    alert('No rollover or payout amounts to commit.');
+    return;
+  }
+
+  // Validate
+  for (const row of toProcess) {
+    if (row.rollover < 0 || row.payout < 0) {
+      alert(`Invalid amounts for ${row.name}. Hours cannot be negative.`);
+      return;
+    }
+    if (row.rollover + row.payout > row.balance) {
+      alert(`${row.name}: rollover + payout (${row.rollover + row.payout} hrs) exceeds balance (${row.balance} hrs).`);
+      return;
+    }
+    if (!row.isPayoutEligible && row.payout > 0) {
+      alert(`${row.name} is not eligible for payout based on employment type.`);
+      return;
+    }
+  }
+
+  const totalRollover = toProcess.reduce((s, r) => s + r.rollover, 0);
+  const totalPayout = toProcess.reduce((s, r) => s + r.payout, 0);
+  const workdayHours = toProcess[0]?.workdayHours ?? 8;
+
+  const confirmed = confirm(
+    `Year-End Rollover Commit (${year})\n\n` +
+    `Leave type: ${ptoType}\n` +
+    `Employees affected: ${toProcess.length}\n\n` +
+    `Total rollover to ROLLOVER balance: ${totalRollover} hrs\n` +
+    `Total payout (handle in payroll): ${totalPayout} hrs (${(totalPayout / workdayHours).toFixed(2)} days)\n\n` +
+    `This will debit the ${ptoType} balance and credit ROLLOVER for each employee.\n\nProceed?`
+  );
+
+  if (!confirmed) return;
+
+  const btn = document.getElementById('commitRolloverBtn');
+  btn.disabled = true;
+  btn.textContent = 'Committing…';
+
+  const statusEl = document.getElementById('rolloverCommitStatus');
+  statusEl.style.display = 'none';
+
+  try {
+    const ledgerEntries = [];
+
+    for (const row of toProcess) {
+      const totalDebit = row.rollover + row.payout;
+
+      // Debit source PTO type (rollover + payout combined)
+      if (totalDebit > 0) {
+        ledgerEntries.push({
+          school_id: currentProfile.school_id,
+          employee_id: row.employeeId,
+          pto_type: ptoType,
+          delta_hours: -totalDebit,
+          reason: `YEAR_END_${year}_DEBIT`,
+          created_by: currentProfile.employee_id
+        });
+      }
+
+      // Credit ROLLOVER type
+      if (row.rollover > 0) {
+        ledgerEntries.push({
+          school_id: currentProfile.school_id,
+          employee_id: row.employeeId,
+          pto_type: 'ROLLOVER',
+          delta_hours: row.rollover,
+          reason: `YEAR_END_${year}_ROLLOVER`,
+          created_by: currentProfile.employee_id
+        });
+      }
+    }
+
+    const { error } = await supabase.from('pto_ledger').insert(ledgerEntries);
+    if (error) throw error;
+
+    // Save snapshot for post-commit export before clearing
+    committedRolloverMeta = { data: [...rolloverReportData], ptoType, year };
+
+    statusEl.textContent = `✅ Committed ${year} rollover for ${toProcess.length} employees.`;
+    statusEl.style.display = 'inline';
+    rolloverReportData = [];
+    document.getElementById('rolloverReportWrap').style.display = 'none';
+    document.getElementById('rolloverPostCommit').style.display = 'block';
+
+  } catch (err) {
+    console.error('Rollover commit error', err);
+    alert('Failed to commit rollover. No changes were saved.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Commit Rollover & Payout';
+  }
+}
+
+function exportRolloverReport(data, ptoType, year) {
+  const workdayHours = data[0]?.workdayHours ?? 8;
+
+  const positiveRows = data.filter(r => r.balance >= 0).map(r => ({
+    'Employee':            r.name,
+    'Employment Type':     r.months ? `${r.months}-month` : '—',
+    'Current Balance (hrs)': r.balance.toFixed(2),
+    'Current Balance (days)': (r.balance / workdayHours).toFixed(2),
+    'Rollover to ROLLOVER (hrs)': r.rollover,
+    'Payout Hours':        r.isPayoutEligible ? r.payout : 'N/A',
+    'Payout Days':         r.isPayoutEligible ? (r.payout / workdayHours).toFixed(2) : 'N/A',
+    'Payout Eligible':     r.isPayoutEligible ? 'Yes' : 'No'
+  }));
+
+  const negativeRows = data.filter(r => r.balance < 0).map(r => ({
+    'Employee':            r.name,
+    'Employment Type':     r.months ? `${r.months}-month` : '—',
+    'Balance (hrs)':       r.balance.toFixed(2),
+    'Balance (days)':      (r.balance / workdayHours).toFixed(2)
+  }));
+
+  const wb = XLSX.utils.book_new();
+
+  const ws1 = XLSX.utils.json_to_sheet(positiveRows.length ? positiveRows : [{ Note: 'No employees with positive balances' }]);
+  XLSX.utils.book_append_sheet(wb, ws1, 'Rollover & Payout');
+
+  if (negativeRows.length) {
+    const ws2 = XLSX.utils.json_to_sheet(negativeRows);
+    XLSX.utils.book_append_sheet(wb, ws2, 'Negative Balances');
+  }
+
+  XLSX.writeFile(wb, `Year-End-Rollover-${ptoType}-${year}.xlsx`);
+}
+
+async function checkLastRolloverRun() {
+  const { data: lastRun } = await supabase
+    .from('pto_ledger')
+    .select('created_at')
+    .eq('school_id', currentProfile.school_id)
+    .like('reason', 'YEAR\\_END\\_%\\_ROLLOVER')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!lastRun) return true; // never run before, proceed
+
+  const lastRunDate = new Date(lastRun.created_at);
+  const elevenMonthsMs = 11 * 30 * 24 * 60 * 60 * 1000;
+  const withinElevenMonths = (Date.now() - lastRunDate.getTime()) < elevenMonthsMs;
+
+  if (withinElevenMonths) {
+    const formatted = lastRunDate.toLocaleDateString('en-US', {
+      year: 'numeric', month: 'long', day: 'numeric'
+    });
+    return confirm(
+      `Year-end rollover was last committed on ${formatted}.\n\n` +
+      `Running it again within 11 months may result in duplicate rollover credits.\n\n` +
+      `Are you sure you want to continue?`
+    );
+  }
+
+  return true;
+}
+
+document.getElementById('runRolloverReportBtn')
+  .addEventListener('click', runRolloverReport);
+
+document.getElementById('commitRolloverBtn')
+  .addEventListener('click', commitRollover);
+
+document.getElementById('exportRolloverBtn')
+  .addEventListener('click', () => {
+    const ptoType = document.getElementById('rolloverPtoTypeSelect').value;
+    const year = new Date().getFullYear();
+    if (!rolloverReportData.length) { alert('Run the report first.'); return; }
+    exportRolloverReport(rolloverReportData, ptoType, year);
+  });
+
+document.getElementById('downloadCommittedBtn')
+  .addEventListener('click', () => {
+    if (!committedRolloverMeta) return;
+    exportRolloverReport(committedRolloverMeta.data, committedRolloverMeta.ptoType, committedRolloverMeta.year);
+  });
 
 
   </script>

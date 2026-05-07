@@ -79,7 +79,7 @@ const { data: profile, error: profileError } = await admin
   .from("profiles")
   .select("school_id, can_generate_pto_reports")
   .eq("user_id", user.id)
-  .single();
+  .maybeSingle();
 
 
 // 5️⃣ Enforce permission
@@ -99,7 +99,7 @@ const { data: moduleRow, error: moduleError } = await admin
   .select("enabled")
   .eq("school_id", profile.school_id)
   .eq("module", "pto")
-  .single();
+  .maybeSingle();
 
 if (moduleError || !moduleRow?.enabled) {
   return new Response(
@@ -114,11 +114,20 @@ if (moduleError || !moduleRow?.enabled) {
        PTO BALANCES REPORT
     ===================================================== */
     if (report_type === "balances") {
+      const { data: settingsData } = await admin
+        .from("school_settings")
+        .select("workday_hours")
+        .eq("school_id", profile.school_id)
+        .maybeSingle();
+
+      const workdayHours = Number(settingsData?.workday_hours ?? 8);
+
       const { data, error } = await admin
         .from("employees")
         .select(`
           first_name,
           last_name,
+          employment_months,
           pto_balances (
             pto_type,
             balance_hours
@@ -136,23 +145,29 @@ if (moduleError || !moduleRow?.enabled) {
 
       sheet.columns = [
         { header: "Employee", key: "employee", width: 28 },
+        { header: "Employment", key: "employment", width: 14 },
         { header: "PTO Type", key: "type", width: 16 },
-        { header: "Balance", key: "balance", width: 14 },
+        { header: "Balance (hrs)", key: "balance", width: 14 },
+        { header: "Balance (days)", key: "days", width: 14 },
       ];
 
       sheet.getRow(1).font = { bold: true };
 
       data.forEach(emp => {
         emp.pto_balances.forEach(b => {
+          const hours = Number(b.balance_hours || 0);
           sheet.addRow({
-            employee: `${emp.first_name} ${emp.last_name}`,
+            employee: `${emp.last_name}, ${emp.first_name}`,
+            employment: emp.employment_months ? `${emp.employment_months}-month` : "—",
             type: b.pto_type,
-            balance: Number(b.balance_hours || 0),
+            balance: hours,
+            days: Number((hours / workdayHours).toFixed(2)),
           });
         });
       });
 
       sheet.getColumn("balance").numFmt = "0.00";
+      sheet.getColumn("days").numFmt = "0.00";
     }
 
     /* =====================================================
@@ -170,7 +185,7 @@ if (moduleError || !moduleRow?.enabled) {
           delta_hours,
           reason,
           created_at,
-          employees (
+          employees!pto_ledger_employee_id_fkey (
             first_name,
             last_name
           )
@@ -217,18 +232,26 @@ if (moduleError || !moduleRow?.enabled) {
         throw new Error("Missing date range");
       }
 
+      const { data: settingsData } = await admin
+        .from("school_settings")
+        .select("workday_hours")
+        .eq("school_id", profile.school_id)
+        .maybeSingle();
+
+      const workdayHours = Number(settingsData?.workday_hours ?? 8);
+
       const { data, error } = await admin
         .from("pto_ledger")
         .select(`
           employee_id,
           pto_type,
           delta_hours,
-          employees (
+          employees!pto_ledger_employee_id_fkey (
             first_name,
             last_name
           )
         `)
-        .eq("reason", "REQUEST_APPROVED")
+        .eq("reason", "REQUEST APPROVED")
         .eq("school_id", profile.school_id)
         .gte("created_at", start_date)
         .lte("created_at", end_date);
@@ -243,7 +266,7 @@ if (moduleError || !moduleRow?.enabled) {
         const key = `${r.employee_id}_${r.pto_type}`;
         if (!usageMap[key]) {
           usageMap[key] = {
-            employee: `${r.employees.first_name} ${r.employees.last_name}`,
+            employee: `${r.employees.last_name}, ${r.employees.first_name}`,
             type: r.pto_type,
             hours: 0,
           };
@@ -259,23 +282,232 @@ if (moduleError || !moduleRow?.enabled) {
         { header: "Employee", key: "employee", width: 28 },
         { header: "PTO Type", key: "type", width: 14 },
         { header: "Hours Used", key: "hours", width: 14 },
+        { header: "Days Used", key: "days", width: 12 },
         { header: "Period Start", key: "start", width: 14 },
         { header: "Period End", key: "end", width: 14 },
       ];
 
       sheet.getRow(1).font = { bold: true };
 
-      Object.values(usageMap).forEach(r => {
+      const sortedPayroll = Object.values(usageMap).sort((a, b) =>
+        a.employee.localeCompare(b.employee)
+      );
+
+      sortedPayroll.forEach(r => {
         sheet.addRow({
           employee: r.employee,
           type: r.type,
           hours: r.hours,
+          days: Number((r.hours / workdayHours).toFixed(2)),
           start: start_date,
           end: end_date,
         });
       });
 
       sheet.getColumn("hours").numFmt = "0.00";
+      sheet.getColumn("days").numFmt = "0.00";
+    }
+
+    /* =====================================================
+       NEGATIVE BALANCES REPORT
+    ===================================================== */
+    else if (report_type === "negative_balances") {
+      const { data: settingsData } = await admin
+        .from("school_settings")
+        .select("workday_hours")
+        .eq("school_id", profile.school_id)
+        .maybeSingle();
+
+      const workdayHours = Number(settingsData?.workday_hours ?? 8);
+
+      const { data, error } = await admin
+        .from("employees")
+        .select(`
+          first_name,
+          last_name,
+          employment_months,
+          pto_balances (
+            pto_type,
+            balance_hours
+          )
+        `)
+        .eq("active", true)
+        .eq("school_id", profile.school_id)
+        .order("last_name");
+
+      if (error) throw error;
+
+      const sheet = workbook.addWorksheet("Negative Balances", {
+        views: [{ state: "frozen", ySplit: 1 }],
+      });
+
+      sheet.columns = [
+        { header: "Employee", key: "employee", width: 28 },
+        { header: "Employment", key: "employment", width: 14 },
+        { header: "PTO Type", key: "type", width: 14 },
+        { header: "Balance (hrs)", key: "balance", width: 16 },
+        { header: "Balance (days)", key: "days", width: 16 },
+      ];
+
+      sheet.getRow(1).font = { bold: true };
+
+      let hasNegative = false;
+
+      data.forEach(emp => {
+        (emp.pto_balances as any[])
+          .filter(b => Number(b.balance_hours) < 0)
+          .forEach(b => {
+            hasNegative = true;
+            const hours = Number(b.balance_hours);
+            const row = sheet.addRow({
+              employee: `${emp.last_name}, ${emp.first_name}`,
+              employment: (emp as any).employment_months ? `${(emp as any).employment_months}-month` : "—",
+              type: b.pto_type,
+              balance: hours,
+              days: Number((hours / workdayHours).toFixed(2)),
+            });
+            row.getCell("balance").font = { color: { argb: "FFDC2626" } };
+            row.getCell("days").font = { color: { argb: "FFDC2626" } };
+          });
+      });
+
+      if (!hasNegative) {
+        sheet.addRow({
+          employee: "No employees with negative balances",
+          employment: "", type: "", balance: "", days: ""
+        });
+      }
+
+      sheet.getColumn("balance").numFmt = "0.00";
+      sheet.getColumn("days").numFmt = "0.00";
+    }
+
+    /* =====================================================
+       YEAR-END SUMMARY REPORT
+    ===================================================== */
+    else if (report_type === "year_end_summary") {
+      if (!start_date || !end_date) {
+        throw new Error("Missing date range");
+      }
+
+      const { data: settingsData } = await admin
+        .from("school_settings")
+        .select("workday_hours")
+        .eq("school_id", profile.school_id)
+        .maybeSingle();
+
+      const workdayHours = Number(settingsData?.workday_hours ?? 8);
+
+      const { data: employees, error: empErr } = await admin
+        .from("employees")
+        .select("id, first_name, last_name, employment_months")
+        .eq("school_id", profile.school_id)
+        .eq("active", true)
+        .order("last_name");
+
+      if (empErr) throw empErr;
+
+      const { data: balances, error: balErr } = await admin
+        .from("pto_balances")
+        .select("employee_id, pto_type, balance_hours")
+        .eq("school_id", profile.school_id);
+
+      if (balErr) throw balErr;
+
+      const balanceMap: Record<string, Record<string, number>> = {};
+      (balances as any[]).forEach(b => {
+        if (!balanceMap[b.employee_id]) balanceMap[b.employee_id] = {};
+        balanceMap[b.employee_id][b.pto_type] = Number(b.balance_hours);
+      });
+
+      const { data: ledger, error: ledErr } = await admin
+        .from("pto_ledger")
+        .select("employee_id, pto_type, delta_hours, reason")
+        .eq("school_id", profile.school_id)
+        .gte("created_at", start_date)
+        .lte("created_at", end_date);
+
+      if (ledErr) throw ledErr;
+
+      type Summary = { allotted: number; used: number; adjusted: number; rollover: number; };
+      const summaryMap: Record<string, Record<string, Summary>> = {};
+
+      (ledger as any[]).forEach(l => {
+        const empId = l.employee_id;
+        const type = l.pto_type;
+        if (!summaryMap[empId]) summaryMap[empId] = {};
+        if (!summaryMap[empId][type]) summaryMap[empId][type] = { allotted: 0, used: 0, adjusted: 0, rollover: 0 };
+
+        const s = summaryMap[empId][type];
+        const hours = Number(l.delta_hours);
+        const reason: string = l.reason || "";
+
+        if (reason.includes("ANNUAL_ALLOTMENT")) {
+          s.allotted += hours;
+        } else if (reason === "REQUEST APPROVED") {
+          s.used += Math.abs(hours);
+        } else if (reason.includes("MANUAL_ADJUSTMENT")) {
+          s.adjusted += hours;
+        } else if (reason.includes("YEAR_END") && reason.includes("ROLLOVER") && hours > 0) {
+          s.rollover += hours;
+        }
+      });
+
+      const sheet = workbook.addWorksheet("Year-End Summary", {
+        views: [{ state: "frozen", ySplit: 1 }],
+      });
+
+      sheet.columns = [
+        { header: "Employee", key: "employee", width: 28 },
+        { header: "Employment", key: "employment", width: 14 },
+        { header: "PTO Type", key: "type", width: 14 },
+        { header: "Allotted (hrs)", key: "allotted", width: 14 },
+        { header: "Used (hrs)", key: "used", width: 12 },
+        { header: "Used (days)", key: "used_days", width: 12 },
+        { header: "Adjusted (hrs)", key: "adjusted", width: 14 },
+        { header: "Rollover Credited (hrs)", key: "rollover", width: 20 },
+        { header: "Current Balance (hrs)", key: "balance", width: 20 },
+        { header: "Current Balance (days)", key: "balance_days", width: 20 },
+      ];
+
+      sheet.getRow(1).font = { bold: true };
+
+      (employees as any[]).forEach(emp => {
+        const empBalances = balanceMap[emp.id] || {};
+        const empSummary = summaryMap[emp.id] || {};
+
+        const types = new Set([
+          ...Object.keys(empBalances),
+          ...Object.keys(empSummary),
+        ]);
+
+        types.forEach(type => {
+          const s = empSummary[type] || { allotted: 0, used: 0, adjusted: 0, rollover: 0 };
+          const balance = empBalances[type] ?? 0;
+
+          const row = sheet.addRow({
+            employee: `${emp.last_name}, ${emp.first_name}`,
+            employment: emp.employment_months ? `${emp.employment_months}-month` : "—",
+            type,
+            allotted: s.allotted,
+            used: s.used,
+            used_days: Number((s.used / workdayHours).toFixed(2)),
+            adjusted: s.adjusted,
+            rollover: s.rollover,
+            balance,
+            balance_days: Number((balance / workdayHours).toFixed(2)),
+          });
+
+          if (balance < 0) {
+            row.getCell("balance").font = { color: { argb: "FFDC2626" } };
+            row.getCell("balance_days").font = { color: { argb: "FFDC2626" } };
+          }
+        });
+      });
+
+      ["allotted", "used", "used_days", "adjusted", "rollover", "balance", "balance_days"].forEach(col => {
+        sheet.getColumn(col).numFmt = "0.00";
+      });
     }
 
     else {
@@ -293,9 +525,14 @@ const base64 = btoa(
   Array.from(uint8, byte => String.fromCharCode(byte)).join("")
 );
 
+const today = new Date().toISOString().slice(0, 10);
+const rangeLabel = (report_type !== "balances" && start_date && end_date)
+  ? `_${start_date}_to_${end_date}`
+  : `_as-of_${today}`;
+
 return new Response(
   JSON.stringify({
-    filename: `PTO_${report_type}.xlsx`,
+    filename: `PTO_${report_type}${rangeLabel}.xlsx`,
     file: base64,
   }),
   {

@@ -139,6 +139,11 @@
     ========================== -->
     <section id="view-calendar" class="panel panel-history sub-view">
       <h3>Schedule</h3>
+      <div style="display:flex; gap:16px; margin-bottom:10px; font-size:13px; align-items:center;">
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#2563eb;margin-right:5px;vertical-align:middle;"></span>Scheduled</span>
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#f59e0b;margin-right:5px;vertical-align:middle;"></span>Needs Coverage</span>
+        <span><span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:#ef4444;margin-right:5px;vertical-align:middle;"></span>Needs Cancellation</span>
+      </div>
       <div id="subs-calendar"></div>
     </section>
 
@@ -146,9 +151,23 @@
          DIRECTORY VIEW
     ========================== -->
     <section id="view-directory" class="panel panel-history sub-view">
-      <div class="row" style="justify-content:space-between; align-items:center;">
-        <h3 style="margin:0;">Substitutes</h3>
-        <button id="addSubBtn" class="btn btn-primary btn-sm">+ Add Substitute</button>
+      <div class="directory-header">
+        <div class="directory-filters">
+          <input id="subSearch" type="text" placeholder="Search substitutes…" />
+          <select id="subActiveFilter">
+            <option value="">All</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+          <select id="subSort">
+            <option value="last_name.asc">Last name (A–Z)</option>
+            <option value="last_name.desc">Last name (Z–A)</option>
+            <option value="first_name.asc">First name (A–Z)</option>
+          </select>
+        </div>
+        <div class="directory-actions">
+          <button id="addSubBtn" class="btn btn-primary btn-sm">+ Add Substitute</button>
+        </div>
       </div>
 
       <table id="subTable" style="margin-top:12px;">
@@ -398,19 +417,25 @@ async function loadSubstitutes() {
 
   tbody.innerHTML = '';
 
-  const { data, error } = await supabase
+  const search = document.getElementById('subSearch')?.value.trim() ?? '';
+  const activeFilter = document.getElementById('subActiveFilter')?.value ?? '';
+  const sortVal = document.getElementById('subSort')?.value ?? 'last_name.asc';
+  const [sortCol, sortDir] = sortVal.split('.');
+
+  let query = supabase
     .from('substitutes')
-    .select(`
-      id,
-      first_name,
-      last_name,
-      email,
-      phone,
-      notes,
-      active
-    `)
+    .select('id, first_name, last_name, email, phone, notes, active')
     .eq('school_id', currentProfile.school_id)
-    .order('last_name');
+    .order(sortCol, { ascending: sortDir === 'asc' });
+
+  if (search) {
+    query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+  }
+
+  if (activeFilter === 'true')  query = query.eq('active', true);
+  if (activeFilter === 'false') query = query.eq('active', false);
+
+  const { data, error } = await query;
 
   if (error) {
     console.error(error);
@@ -795,13 +820,20 @@ function initCalendar() {
         openAssignmentModalForDate(info.dateStr);
       },
 
-      // ✅ Click existing event → edit assignment
+      // ✅ Click existing event → route by type
       eventClick: function (info) {
-        // ✅ Prevent dateClick from also firing
         info.jsEvent.preventDefault();
         info.jsEvent.stopPropagation();
 
-        openEditAssignmentModal(info.event);
+        const type = info.event.extendedProps.eventType;
+
+        if (type === 'pending_coverage') {
+          openAssignFromPending(info.event.extendedProps.pendingRow);
+        } else if (type === 'pending_cancellation') {
+          cancelAssignment(info.event.extendedProps.assignment_id);
+        } else {
+          openEditAssignmentModal(info.event);
+        }
       },
 
       // ✅ Nice formatting for week/day views
@@ -936,92 +968,100 @@ if (coveredSelect) {
 
 async function fetchSubAssignments(info, success, failure) {
   try {
-    const { data, error } = await supabase
-      .from('substitute_assignments')
-      .select(`
-        id,
-        school_id,
-        pto_request_id,
-        covered_employee_id,
-        substitute_id,
-        employee_id,
-        start_date,
-        end_date,
-        start_time,
-        end_time,
-        reason,
-        status,
-
-        substitutes (
-          first_name,
-          last_name
-        ),
-
-        internal_coverage:employees!substitute_assignments_employee_id_fkey (
-          first_name,
-          last_name
-        ),
-
-        covered_employee:employees!substitute_assignments_covered_employee_id_fkey (
-          first_name,
-          last_name
-        ),
-
-        pto:pto_requests!substitute_assignments_pto_request_id_fkey (
+    const [assignResult, coverageResult, cancelResult] = await Promise.all([
+      supabase
+        .from('substitute_assignments')
+        .select(`
           id,
-          employees!pto_requests_employee_id_fkey (
+          school_id,
+          pto_request_id,
+          covered_employee_id,
+          substitute_id,
+          employee_id,
+          start_date,
+          end_date,
+          start_time,
+          end_time,
+          reason,
+          status,
+
+          substitutes (
             first_name,
             last_name
+          ),
+
+          internal_coverage:employees!substitute_assignments_employee_id_fkey (
+            first_name,
+            last_name
+          ),
+
+          covered_employee:employees!substitute_assignments_covered_employee_id_fkey (
+            first_name,
+            last_name
+          ),
+
+          pto:pto_requests!substitute_assignments_pto_request_id_fkey (
+            id,
+            employees!pto_requests_employee_id_fkey (
+              first_name,
+              last_name
+            )
           )
-        )
-      `)
-      .eq('school_id', currentProfile.school_id)
-  .eq('status', 'scheduled');
+        `)
+        .eq('school_id', currentProfile.school_id)
+        .eq('status', 'scheduled'),
 
+      supabase
+        .from('v_pending_coverage_days')
+        .select('*')
+        .eq('school_id', currentProfile.school_id)
+        .order('coverage_date'),
 
-    if (error) throw error;
+      supabase
+        .from('v_pending_cancellation_days')
+        .select('*')
+        .eq('school_id', currentProfile.school_id)
+        .eq('assignment_status', 'scheduled')
+        .order('coverage_date')
+    ]);
 
-    const events = (data || []).map(a => {
-      // Coverer name: substitute is primary; internal coverage otherwise
+    if (assignResult.error) throw assignResult.error;
+
+    const events = [];
+
+    // Scheduled assignments — blue
+    (assignResult.data || []).forEach(a => {
       const covererName = a.substitutes
         ? `${a.substitutes.first_name} ${a.substitutes.last_name}`
         : a.internal_coverage
           ? `${a.internal_coverage.first_name} ${a.internal_coverage.last_name}`
           : 'Coverage';
 
-      // Covered/out name:
-      // Prefer PTO out-employee; fallback to manual covered_employee_id
       const outName = a.pto?.employees
         ? `${a.pto.employees.first_name} ${a.pto.employees.last_name}`
         : a.covered_employee
           ? `${a.covered_employee.first_name} ${a.covered_employee.last_name}`
           : 'Unassigned';
 
-      const title = `${covererName} → ${outName}`;
+      const start = a.start_time ? `${a.start_date}T${a.start_time}` : a.start_date;
+      const end   = a.end_time   ? `${a.end_date}T${a.end_time}`     : a.end_date;
 
-      const start = a.start_time
-        ? `${a.start_date}T${a.start_time}`
-        : a.start_date;
-
-      const end = a.end_time
-        ? `${a.end_date}T${a.end_time}`
-        : a.end_date;
-
-      return {
+      events.push({
         id: a.id,
-        title,
+        title: `${covererName} → ${outName}`,
         start,
         end,
         allDay: !a.start_time,
         backgroundColor: '#2563eb',
         borderColor: '#2563eb',
         extendedProps: {
+          eventType: 'scheduled',
           id: a.id,
           pto_request_id: a.pto_request_id,
           substitute_id: a.substitute_id,
-          employee_id: a.employee_id, // internal coverage
+          employee_id: a.employee_id,
           covered_employee_id: a.covered_employee_id,
-          out_name: outName,          // store for modal display
+          out_name: outName,
           start_date: a.start_date,
           end_date: a.end_date,
           start_time: a.start_time,
@@ -1029,7 +1069,47 @@ async function fetchSubAssignments(info, success, failure) {
           reason: a.reason,
           status: a.status
         }
-      };
+      });
+    });
+
+    // Pending coverage — amber (needs substitute assigned)
+    (coverageResult.data || []).forEach(row => {
+      const start = row.start_time ? `${row.coverage_date}T${row.start_time}` : row.coverage_date;
+      const end   = row.end_time   ? `${row.coverage_date}T${row.end_time}`   : row.coverage_date;
+
+      events.push({
+        id: `pending_${row.pto_request_id}`,
+        title: `⚠ ${row.out_last_name}, ${row.out_first_name}`,
+        start,
+        end,
+        allDay: !row.start_time,
+        backgroundColor: '#f59e0b',
+        borderColor: '#d97706',
+        extendedProps: {
+          eventType: 'pending_coverage',
+          pendingRow: row
+        }
+      });
+    });
+
+    // Pending cancellations — red (assignment still scheduled but PTO cancelled)
+    (cancelResult.data || []).forEach(row => {
+      const start = row.start_time ? `${row.coverage_date}T${row.start_time}` : row.coverage_date;
+      const end   = row.end_time   ? `${row.coverage_date}T${row.end_time}`   : row.coverage_date;
+
+      events.push({
+        id: `cancel_${row.assignment_id}`,
+        title: `✕ ${row.out_last_name}, ${row.out_first_name}`,
+        start,
+        end,
+        allDay: !row.start_time,
+        backgroundColor: '#ef4444',
+        borderColor: '#dc2626',
+        extendedProps: {
+          eventType: 'pending_cancellation',
+          assignment_id: row.assignment_id
+        }
+      });
     });
 
     success(events);
@@ -1345,6 +1425,11 @@ document.getElementById('saveAssignBtn').addEventListener('click', async () => {
 
 
 // -------------------- INIT --------------------
+function debounce(fn, delay = 300) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+}
+
 await loadSubstitutes();
 
 let assignStartFp;
@@ -1372,6 +1457,13 @@ function initAssignDatePickers() {
 }
 
 
+
+document.getElementById('subSearch')
+  ?.addEventListener('input', debounce(() => loadSubstitutes()));
+document.getElementById('subActiveFilter')
+  ?.addEventListener('change', () => loadSubstitutes());
+document.getElementById('subSort')
+  ?.addEventListener('change', () => loadSubstitutes());
 
 initCalendar();
 setActiveView(location.hash);
