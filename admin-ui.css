@@ -888,8 +888,7 @@ table tr:hover {
 
   display: none;
   justify-content: center;
-  align-items: flex-start;
-  padding-top: 48px;
+  align-items: center;
 
   z-index: 1000;
 

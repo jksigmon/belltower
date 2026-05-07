@@ -2,6 +2,7 @@
 import { supabase } from './admin.supabase.js';
 
 let currentProfile;
+let currentModules = {};
 let initialized = false;
 
 /* ===============================
@@ -69,8 +70,9 @@ const ACCESS_ROLE_PRESETS = {
 /* ===============================
    ENTRY POINT
 ================================ */
-export async function initAccessSection(profile) {
+export async function initAccessSection(profile, modules = {}) {
   currentProfile = profile;
+  currentModules = modules;
 
   if (!currentProfile.can_manage_access && !currentProfile.is_superadmin) {
     alert('You are not authorized to manage user access.');
@@ -78,12 +80,27 @@ export async function initAccessSection(profile) {
   }
 
   if (!initialized) {
+    applyModuleGating();
     wireAccessEvents();
     initialized = true;
   }
 
   await loadAccessUserOptions();
   await loadPendingUsers();
+}
+
+function applyModuleGating() {
+  // Hide the entire PTO panel or individual operation labels when the module is disabled.
+  // Superadmin always sees everything.
+  if (currentProfile.is_superadmin) return;
+
+  document.querySelectorAll('#accessPermissions [data-module]').forEach(el => {
+    const mod = el.dataset.module;
+    // If the module row is absent (undefined) we default to visible.
+    if (currentModules[mod] === false) {
+      el.style.display = 'none';
+    }
+  });
 }
 
 /* ===============================

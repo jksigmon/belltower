@@ -18,6 +18,9 @@
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
 
+  <!-- SheetJS for export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
   <!-- Shared Admin UI -->
   <link rel="stylesheet" href="/admin-ui.css" />
   
@@ -127,6 +130,7 @@
   ❌ Pending Cancellations
   <span class="badge-count" id="subCancelCount"></span>
 </a>
+<a href="#history" data-view="history">📋 History</a>
 
   </nav>
 
@@ -236,6 +240,48 @@
       <div id="pendingCancelEmpty" class="empty-state" hidden>
         <div class="empty-title">No pending cancellations</div>
         <div class="empty-text">There are no future cancelled PTO days with active coverage.</div>
+      </div>
+    </section>
+
+    <!-- =========================
+         HISTORY VIEW
+    ========================== -->
+    <section id="view-history" class="panel panel-history sub-view">
+      <div class="directory-header">
+        <div class="directory-filters">
+          <input id="historyFrom" placeholder="From date" />
+          <input id="historyTo" placeholder="To date" />
+          <select id="historySubFilter">
+            <option value="">All substitutes</option>
+          </select>
+          <select id="historyStatusFilter">
+            <option value="">All statuses</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="directory-actions">
+          <button id="exportHistoryBtn" class="btn">Export</button>
+        </div>
+      </div>
+
+      <table id="historyTable" style="margin-top:12px; width:100%;">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Out</th>
+            <th>Covered By</th>
+            <th>Time</th>
+            <th>Reason</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="historyEmpty" class="empty-state" hidden>
+        <div class="empty-title">No assignments found</div>
+        <div class="empty-text">Try adjusting the date range or filters.</div>
       </div>
     </section>
 
@@ -393,12 +439,26 @@ document.getElementById('adminName').textContent =
   profile.display_name ?? profile.email;
 
 
-// ✅ PAGE GATE
+// ✅ CAPABILITY GATE
 if (
   !profile.is_superadmin &&
   profile.can_manage_substitutes !== true
 ) {
   window.location.href = '/unauthorized.html';
+}
+
+// ✅ MODULE GATE
+if (!profile.is_superadmin) {
+  const { data: subModule } = await supabase
+    .from('school_modules')
+    .select('enabled')
+    .eq('school_id', profile.school_id)
+    .eq('module', 'substitutes')
+    .maybeSingle();
+
+  if (subModule?.enabled === false) {
+    window.location.href = '/unauthorized.html';
+  }
 }
 
 if (
@@ -567,9 +627,9 @@ async function openAssignFromPending(row) {
   assignStartFp.setDate(row.coverage_date, true);
   assignEndFp.setDate(row.coverage_date, true);
 
-  // If partial-day PTO, carry times into assignment (optional)
-  assignStartTime.value = row.start_time ? row.start_time.slice(0,5) : '';
-  assignEndTime.value   = row.end_time ? row.end_time.slice(0,5) : '';
+  // If partial-day PTO, carry times into assignment
+  setTimePicker(assignStartTimeFp, row.start_time);
+  setTimePicker(assignEndTimeFp, row.end_time);
 
   assignReason.value = `PTO: ${row.out_first_name} ${row.out_last_name}`;
 
@@ -750,8 +810,8 @@ async function openEditAssignmentModal(event) {
   // Dates/times
   assignStartFp.setDate(a.start_date, true);
   assignEndFp.setDate(a.end_date, true);
-  assignStartTime.value = a.start_time ?? '';
-  assignEndTime.value = a.end_time ?? '';
+  setTimePicker(assignStartTimeFp, a.start_time);
+  setTimePicker(assignEndTimeFp, a.end_time);
   assignReason.value = a.reason ?? '';
 
   // Covered employee UI
@@ -861,9 +921,8 @@ async function openAssignmentModalForDate(dateStr) {
 
   assignStartFp.setDate(dateStr, true);
   assignEndFp.setDate(dateStr, true);
-
-  assignStartTime.value = '';
-  assignEndTime.value = '';
+  if (assignStartTimeFp) assignStartTimeFp.clear();
+  if (assignEndTimeFp) assignEndTimeFp.clear();
   assignReason.value = '';
 
 // Manual assignment: require selecting covered employee
@@ -881,7 +940,7 @@ if (coveredSelect) coveredSelect.value = '';
   openModal('assignModal');
 }
 
-function setActiveView(hash) {
+async function setActiveView(hash) {
   const view = (hash || '#calendar').replace('#', '');
 
   // Activate nav
@@ -890,7 +949,7 @@ function setActiveView(hash) {
   });
 
   // Show the right section
-  const ids = ['calendar', 'directory', 'pending', 'cancellations'];
+  const ids = ['calendar', 'directory', 'pending', 'cancellations', 'history'];
   ids.forEach(v => {
     const el = document.getElementById(`view-${v}`);
     if (!el) return;
@@ -901,6 +960,11 @@ function setActiveView(hash) {
   if (view === 'directory') loadSubstitutes();
   if (view === 'pending') loadPendingCoverage();
   if (view === 'cancellations') loadPendingCancellations();
+  if (view === 'history') {
+    initHistoryDatePickers();
+    await populateHistorySubFilter();
+    await loadHistory();
+  }
 
   // Calendar needs a resize after being shown
   if (view === 'calendar' && calendar) {
@@ -968,6 +1032,9 @@ if (coveredSelect) {
 
 async function fetchSubAssignments(info, success, failure) {
   try {
+    const rangeStart = info.start.toISOString().slice(0, 10);
+    const rangeEnd   = info.end.toISOString().slice(0, 10);
+
     const [assignResult, coverageResult, cancelResult] = await Promise.all([
       supabase
         .from('substitute_assignments')
@@ -1009,12 +1076,16 @@ async function fetchSubAssignments(info, success, failure) {
           )
         `)
         .eq('school_id', currentProfile.school_id)
-        .eq('status', 'scheduled'),
+        .eq('status', 'scheduled')
+        .lte('start_date', rangeEnd)
+        .gte('end_date', rangeStart),
 
       supabase
         .from('v_pending_coverage_days')
         .select('*')
         .eq('school_id', currentProfile.school_id)
+        .gte('coverage_date', rangeStart)
+        .lte('coverage_date', rangeEnd)
         .order('coverage_date'),
 
       supabase
@@ -1022,6 +1093,8 @@ async function fetchSubAssignments(info, success, failure) {
         .select('*')
         .eq('school_id', currentProfile.school_id)
         .eq('assignment_status', 'scheduled')
+        .gte('coverage_date', rangeStart)
+        .lte('coverage_date', rangeEnd)
         .order('coverage_date')
     ]);
 
@@ -1122,11 +1195,11 @@ async function fetchSubAssignments(info, success, failure) {
 function clearAssignmentModal() {
   if (assignStartFp) assignStartFp.clear();
   if (assignEndFp) assignEndFp.clear();
+  if (assignStartTimeFp) assignStartTimeFp.clear();
+  if (assignEndTimeFp) assignEndTimeFp.clear();
 
   assignSub.value = '';
   assignEmployee.value = '';
-  assignStartTime.value = '';
-  assignEndTime.value = '';
   assignReason.value = '';
 
   const coveredText = document.getElementById('assignCoveredEmployeeText');
@@ -1348,6 +1421,7 @@ document.getElementById('saveSubBtn').addEventListener('click', async () => {
 
   clearSubModal();
   closeModal('subModal');
+  assignmentDropdownsLoaded = false; // force dropdown refresh so new sub appears
   loadSubstitutes();
 });
 
@@ -1424,6 +1498,180 @@ document.getElementById('saveAssignBtn').addEventListener('click', async () => {
 
 
 
+// -------------------- HISTORY --------------------
+
+let historyFromFp, historyToFp;
+let historyDatePickersInitialized = false;
+let historySubsLoaded = false;
+let historyLoadSeq = 0;
+
+function initHistoryDatePickers() {
+  if (historyDatePickersInitialized) return;
+
+  historyFromFp = flatpickr('#historyFrom', {
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'm/d/Y',
+    allowInput: true,
+    onChange: () => loadHistory()
+  });
+
+  historyToFp = flatpickr('#historyTo', {
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'm/d/Y',
+    allowInput: true,
+    onChange: () => loadHistory()
+  });
+
+  // Set defaults WITHOUT triggering onChange (no second arg = no event)
+  const today = new Date();
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(today.getDate() - 90);
+  historyFromFp.setDate(ninetyDaysAgo);
+  historyToFp.setDate(today);
+
+  historyDatePickersInitialized = true;
+}
+
+async function populateHistorySubFilter() {
+  if (historySubsLoaded) return;
+
+  const select = document.getElementById('historySubFilter');
+  if (!select) return;
+
+  const { data } = await supabase
+    .from('substitutes')
+    .select('id, first_name, last_name')
+    .eq('school_id', currentProfile.school_id)
+    .order('last_name');
+
+  (data || []).forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = `${s.last_name}, ${s.first_name}`;
+    select.appendChild(opt);
+  });
+
+  historySubsLoaded = true;
+}
+
+async function loadHistory() {
+  const loadId = ++historyLoadSeq;
+
+  const tbody = document.querySelector('#historyTable tbody');
+  const empty = document.getElementById('historyEmpty');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+  empty.hidden = true;
+
+  const fromDate    = document.getElementById('historyFrom')?.value;
+  const toDate      = document.getElementById('historyTo')?.value;
+  const subFilter   = document.getElementById('historySubFilter')?.value;
+  const statusFilter = document.getElementById('historyStatusFilter')?.value;
+
+  let query = supabase
+    .from('substitute_assignments')
+    .select(`
+      id,
+      start_date,
+      end_date,
+      start_time,
+      end_time,
+      reason,
+      status,
+      substitutes ( first_name, last_name ),
+      internal_coverage:employees!substitute_assignments_employee_id_fkey ( first_name, last_name ),
+      covered_employee:employees!substitute_assignments_covered_employee_id_fkey ( first_name, last_name ),
+      pto:pto_requests!substitute_assignments_pto_request_id_fkey (
+        employees!pto_requests_employee_id_fkey ( first_name, last_name )
+      )
+    `)
+    .eq('school_id', currentProfile.school_id)
+    .order('start_date', { ascending: false });
+
+  if (fromDate)     query = query.gte('start_date', fromDate);
+  if (toDate)       query = query.lte('start_date', toDate);
+  if (subFilter)    query = query.eq('substitute_id', subFilter);
+  if (statusFilter) query = query.eq('status', statusFilter);
+
+  const { data, error } = await query;
+
+  if (loadId !== historyLoadSeq) return; // discard stale response
+
+  if (error) {
+    console.error('History load failed:', error);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    empty.hidden = false;
+    return;
+  }
+
+  data.forEach(row => tbody.appendChild(renderHistoryRow(row)));
+}
+
+function renderHistoryRow(a) {
+  const covererName = a.substitutes
+    ? `${a.substitutes.last_name}, ${a.substitutes.first_name}`
+    : a.internal_coverage
+      ? `${a.internal_coverage.last_name}, ${a.internal_coverage.first_name} (internal)`
+      : '—';
+
+  const outName = a.pto?.employees
+    ? `${a.pto.employees.last_name}, ${a.pto.employees.first_name}`
+    : a.covered_employee
+      ? `${a.covered_employee.last_name}, ${a.covered_employee.first_name}`
+      : '—';
+
+  const dateText = a.start_date === a.end_date
+    ? a.start_date
+    : `${a.start_date} – ${a.end_date}`;
+
+  const timeText = (a.start_time && a.end_time)
+    ? `${a.start_time.slice(0,5)}–${a.end_time.slice(0,5)}`
+    : 'Full day';
+
+  const statusColor = a.status === 'cancelled'
+    ? 'color:#ef4444; font-weight:600;'
+    : 'color:#16a34a; font-weight:600;';
+
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${dateText}</td>
+    <td>${outName}</td>
+    <td>${covererName}</td>
+    <td>${timeText}</td>
+    <td>${a.reason ?? '—'}</td>
+    <td><span style="${statusColor}">${a.status}</span></td>
+  `;
+  return tr;
+}
+
+function exportHistory() {
+  const rows = [];
+  document.querySelectorAll('#historyTable tbody tr').forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    rows.push({
+      'Date':        cells[0]?.textContent.trim(),
+      'Out':         cells[1]?.textContent.trim(),
+      'Covered By':  cells[2]?.textContent.trim(),
+      'Time':        cells[3]?.textContent.trim(),
+      'Reason':      cells[4]?.textContent.trim(),
+      'Status':      cells[5]?.textContent.trim()
+    });
+  });
+
+  if (!rows.length) { alert('No rows to export.'); return; }
+
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Assignments');
+  XLSX.writeFile(wb, `sub-history-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
 // -------------------- INIT --------------------
 function debounce(fn, delay = 300) {
   let t;
@@ -1434,6 +1682,8 @@ await loadSubstitutes();
 
 let assignStartFp;
 let assignEndFp;
+let assignStartTimeFp;
+let assignEndTimeFp;
 let assignDatePickersInitialized = false;
 
 function initAssignDatePickers() {
@@ -1453,7 +1703,31 @@ function initAssignDatePickers() {
     allowInput: true
   });
 
+  assignStartTimeFp = flatpickr('#assignStartTime', {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: 'H:i',
+    altInput: true,
+    altFormat: 'h:i K',
+    time_24hr: false
+  });
+
+  assignEndTimeFp = flatpickr('#assignEndTime', {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: 'H:i',
+    altInput: true,
+    altFormat: 'h:i K',
+    time_24hr: false
+  });
+
   assignDatePickersInitialized = true;
+}
+
+function setTimePicker(fp, timeStr) {
+  if (!fp) return;
+  if (timeStr) fp.setDate(timeStr.slice(0, 5), true);
+  else fp.clear();
 }
 
 
@@ -1464,6 +1738,13 @@ document.getElementById('subActiveFilter')
   ?.addEventListener('change', () => loadSubstitutes());
 document.getElementById('subSort')
   ?.addEventListener('change', () => loadSubstitutes());
+
+document.getElementById('historySubFilter')
+  ?.addEventListener('change', () => loadHistory());
+document.getElementById('historyStatusFilter')
+  ?.addEventListener('change', () => loadHistory());
+document.getElementById('exportHistoryBtn')
+  ?.addEventListener('click', exportHistory);
 
 initCalendar();
 setActiveView(location.hash);

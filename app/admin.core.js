@@ -1,6 +1,7 @@
 import { supabase } from './admin.supabase.js';
 
 let currentProfile = null;
+let currentModules = {}; // { pto: true, substitutes: false, ... }
 
 /* ===============================
    INIT
@@ -37,6 +38,15 @@ const { data: profile, error } = await supabase
 
   currentProfile = profile;
 
+  // Load school modules before gating nav
+  const { data: moduleRows } = await supabase
+    .from('school_modules')
+    .select('module, enabled')
+    .eq('school_id', profile.school_id);
+
+  currentModules = {};
+  (moduleRows || []).forEach(r => { currentModules[r.module] = r.enabled; });
+
 document.getElementById('dashboardUser').textContent =
   currentProfile.display_name ?? currentProfile.email;
 
@@ -49,7 +59,7 @@ document.getElementById('dashboardSchool').textContent =
     pendingNotice.style.display = 'block';
   }
 
-  // Apply permissions before anything is visible
+  // Apply permissions + module gates before anything is visible
   gateNavigation();
 
   // Resolve initial route FIRST
@@ -119,7 +129,7 @@ if (target === '#bus') {
 
 if (target === '#access') {
   const access = await import('./admin.access.js');
-  await access.initAccessSection(currentProfile);
+  await access.initAccessSection(currentProfile, currentModules);
 }
 
 if (target === '#bulk-upload') {
@@ -137,11 +147,21 @@ if (target === '#exports') {
 /* ===============================
    NAV GATING
 ================================ */
+function moduleEnabled(mod) {
+  // Superadmin bypasses all module gates.
+  // If no row exists for the module, default to enabled (safe for legacy schools).
+  if (currentProfile.is_superadmin) return true;
+  if (!mod) return true;
+  return currentModules[mod] !== false;
+}
+
 function gateNavigation() {
-  // Individual capability-gated links
+  // Individual capability-gated links (may also carry data-module)
   document.querySelectorAll('nav a[data-cap]').forEach(link => {
     const cap = link.dataset.cap;
-    if (currentProfile.is_superadmin || currentProfile[cap]) {
+    const mod = link.dataset.module;
+    const hasCap = currentProfile.is_superadmin || currentProfile[cap];
+    if (hasCap && moduleEnabled(mod)) {
       link.style.display = 'flex';
     } else {
       link.remove();
@@ -150,6 +170,7 @@ function gateNavigation() {
 
   // PTO grouped module
   document.querySelectorAll('nav a[data-cap-group="pto"]').forEach(link => {
+    if (!moduleEnabled('pto')) { link.remove(); return; }
     if (
       currentProfile.is_superadmin ||
       currentProfile.can_view_pto_calendar ||
@@ -163,19 +184,15 @@ function gateNavigation() {
     }
   });
 
-  // ✅ Substitutes grouped module
-  document
-    .querySelectorAll('nav a[data-cap-group="substitutes"]')
-    .forEach(link => {
-      if (
-        currentProfile.is_superadmin ||
-        currentProfile.can_manage_substitutes === true
-      ) {
-        link.style.display = 'flex';
-      } else {
-        link.remove();
-      }
-    });
+  // Substitutes grouped module
+  document.querySelectorAll('nav a[data-cap-group="substitutes"]').forEach(link => {
+    if (!moduleEnabled('substitutes')) { link.remove(); return; }
+    if (currentProfile.is_superadmin || currentProfile.can_manage_substitutes === true) {
+      link.style.display = 'flex';
+    } else {
+      link.remove();
+    }
+  });
 }
 
 
