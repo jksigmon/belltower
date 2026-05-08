@@ -93,6 +93,9 @@
 
 <header>
   <div class="header-left">
+    <button id="hamburgerBtn" class="hamburger-btn" aria-label="Open navigation">
+      <span></span><span></span><span></span>
+    </button>
     <a
       id="backToAdmin"
       href="/admin.html"
@@ -117,6 +120,8 @@
     <button id="signOut" class="btn">Sign out</button>
   </div>
 </header>
+
+<div id="navOverlay" class="nav-overlay"></div>
 
 <div class="wrap">
   <nav>
@@ -1751,6 +1756,7 @@ setActiveView(location.hash);
 await loadSubRequestCounts();
 wireExclusiveCovererSelects();
 </script>
+<script src="/app/nav-mobile.js"></script>
 
 </body>
 </html>

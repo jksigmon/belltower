@@ -23,28 +23,28 @@
 <body class="admin-page">
   
 <header>
-  <!-- LEFT: optional utility -->
-  <div>
-    <!-- You can add Back to Staff later if needed -->
+  <div class="header-left">
+    <button id="hamburgerBtn" class="hamburger-btn" aria-label="Open navigation">
+      <span></span><span></span><span></span>
+    </button>
   </div>
 
-  <!-- CENTER: Product identity -->
- 
-<div class="page-header">
-  <img
-    src="/images/belltower-logo.png"
-    alt="Belltower"
-    class="admin-logo"
-  />
-  <div class="page-subtitle">Administration</div>
-</div>
+  <div class="page-header">
+    <img
+      src="/images/belltower-logo.png"
+      alt="Belltower"
+      class="admin-logo"
+    />
+    <div class="page-subtitle">Administration</div>
+  </div>
 
-  <!-- RIGHT: Admin actions -->
   <div class="header-actions">
     <span id="adminName" class="muted"></span>
     <button id="signOut" class="btn">Sign out</button>
   </div>
 </header>
+
+<div id="navOverlay" class="nav-overlay"></div>
 
   <div class="wrap">
     <nav id="adminNav" class="nav hidden">
@@ -621,6 +621,9 @@
   <div class="admin-content fade-in">
     <div class="panel panel-action">
       <h3>Bulk Upload</h3>
+      <div class="mobile-notice">
+        Bulk upload works best on a desktop browser. You can still download templates and review history here.
+      </div>
 
       <!-- Template downloads -->
       <div class="row" style="gap:12px; margin-bottom:12px;">
@@ -752,5 +755,6 @@
  </main>
  </div>
 <script type="module" src="/app/admin.core.js"></script>
+<script src="/app/nav-mobile.js"></script>
  </body>
 </html>

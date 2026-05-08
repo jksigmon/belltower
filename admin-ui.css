@@ -1931,3 +1931,212 @@ nav a[data-cap-group] {
   min-width: 160px;
 }
 
+
+/* ===================================================================
+   MOBILE — hamburger + drawer (base styles, hidden on desktop)
+   =================================================================== */
+
+.hamburger-btn {
+  display: none;
+}
+
+.nav-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 199;
+}
+
+.mobile-notice {
+  display: none;
+}
+
+
+/* ===================================================================
+   MOBILE — @media (max-width: 767px)
+   =================================================================== */
+
+@media (max-width: 767px) {
+
+  /* --- Hamburger button --- */
+  .hamburger-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .hamburger-btn span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: #ffffff;
+    border-radius: 2px;
+    transition: transform 0.22s ease, opacity 0.22s ease;
+  }
+
+  body.nav-open .hamburger-btn span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+  body.nav-open .hamburger-btn span:nth-child(2) {
+    opacity: 0;
+  }
+  body.nav-open .hamburger-btn span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  /* --- Nav overlay backdrop --- */
+  body.nav-open .nav-overlay {
+    display: block;
+  }
+
+  /* --- Slide-out nav drawer --- */
+  .wrap > nav,
+  #adminNav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 270px;
+    height: 100vh;
+    z-index: 200;
+    overflow-y: auto;
+    padding: 20px 10px 10px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    border-right: none;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+  }
+
+  body.nav-open .wrap > nav,
+  body.nav-open #adminNav {
+    transform: translateX(0);
+  }
+
+  /* --- Collapse two-column grid to single column --- */
+  .wrap {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* --- Header: compact on mobile --- */
+  .page-subtitle {
+    display: none;
+  }
+
+  header .muted {
+    display: none;
+  }
+
+  .admin-logo {
+    height: 32px;
+    transform: scale(1.6);
+  }
+
+  .header-left {
+    min-width: unset;
+    gap: 8px;
+  }
+
+  /* Hide the back-to-admin link on mobile (use browser back) */
+  .header-left .btn-admin {
+    display: none;
+  }
+
+  /* Remove nav link hover transform on touch devices */
+  nav a:hover {
+    transform: none;
+  }
+
+  /* --- Table horizontal scroll (admin/substitutes/pto pages) --- */
+  .panel {
+    overflow-x: auto;
+  }
+
+  /* Don't min-width the PTO history table (it gets card layout below) */
+  .panel table {
+    min-width: 480px;
+  }
+
+  /* --- PTO history card layout (staff.html) --- */
+  #ptoHistoryTable {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+  }
+
+  #ptoHistoryTable thead {
+    display: none;
+  }
+
+  #ptoHistoryTable tbody tr {
+    display: grid;
+    grid-template-areas:
+      "type   status"
+      "dates  dates"
+      "hours  submitted"
+      "notes  notes"
+      "action action";
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  #ptoHistoryTable tbody tr td {
+    display: block;
+    padding: 3px 0;
+    border: none !important;
+    font-size: 13px;
+  }
+
+  #ptoHistoryTable tbody tr td:nth-child(1) { grid-area: type;      font-weight: 600; }
+  #ptoHistoryTable tbody tr td:nth-child(2) { grid-area: dates; }
+  #ptoHistoryTable tbody tr td:nth-child(3) { grid-area: hours; }
+  #ptoHistoryTable tbody tr td:nth-child(4) { grid-area: notes;     color: #6b7280; font-size: 12px; }
+  #ptoHistoryTable tbody tr td:nth-child(5) { grid-area: status;    text-align: right; }
+  #ptoHistoryTable tbody tr td:nth-child(6) { grid-area: submitted; text-align: right; font-size: 12px; color: #6b7280; }
+  #ptoHistoryTable tbody tr td:nth-child(7) { grid-area: action; }
+
+  #ptoHistoryTable tbody tr td::before {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+
+  #ptoHistoryTable tbody tr td:nth-child(1)::before { content: "Type"; }
+  #ptoHistoryTable tbody tr td:nth-child(2)::before { content: "Dates"; }
+  #ptoHistoryTable tbody tr td:nth-child(3)::before { content: "Hours"; }
+  #ptoHistoryTable tbody tr td:nth-child(4)::before { content: "Notes"; }
+  #ptoHistoryTable tbody tr td:nth-child(5)::before { content: "Status"; }
+  #ptoHistoryTable tbody tr td:nth-child(6)::before { content: "Submitted"; }
+  #ptoHistoryTable tbody tr td:nth-child(7)::before { content: ""; }
+
+  /* --- Bulk upload mobile notice --- */
+  .mobile-notice {
+    display: block;
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+}
+

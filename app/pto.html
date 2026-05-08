@@ -35,15 +35,15 @@
 <header>
 
 <div class="header-left">
+  <button id="hamburgerBtn" class="hamburger-btn" aria-label="Open navigation">
+    <span></span><span></span><span></span>
+  </button>
   <a id="backToAdmin"
      href="/admin.html"
      class="btn btn-admin">
     ← Back to Admin
   </a>
 </div>
-
-
-  <!-- Center: Product -->
 
 <div class="page-header">
   <img
@@ -54,13 +54,13 @@
   <div class="page-subtitle">PTO Management</div>
 </div>
 
-
-  <!-- Right: User actions -->
   <div class="header-actions">
     <span id="adminName" class="muted"></span>
     <button id="signOut" class="btn">Sign out</button>
   </div>
 </header>
+
+<div id="navOverlay" class="nav-overlay"></div>
 
 <div class="wrap">
 
@@ -3004,5 +3004,6 @@ document.getElementById('downloadCommittedBtn')
 
 
   </script>
+<script src="/app/nav-mobile.js"></script>
 </body>
 </html>

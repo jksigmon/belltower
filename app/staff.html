@@ -77,15 +77,16 @@
 <body class="admin-page staff-page">
 <header>
 
-
 <div class="header-left">
+  <button id="hamburgerBtn" class="hamburger-btn" aria-label="Open navigation">
+    <span></span><span></span><span></span>
+  </button>
   <a id="backToAdmin"
      href="/admin.html"
      class="btn btn-admin">
     ← Back to Admin
   </a>
 </div>
-
 
 <div class="page-header">
   <img
@@ -98,13 +99,14 @@
   </div>
 </div>
 
-  
 <div class="header-actions">
   <span id="staffName" class="muted"></span>
   <button id="signOut" class="btn">Sign out</button>
 </div>
 
 </header>
+
+<div id="navOverlay" class="nav-overlay"></div>
 
 <div class="wrap">
 
@@ -1551,8 +1553,7 @@ if (past) {
   </div>
 </div>
 
-
-
+<script src="/app/nav-mobile.js"></script>
 
 </body>
 </html>
