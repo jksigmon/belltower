@@ -67,9 +67,84 @@
 }
 
 .pto-form.partial-day-active .pto-form-row-conditional {
-  display: flex; /* matches your row layout */
+  display: flex;
 }
 
+/* Mid-range: wrap the main row so notes + submit don't get cut off */
+@media (max-width: 1050px) {
+  .pto-form-row-main {
+    flex-wrap: wrap;
+  }
+
+  #ptoNotes {
+    flex: 1 1 200px;
+    min-width: 0;
+  }
+
+  #submitPtoRequest {
+    flex-shrink: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  /*
+   * display:contents on the main row "dissolves" it so its children
+   * become direct grid items of .pto-form. This lets us interleave
+   * the conditional row (Start/End) between Notes and Submit.
+   */
+  .pto-form-row-main {
+    display: contents;
+  }
+
+  .pto-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "coverage  coverage"
+      "type      date"
+      "dur       dur"
+      "notes     notes"
+      "cond      cond"
+      "submit    submit";
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  /* Assign each field to its grid area */
+  #subCoverageWrap              { grid-area: coverage; }
+  #ptoType                      { grid-area: type; }
+  #ptoDateRange                 { grid-area: date; }
+  .pto-form-row-main > label    { grid-area: dur; display: flex; align-items: center; gap: 8px; }
+  .pto-form-row-main > label select { flex: 1; }
+  #ptoNotes                     { grid-area: notes; flex: unset; }
+  .pto-form-row-conditional     { grid-area: cond; }
+  #submitPtoRequest             { grid-area: submit; width: 100%; }
+
+  /* Conditional row internals: Start and End side by side */
+  .pto-form-row-conditional {
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: flex-start;
+  }
+
+  .pto-form-row-conditional > label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 130px;
+  }
+
+  .pto-form-row-conditional > label select {
+    width: 100%;
+  }
+
+  #ptoComputedHours {
+    width: 100%;
+    margin-left: 0;
+    flex-basis: 100%;
+  }
+}
 
   </style>
  </head>
