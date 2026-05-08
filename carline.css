@@ -184,6 +184,7 @@ html, body {
   align-items: center;
 }
 .cl-signout-btn:hover { background: rgba(255,255,255,0.22); }
+.cl-signout-btn svg { flex-shrink: 0; }
 
 .cl-dismiss-btn {
   height: 36px;
@@ -817,10 +818,21 @@ html, body {
    DISPLAY PAGE — MOBILE LAYOUT (≤ 767px)
 ================================================ */
 @media (max-width: 767px) {
-  /* Slim down the display header */
+  /* Fix display header flex so school name shrinks instead of pushing buttons off */
+  #clHeader .cl-header-left   { flex: 1; min-width: 0; overflow: hidden; }
+  #clHeader .cl-header-spacer { display: none; }
+  #clHeader .cl-header-right  { flex-shrink: 0; }
+
+  /* Hide non-essential header items */
   .cl-event-date    { display: none; }
-  .cl-input-link-btn{ display: none; }
   #btnFullscreen    { display: none; }
+  #clHeader #btnDarkMode { display: none; }
+
+  /* Button labels hidden on mobile — leave icons only */
+  .cl-btn-label { display: none; }
+
+  /* Input Page link: show as icon-only (📱) */
+  .cl-input-link-btn { padding: 0; width: 36px; justify-content: center; }
 
   /* Show tab bar (when not [hidden]) */
   #displayTabBar { display: flex; }
