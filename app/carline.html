@@ -50,6 +50,22 @@
     <div class="cl-bar-spacer"></div>
   </div>
 
+  <!-- Mobile tab bar (visible on small screens when event is active) -->
+  <div id="displayTabBar" hidden>
+    <button class="cl-tab-btn waiting active" data-tab="waiting">
+      <span class="cl-tab-count" id="tabCountWaiting">0</span>
+      Waiting
+    </button>
+    <button class="cl-tab-btn called" data-tab="called">
+      <span class="cl-tab-count" id="tabCountCalled">0</span>
+      Called
+    </button>
+    <button class="cl-tab-btn recalled" data-tab="recalled">
+      <span class="cl-tab-count" id="tabCountRecalled">0</span>
+      Recalled
+    </button>
+  </div>
+
   <!-- No active event state -->
   <div id="displayNoEvent" class="cl-no-event" hidden>
     <h2>No Active Dismissal</h2>
@@ -58,8 +74,8 @@
   </div>
 
   <!-- 3-column grid -->
-  <div id="displayGrid" hidden>
-    <div class="cl-status-col">
+  <div id="displayGrid" data-active-tab="waiting" hidden>
+    <div class="cl-status-col" data-tab="waiting">
       <div class="cl-status-col-hdr waiting">
         <span class="cl-col-title">Waiting</span>
         <span class="cl-col-badge" id="countWaiting">0</span>
@@ -69,7 +85,7 @@
       </div>
     </div>
 
-    <div class="cl-status-col">
+    <div class="cl-status-col" data-tab="called">
       <div class="cl-status-col-hdr called">
         <span class="cl-col-title">Called</span>
         <span class="cl-col-badge" id="countCalled">0</span>
@@ -79,7 +95,7 @@
       </div>
     </div>
 
-    <div class="cl-status-col">
+    <div class="cl-status-col" data-tab="recalled">
       <div class="cl-status-col-hdr recalled">
         <span class="cl-col-title">Recalled</span>
         <span class="cl-col-badge" id="countRecalled">0</span>
@@ -110,6 +126,7 @@ let eventPollTimer   = null;
 let callsPollTimer   = null;
 let audioCtx         = null;
 let toastTimer       = null;
+const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
 
 // ─── Boot ─────────────────────────────────────────────────────────────
 async function boot() {
@@ -237,6 +254,13 @@ async function closeDismissal() {
   showToast('Dismissal closed');
 }
 
+function setActiveTab(tab) {
+  document.getElementById('displayGrid').dataset.activeTab = tab;
+  document.querySelectorAll('.cl-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+}
+
 function updateEventUI() {
   const hasEvent  = !!currentEvent;
   const isOpen    = hasEvent && currentEvent.status !== 'CLOSED';
@@ -244,6 +268,7 @@ function updateEventUI() {
 
   document.getElementById('displayNoEvent').hidden = hasEvent;
   document.getElementById('displayGrid').hidden    = !hasEvent;
+  document.getElementById('displayTabBar').hidden  = !hasEvent;
 
   const badge = document.getElementById('clStatusBadge');
   badge.textContent = isOpen ? 'OPEN' : 'CLOSED';
@@ -372,9 +397,12 @@ function renderColumns() {
   renderColumn('bodyCalled',  'emptyCalled',  called,  'called',  multi, 'No students called yet');
   renderColumn('bodyRecalled','emptyRecalled',recalled,'recalled', multi, '—');
 
-  document.getElementById('countWaiting').textContent  = waiting.length;
-  document.getElementById('countCalled').textContent   = called.length;
-  document.getElementById('countRecalled').textContent = recalled.length;
+  document.getElementById('countWaiting').textContent    = waiting.length;
+  document.getElementById('countCalled').textContent     = called.length;
+  document.getElementById('countRecalled').textContent   = recalled.length;
+  document.getElementById('tabCountWaiting').textContent  = waiting.length;
+  document.getElementById('tabCountCalled').textContent   = called.length;
+  document.getElementById('tabCountRecalled').textContent = recalled.length;
 }
 
 function renderColumn(bodyId, emptyId, students, statusClass, multi, emptyMsg) {
@@ -449,8 +477,8 @@ function setupRealtime() {
       if (r.called_at) calledAt.set(r.student_id, r.called_at);
 
       const changed = r.status !== prev;
-      if (r.status === 'CALLED'   && changed) { playCallSound();   }
-      if (r.status === 'RECALLED' && changed) { playRecallSound(); }
+      if (r.status === 'CALLED'   && changed) { playCallSound();   if (isMobile()) setActiveTab('called');   }
+      if (r.status === 'RECALLED' && changed) { playRecallSound(); if (isMobile()) setActiveTab('recalled'); }
 
       renderColumns();
       if (r.student_id) flashCard(`card-${r.student_id}`, r.status);
@@ -615,6 +643,9 @@ function wireEvents() {
   document.getElementById('btnStartDismissal').addEventListener('click', startDismissal);
   document.getElementById('btnStartNoEvent').addEventListener('click', startDismissal);
   document.getElementById('btnCloseDismissal').addEventListener('click', closeDismissal);
+  document.querySelectorAll('.cl-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+  });
   document.getElementById('btnAddClass').addEventListener('click', e => {
     e.stopPropagation();
     const dd = document.getElementById('classDropdown');

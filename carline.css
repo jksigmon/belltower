@@ -491,7 +491,12 @@ html, body {
   gap: 10px;
   height: 56px;
   flex-shrink: 0;
+  overflow: hidden;
 }
+/* Always let school name flex-shrink so buttons on right never overflow */
+#inputHeader .cl-header-left  { flex: 1; min-width: 0; overflow: hidden; }
+#inputHeader .cl-header-spacer { display: none; }
+#inputHeader .cl-header-right  { flex-shrink: 0; }
 
 #inputHeader .cl-school-name { font-size: 14px; }
 
@@ -764,6 +769,88 @@ html, body {
 .cl-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 /* ================================================
+   DISPLAY PAGE — MOBILE TAB BAR
+================================================ */
+#displayTabBar {
+  display: none; /* shown only by mobile media query below */
+  background: var(--cl-surface);
+  border-bottom: 1px solid var(--cl-border);
+  flex-shrink: 0;
+}
+.cl-tab-btn {
+  flex: 1;
+  padding: 8px 4px 10px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--cl-text-muted);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  transition: color 120ms, border-color 120ms;
+  -webkit-tap-highlight-color: transparent;
+}
+.cl-tab-count {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.cl-tab-btn.waiting.active { color: var(--cl-waiting-hdr); border-bottom-color: var(--cl-waiting-hdr); }
+.cl-tab-btn.called.active  { color: var(--cl-called-hdr);  border-bottom-color: var(--cl-called-hdr); }
+.cl-tab-btn.recalled.active{ color: var(--cl-recalled-hdr);border-bottom-color: var(--cl-recalled-hdr);}
+
+/* ================================================
+   DISPLAY PAGE — MOBILE LAYOUT (≤ 767px)
+================================================ */
+@media (max-width: 767px) {
+  /* Slim down the display header */
+  .cl-event-date    { display: none; }
+  .cl-input-link-btn{ display: none; }
+  #btnFullscreen    { display: none; }
+
+  /* Show tab bar (when not [hidden]) */
+  #displayTabBar { display: flex; }
+
+  /* Grid becomes single-column tab panel */
+  #displayGrid {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0;
+  }
+  .cl-status-col {
+    display: none;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    border-bottom: none;
+  }
+  #displayGrid[data-active-tab="waiting"]  .cl-status-col[data-tab="waiting"],
+  #displayGrid[data-active-tab="called"]   .cl-status-col[data-tab="called"],
+  #displayGrid[data-active-tab="recalled"] .cl-status-col[data-tab="recalled"] {
+    display: flex;
+  }
+
+  /* Hide the column header (tab bar replaces it) */
+  .cl-status-col-hdr { display: none; }
+
+  /* Column body fills remaining screen */
+  .cl-status-col-body { flex: 1; padding: 10px; }
+
+  /* Larger cards on mobile */
+  .cl-card-name { font-size: 17px; }
+  .cl-card-tag  { font-size: 13px; }
+  .cl-student-card { padding: 12px 14px; }
+}
+
+/* ================================================
    INPUT PAGE — DESKTOP RESPONSIVE
    On larger screens, center the app as a card
 ================================================ */
@@ -792,16 +879,7 @@ html, body {
   }
   #inputHeader {
     border-radius: 14px 14px 0 0;
-    /* Let school name shrink so right-side buttons always fit */
-    overflow: hidden;
   }
-  #inputHeader .cl-header-left {
-    flex: 1;
-    min-width: 0;
-    overflow: hidden;
-  }
-  #inputHeader .cl-header-spacer { display: none; }
-  #inputHeader .cl-header-right  { flex-shrink: 0; }
   .inp-tag-display {
     font-size: 36px;
     min-height: 66px;
