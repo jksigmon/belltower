@@ -37,6 +37,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 24px 16px;
 
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 
@@ -158,18 +159,23 @@
     /* ======================================================
        MOBILE TWEAKS
     ====================================================== */
-    @media (max-width: 480px) {
+    @media (max-width: 767px) {
       .auth-card {
-        padding: 2rem 1.75rem;
+        padding: 2rem 1.5rem;
         border-radius: 14px;
       }
 
       .auth-logo {
-        transform: scale(1.7);
+        transform: scale(1.6);
       }
 
       .auth-card h1 {
-        font-size: 1.35rem;
+        font-size: 1.3rem;
+      }
+
+      .auth-card p {
+        font-size: 0.88rem;
+        margin-bottom: 1.5rem;
       }
     }
   </style>
