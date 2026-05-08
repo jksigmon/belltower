@@ -70,20 +70,28 @@
   display: flex;
 }
 
-/* Mid-range: wrap the main row so notes + submit don't get cut off */
-@media (max-width: 1050px) {
+/*
+ * Mid-range (768px – 1280px): reorganize into 2 rows so nothing overflows.
+ * Row 1: [PTO Type] [Date Range] [Duration]
+ * Row 2: [Notes flex             ] [Submit]
+ * Grid uses auto cols for row-1 items so row-2 Notes + Submit align perfectly.
+ */
+@media (max-width: 1280px) and (min-width: 768px) {
   .pto-form-row-main {
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: auto auto auto 1fr auto;
+    grid-template-areas:
+      "type  date  dur   .      .     "
+      "notes notes notes notes  submit";
+    gap: 8px;
+    align-items: center;
   }
 
-  #ptoNotes {
-    flex: 1 1 200px;
-    min-width: 0;
-  }
-
-  #submitPtoRequest {
-    flex-shrink: 0;
-  }
+  #ptoType                   { grid-area: type; }
+  #ptoDateRange              { grid-area: date; }
+  .pto-form-row-main > label { grid-area: dur; }
+  #ptoNotes                  { grid-area: notes; flex: unset; width: 100%; }
+  #submitPtoRequest          { grid-area: submit; white-space: nowrap; }
 }
 
 @media (max-width: 767px) {
