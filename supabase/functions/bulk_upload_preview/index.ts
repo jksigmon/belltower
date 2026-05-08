@@ -252,12 +252,12 @@ result.summary.Families = {
 };
 }
 
-const previewFamiliesByTag = new Map<string, true>();
+const previewFamiliesByTag = new Set<string>();
 
 if (selected_sheets.includes("Families")) {
   for (const row of result.details.Families) {
     if (row.action === "insert" && row.data?.carline_tag_number) {
-      previewFamiliesByTag.set(row.data.carline_tag_number, true);
+      previewFamiliesByTag.add(row.data.carline_tag_number);
     }
   }
 }
@@ -574,11 +574,12 @@ if (homeroomEmail) {
         continue;
       }
 
-      const familyId =
-        previewFamiliesByTag.get(familyTag) ??
-        existingFamiliesByTag.get(familyTag)?.id;
+      const fromPreview = previewFamiliesByTag.has(familyTag);
+      const familyId = fromPreview
+        ? null  // real UUID resolved at commit time via family_tag field
+        : existingFamiliesByTag.get(familyTag)?.id ?? null;
 
-      if (!familyId) {
+      if (!familyId && !fromPreview) {
         table.push({
           row: i + 2,
           action: "error",
@@ -744,7 +745,8 @@ if (homeroomEmail) {
       // ✅ INSERT (brand new student)
       table.push({
         row: i + 2,
-        action: "insert",         
+        action: "insert",
+        ...(fromPreview ? { family_tag: familyTag } : {}),
         data: {
           family_id: familyId,
           student_number: studentNumber,

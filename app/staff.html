@@ -113,8 +113,8 @@
     🗓️ PTO
   </a>
 
-  <a href="#carline" data-module="carline">
-    🚗 Carline
+  <a href="/carline.html" data-module="carline">
+    🚗 Carline Live
   </a>
 </nav>
 
@@ -289,7 +289,6 @@
   </p>
 </section>
 
-    <section id="carline" class="panel" style="display:none;"></section>
     <section id="requests" class="panel" style="display:none;"></section>
   </main>
 </div>
@@ -585,9 +584,6 @@ await Promise.all([
     });
   }
 
-  if (window.staffModules['carline'] === true) {
-    // loadCarline(); (future)
-  }
 }
 
 let selectedStartDate = null;
@@ -664,17 +660,6 @@ function setActive(hash) {
   const subtitle = document.getElementById('pageSubtitle');
   if (hash === '#pto') subtitle.textContent = 'Manage your time off';
   
-if (hash === '#carline') {
-  // ✅ Guard: user must have permission
-  if (currentProfile?.can_view_carline !== true) {
-    redirectToFirstEnabledModule();
-    return;
-  }
-
-  subtitle.textContent = 'Carline status and assignments';
-}
-
-
   // Nav active state
   document.querySelectorAll('nav a').forEach(function (a) {
     a.classList.toggle('active', a.getAttribute('href') === hash);

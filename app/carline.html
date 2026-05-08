@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="manifest" href="/icons/site.webmanifest">
   <link rel="icon" href="/icons/favicon.ico">
-  <link rel="stylesheet" href="/carline.css?v=2" />
+  <link rel="stylesheet" href="/carline.css?v=3" />
 </head>
 <body>
 
@@ -30,7 +30,7 @@
     <div class="cl-header-spacer"></div>
 
     <div class="cl-header-right">
-      <a href="/carline-input.html" class="cl-input-link-btn" target="_blank">📱 Input Page</a>
+      <a href="/carline-input.html" class="cl-input-link-btn" id="btnInputLink" target="_blank" hidden>📱 Input Page</a>
       <button class="cl-icon-btn" id="btnDarkMode" title="Toggle dark mode">🌙</button>
       <button class="cl-icon-btn" id="btnFullscreen" title="Fullscreen">⛶</button>
       <button class="cl-dismiss-btn start" id="btnStartDismissal" hidden>▶ Start Dismissal</button>
@@ -121,6 +121,7 @@ let familyTagMap  = new Map(); // family_id → tag_number
 let callStatus    = new Map(); // student_id → status string
 let calledAt      = new Map(); // student_id → ISO string
 let activeTeacherIds = new Set();
+let teacherNameMap   = new Map(); // employee_id → "First Last"
 let realtimeChannel  = null;
 let eventPollTimer   = null;
 let callsPollTimer   = null;
@@ -152,7 +153,7 @@ async function boot() {
     weekday: 'short', month: 'short', day: 'numeric'
   });
 
-  await Promise.all([ loadStudents(), loadFamilyTags() ]);
+  await Promise.all([ loadStudents(), loadFamilyTags(), loadTeacherNames() ]);
   await ensureCarlineEvent();
   if (currentEvent) await loadExistingCalls();
 
@@ -172,11 +173,23 @@ async function boot() {
 async function loadStudents() {
   const { data } = await supabase
     .from('students')
-    .select('id, first_name, last_name, grade_level, homeroom_teacher, homeroom_teacher_id, bus_group_id, family_id')
+    .select('id, first_name, last_name, grade_level, homeroom_teacher_id, bus_group_id, family_id')
     .eq('school_id', profile.school_id)
     .eq('active', true)
     .order('last_name');
   allStudents = data || [];
+}
+
+async function loadTeacherNames() {
+  const { data } = await supabase
+    .from('employees')
+    .select('id, first_name, last_name')
+    .eq('school_id', profile.school_id)
+    .eq('active', true);
+  teacherNameMap.clear();
+  (data || []).forEach(e => {
+    teacherNameMap.set(e.id, `${e.first_name ?? ''} ${e.last_name ?? ''}`.trim());
+  });
 }
 
 async function loadFamilyTags() {
@@ -274,6 +287,7 @@ function updateEventUI() {
   badge.textContent = isOpen ? 'OPEN' : 'CLOSED';
   badge.className   = 'cl-status-badge ' + (isOpen ? 'open' : 'closed');
 
+  document.getElementById('btnInputLink').hidden      = !canManage;
   document.getElementById('btnStartDismissal').hidden = hasEvent || !canManage;
   document.getElementById('btnCloseDismissal').hidden = !isOpen  || !canManage;
   document.getElementById('btnStartNoEvent').hidden   = hasEvent || !canManage;
@@ -294,7 +308,7 @@ function getTeacherMap() {
     if (!map.has(key)) {
       map.set(key, {
         key,
-        teacherName: s.homeroom_teacher || 'Unassigned',
+        teacherName: teacherNameMap.get(key) || 'Unassigned',
         grade: s.grade_level || '',
         students: [],
       });
@@ -427,7 +441,7 @@ function renderColumn(bodyId, emptyId, students, statusClass, multi, emptyMsg) {
     const groups = new Map();
     students.forEach(s => {
       const k = s.homeroom_teacher_id ?? '__none__';
-      if (!groups.has(k)) groups.set(k, { name: s.homeroom_teacher || 'Unassigned', students: [] });
+      if (!groups.has(k)) groups.set(k, { name: teacherNameMap.get(k) || 'Unassigned', students: [] });
       groups.get(k).students.push(s);
     });
     groups.forEach(({ name, students: gs }) => {

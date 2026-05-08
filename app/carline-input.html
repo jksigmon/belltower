@@ -13,7 +13,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="manifest" href="/icons/site.webmanifest">
   <link rel="icon" href="/icons/favicon.ico">
-  <link rel="stylesheet" href="/carline.css?v=2" />
+  <link rel="stylesheet" href="/carline.css?v=3" />
 </head>
 <body>
 
@@ -357,6 +357,8 @@ async function callStudents(students, familyId, tag, callType) {
 }
 
 async function recallStudents(students, familyId, tag) {
+  const prevStatuses = students.map(s => ({ id: s.id, prev: callStatus.get(s.id) ?? 'WAITING' }));
+
   const { error } = await supabase
     .from('carline_calls')
     .update({ status: 'RECALLED', recalled_at: new Date().toISOString() })
@@ -371,6 +373,9 @@ async function recallStudents(students, familyId, tag) {
       callStatus.set(s.id, 'RECALLED');
     }
   });
+
+  undoStack.push({ studentIds: students.map(s => s.id), prevStatuses, tag, callType: 'RECALL' });
+  document.getElementById('btnUndoLast').disabled = false;
 
   const names = students.map(s => `${s.first_name} ${s.last_name}`);
   pushRecent(tag, names, 'FAMILY', true);

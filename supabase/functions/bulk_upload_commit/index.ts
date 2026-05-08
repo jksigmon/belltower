@@ -72,6 +72,9 @@ serve(async (req) => {
     // ✅ Collect rollback metadata DURING commit
     const rollbackRows: Record<string, any[]> = {};
 
+    // Maps carline_tag_number → newly inserted family UUID (for same-batch student resolution)
+    const newFamilyTagToId = new Map<string, string>();
+
     // --------------------------------------------------
     // Families
     // --------------------------------------------------
@@ -86,6 +89,10 @@ serve(async (req) => {
             .single();
 
           if (error) throw error;
+
+          if (row.data.carline_tag_number) {
+            newFamilyTagToId.set(String(row.data.carline_tag_number), data.id);
+          }
 
           rollbackRows.Families ??= [];
           rollbackRows.Families.push({
@@ -159,9 +166,15 @@ serve(async (req) => {
       for (const row of preview_result.details.Students) {
 
         if (row.action === "insert") {
+          const studentData = { ...row.data };
+          // Resolve family_tag → real UUID when family was inserted in this same batch
+          if (row.family_tag && newFamilyTagToId.has(row.family_tag)) {
+            studentData.family_id = newFamilyTagToId.get(row.family_tag)!;
+          }
+
           const { data, error } = await admin
             .from("students")
-            .insert({ ...row.data, school_id })
+            .insert({ ...studentData, school_id })
             .select("id")
             .single();
 
