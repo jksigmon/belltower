@@ -193,6 +193,16 @@ function gateNavigation() {
       link.remove();
     }
   });
+
+  // Carline grouped module
+  document.querySelectorAll('nav a[data-cap-group="carline"]').forEach(link => {
+    if (!moduleEnabled('carline')) { link.remove(); return; }
+    if (currentProfile.is_superadmin || currentProfile.can_view_carline === true) {
+      link.style.display = 'flex';
+    } else {
+      link.remove();
+    }
+  });
 }
 
 

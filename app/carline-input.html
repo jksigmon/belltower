@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Carline Input" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Carline Input — Belltower</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+  <link rel="stylesheet" href="/carline.css" />
+</head>
+<body>
+
+<div id="clLoading" class="cl-loading">
+  <div class="cl-spinner"></div>
+  <span>Loading…</span>
+</div>
+
+<div id="inputApp" hidden>
+
+  <header id="inputHeader">
+    <div class="cl-header-left">
+      <span class="cl-school-name" id="inpSchoolName">Carline</span>
+      <span class="cl-status-badge open" id="inpStatusBadge">OPEN</span>
+    </div>
+    <div class="cl-header-spacer"></div>
+    <div class="cl-header-right">
+      <button class="cl-icon-btn" id="btnDarkMode" title="Toggle dark mode">🌙</button>
+      <button class="cl-dismiss-btn start" id="btnStartDismissal" hidden>▶ Start</button>
+      <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden>✕ Close</button>
+      <button class="cl-signout-btn" id="btnSignOut">Sign out</button>
+    </div>
+  </header>
+
+  <!-- No active event -->
+  <div id="inpNoEvent" class="cl-no-event" hidden>
+    <h2>No Active Dismissal</h2>
+    <p>Dismissal hasn't started yet. Ask an administrator to start today's dismissal.</p>
+    <button class="cl-start-btn" id="btnStartNoEvent" hidden>▶ Start Dismissal</button>
+  </div>
+
+  <!-- Main input content -->
+  <div id="inputMain" hidden>
+
+    <!-- Tag entry + keypad -->
+    <div class="inp-tag-section">
+
+      <div class="inp-tag-display" id="tagDisplay">—</div>
+
+      <div class="inp-keypad" id="keypad">
+        <!-- built by JS -->
+      </div>
+
+      <div class="inp-call-row">
+        <button class="inp-call-btn call" id="btnCall">📣 Call</button>
+        <button class="inp-call-btn recall" id="btnRecall">🔔 Recall</button>
+      </div>
+
+      <div class="inp-undo-row">
+        <button class="inp-undo-btn" id="btnUndoLast" disabled>↩ Undo Last</button>
+        <button class="inp-undo-btn" id="btnUndoTag">↩ Undo Tag #</button>
+      </div>
+
+    </div>
+
+    <!-- Bus groups -->
+    <div class="inp-section" id="busSection">
+      <div class="inp-section-title">
+        <span>Bus Groups</span>
+      </div>
+      <div class="inp-bus-grid" id="busGrid"></div>
+    </div>
+
+    <!-- Admin actions -->
+    <div class="inp-section" id="adminSection" hidden>
+      <div class="inp-section-title">Admin</div>
+      <div class="inp-danger-row">
+        <button class="inp-danger-btn" id="btnResetDay">🗑 Reset Day</button>
+      </div>
+    </div>
+
+    <!-- Recent activity -->
+    <div class="inp-section">
+      <div class="inp-section-title">
+        <span>Recent Activity</span>
+      </div>
+      <ul class="inp-recent-list" id="recentList"></ul>
+    </div>
+
+  </div><!-- /inputMain -->
+
+</div><!-- /inputApp -->
+
+<div class="cl-toast" id="clToast"></div>
+
+<script type="module">
+import { supabase } from '/app/admin.supabase.js';
+
+// ─── State ────────────────────────────────────────────────────────────
+let profile      = null;
+let currentEvent = null;
+let allStudents  = [];
+let allBusGroups = [];
+let familyTagMap = new Map(); // family_id → tag_number
+let tagFamilyMap = new Map(); // tag_number → family_id
+let callStatus   = new Map(); // student_id → status
+let undoStack    = [];        // [{ studentIds, prevStatus }]
+let recentCalls  = [];        // [{ tag, names, type, time, ts, isRecall }]
+let realtimeChannel = null;
+let audioCtx     = null;
+let tagBuffer    = '';
+let toastTimer   = null;
+
+// ─── Boot ─────────────────────────────────────────────────────────────
+async function boot() {
+  console.log('[boot] 1 - start');
+  const sessionRes = await supabase.auth.getSession();
+  const session = sessionRes?.data?.session;
+  console.log('[boot] 2 - session:', session ? 'found' : 'none');
+  if (!session) { window.location.href = '/login.html'; return; }
+
+  console.log('[boot] 3 - loading profile');
+  const { data: p, error } = await supabase
+    .from('profiles')
+    .select('*, schools(name)')
+    .eq('user_id', session.user.id)
+    .single();
+
+  console.log('[boot] 4 - profile:', p?.id, 'error:', error?.message);
+  if (error || !p) { alert('Profile load failed: ' + (error?.message ?? 'not found')); return; }
+  if (!p.can_view_carline && !p.is_superadmin) {
+    window.location.href = '/admin.html';
+    return;
+  }
+  profile = p;
+
+  document.getElementById('inpSchoolName').textContent = p.schools?.name ?? 'Carline';
+  if (p.is_superadmin || p.can_manage_carline) {
+    document.getElementById('adminSection').hidden = false;
+  }
+
+  console.log('[boot] 5 - loading data');
+  await Promise.all([ loadStudents(), loadBusGroups(), loadFamilyTags() ]);
+  console.log('[boot] 6 - data loaded, students:', allStudents.length);
+  await ensureCarlineEvent();
+  console.log('[boot] 7 - event:', currentEvent?.id ?? 'none');
+  if (currentEvent) await loadExistingCalls();
+
+  console.log('[boot] 8 - wiring UI');
+  buildKeypad();
+  renderBusGrid();
+  wireEvents();
+
+  document.getElementById('clLoading').hidden = true;
+  document.getElementById('inputApp').hidden  = false;
+  console.log('[boot] 9 - done');
+}
+
+// ─── Data loaders ─────────────────────────────────────────────────────
+async function loadStudents() {
+  const { data } = await supabase
+    .from('students')
+    .select('id, first_name, last_name, family_id, bus_group_id')
+    .eq('school_id', profile.school_id)
+    .eq('active', true)
+    .order('last_name');
+  allStudents = data || [];
+}
+
+async function loadBusGroups() {
+  const { data } = await supabase
+    .from('bus_groups')
+    .select('id, name, route_number')
+    .eq('school_id', profile.school_id)
+    .order('name');
+  allBusGroups = data || [];
+}
+
+async function loadFamilyTags() {
+  const { data } = await supabase
+    .from('families')
+    .select('id, carline_tag_number')
+    .eq('school_id', profile.school_id)
+    .eq('active', true);
+  familyTagMap.clear();
+  tagFamilyMap.clear();
+  (data || []).forEach(f => {
+    if (f.carline_tag_number) {
+      const tag = String(f.carline_tag_number);
+      familyTagMap.set(f.id, tag);
+      tagFamilyMap.set(tag, f.id);
+    }
+  });
+}
+
+async function loadExistingCalls() {
+  const { data } = await supabase
+    .from('carline_calls')
+    .select('student_id, status')
+    .eq('carline_event_id', currentEvent.id);
+  callStatus.clear();
+  (data || []).forEach(c => callStatus.set(c.student_id, c.status));
+  updateBusButtonStates();
+}
+
+// ─── Carline event ─────────────────────────────────────────────────────
+async function ensureCarlineEvent() {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from('carline_events')
+    .select('id, status, name')
+    .eq('school_id', profile.school_id)
+    .eq('event_date', today)
+    .neq('status', 'CLOSED')
+    .maybeSingle();
+
+  currentEvent = data ?? null;
+  updateEventUI();
+}
+
+async function startDismissal() {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from('carline_events')
+    .insert({
+      school_id: profile.school_id,
+      name: 'PM Dismissal',
+      event_date: today,
+      status: 'OPEN',
+      created_by_profile_id: profile.id,
+    })
+    .select('id, status, name')
+    .single();
+  if (error) { showToast('Failed to start dismissal'); return; }
+  currentEvent = data;
+  updateEventUI();
+  setupRealtime();
+  showToast('Dismissal started');
+}
+
+async function closeDismissal() {
+  if (!currentEvent) return;
+  if (!confirm('Close today\'s dismissal?')) return;
+  const { error } = await supabase
+    .from('carline_events')
+    .update({ status: 'CLOSED', closed_at: new Date().toISOString(), closed_by_profile_id: profile.id })
+    .eq('id', currentEvent.id);
+  if (error) { showToast('Failed to close dismissal'); return; }
+  currentEvent.status = 'CLOSED';
+  if (realtimeChannel) { supabase.removeChannel(realtimeChannel); realtimeChannel = null; }
+  updateEventUI();
+  showToast('Dismissal closed');
+}
+
+function updateEventUI() {
+  const hasEvent = !!currentEvent;
+  const isOpen   = hasEvent && currentEvent.status !== 'CLOSED';
+  const canManage = profile.is_superadmin || profile.can_manage_carline;
+
+  document.getElementById('inpNoEvent').hidden  = hasEvent;
+  document.getElementById('inputMain').hidden   = !hasEvent;
+
+  const badge = document.getElementById('inpStatusBadge');
+  badge.textContent = isOpen ? 'OPEN' : 'CLOSED';
+  badge.className   = 'cl-status-badge ' + (isOpen ? 'open' : 'closed');
+
+  document.getElementById('btnStartDismissal').hidden = hasEvent || !canManage;
+  document.getElementById('btnCloseDismissal').hidden = !isOpen  || !canManage;
+  document.getElementById('btnStartNoEvent').hidden   = hasEvent || !canManage;
+
+  // Disable call buttons if event closed
+  document.getElementById('btnCall').disabled   = !isOpen;
+  document.getElementById('btnRecall').disabled = !isOpen;
+
+  if (isOpen) setupRealtime();
+}
+
+// ─── Realtime ─────────────────────────────────────────────────────────
+function setupRealtime() {
+  if (!currentEvent) return;
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+
+  realtimeChannel = supabase
+    .channel(`carline-input-${currentEvent.id}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'carline_calls',
+      filter: `carline_event_id=eq.${currentEvent.id}`,
+    }, row => {
+      const r = row.new;
+      if (!r) return;
+      callStatus.set(r.student_id, r.status);
+      updateBusButtonStates();
+    })
+    .subscribe();
+}
+
+// ─── Call actions ──────────────────────────────────────────────────────
+async function callByTag(tag, isRecall = false) {
+  if (!tag) return;
+  if (!currentEvent || currentEvent.status === 'CLOSED') {
+    showToast('Dismissal is not open'); return;
+  }
+
+  const familyId = tagFamilyMap.get(tag);
+  if (!familyId) { showToast(`Tag ${tag} not found`); return; }
+
+  const students = allStudents.filter(s => s.family_id === familyId);
+  if (!students.length) { showToast(`Tag ${tag}: no active students`); return; }
+
+  if (isRecall) {
+    await recallStudents(students, familyId, tag);
+  } else {
+    await callStudents(students, familyId, tag, 'FAMILY');
+  }
+
+  clearTag();
+}
+
+async function callStudents(students, familyId, tag, callType) {
+  const prevStatuses = students.map(s => ({ id: s.id, prev: callStatus.get(s.id) ?? 'WAITING' }));
+  const now = new Date().toISOString();
+
+  const rows = students.map(s => ({
+    school_id: profile.school_id,
+    carline_event_id: currentEvent.id,
+    student_id: s.id,
+    family_id: familyId ?? s.family_id,
+    call_type: callType,
+    status: 'CALLED',
+    called_at: now,
+    called_by_profile_id: profile.id,
+  }));
+
+  const { error } = await supabase
+    .from('carline_calls')
+    .upsert(rows, { onConflict: 'carline_event_id,student_id' });
+
+  if (error) { showToast('Call failed'); return; }
+
+  students.forEach(s => callStatus.set(s.id, 'CALLED'));
+  undoStack.push({ studentIds: students.map(s => s.id), prevStatuses, tag, callType });
+  document.getElementById('btnUndoLast').disabled = false;
+
+  const names = students.map(s => `${s.first_name} ${s.last_name}`);
+  pushRecent(tag, names, callType, false);
+  playCallSound();
+  showToast(`📣 Tag ${tag} — ${students.length} student${students.length !== 1 ? 's' : ''} called`);
+  updateBusButtonStates();
+}
+
+async function recallStudents(students, familyId, tag) {
+  const { error } = await supabase
+    .from('carline_calls')
+    .update({ status: 'RECALLED', recalled_at: new Date().toISOString() })
+    .eq('carline_event_id', currentEvent.id)
+    .eq('family_id', familyId)
+    .in('status', ['CALLED', 'WAITING']);
+
+  if (error) { showToast('Recall failed'); return; }
+
+  students.forEach(s => {
+    if (['CALLED', 'WAITING'].includes(callStatus.get(s.id) ?? 'WAITING')) {
+      callStatus.set(s.id, 'RECALLED');
+    }
+  });
+
+  const names = students.map(s => `${s.first_name} ${s.last_name}`);
+  pushRecent(tag, names, 'FAMILY', true);
+  playRecallSound();
+  showToast(`🔔 Tag ${tag} recalled`);
+}
+
+async function callBusGroup(busGroupId) {
+  if (!currentEvent || currentEvent.status === 'CLOSED') {
+    showToast('Dismissal is not open'); return;
+  }
+  const students = allStudents.filter(s => s.bus_group_id === busGroupId);
+  if (!students.length) { showToast('No students in this bus group'); return; }
+
+  const group = allBusGroups.find(b => b.id === busGroupId);
+  await callStudents(students, null, group?.name ?? 'Bus', 'BUS');
+}
+
+async function undoLast() {
+  if (!undoStack.length) return;
+  const op = undoStack.pop();
+
+  const { error } = await supabase
+    .from('carline_calls')
+    .upsert(
+      op.prevStatuses.map(({ id, prev }) => ({
+        school_id: profile.school_id,
+        carline_event_id: currentEvent.id,
+        student_id: id,
+        status: prev,
+      })),
+      { onConflict: 'carline_event_id,student_id' }
+    );
+
+  if (error) { showToast('Undo failed'); undoStack.push(op); return; }
+
+  op.prevStatuses.forEach(({ id, prev }) => callStatus.set(id, prev));
+  document.getElementById('btnUndoLast').disabled = undoStack.length === 0;
+  recentCalls.shift();
+  renderRecentList();
+  updateBusButtonStates();
+  showToast(`↩ Undid call for tag ${op.tag}`);
+}
+
+async function undoByTag() {
+  const tag = prompt('Enter tag number to undo:');
+  if (!tag) return;
+  const familyId = tagFamilyMap.get(tag.trim());
+  if (!familyId) { showToast(`Tag ${tag} not found`); return; }
+
+  const students = allStudents.filter(s => s.family_id === familyId);
+  if (!students.length) { showToast(`No students for tag ${tag}`); return; }
+
+  const { error } = await supabase
+    .from('carline_calls')
+    .update({ status: 'WAITING' })
+    .eq('carline_event_id', currentEvent.id)
+    .eq('family_id', familyId);
+
+  if (error) { showToast('Undo failed'); return; }
+  students.forEach(s => callStatus.set(s.id, 'WAITING'));
+  updateBusButtonStates();
+  showToast(`↩ Tag ${tag} reset to Waiting`);
+}
+
+async function resetDay() {
+  if (!currentEvent) return;
+  if (!confirm('Reset today\'s dismissal? This will clear ALL call records.')) return;
+
+  const { error } = await supabase
+    .from('carline_calls')
+    .delete()
+    .eq('carline_event_id', currentEvent.id);
+
+  if (error) { showToast('Reset failed'); return; }
+  callStatus.clear();
+  undoStack.length = 0;
+  recentCalls.length = 0;
+  document.getElementById('btnUndoLast').disabled = true;
+  renderRecentList();
+  updateBusButtonStates();
+  showToast('Day reset — all calls cleared');
+}
+
+// ─── Keypad ───────────────────────────────────────────────────────────
+function buildKeypad() {
+  const pad = document.getElementById('keypad');
+  ['7','8','9','4','5','6','1','2','3','⌫','0','✓'].forEach(k => {
+    const btn = document.createElement('button');
+    btn.className = 'inp-key' + (k === '⌫' ? ' backspace' : '');
+    btn.textContent = k;
+    btn.addEventListener('click', () => keyPress(k));
+    pad.appendChild(btn);
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.key >= '0' && e.key <= '9') keyPress(e.key);
+    else if (e.key === 'Backspace') keyPress('⌫');
+    else if (e.key === 'Enter') keyPress('✓');
+  });
+}
+
+function keyPress(k) {
+  if (k === '⌫') {
+    tagBuffer = tagBuffer.slice(0, -1);
+  } else if (k === '✓') {
+    if (tagBuffer) callByTag(tagBuffer, false);
+  } else {
+    if (tagBuffer.length >= 6) return;
+    tagBuffer += k;
+  }
+  const el = document.getElementById('tagDisplay');
+  el.textContent = tagBuffer || '—';
+  el.classList.toggle('has-value', tagBuffer.length > 0);
+}
+
+function clearTag() {
+  tagBuffer = '';
+  const el = document.getElementById('tagDisplay');
+  el.textContent = '—';
+  el.classList.remove('has-value');
+}
+
+// ─── Bus grid ─────────────────────────────────────────────────────────
+function renderBusGrid() {
+  const grid = document.getElementById('busGrid');
+  grid.innerHTML = '';
+  if (!allBusGroups.length) {
+    grid.innerHTML = '<div style="color:var(--cl-text-muted);font-size:13px;">No bus groups configured</div>';
+    return;
+  }
+  allBusGroups.forEach(g => {
+    const total  = allStudents.filter(s => s.bus_group_id === g.id).length;
+    const called = allStudents.filter(s => s.bus_group_id === g.id && callStatus.get(s.id) === 'CALLED').length;
+    const btn = document.createElement('button');
+    btn.className = 'inp-bus-btn' + (called === total && total > 0 ? ' called' : '');
+    btn.dataset.busId = g.id;
+    btn.innerHTML = `
+      <div class="inp-bus-btn-name">🚌 ${esc(g.name)}</div>
+      ${g.route_number ? `<div class="inp-bus-btn-meta">Route ${esc(g.route_number)}</div>` : ''}
+      <div class="inp-bus-btn-meta">${called}/${total} called</div>
+    `;
+    btn.addEventListener('click', () => callBusGroup(g.id));
+    grid.appendChild(btn);
+  });
+}
+
+function updateBusButtonStates() {
+  allBusGroups.forEach(g => {
+    const total  = allStudents.filter(s => s.bus_group_id === g.id).length;
+    const called = allStudents.filter(s => s.bus_group_id === g.id && callStatus.get(s.id) === 'CALLED').length;
+    const btn = document.querySelector(`.inp-bus-btn[data-bus-id="${g.id}"]`);
+    if (!btn) return;
+    btn.classList.toggle('called', called === total && total > 0);
+    const meta = btn.querySelectorAll('.inp-bus-btn-meta');
+    const countEl = [...meta].find(el => el.textContent.includes('/'));
+    if (countEl) countEl.textContent = `${called}/${total} called`;
+  });
+}
+
+// ─── Recent activity ──────────────────────────────────────────────────
+function pushRecent(tag, names, type, isRecall) {
+  const now  = Date.now();
+  const existing = recentCalls.find(r => r.tag === tag && now - r.ts < 2000 && r.isRecall === isRecall);
+  if (existing) {
+    names.forEach(n => { if (!existing.names.includes(n)) existing.names.push(n); });
+  } else {
+    recentCalls.unshift({ tag, names: [...names], type, isRecall, time: new Date(), ts: now });
+    if (recentCalls.length > 30) recentCalls.pop();
+  }
+  renderRecentList();
+}
+
+function renderRecentList() {
+  const ul = document.getElementById('recentList');
+  ul.innerHTML = '';
+  if (!recentCalls.length) {
+    ul.innerHTML = '<li style="color:var(--cl-text-muted);font-size:13px;padding:8px 0;">No calls yet today</li>';
+    return;
+  }
+  recentCalls.forEach(r => {
+    const li = document.createElement('li');
+    li.className = 'inp-recent-item' + (r.isRecall ? ' recalled' : '');
+    const label = r.type === 'BUS' ? '🚌 Bus' : r.isRecall ? '🔔 Recall' : '🚗 Call';
+    li.innerHTML = `
+      <span class="inp-recent-tag">${esc(String(r.tag))}</span>
+      <span class="inp-recent-names">${r.names.map(esc).join(', ')}</span>
+      <span class="inp-recent-type">${label}</span>
+      <span class="inp-recent-time">${r.time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
+    `;
+    ul.appendChild(li);
+  });
+}
+
+// ─── Sound ────────────────────────────────────────────────────────────
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function tone(ctx, freq, start, dur, vol = 0.25, type = 'sine') {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = type; osc.frequency.value = freq;
+  const t = ctx.currentTime + start;
+  gain.gain.setValueAtTime(vol, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  osc.start(t); osc.stop(t + dur + 0.05);
+}
+function playCallSound() {
+  try {
+    const ctx = getCtx();
+    tone(ctx, 523.25, 0,    0.15);
+    tone(ctx, 659.25, 0.14, 0.15);
+    tone(ctx, 783.99, 0.28, 0.25);
+  } catch(e) {}
+}
+function playRecallSound() {
+  try {
+    const ctx = getCtx();
+    tone(ctx, 880, 0,    0.10, 0.28, 'triangle');
+    tone(ctx, 659, 0.09, 0.10, 0.28, 'triangle');
+    tone(ctx, 880, 0.20, 0.10, 0.28, 'triangle');
+    tone(ctx, 659, 0.30, 0.18, 0.28, 'triangle');
+  } catch(e) {}
+}
+
+// ─── UI helpers ───────────────────────────────────────────────────────
+function showToast(msg) {
+  const el = document.getElementById('clToast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function toggleDarkMode() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  document.getElementById('btnDarkMode').textContent = dark ? '🌙' : '☀️';
+}
+
+// ─── Wire events ──────────────────────────────────────────────────────
+function wireEvents() {
+  document.getElementById('btnSignOut').addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login.html';
+  });
+  document.getElementById('btnDarkMode').addEventListener('click', toggleDarkMode);
+  document.getElementById('btnStartDismissal').addEventListener('click', startDismissal);
+  document.getElementById('btnStartNoEvent').addEventListener('click', startDismissal);
+  document.getElementById('btnCloseDismissal').addEventListener('click', closeDismissal);
+
+  document.getElementById('btnCall').addEventListener('click', () => {
+    if (tagBuffer) callByTag(tagBuffer, false);
+  });
+  document.getElementById('btnRecall').addEventListener('click', () => {
+    if (tagBuffer) callByTag(tagBuffer, true);
+  });
+  document.getElementById('btnUndoLast').addEventListener('click', undoLast);
+  document.getElementById('btnUndoTag').addEventListener('click', undoByTag);
+  document.getElementById('btnResetDay').addEventListener('click', resetDay);
+
+  document.addEventListener('pointerdown', () => getCtx(), { once: true });
+}
+
+boot().catch(err => {
+  console.error('Carline input failed to load:', err);
+  document.getElementById('clLoading').innerHTML =
+    `<div style="padding:24px;color:#dc2626;text-align:center;max-width:340px;">
+      <strong>Failed to load</strong><br><br>
+      <code style="font-size:12px;word-break:break-all;">${err?.message ?? String(err)}</code><br><br>
+      <small>Check the browser console for details.</small>
+    </div>`;
+});
+</script>
+</body>
+</html>

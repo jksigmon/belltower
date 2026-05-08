@@ -1,444 +1,640 @@
- <!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Carline Live</title>
-  <link rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-  <link rel="stylesheet" href="/admin-ui.css" />
+  <title>Carline Display — Belltower</title>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="manifest" href="/icons/site.webmanifest">
-  <!-- Fallback for older browsers -->
   <link rel="icon" href="/icons/favicon.ico">
-  <style>
-   
-	.carline-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 16px;
-  height: 60vh; /* adjust as needed */
-}
-
-.carline-column {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel);
-}
-
-.carline-header {
-  padding: 8px 12px;
-  font-weight: 600;
-  border-bottom: 1px solid var(--border);
-  background: rgba(255,255,255,0.03);
-}
-
-.carline-list {
-  flex: 1;
-  overflow-y: auto;
-  list-style: none;
-  margin: 0;
-  padding: 8px;
-}
-  </style>
+  <link rel="stylesheet" href="/carline.css" />
 </head>
-
 <body>
 
-   <header>
-    <div class="row">
-      <div class="brand">School Admin Portal</div>
-      <div id="badge" class="badge" style="display:none;">Superadmin</div>
+<div id="clLoading" class="cl-loading">
+  <div class="cl-spinner"></div>
+  <span>Loading Carline…</span>
+</div>
+
+<div id="clApp" hidden>
+
+  <header id="clHeader">
+    <div class="cl-header-left">
+      <span class="cl-school-name" id="clSchoolName">Belltower</span>
+      <span class="cl-event-date" id="clEventDate"></span>
+      <span class="cl-status-badge open" id="clStatusBadge">OPEN</span>
     </div>
-    <div class="row">
-      <div id="userEmail" class="muted"></div>
-      <button id="signOut" class="btn">Sign out</button>
+
+    <div class="cl-header-spacer"></div>
+
+    <div class="cl-header-right">
+      <a href="/carline-input.html" class="cl-input-link-btn" target="_blank">📱 Input Page</a>
+      <button class="cl-icon-btn" id="btnDarkMode" title="Toggle dark mode">🌙</button>
+      <button class="cl-icon-btn" id="btnFullscreen" title="Fullscreen">⛶</button>
+      <button class="cl-dismiss-btn start" id="btnStartDismissal" hidden>▶ Start Dismissal</button>
+      <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden>✕ Close</button>
+      <button class="cl-signout-btn" id="btnSignOut">Sign out</button>
     </div>
   </header>
- 
- <section id="carline-live" class="panel">
-  <h2>Carline Live</h2>
 
-  <div class="row" style="gap:12px; margin-bottom:12px;">
-    <input id="carlineTagInput" placeholder="Enter carline tag #" />
-    <button id="callTagBtn" class="btn">Call Tag</button>
-    <button id="allCallBtn" class="btn warn">All Call</button>
+  <!-- Class selector bar -->
+  <div id="classBar">
+    <span class="cl-bar-label">Classes:</span>
+    <div id="classPills" style="display:flex;gap:6px;align-items:center;"></div>
+    <div class="cl-add-class-wrap">
+      <button class="cl-add-class-btn" id="btnAddClass">+ Add Class</button>
+      <div class="cl-class-dropdown" id="classDropdown" hidden></div>
+    </div>
+    <div class="cl-bar-spacer"></div>
   </div>
-<div class="row" style="gap:12px; margin-bottom:12px;">
-  <input id="recallTagInput" placeholder="Recall tag #" />
-  <button id="recallTagBtn" class="btn warn">Recall Tag</button>
+
+  <!-- No active event state -->
+  <div id="displayNoEvent" class="cl-no-event" hidden>
+    <h2>No Active Dismissal</h2>
+    <p>Dismissal hasn't started yet for today. Check back shortly or start dismissal if you're an administrator.</p>
+    <button class="cl-start-btn" id="btnStartNoEvent" hidden>▶ Start Dismissal</button>
+  </div>
+
+  <!-- 3-column grid -->
+  <div id="displayGrid" hidden>
+    <div class="cl-status-col">
+      <div class="cl-status-col-hdr waiting">
+        <span class="cl-col-title">Waiting</span>
+        <span class="cl-col-badge" id="countWaiting">0</span>
+      </div>
+      <div class="cl-status-col-body" id="bodyWaiting">
+        <div class="cl-col-empty" id="emptyWaiting">All students called</div>
+      </div>
+    </div>
+
+    <div class="cl-status-col">
+      <div class="cl-status-col-hdr called">
+        <span class="cl-col-title">Called</span>
+        <span class="cl-col-badge" id="countCalled">0</span>
+      </div>
+      <div class="cl-status-col-body" id="bodyCalled">
+        <div class="cl-col-empty" id="emptyCalled">No students called yet</div>
+      </div>
+    </div>
+
+    <div class="cl-status-col">
+      <div class="cl-status-col-hdr recalled">
+        <span class="cl-col-title">Recalled</span>
+        <span class="cl-col-badge" id="countRecalled">0</span>
+      </div>
+      <div class="cl-status-col-body" id="bodyRecalled">
+        <div class="cl-col-empty" id="emptyRecalled">—</div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
-  <div class="carline-grid">
-  <div class="carline-column">
-    <div class="carline-header">Waiting</div>
-    <ul id="waitingList" class="carline-list"></ul>
-  </div>
-
-  <div class="carline-column">
-    <div class="carline-header">Called</div>
-    <ul id="calledList" class="carline-list"></ul>
-  </div>
-
-  <div class="carline-column">
-    <div class="carline-header">Recalled</div>
-    <ul id="recalledList" class="carline-list"></ul>
-  </div>
-</div>
-<div style="margin-top:16px;">
-  <button id="closeCarlineBtn" class="btn err">
-    Close Dismissal
-  </button>
-</div>
-</section>
+<div class="cl-toast" id="clToast"></div>
 
 <script type="module">
 import { supabase } from '/app/admin.supabase.js';
 
-let currentCarlineEventId = null;
+// ─── State ────────────────────────────────────────────────────────────
+let profile       = null;
+let currentEvent  = null;
+let allStudents   = [];
+let familyTagMap  = new Map(); // family_id → tag_number
+let callStatus    = new Map(); // student_id → status string
+let calledAt      = new Map(); // student_id → ISO string
+let activeTeacherIds = new Set();
+let realtimeChannel  = null;
+let eventPollTimer   = null;
+let callsPollTimer   = null;
+let audioCtx         = null;
+let toastTimer       = null;
 
+// ─── Boot ─────────────────────────────────────────────────────────────
+async function boot() {
+  const sessionRes = await supabase.auth.getSession();
+  const session = sessionRes?.data?.session;
+  if (!session) { window.location.href = '/login.html'; return; }
 
-/* ✅ AUTH */
-const { data: sessionData } = await supabase.auth.getSession();
-if (!sessionData?.session) {
-  window.location.href = '/login.html';
-  throw new Error('No session');
-}
+  const { data: p, error } = await supabase
+    .from('profiles')
+    .select('*, schools(name)')
+    .eq('user_id', session.user.id)
+    .single();
 
-/* ✅ PROFILE */
-const { data: currentProfile, error: profErr } = await supabase
-  .from('profiles')
-  .select('*')
-  .eq('user_id', sessionData.session.user.id)
-  .single();
-
-if (profErr || !currentProfile) {
-  alert('Profile load failed');
-  throw profErr;
-}
-
-
-async function init() {
-  // ✅ Ensure the user is still authenticated
-  const { data: sessionData } = await supabase.auth.getSession();
-  if (!sessionData?.session) {
-    window.location.href = '/login.html';
+  if (error || !p) { alert('Profile load failed: ' + (error?.message ?? 'not found')); return; }
+  if (!p.can_view_carline && !p.is_superadmin) {
+    window.location.href = '/admin.html';
     return;
   }
+  profile = p;
 
-  // ✅ Initialize today's carline event
-  await getOrCreateTodayCarlineEvent();
+  document.getElementById('clSchoolName').textContent = p.schools?.name ?? 'Carline';
+  document.getElementById('clEventDate').textContent = new Date().toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric'
+  });
 
-  // ✅ Load initial lists
-  await loadCarlineLists();
+  await Promise.all([ loadStudents(), loadFamilyTags() ]);
+  await ensureCarlineEvent();
+  if (currentEvent) await loadExistingCalls();
 
-  // ✅ Wire UI actions
-  document.getElementById('allCallBtn')
-    ?.addEventListener('click', allCall);
+  detectTeacherClass();
+  wireEvents();
+  renderClassBar();
+  renderColumns();
+  setupRealtime();
+  if (currentEvent) startCallsPoller();
+  watchForNewEvents();
 
-  document.getElementById('callTagBtn')
-    ?.addEventListener('click', callByTag);
-
-  document.getElementById('recallTagBtn')
-    ?.addEventListener('click', recallByTag);
-
-  document.getElementById('closeCarlineBtn')
-    ?.addEventListener('click', closeCarlineEvent);
+  document.getElementById('clLoading').hidden = true;
+  document.getElementById('clApp').hidden = false;
 }
 
+// ─── Data loaders ─────────────────────────────────────────────────────
+async function loadStudents() {
+  const { data } = await supabase
+    .from('students')
+    .select('id, first_name, last_name, grade_level, homeroom_teacher, homeroom_teacher_id, bus_group_id, family_id')
+    .eq('school_id', profile.school_id)
+    .eq('active', true)
+    .order('last_name');
+  allStudents = data || [];
+}
 
+async function loadFamilyTags() {
+  const { data } = await supabase
+    .from('families')
+    .select('id, carline_tag_number')
+    .eq('school_id', profile.school_id)
+    .eq('active', true);
+  familyTagMap.clear();
+  (data || []).forEach(f => {
+    if (f.carline_tag_number) familyTagMap.set(f.id, String(f.carline_tag_number));
+  });
+}
 
+async function loadExistingCalls() {
+  const { data } = await supabase
+    .from('carline_calls')
+    .select('student_id, status, called_at')
+    .eq('carline_event_id', currentEvent.id);
+  callStatus.clear();
+  calledAt.clear();
+  (data || []).forEach(c => {
+    callStatus.set(c.student_id, c.status);
+    if (c.called_at) calledAt.set(c.student_id, c.called_at);
+  });
+}
 
-async function getOrCreateTodayCarlineEvent() {
+// ─── Carline event ─────────────────────────────────────────────────────
+async function ensureCarlineEvent() {
   const today = new Date().toISOString().slice(0, 10);
-
-  // Try to find an open event for today
-  const { data: existing } = await supabase
+  const { data } = await supabase
     .from('carline_events')
-    .select('id')
-    .eq('school_id', currentProfile.school_id)
+    .select('id, status, name')
+    .eq('school_id', profile.school_id)
     .eq('event_date', today)
-    .eq('status', 'OPEN')
+    .neq('status', 'CLOSED')
     .maybeSingle();
 
-  if (existing) {
-    currentCarlineEventId = existing.id;
-    return;
-  }
+  currentEvent = data ?? null;
+  updateEventUI();
+}
 
-  // Otherwise create one
-  const { data: created, error } = await supabase
+async function startDismissal() {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
     .from('carline_events')
     .insert({
-      school_id: currentProfile.school_id,
+      school_id: profile.school_id,
       name: 'PM Dismissal',
       event_date: today,
-      status: 'OPEN'
+      status: 'OPEN',
+      created_by_profile_id: profile.id,
     })
-    .select('id')
+    .select('id, status, name')
     .single();
-
-  if (error) {
-    alert('Failed to create carline event');
-    console.error(error);
-    return;
-  }
-
-  currentCarlineEventId = created.id;
+  if (error) { showToast('Failed to start dismissal'); return; }
+  currentEvent = data;
+  updateEventUI();
+  setupRealtime();
+  renderColumns();
+  showToast('Dismissal started');
 }
 
-async function loadCarlineLists() {
-  if (!currentCarlineEventId) return;
-
-  const { data, error } = await supabase
-    .from('carline_calls')
-    .select(`
-      id,
-      status,
-      students(first_name, last_name),
-      families(carline_tag_number)
-    `)
-    .eq('carline_event_id', currentCarlineEventId)
-    .order('created_at');
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
-  const waiting = document.getElementById('waitingList');
-  const called = document.getElementById('calledList');
-  const recalled = document.getElementById('recalledList');
-
-  waiting.innerHTML = '';
-  called.innerHTML = '';
-  recalled.innerHTML = '';
-
-  (data || []).forEach(row => {
-    const name = `${row.students.first_name} ${row.students.last_name}`;
-    const tag = row.families.carline_tag_number;
-    const li = document.createElement('li');
-    li.textContent = `${tag} – ${name}`;
-
-    if (row.status === 'WAITING') waiting.appendChild(li);
-    if (row.status === 'CALLED') {
-  const recallBtn = document.createElement('button');
-  recallBtn.textContent = 'Recall';
-  recallBtn.className = 'btn warn';
-  recallBtn.style.marginLeft = '8px';
-
-  recallBtn.addEventListener('click', () => {
-    recallStudent(row.id);
-  });
-
-  li.appendChild(recallBtn);
-  called.appendChild(li);
-}
-    if (row.status === 'RECALLED') recalled.appendChild(li);
-  });
-}
-
-async function allCall() {
-if (!currentCarlineEventId) {
-  alert('Dismissal is closed. Open a new dismissal to continue.');
-  return;
-}  
-
-  const { data: students } = await supabase
-    .from('students')
-    .select('id, family_id')
-    .eq('school_id', currentProfile.school_id)
-    .eq('active', true);
-
-  if (!students?.length) return;
-
-  const rows = students.map(s => ({
-    school_id: currentProfile.school_id,
-    carline_event_id: currentCarlineEventId,
-    student_id: s.id,
-    family_id: s.family_id,
-    call_type: 'ALL',
-    status: 'CALLED',
-    called_at: new Date().toISOString()
-  }));
-
-  const { error } = await supabase
-    .from('carline_calls')
-    .upsert(rows, {
-      onConflict: 'carline_event_id,student_id'
-    });
-
-  if (error) {
-    console.error(error);
-    alert('All Call failed');
-    return;
-  }
-
-  loadCarlineLists();
-}
-
-async function callByTag() {
-
-if (!currentCarlineEventId) {
-  alert('Dismissal is closed. Open a new dismissal to continue.');
-  return;
-}
-
-const tag = document.getElementById('carlineTagInput').value.trim();
-  if (!tag) {
-    alert('Please enter a carline tag number.');
-    return;
-  }
-
-
-  const { data: family } = await supabase
-    .from('families')
-    .select('id')
-    .eq('school_id', currentProfile.school_id)
-    .eq('carline_tag_number', tag)
-    .eq('active', true)
-    .single();
-
-  if (!family) {
-    alert('Tag not found');
-    return;
-  }
-
-  const { data: students } = await supabase
-    .from('students')
-    .select('id')
-    .eq('family_id', family.id)
-    .eq('active', true);
-
-  if (!students?.length) return;
-
-  const rows = students.map(s => ({
-    school_id: currentProfile.school_id,
-    carline_event_id: currentCarlineEventId,
-    student_id: s.id,
-    family_id: family.id,
-    call_type: 'FAMILY',
-    status: 'CALLED',
-    called_at: new Date().toISOString()
-  }));
-
-  const { error } = await supabase
-    .from('carline_calls')
-    .upsert(rows, {
-      onConflict: 'carline_event_id,student_id'
-    });
-
-  if (error) {
-    console.error(error);
-    alert('Tag call failed');
-    return;
-  }
-
-  document.getElementById('carlineTagInput').value = '';
-  loadCarlineLists();
-}
-
-async function recallStudent(carlineCallId) {
-  
-
-if (!currentCarlineEventId) {
-  alert('Dismissal is closed. Open a new dismissal to continue.');
-  return;
-}
-const { error } = await supabase
-    .from('carline_calls')
-    .update({
-      status: 'RECALLED',
-      recalled_at: new Date().toISOString()
-    })
-    .eq('id', carlineCallId);
-
-  if (error) {
-    console.error(error);
-    alert('Failed to recall student');
-    return;
-  }
-
-  loadCarlineLists();
-}
-
-async function recallByTag() {
-  const tag = document.getElementById('recallTagInput').value.trim();
-  if (!tag || !currentCarlineEventId) return;
-
-  // Find the family
-  const { data: family } = await supabase
-    .from('families')
-    .select('id')
-    .eq('school_id', currentProfile.school_id)
-    .eq('carline_tag_number', tag)
-    .eq('active', true)
-    .single();
-
-  if (!family) {
-    alert('Tag not found');
-    return;
-  }
-
-  // Recall ALL called students in that family
-  const { error } = await supabase
-    .from('carline_calls')
-    .update({
-      status: 'RECALLED',
-      recalled_at: new Date().toISOString()
-    })
-    .eq('carline_event_id', currentCarlineEventId)
-    .eq('family_id', family.id)
-    .eq('status', 'CALLED');
-
-  if (error) {
-    console.error(error);
-    alert('Recall by tag failed');
-    return;
-  }
-
-  document.getElementById('recallTagInput').value = '';
-  loadCarlineLists();
-}
-
-async function closeCarlineEvent() {
-  if (!currentCarlineEventId) return;
-
-  const confirmClose = confirm(
-    'Close this dismissal?\n\n' +
-    'This will end today’s carline and prevent further calls.'
-  );
-
-  if (!confirmClose) return;
-
+async function closeDismissal() {
+  if (!currentEvent) return;
+  if (!confirm('Close today\'s dismissal? No further calls can be made.')) return;
   const { error } = await supabase
     .from('carline_events')
-    .update({
-      status: 'CLOSED',
-      closed_at: new Date().toISOString(),
-      closed_by_user_id: currentProfile.user_id
-    })
-    .eq('id', currentCarlineEventId);
+    .update({ status: 'CLOSED', closed_at: new Date().toISOString(), closed_by_profile_id: profile.id })
+    .eq('id', currentEvent.id);
+  if (error) { showToast('Failed to close dismissal'); return; }
+  currentEvent.status = 'CLOSED';
+  if (realtimeChannel) { supabase.removeChannel(realtimeChannel); realtimeChannel = null; }
+  updateEventUI();
+  showToast('Dismissal closed');
+}
 
-  if (error) {
-    console.error('Failed to close carline event:', error);
-    alert('Failed to close dismissal.');
+function updateEventUI() {
+  const hasEvent  = !!currentEvent;
+  const isOpen    = hasEvent && currentEvent.status !== 'CLOSED';
+  const canManage = profile.is_superadmin || profile.can_manage_carline;
+
+  document.getElementById('displayNoEvent').hidden = hasEvent;
+  document.getElementById('displayGrid').hidden    = !hasEvent;
+
+  const badge = document.getElementById('clStatusBadge');
+  badge.textContent = isOpen ? 'OPEN' : 'CLOSED';
+  badge.className   = 'cl-status-badge ' + (isOpen ? 'open' : 'closed');
+
+  document.getElementById('btnStartDismissal').hidden = hasEvent || !canManage;
+  document.getElementById('btnCloseDismissal').hidden = !isOpen  || !canManage;
+  document.getElementById('btnStartNoEvent').hidden   = hasEvent || !canManage;
+}
+
+// ─── Teacher auto-detection ────────────────────────────────────────────
+function detectTeacherClass() {
+  if (!profile.employee_id) return;
+  const hasStudents = allStudents.some(s => s.homeroom_teacher_id === profile.employee_id);
+  if (hasStudents) activeTeacherIds.add(profile.employee_id);
+}
+
+// ─── Teacher map ──────────────────────────────────────────────────────
+function getTeacherMap() {
+  const map = new Map();
+  allStudents.forEach(s => {
+    const key = s.homeroom_teacher_id ?? '__none__';
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        teacherName: s.homeroom_teacher || 'Unassigned',
+        grade: s.grade_level || '',
+        students: [],
+      });
+    }
+    map.get(key).students.push(s);
+  });
+  map.forEach(info => info.students.sort((a, b) => a.last_name.localeCompare(b.last_name)));
+  return map;
+}
+
+// ─── Class bar ────────────────────────────────────────────────────────
+function renderClassBar() {
+  const tm   = getTeacherMap();
+  const wrap = document.getElementById('classPills');
+  wrap.innerHTML = '';
+
+  activeTeacherIds.forEach(tid => {
+    const info = tm.get(tid);
+    if (!info) return;
+    const pill = document.createElement('div');
+    pill.className = 'cl-class-pill';
+    pill.innerHTML = `
+      <span>${esc(info.teacherName)}${info.grade ? ` · ${esc(info.grade)}` : ''}</span>
+      <button class="cl-pill-remove" title="Remove class">×</button>
+    `;
+    pill.querySelector('.cl-pill-remove').addEventListener('click', () => {
+      activeTeacherIds.delete(tid);
+      renderClassBar();
+      renderColumns();
+    });
+    wrap.appendChild(pill);
+  });
+}
+
+function openClassDropdown() {
+  const dd  = document.getElementById('classDropdown');
+  const btn = document.getElementById('btnAddClass');
+  const tm  = getTeacherMap();
+  dd.innerHTML = '';
+
+  const available = [...tm.entries()].filter(([k]) => !activeTeacherIds.has(k));
+  if (!available.length) {
+    dd.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:var(--cl-text-muted);">All classes added</div>';
+  } else {
+    available.forEach(([key, info]) => {
+      const item = document.createElement('div');
+      item.className = 'cl-dropdown-item';
+      item.innerHTML = `
+        <span>${esc(info.teacherName)}${info.grade ? ` · ${esc(info.grade)}` : ''}</span>
+        <span class="item-count">${info.students.length}</span>
+      `;
+      item.addEventListener('click', () => {
+        activeTeacherIds.add(key);
+        dd.hidden = true;
+        renderClassBar();
+        renderColumns();
+      });
+      dd.appendChild(item);
+    });
+  }
+
+  // Position below the button using fixed coords so it escapes overflow clipping
+  const rect = btn.getBoundingClientRect();
+  dd.style.top  = (rect.bottom + 6) + 'px';
+  dd.style.left = rect.left + 'px';
+  dd.hidden = false;
+}
+
+// ─── 3-column rendering ───────────────────────────────────────────────
+function getVisibleStudents() {
+  if (activeTeacherIds.size === 0) return [];
+  return allStudents.filter(s => activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__'));
+}
+
+function colEmpty(bodyId, msg) {
+  document.getElementById(bodyId).innerHTML = `<div class="cl-col-empty">${esc(msg)}</div>`;
+}
+
+function renderColumns() {
+  if (activeTeacherIds.size === 0) {
+    colEmpty('bodyWaiting',  '+ Add Class to get started');
+    colEmpty('bodyCalled',   '—');
+    colEmpty('bodyRecalled', '—');
+    document.getElementById('countWaiting').textContent  = '0';
+    document.getElementById('countCalled').textContent   = '0';
+    document.getElementById('countRecalled').textContent = '0';
     return;
   }
 
-  currentCarlineEventId = null;
+  const students = getVisibleStudents();
+  const multi    = activeTeacherIds.size > 1;
 
-  alert('Dismissal closed for today.');
-  loadCarlineLists();
+  const waiting  = students.filter(s => { const st = callStatus.get(s.id); return !st || st === 'WAITING'; });
+  const called   = students.filter(s => callStatus.get(s.id) === 'CALLED');
+  const recalled = students.filter(s => callStatus.get(s.id) === 'RECALLED');
+
+  called.sort((a, b) => (calledAt.get(b.id) || '').localeCompare(calledAt.get(a.id) || ''));
+
+  renderColumn('bodyWaiting', 'emptyWaiting', waiting, 'waiting', multi, '✓ All students called!');
+  renderColumn('bodyCalled',  'emptyCalled',  called,  'called',  multi, 'No students called yet');
+  renderColumn('bodyRecalled','emptyRecalled',recalled,'recalled', multi, '—');
+
+  document.getElementById('countWaiting').textContent  = waiting.length;
+  document.getElementById('countCalled').textContent   = called.length;
+  document.getElementById('countRecalled').textContent = recalled.length;
 }
 
+function renderColumn(bodyId, emptyId, students, statusClass, multi, emptyMsg) {
+  const body  = document.getElementById(bodyId);
+  const empty = document.getElementById(emptyId);
 
-    init();
-  </script>
+  // Remove old cards but keep the empty-state element
+  [...body.children].forEach(c => { if (!c.classList.contains('cl-col-empty') && !c.classList.contains('cl-class-group-label')) c.remove(); });
+  body.innerHTML = '';
+
+  if (!students.length) {
+    const el = document.createElement('div');
+    el.className = 'cl-col-empty';
+    el.id = emptyId;
+    el.textContent = emptyMsg;
+    body.appendChild(el);
+    return;
+  }
+
+  if (multi) {
+    // Group by teacher
+    const groups = new Map();
+    students.forEach(s => {
+      const k = s.homeroom_teacher_id ?? '__none__';
+      if (!groups.has(k)) groups.set(k, { name: s.homeroom_teacher || 'Unassigned', students: [] });
+      groups.get(k).students.push(s);
+    });
+    groups.forEach(({ name, students: gs }) => {
+      const lbl = document.createElement('div');
+      lbl.className = 'cl-class-group-label';
+      lbl.textContent = name;
+      body.appendChild(lbl);
+      gs.forEach(s => body.appendChild(buildCard(s, statusClass)));
+    });
+  } else {
+    students.forEach(s => body.appendChild(buildCard(s, statusClass)));
+  }
+}
+
+function buildCard(student, statusClass) {
+  const tag  = familyTagMap.get(student.family_id) ?? '';
+  const icon = statusClass === 'called' ? '🚗' : statusClass === 'recalled' ? '🔔' : '';
+  const el   = document.createElement('div');
+  el.className = `cl-student-card ${statusClass}`;
+  el.id = `card-${student.id}`;
+  el.dataset.studentId = student.id;
+  el.innerHTML = `
+    ${icon ? `<span class="cl-card-icon">${icon}</span>` : ''}
+    <span class="cl-card-name">${esc(student.first_name)} ${esc(student.last_name)}</span>
+    ${tag ? `<span class="cl-card-tag">${esc(tag)}</span>` : ''}
+  `;
+  return el;
+}
+
+// ─── Realtime ─────────────────────────────────────────────────────────
+function setupRealtime() {
+  if (!currentEvent) return;
+  if (realtimeChannel) supabase.removeChannel(realtimeChannel);
+
+  realtimeChannel = supabase
+    .channel(`carline-display-${currentEvent.id}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'carline_calls',
+      filter: `carline_event_id=eq.${currentEvent.id}`,
+    }, row => {
+      const r = row.new;
+      if (!r) return;
+      const prev = callStatus.get(r.student_id);
+      callStatus.set(r.student_id, r.status);
+      if (r.called_at) calledAt.set(r.student_id, r.called_at);
+
+      const changed = r.status !== prev;
+      if (r.status === 'CALLED'   && changed) { playCallSound();   }
+      if (r.status === 'RECALLED' && changed) { playRecallSound(); }
+
+      renderColumns();
+      if (r.student_id) flashCard(`card-${r.student_id}`, r.status);
+    })
+    .subscribe();
+}
+
+function watchForNewEvents() {
+  supabase
+    .channel(`carline-events-watch-${profile.school_id}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'carline_events',
+      filter: `school_id=eq.${profile.school_id}`,
+    }, async payload => {
+      const ev = payload.new;
+      if (!ev || ev.status === 'CLOSED' || currentEvent) return;
+      await onEventStarted(ev);
+    })
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'carline_events',
+      filter: `school_id=eq.${profile.school_id}`,
+    }, payload => {
+      const ev = payload.new;
+      if (!ev || !currentEvent || ev.id !== currentEvent.id) return;
+      currentEvent.status = ev.status;
+      updateEventUI();
+      if (ev.status === 'CLOSED' && realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+      }
+    })
+    .subscribe();
+
+  // Polling fallback — catches the event even if realtime pub isn't configured
+  eventPollTimer = setInterval(pollForEvent, 10_000);
+}
+
+async function pollForEvent() {
+  if (currentEvent) { clearInterval(eventPollTimer); eventPollTimer = null; return; }
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await supabase
+    .from('carline_events')
+    .select('id, status, name')
+    .eq('school_id', profile.school_id)
+    .eq('event_date', today)
+    .neq('status', 'CLOSED')
+    .maybeSingle();
+  if (data) await onEventStarted(data);
+}
+
+async function onEventStarted(ev) {
+  clearInterval(eventPollTimer); eventPollTimer = null;
+  currentEvent = ev;
+  updateEventUI();
+  await loadExistingCalls();
+  setupRealtime();
+  startCallsPoller();
+  renderColumns();
+  showToast('Dismissal started');
+}
+
+function startCallsPoller() {
+  clearInterval(callsPollTimer);
+  callsPollTimer = setInterval(async () => {
+    if (!currentEvent || currentEvent.status === 'CLOSED') {
+      clearInterval(callsPollTimer); callsPollTimer = null;
+      return;
+    }
+    const prev = new Map(callStatus);
+    await loadExistingCalls();
+    // Only re-render if something actually changed
+    let changed = false;
+    callStatus.forEach((v, k) => { if (prev.get(k) !== v) changed = true; });
+    if (prev.size !== callStatus.size) changed = true;
+    if (changed) renderColumns();
+  }, 8000);
+}
+
+function flashCard(id, status) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const cls = status === 'CALLED' ? 'new-call' : status === 'RECALLED' ? 'new-recall' : null;
+  if (!cls) return;
+  el.classList.remove('new-call', 'new-recall');
+  void el.offsetWidth;
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 700);
+}
+
+// ─── Sound ────────────────────────────────────────────────────────────
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function tone(ctx, freq, start, dur, vol = 0.25, type = 'sine') {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = type; osc.frequency.value = freq;
+  const t = ctx.currentTime + start;
+  gain.gain.setValueAtTime(vol, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  osc.start(t); osc.stop(t + dur + 0.05);
+}
+function playCallSound() {
+  try {
+    const ctx = getCtx();
+    tone(ctx, 523.25, 0,    0.15);
+    tone(ctx, 659.25, 0.14, 0.15);
+    tone(ctx, 783.99, 0.28, 0.25);
+  } catch(e) {}
+}
+function playRecallSound() {
+  try {
+    const ctx = getCtx();
+    tone(ctx, 880, 0,    0.10, 0.28, 'triangle');
+    tone(ctx, 659, 0.09, 0.10, 0.28, 'triangle');
+    tone(ctx, 880, 0.20, 0.10, 0.28, 'triangle');
+    tone(ctx, 659, 0.30, 0.18, 0.28, 'triangle');
+  } catch(e) {}
+}
+
+// ─── UI helpers ───────────────────────────────────────────────────────
+function showToast(msg) {
+  const el = document.getElementById('clToast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+function toggleDarkMode() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  document.getElementById('btnDarkMode').textContent = dark ? '🌙' : '☀️';
+}
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen?.();
+    document.getElementById('btnFullscreen').textContent = '⊠';
+  } else {
+    document.exitFullscreen?.();
+    document.getElementById('btnFullscreen').textContent = '⛶';
+  }
+}
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Wire events ──────────────────────────────────────────────────────
+function wireEvents() {
+  document.getElementById('btnSignOut').addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login.html';
+  });
+  document.getElementById('btnDarkMode').addEventListener('click', toggleDarkMode);
+  document.getElementById('btnFullscreen').addEventListener('click', toggleFullscreen);
+  document.getElementById('btnStartDismissal').addEventListener('click', startDismissal);
+  document.getElementById('btnStartNoEvent').addEventListener('click', startDismissal);
+  document.getElementById('btnCloseDismissal').addEventListener('click', closeDismissal);
+  document.getElementById('btnAddClass').addEventListener('click', e => {
+    e.stopPropagation();
+    const dd = document.getElementById('classDropdown');
+    if (dd.hidden) openClassDropdown(); else dd.hidden = true;
+  });
+  document.addEventListener('click', () => {
+    document.getElementById('classDropdown').hidden = true;
+  });
+  document.addEventListener('pointerdown', () => getCtx(), { once: true });
+}
+
+boot().catch(err => {
+  console.error('Carline display failed to load:', err);
+  document.getElementById('clLoading').innerHTML =
+    `<div style="padding:24px;color:#dc2626;text-align:center;max-width:340px;">
+      <strong>Failed to load</strong><br><br>
+      <code style="font-size:12px;word-break:break-all;">${err?.message ?? String(err)}</code><br><br>
+      <small>Check the browser console for details.</small>
+    </div>`;
+});
+</script>
 </body>
 </html>

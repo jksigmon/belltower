@@ -50,6 +50,9 @@
     <nav id="adminNav" class="nav hidden">
       <a href="#dashboard" class="active">Dashboard</a>
 	  <a href="/staff.html?from=admin#pto">👤 My Portal</a>
+      <a href="/pto.html?from=admin" data-cap-group="pto" data-module="pto">🗓️ PTO Management</a>
+	  <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes">👥 Substitutes</a>
+	  <a href="/carline.html" data-cap-group="carline" data-module="carline">🚗 Carline Live</a>
       <a href="#staff" data-cap="can_manage_staff" data-module="staff">👥 Staff</a>
 	  <a href="#access"
       id="navAccess"
@@ -61,9 +64,6 @@
       <a href="#bus" data-cap="can_manage_bus_groups" data-module="bus_groups">🚌 Bus Groups</a>
 	  <a href="#bulk-upload" data-cap="can_bulk_upload">⬆️ Bulk Upload</a>
 	  <a href="#exports" data-cap="can_export_data">📤 Exports</a>
-      <a href="/pto.html?from=admin" data-cap-group="pto" data-module="pto">🗓️ PTO Management</a>
-	  <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes">👥 Substitutes</a>
-	  <a href="/carline.html" data-cap="can_view_carline" data-module="carline">🚗 Carline Live</a>
 
     </nav>
     <main>
@@ -255,6 +255,7 @@
         <h4>Operations</h4>
          <div class="permission-grid">
         <label data-module="carline"><input type="checkbox" data-field="can_view_carline"> View carline</label>
+        <label data-module="carline"><input type="checkbox" data-field="can_manage_carline"> Manage carline (start/close)</label>
 		<label data-module="staff"><input type="checkbox" data-field="can_manage_staff"> Manage staff</label>
 		<label data-module="students"><input type="checkbox" data-field="can_manage_students"> Manage students</label>
 		<label data-module="families"><input type="checkbox" data-field="can_manage_families"> Manage families</label>

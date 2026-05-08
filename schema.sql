@@ -864,6 +864,7 @@ CREATE TABLE public.profiles (
     is_superadmin boolean DEFAULT false NOT NULL,
     employee_id uuid,
     can_view_carline boolean DEFAULT false NOT NULL,
+    can_manage_carline boolean DEFAULT false NOT NULL,
     can_view_pto_calendar boolean DEFAULT false NOT NULL,
     can_review_pto boolean DEFAULT false NOT NULL,
     can_approve_pto boolean DEFAULT false NOT NULL,

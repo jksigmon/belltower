@@ -2,6 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".",
   "rewrites": [
+    { "source": "/carline-input.html", "destination": "/app/carline-input.html" },
     { "source": "/:path.html", "destination": "/app/:path.html" }
   ],
   "headers": [
