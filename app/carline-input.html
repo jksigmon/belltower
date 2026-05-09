@@ -13,7 +13,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="manifest" href="/icons/site.webmanifest">
   <link rel="icon" href="/icons/favicon.ico">
-  <link rel="stylesheet" href="/carline.css?v=5" />
+  <link rel="stylesheet" href="/carline.css?v=6" />
 </head>
 <body>
 
@@ -72,6 +72,10 @@
       <div class="inp-undo-row">
         <button class="inp-undo-btn" id="btnUndoLast" disabled>↩ Undo Last</button>
         <button class="inp-undo-btn" id="btnUndoTag">↩ Undo Tag #</button>
+      </div>
+
+      <div class="inp-allcall-row" id="allCallRow" hidden>
+        <button class="inp-allcall-btn" id="btnAllCall">📢 All Call</button>
       </div>
 
     </div>
@@ -285,6 +289,8 @@ function updateEventUI() {
   document.getElementById('btnCall').disabled   = !isOpen;
   document.getElementById('btnRecall').disabled = !isOpen;
 
+  document.getElementById('allCallRow').hidden = !isOpen || !canManage;
+
   if (isOpen) setupRealtime();
 }
 
@@ -448,6 +454,43 @@ async function undoByTag() {
   showToast(`↩ Tag ${tag} reset to Waiting`);
 }
 
+// ─── All Call ──────────────────────────────────────────────────────────
+async function allCall() {
+  if (!currentEvent || currentEvent.status === 'CLOSED') return;
+
+  const waiting = allStudents.filter(s => (callStatus.get(s.id) ?? 'WAITING') === 'WAITING');
+  if (!waiting.length) { showToast('No waiting students remaining'); return; }
+
+  if (!confirm(`Send All Call?\n\nThis will call all ${waiting.length} remaining waiting student${waiting.length !== 1 ? 's' : ''} to the front.`)) return;
+
+  const now = new Date().toISOString();
+  const rows = waiting.map(s => ({
+    school_id: profile.school_id,
+    carline_event_id: currentEvent.id,
+    student_id: s.id,
+    family_id: s.family_id,
+    call_type: 'ALL_CALL',
+    status: 'CALLED',
+    called_at: now,
+    called_by_profile_id: profile.id,
+  }));
+
+  const [{ error: callErr }, { error: evErr }] = await Promise.all([
+    supabase.from('carline_calls').upsert(rows, { onConflict: 'carline_event_id,student_id' }),
+    supabase.from('carline_events').update({ all_call_at: now }).eq('id', currentEvent.id),
+  ]);
+
+  if (callErr) { showToast('All Call failed'); return; }
+  if (evErr)   console.warn('All Call event stamp failed:', evErr.message);
+
+  waiting.forEach(s => callStatus.set(s.id, 'CALLED'));
+  undoStack.length = 0;
+  document.getElementById('btnUndoLast').disabled = true;
+  updateBusButtonStates();
+  playAllCallSound();
+  showToast(`📢 All Call — ${waiting.length} student${waiting.length !== 1 ? 's' : ''} called`);
+}
+
 async function resetDay() {
   if (!currentEvent) return;
   if (!confirm('Reset today\'s dismissal? This will clear ALL call records.')) return;
@@ -602,6 +645,15 @@ function playCallSound() {
     tone(ctx, 783.99, 0.28, 0.25);
   } catch(e) {}
 }
+function playAllCallSound() {
+  try {
+    const ctx = getCtx();
+    tone(ctx, 880,    0,    0.10, 0.35, 'square');
+    tone(ctx, 880,    0.16, 0.10, 0.35, 'square');
+    tone(ctx, 880,    0.32, 0.10, 0.35, 'square');
+    tone(ctx, 1046.5, 0.50, 0.40, 0.35, 'sine');
+  } catch(e) {}
+}
 function playRecallSound() {
   try {
     const ctx = getCtx();
@@ -648,6 +700,7 @@ function wireEvents() {
   });
   document.getElementById('btnUndoLast').addEventListener('click', undoLast);
   document.getElementById('btnUndoTag').addEventListener('click', undoByTag);
+  document.getElementById('btnAllCall').addEventListener('click', allCall);
   document.getElementById('btnResetDay').addEventListener('click', resetDay);
 
   document.addEventListener('pointerdown', () => getCtx(), { once: true });

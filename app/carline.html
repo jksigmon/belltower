@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="manifest" href="/icons/site.webmanifest">
   <link rel="icon" href="/icons/favicon.ico">
-  <link rel="stylesheet" href="/carline.css?v=5" />
+  <link rel="stylesheet" href="/carline.css?v=6" />
 </head>
 <body>
 
@@ -73,6 +73,13 @@
     </button>
   </div>
 
+  <!-- All Call banner -->
+  <div id="allCallBanner" class="cl-all-call-banner" hidden>
+    <span class="cl-all-call-icon">📢</span>
+    <span class="cl-all-call-text">All Call — All remaining students to the front</span>
+    <button class="cl-all-call-dismiss" id="btnDismissAllCall" title="Dismiss">✕</button>
+  </div>
+
   <!-- No active event state -->
   <div id="displayNoEvent" class="cl-no-event" hidden>
     <h2>No Active Dismissal</h2>
@@ -134,6 +141,7 @@ let eventPollTimer   = null;
 let callsPollTimer   = null;
 let audioCtx         = null;
 let toastTimer       = null;
+let allCallAt        = null;
 const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
 
 // ─── Boot ─────────────────────────────────────────────────────────────
@@ -229,14 +237,16 @@ async function ensureCarlineEvent() {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await supabase
     .from('carline_events')
-    .select('id, status, name')
+    .select('id, status, name, all_call_at')
     .eq('school_id', profile.school_id)
     .eq('event_date', today)
     .neq('status', 'CLOSED')
     .maybeSingle();
 
   currentEvent = data ?? null;
+  allCallAt = currentEvent?.all_call_at ?? null;
   updateEventUI();
+  updateAllCallBanner(false);
 }
 
 async function startDismissal() {
@@ -529,6 +539,11 @@ function watchForNewEvents() {
       const ev = payload.new;
       if (!ev || !currentEvent || ev.id !== currentEvent.id) return;
       currentEvent.status = ev.status;
+      // Detect a new All Call
+      if (ev.all_call_at && ev.all_call_at !== allCallAt) {
+        allCallAt = ev.all_call_at;
+        updateAllCallBanner(true);
+      }
       updateEventUI();
       if (ev.status === 'CLOSED' && realtimeChannel) {
         supabase.removeChannel(realtimeChannel);
@@ -546,7 +561,7 @@ async function pollForEvent() {
   const today = new Date().toISOString().slice(0, 10);
   const { data } = await supabase
     .from('carline_events')
-    .select('id, status, name')
+    .select('id, status, name, all_call_at')
     .eq('school_id', profile.school_id)
     .eq('event_date', today)
     .neq('status', 'CLOSED')
@@ -626,6 +641,15 @@ function playRecallSound() {
     tone(ctx, 659, 0.30, 0.18, 0.28, 'triangle');
   } catch(e) {}
 }
+function playAllCallSound() {
+  try {
+    const ctx = getCtx();
+    tone(ctx, 880,    0,    0.10, 0.35, 'square');
+    tone(ctx, 880,    0.16, 0.10, 0.35, 'square');
+    tone(ctx, 880,    0.32, 0.10, 0.35, 'square');
+    tone(ctx, 1046.5, 0.50, 0.40, 0.35, 'sine');
+  } catch(e) {}
+}
 
 // ─── UI helpers ───────────────────────────────────────────────────────
 function showToast(msg) {
@@ -653,6 +677,17 @@ function esc(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// ─── All Call banner ──────────────────────────────────────────────────
+function updateAllCallBanner(isNew = false) {
+  const banner = document.getElementById('allCallBanner');
+  const active = !!allCallAt;
+  banner.hidden = !active;
+  if (isNew && active) {
+    playAllCallSound();
+    if (isMobile()) setActiveTab('called');
+  }
+}
+
 // ─── Wire events ──────────────────────────────────────────────────────
 function wireEvents() {
   document.getElementById('btnSignOut').addEventListener('click', async () => {
@@ -674,6 +709,9 @@ function wireEvents() {
   });
   document.addEventListener('click', () => {
     document.getElementById('classDropdown').hidden = true;
+  });
+  document.getElementById('btnDismissAllCall').addEventListener('click', () => {
+    document.getElementById('allCallBanner').hidden = true;
   });
   document.addEventListener('pointerdown', () => getCtx(), { once: true });
 }
