@@ -489,6 +489,14 @@ async function allCall() {
   updateBusButtonStates();
   playAllCallSound();
   showToast(`📢 All Call — ${waiting.length} student${waiting.length !== 1 ? 's' : ''} called`);
+
+  // Broadcast instantly to the display page
+  const bc = supabase.channel(`carline-display-${currentEvent.id}`);
+  bc.subscribe(status => {
+    if (status !== 'SUBSCRIBED') return;
+    bc.send({ type: 'broadcast', event: 'all_call', payload: {} });
+    setTimeout(() => supabase.removeChannel(bc), 1500);
+  });
 }
 
 async function resetDay() {

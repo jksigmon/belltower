@@ -522,6 +522,12 @@ function setupRealtime() {
       renderColumns();
       if (r.student_id) flashCard(`card-${r.student_id}`, r.status);
     })
+    .on('broadcast', { event: 'all_call' }, () => {
+      if (!allCallAt) {
+        allCallAt = new Date().toISOString();
+        updateAllCallBanner(true);
+      }
+    })
     .subscribe();
 }
 
