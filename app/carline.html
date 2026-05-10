@@ -222,7 +222,7 @@ async function loadFamilyTags() {
 async function loadExistingCalls() {
   const { data } = await supabase
     .from('carline_calls')
-    .select('student_id, status, called_at')
+    .select('student_id, status, called_at, call_type')
     .eq('carline_event_id', currentEvent.id);
   callStatus.clear();
   calledAt.clear();
@@ -230,6 +230,14 @@ async function loadExistingCalls() {
     callStatus.set(c.student_id, c.status);
     if (c.called_at) calledAt.set(c.student_id, c.called_at);
   });
+
+  // Detect All Call from data — works on boot and every poll cycle
+  const hadAllCall = !!allCallAt;
+  const hasAllCall = (data || []).some(c => c.call_type === 'ALL_CALL');
+  if (hasAllCall && !hadAllCall) {
+    allCallAt = new Date().toISOString();
+    updateAllCallBanner(true);
+  }
 }
 
 // ─── Carline event ─────────────────────────────────────────────────────
