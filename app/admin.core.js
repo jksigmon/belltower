@@ -142,6 +142,11 @@ if (target === '#exports') {
   await exportsModule.initExportsSection(currentProfile);
 }
 
+if (target === '#campuses') {
+  const cam = await import('./admin.campuses.js');
+  await cam.initCampusesSection(currentProfile);
+}
+
 }
 
 /* ===============================

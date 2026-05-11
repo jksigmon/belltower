@@ -665,6 +665,10 @@
     <option value="year_end_summary">Year-End Summary</option>
   </select>
 
+  <select id="exportCampusFilter">
+    <option value="">All campuses</option>
+  </select>
+
   <span id="exportDateRange" style="display:none; gap:8px; align-items:center;" class="row">
     <input id="exportStartDate" placeholder="Start date" />
     <input id="exportEndDate" placeholder="End date" />
@@ -2407,7 +2411,7 @@ const REPORT_META = {
   }
 };
 
-function initPtoReportsView() {
+async function initPtoReportsView() {
   if (reportsFlatpickrInitialized) return;
 
   flatpickr('#exportStartDate', {
@@ -2436,6 +2440,27 @@ function initPtoReportsView() {
     }
   });
 
+  // Populate campus filter
+  const campusSelect = document.getElementById('exportCampusFilter');
+  if (campusSelect) {
+    const { data: campuses } = await supabase
+      .from('campuses')
+      .select('id, name')
+      .eq('school_id', currentProfile.school_id)
+      .order('name');
+
+    (campuses || []).forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      campusSelect.appendChild(opt);
+    });
+
+    if (!campuses || campuses.length === 0) {
+      campusSelect.style.display = 'none';
+    }
+  }
+
   reportsFlatpickrInitialized = true;
 }
 
@@ -2450,7 +2475,8 @@ async function handlePtoExport() {
   const reportType = document.getElementById('exportReportType')?.value;
   const startDate  = document.getElementById('exportStartDate')?.value;
   const endDate    = document.getElementById('exportEndDate')?.value;
-  
+  const campusId   = document.getElementById('exportCampusFilter')?.value || null;
+
   if (!reportType) {
     alert('Please select a report type.');
     return;
@@ -2474,7 +2500,8 @@ async function handlePtoExport() {
         body: {
           report_type: reportType,
           start_date: startDate,
-          end_date: endDate
+          end_date: endDate,
+          campus_id: campusId
         }
       });
 

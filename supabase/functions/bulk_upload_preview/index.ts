@@ -404,6 +404,19 @@ if (selected_sheets.includes("Guardians")) {
   }
 }
 
+// Load campuses for name → id resolution (used by Students and Staff)
+const { data: existingCampuses } = await admin
+  .from("campuses")
+  .select("id, name")
+  .eq("school_id", profile.school_id);
+
+const campusesByName = new Map<string, string>(
+  (existingCampuses ?? []).map(c => [
+    String(c.name).trim().toLowerCase(),
+    c.id
+  ])
+);
+
 // Capture bus groups from preview
 const previewBusGroupsByName = new Set<string>();
 
@@ -470,6 +483,7 @@ const { data: existingStudents } = await admin
     grade_level,
     homeroom_teacher_id,
     bus_group_id,
+    campus_id,
     active
     `
   )
@@ -489,6 +503,7 @@ const existingStudentsByNumber = new Map<
     grade_level: string | null;
     homeroom_teacher_id: string | null;
     bus_group_id: string | null;
+    campus_id: string | null;
     active: boolean;
   }
 >(
@@ -502,6 +517,7 @@ const existingStudentsByNumber = new Map<
       grade_level: s.grade_level,
       homeroom_teacher_id: s.homeroom_teacher_id,
       bus_group_id: s.bus_group_id,
+      campus_id: s.campus_id ?? null,
       active: s.active
     }
   ])
@@ -615,6 +631,22 @@ if (homeroomEmail) {
         }
       }
 
+      // ✅ Resolve campus
+      let studentCampusId: string | null = null;
+      if (row.campus_name) {
+        const campusKey = String(row.campus_name).trim().toLowerCase();
+        studentCampusId = campusesByName.get(campusKey) ?? null;
+        if (!studentCampusId) {
+          table.push({
+            row: i + 2,
+            action: "error",
+            error: `Campus "${row.campus_name}" not found`
+          });
+          result.blockingErrors = true;
+          continue;
+        }
+      }
+
       let studentNumber = row.student_number
         ? String(row.student_number).trim()
         : null;
@@ -699,10 +731,17 @@ if (homeroomEmail) {
           };
         }
 
+        if (existing.campus_id !== studentCampusId) {
+          diff.campus_id = {
+            before: existing.campus_id,
+            after: studentCampusId
+          };
+        }
+
         if (existing.active !== newActive) {
           diff.active = { before: existing.active, after: newActive };
         }
-        
+
   // ✅ If nothing actually changed, SKIP instead of UPDATE
          if (Object.keys(diff).length === 0) {
          table.push({
@@ -716,7 +755,7 @@ if (homeroomEmail) {
         table.push({
           row: i + 2,
           action: "update",
-          existing_id: existing.id,    
+          existing_id: existing.id,
           data: {
             family_id: familyId,
             first_name: firstName,
@@ -724,6 +763,7 @@ if (homeroomEmail) {
             grade_level: normalizedGrade,
             homeroom_teacher_id: homeroomTeacherId,
             bus_group_id: busGroupId,
+            campus_id: studentCampusId,
             active: newActive
           },
           diff
@@ -755,6 +795,7 @@ if (homeroomEmail) {
           grade_level: normalizedGrade,
           homeroom_teacher_id: homeroomTeacherId,
           bus_group_id: busGroupId,
+          campus_id: studentCampusId,
           active: String(row.active).toUpperCase() !== "FALSE"
         }
       });
@@ -775,7 +816,7 @@ if (homeroomEmail) {
 // Load existing staff from DB
 const { data: existingEmployees } = await admin
   .from("employees")
-  .select("id, email, first_name, last_name, position, active, supervisor_id")
+  .select("id, email, first_name, last_name, position, active, supervisor_id, campus_id")
   .eq("school_id", profile.school_id)
   .not("email", "is", null);
 
@@ -786,7 +827,8 @@ const existingStaffByEmail = new Map<string, {
   last_name: string | null;
   position: string | null;
   active: boolean;
-  supervisor_id: string | null;  // ✅ ADD THIS
+  supervisor_id: string | null;
+  campus_id: string | null;
 }>(
   (existingEmployees ?? []).map(e => [
     String(e.email).trim().toLowerCase(),
@@ -796,7 +838,8 @@ const existingStaffByEmail = new Map<string, {
       last_name: e.last_name,
       position: e.position,
       active: e.active,
-      supervisor_id: e.supervisor_id // ✅ ADD THIS
+      supervisor_id: e.supervisor_id,
+      campus_id: e.campus_id ?? null
     }
   ])
 );
@@ -874,6 +917,22 @@ if (supervisorEmail) {
   }
 }
 
+// ✅ Resolve campus (optional for staff)
+let staffCampusId: string | null = null;
+if (row.campus_name) {
+  const campusKey = String(row.campus_name).trim().toLowerCase();
+  staffCampusId = campusesByName.get(campusKey) ?? null;
+  if (!staffCampusId) {
+    table.push({
+      row: i + 2,
+      action: "error",
+      error: `Campus "${row.campus_name}" not found`
+    });
+    result.hasErrors = true;
+    result.blockingErrors = true;
+    continue;
+  }
+}
 
       let email: string | null = row.email
         ? String(row.email).trim().toLowerCase()
@@ -976,6 +1035,13 @@ if (existing && allow_updates) {
     };
   }
 
+  // ✅ Campus change
+  if (existing.campus_id !== staffCampusId) {
+    diff.campus_id = {
+      before: existing.campus_id,
+      after: staffCampusId
+    };
+  }
 
   // ✅ If nothing actually changed, SKIP instead of UPDATE
   if (Object.keys(diff).length === 0) {
@@ -996,7 +1062,8 @@ if (existing && allow_updates) {
       last_name: lastName,
       position: newPosition,
       active: newActive,
-      supervisor_id: supervisorId
+      supervisor_id: supervisorId,
+      campus_id: staffCampusId
     },
     diff,
     profile_action: "none"
@@ -1029,7 +1096,8 @@ data: {
   email,
   position: row.position ? String(row.position).trim() : null,
   active: String(row.active).toUpperCase() !== "FALSE",
-  supervisor_id: supervisorId, // ✅ ADD THIS
+  supervisor_id: supervisorId,
+  campus_id: staffCampusId,
 
   profile: {
     role: "staff",

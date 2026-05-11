@@ -28,6 +28,7 @@
     <div class="cl-header-left">
       <span class="cl-school-name" id="inpSchoolName">Carline</span>
       <span class="cl-status-badge open" id="inpStatusBadge">OPEN</span>
+      <select id="campusSelector" style="display:none; font-size:13px; padding:3px 6px; border-radius:6px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.15); color:inherit; cursor:pointer;"></select>
     </div>
     <div class="cl-header-spacer"></div>
     <div class="cl-header-right">
@@ -118,6 +119,8 @@ let profile      = null;
 let currentEvent = null;
 let allStudents  = [];
 let allBusGroups = [];
+let allCampuses  = [];
+let activeCampusId = null;    // null = no campus filter (school-wide)
 let familyTagMap = new Map(); // family_id → tag_number
 let tagFamilyMap = new Map(); // tag_number → family_id
 let callStatus   = new Map(); // student_id → status
@@ -157,8 +160,19 @@ async function boot() {
   }
 
   console.log('[boot] 5 - loading data');
-  await Promise.all([ loadStudents(), loadBusGroups(), loadFamilyTags() ]);
+  await Promise.all([ loadStudents(), loadBusGroups(), loadFamilyTags(), loadCampuses() ]);
   console.log('[boot] 6 - data loaded, students:', allStudents.length);
+
+  // Default campus from employee assignment
+  if (p.employee_id && allCampuses.length > 0) {
+    const { data: emp } = await supabase
+      .from('employees')
+      .select('campus_id')
+      .eq('id', p.employee_id)
+      .single();
+    activeCampusId = emp?.campus_id ?? null;
+  }
+  renderCampusSelector();
   await ensureCarlineEvent();
   console.log('[boot] 7 - event:', currentEvent?.id ?? 'none');
   if (currentEvent) await loadExistingCalls();
@@ -177,11 +191,20 @@ async function boot() {
 async function loadStudents() {
   const { data } = await supabase
     .from('students')
-    .select('id, first_name, last_name, family_id, bus_group_id')
+    .select('id, first_name, last_name, family_id, bus_group_id, campus_id')
     .eq('school_id', profile.school_id)
     .eq('active', true)
     .order('last_name');
   allStudents = data || [];
+}
+
+async function loadCampuses() {
+  const { data } = await supabase
+    .from('campuses')
+    .select('id, name')
+    .eq('school_id', profile.school_id)
+    .order('name');
+  allCampuses = data || [];
 }
 
 async function loadBusGroups() {
@@ -220,17 +243,45 @@ async function loadExistingCalls() {
   updateBusButtonStates();
 }
 
+// ─── Campus selector ──────────────────────────────────────────────────
+function renderCampusSelector() {
+  const sel = document.getElementById('campusSelector');
+  if (!sel || allCampuses.length === 0) return;
+
+  sel.innerHTML = '<option value="">All campuses</option>';
+  allCampuses.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name;
+    if (c.id === activeCampusId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  sel.style.display = '';
+  sel.addEventListener('change', e => {
+    activeCampusId = e.target.value || null;
+    // Re-check for an open event on the newly selected campus
+    ensureCarlineEvent();
+  });
+}
+
 // ─── Carline event ─────────────────────────────────────────────────────
 async function ensureCarlineEvent() {
   const today = new Date().toISOString().slice(0, 10);
-  const { data } = await supabase
+  let q = supabase
     .from('carline_events')
     .select('id, status, name')
     .eq('school_id', profile.school_id)
     .eq('event_date', today)
-    .neq('status', 'CLOSED')
-    .maybeSingle();
+    .neq('status', 'CLOSED');
 
+  if (activeCampusId) {
+    q = q.eq('campus_id', activeCampusId);
+  } else {
+    q = q.is('campus_id', null);
+  }
+
+  const { data } = await q.maybeSingle();
   currentEvent = data ?? null;
   updateEventUI();
 }
@@ -241,9 +292,12 @@ async function startDismissal() {
     .from('carline_events')
     .insert({
       school_id: profile.school_id,
-      name: 'PM Dismissal',
+      name: activeCampusId
+        ? (allCampuses.find(c => c.id === activeCampusId)?.name ?? 'PM Dismissal')
+        : 'PM Dismissal',
       event_date: today,
       status: 'OPEN',
+      campus_id: activeCampusId,
       created_by_profile_id: profile.id,
     })
     .select('id, status, name')
@@ -325,8 +379,11 @@ async function callByTag(tag, isRecall = false) {
   const familyId = tagFamilyMap.get(tag);
   if (!familyId) { showToast(`Tag ${tag} not found`); return; }
 
-  const students = allStudents.filter(s => s.family_id === familyId);
-  if (!students.length) { showToast(`Tag ${tag}: no active students`); return; }
+  const students = allStudents.filter(s =>
+    s.family_id === familyId &&
+    (activeCampusId === null || s.campus_id === activeCampusId)
+  );
+  if (!students.length) { showToast(`Tag ${tag}: no students at this campus`); return; }
 
   if (isRecall) {
     await recallStudents(students, familyId, tag);
@@ -439,8 +496,11 @@ async function undoByTag() {
   const familyId = tagFamilyMap.get(tag.trim());
   if (!familyId) { showToast(`Tag ${tag} not found`); return; }
 
-  const students = allStudents.filter(s => s.family_id === familyId);
-  if (!students.length) { showToast(`No students for tag ${tag}`); return; }
+  const students = allStudents.filter(s =>
+    s.family_id === familyId &&
+    (activeCampusId === null || s.campus_id === activeCampusId)
+  );
+  if (!students.length) { showToast(`No students for tag ${tag} at this campus`); return; }
 
   const { error } = await supabase
     .from('carline_calls')
@@ -458,8 +518,11 @@ async function undoByTag() {
 async function allCall() {
   if (!currentEvent || currentEvent.status === 'CLOSED') return;
 
-  const waiting = allStudents.filter(s => (callStatus.get(s.id) ?? 'WAITING') === 'WAITING');
-  if (!waiting.length) { showToast('No waiting students remaining'); return; }
+  const waiting = allStudents.filter(s =>
+    (callStatus.get(s.id) ?? 'WAITING') === 'WAITING' &&
+    (activeCampusId === null || s.campus_id === activeCampusId)
+  );
+  if (!waiting.length) { showToast('No waiting students remaining at this campus'); return; }
 
   if (!confirm(`Send All Call?\n\nThis will call all ${waiting.length} remaining waiting student${waiting.length !== 1 ? 's' : ''} to the front.`)) return;
 

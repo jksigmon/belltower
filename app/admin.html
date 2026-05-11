@@ -91,19 +91,20 @@
   }
 
   /* No label on action cells */
-  #staffTable tbody tr td:nth-child(6)::before,
-  #studentsTable tbody tr td:nth-child(8)::before,
+  #staffTable tbody tr td:nth-child(8)::before,
+  #studentsTable tbody tr td:nth-child(9)::before,
   #familiesTable tbody tr td:nth-child(4)::before,
   #guardiansTable tbody tr td:nth-child(6)::before {
     content: none;
   }
 
-  /* ── Staff: Name(1) Email(2) Position(3) Supervisor(4) Active(5) Actions(6) ── */
+  /* ── Staff: Name(1) Email(2) Position(3) Supervisor(4) Active(5) Campus(6) Months(7) Actions(8) ── */
   #staffTable tbody tr {
     grid-template-areas:
       "name     active"
       "email    email"
       "position supervisor"
+      "campus   months"
       "action   action";
   }
 
@@ -112,22 +113,27 @@
   #staffTable tbody tr td:nth-child(3) { grid-area: position; }
   #staffTable tbody tr td:nth-child(4) { grid-area: supervisor; text-align: right; }
   #staffTable tbody tr td:nth-child(5) { grid-area: active;     text-align: right; }
-  #staffTable tbody tr td:nth-child(6) { grid-area: action;     display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  #staffTable tbody tr td:nth-child(6) { grid-area: campus;     font-size: 12px; color: #6b7280; }
+  #staffTable tbody tr td:nth-child(7) { grid-area: months;     font-size: 12px; color: #6b7280; text-align: right; }
+  #staffTable tbody tr td:nth-child(8) { grid-area: action;     display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 
   #staffTable tbody tr td:nth-child(1)::before { content: "Name"; }
   #staffTable tbody tr td:nth-child(2)::before { content: "Email"; }
   #staffTable tbody tr td:nth-child(3)::before { content: "Position"; }
   #staffTable tbody tr td:nth-child(4)::before { content: "Supervisor"; }
   #staffTable tbody tr td:nth-child(5)::before { content: "Active"; }
+  #staffTable tbody tr td:nth-child(6)::before { content: "Campus"; }
+  #staffTable tbody tr td:nth-child(7)::before { content: "Emp. Months"; }
 
-  #staffTable tbody tr td:nth-child(6) .btn { flex: 1; min-width: 60px; }
+  #staffTable tbody tr td:nth-child(8) .btn { flex: 1; min-width: 60px; }
 
-  /* ── Students: Name(1) #(2) Family(3) Grade(4) Homeroom(5) Bus(6) Active(7) Actions(8) ── */
+  /* ── Students: Name(1) #(2) Family(3) Grade(4) Homeroom(5) Bus(6) Campus(7) Active(8) Actions(9) ── */
   #studentsTable tbody tr {
     grid-template-areas:
       "name     stunum"
       "family   grade"
       "homeroom bus"
+      "campus   campus"
       "action   action";
   }
 
@@ -137,8 +143,9 @@
   #studentsTable tbody tr td:nth-child(4) { grid-area: grade;    text-align: right; }
   #studentsTable tbody tr td:nth-child(5) { grid-area: homeroom; font-size: 12px; }
   #studentsTable tbody tr td:nth-child(6) { grid-area: bus;      text-align: right; font-size: 12px; }
-  #studentsTable tbody tr td:nth-child(7) { display: none; } /* Active hidden on mobile */
-  #studentsTable tbody tr td:nth-child(8) { grid-area: action;   margin-top: 4px; }
+  #studentsTable tbody tr td:nth-child(7) { grid-area: campus;   font-size: 12px; color: #6b7280; }
+  #studentsTable tbody tr td:nth-child(8) { display: none; } /* Active hidden on mobile */
+  #studentsTable tbody tr td:nth-child(9) { grid-area: action;   margin-top: 4px; }
 
   #studentsTable tbody tr td:nth-child(1)::before { content: "Name"; }
   #studentsTable tbody tr td:nth-child(2)::before { content: "Student #"; }
@@ -146,6 +153,7 @@
   #studentsTable tbody tr td:nth-child(4)::before { content: "Grade"; }
   #studentsTable tbody tr td:nth-child(5)::before { content: "Homeroom"; }
   #studentsTable tbody tr td:nth-child(6)::before { content: "Bus Group"; }
+  #studentsTable tbody tr td:nth-child(7)::before { content: "Campus"; }
 
   /* Student # readonly input — strip input chrome, show as plain text */
   #studentsTable tbody tr td:nth-child(2) .student-number {
@@ -158,13 +166,13 @@
     text-align: right;
   }
 
-  #studentsTable tbody tr td:nth-child(8) .action-buttons {
+  #studentsTable tbody tr td:nth-child(9) .action-buttons {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
   }
 
-  #studentsTable tbody tr td:nth-child(8) .action-buttons .btn { flex: 1; min-width: 60px; }
+  #studentsTable tbody tr td:nth-child(9) .action-buttons .btn { flex: 1; min-width: 60px; }
 
   /* ── Families: Carline Tag(1) Family Name(2) Active(3) Actions(4) ── */
   #familiesTable tbody tr {
@@ -254,6 +262,7 @@
       <a href="#students" data-cap="can_manage_students" data-module="students">🎓 Students</a>
 	  <a href="#families" data-cap="can_manage_families" data-module="families">👨‍👩‍👧 Families</a>
 	  <a href="#guardians" data-cap="can_manage_guardians" data-module="guardians">👪 Guardians</a>
+      <a href="#campuses" data-cap="can_manage_campuses">🏫 Campuses</a>
       <a href="#bus" data-cap="can_manage_bus_groups" data-module="bus_groups">🚌 Bus Groups</a>
 	  <a href="#bulk-upload" data-cap="can_bulk_upload">⬆️ Bulk Upload</a>
 	  <a href="#exports" data-cap="can_export_data">📤 Exports</a>
@@ -313,6 +322,15 @@
 		<select id="staffSupervisor">
 		<option value="">Supervisor / PTO Approver (optional)</option>
 		</select>
+        <select id="staffCampusAdd">
+          <option value="">Campus (optional)</option>
+        </select>
+        <select id="staffEmploymentMonths">
+          <option value="">Employment months</option>
+          <option value="10">10-month</option>
+          <option value="11">11-month</option>
+          <option value="12">12-month</option>
+        </select>
         <button id="addStaff" class="btn btn-primary">Add</button>
       </div>
     </div>
@@ -334,6 +352,10 @@
       <option value="">All</option>
       <option value="true">Active</option>
       <option value="false">Inactive</option>
+    </select>
+
+    <select id="staffCampusFilter">
+      <option value="">All campuses</option>
     </select>
 
     <select id="staffSort">
@@ -367,6 +389,8 @@
             <th>Position</th>
 			<th>Supervisor</th>
             <th>Active</th>
+            <th>Campus</th>
+            <th>Mos.</th>
             <th></th>
           </tr>
         </thead>
@@ -455,6 +479,7 @@
 		<label data-module="guardians"><input type="checkbox" data-field="can_manage_guardians"> Manage guardians</label>
 		<label data-module="bus_groups"><input type="checkbox" data-field="can_manage_bus_groups"> Manage bus groups</label>
 		<label data-module="substitutes"><input type="checkbox" data-field="can_manage_substitutes"> Manage substitutes</label>
+		<label><input type="checkbox" data-field="can_manage_campuses"> Manage campuses</label>
 		<label><input type="checkbox" data-field="can_bulk_upload"> Bulk upload</label>
 		<label><input type="checkbox" data-field="can_export_data"> Export data</label>
 </div>
@@ -656,6 +681,9 @@
 </select>
         <select id="studentFamily"></select>
         <select id="studentBusGroup"></select>
+        <select id="studentCampus">
+          <option value="">Campus (optional)</option>
+        </select>
 		<input
 		  id="studentNumber"
 		  placeholder="Student Number (optional)"
@@ -702,13 +730,17 @@
 
     <select id="studentHomeroomFilter">
       <option value="">All homerooms</option>
-      <!-- populate options server-side or statically -->
+    </select>
+
+    <select id="studentCampusFilter">
+      <option value="">All campuses</option>
     </select>
 
     <select id="studentSort">
       <option value="last_name.asc">Last name</option>
       <option value="first_name.asc">First name</option>
       <option value="grade_level.asc">Grade</option>
+      <option value="campus_id.asc">Campus</option>
     </select>
   </div>
 
@@ -731,6 +763,7 @@
     <th class="col-grade">Grade</th>
     <th>Homeroom</th>
     <th>Bus Group</th>
+    <th>Campus</th>
     <th class="col-active">Active</th>
     <th class="col-actions"></th>
   </tr>
@@ -821,11 +854,11 @@
       <!-- Template downloads -->
       <div class="row" style="gap:12px; margin-bottom:12px;">
         <a
-          href="https://xrhwjjkxlshfarlxuxsa.supabase.co/storage/v1/object/sign/Templates/Bulk%20Upload%20Template.xlsx?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV8zZTBiMmRhNi00NzIwLTQ5ZTItYjdkZS0wNmVhYmUyMWJhYjYiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJUZW1wbGF0ZXMvQnVsayBVcGxvYWQgVGVtcGxhdGUueGxzeCIsImlhdCI6MTc3Njg1MTA5MiwiZXhwIjo0OTMwNDUxMDkyfQ._coPwP1rYyrr0n8ahjQYktn-9dHPgJMnpr-HDXCtBrU"
+          id="bulkTemplateDownload"
+          href="#"
           class="btn"
           download
         >
-
           Download Excel Template
         </a>
 
@@ -945,9 +978,54 @@
 
   </div>
 </section>
+
+<section id="campuses" class="admin-section">
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <div class="admin-content fade-in">
+    <div class="panel panel-action">
+      <h3>Add Campus</h3>
+      <div class="admin-form-row compact">
+        <input id="campusName" placeholder="Campus Name" />
+        <input id="campusStart" type="time" title="Day Start Time" />
+        <input id="campusEnd" type="time" title="Day End Time" />
+        <input id="campusHours" type="number" step="0.5" placeholder="Workday Hours" />
+        <input id="campusIncrement" type="number" step="5" placeholder="PTO Increment (min)" />
+        <button id="addCampus" class="btn btn-primary">Add</button>
+      </div>
+    </div>
+
+    <div class="panel panel-history">
+      <h3>Campuses</h3>
+      <p id="campusEmpty" class="muted" hidden>No campuses configured yet.</p>
+      <table id="campusTable" style="display:none">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Day Start</th>
+            <th>Day End</th>
+            <th>Workday Hrs</th>
+            <th>PTO Increment</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
  </main>
  </div>
 <script type="module" src="/app/admin.core.js"></script>
+<script type="module">
+  import { TEMPLATE_URL } from '/app/config.js';
+  const link = document.getElementById('bulkTemplateDownload');
+  if (link && TEMPLATE_URL) link.href = TEMPLATE_URL;
+</script>
 <script src="/app/nav-mobile.js"></script>
  </body>
 </html>

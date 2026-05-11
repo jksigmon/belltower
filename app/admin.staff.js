@@ -5,6 +5,7 @@ import { createDirectory } from './admin.directory.js';
 
 let currentProfile;
 let supervisorLookup = {};
+let campusLookup = {};
 let initialized = false;
 let staffDirectory;
 
@@ -17,8 +18,10 @@ export async function initStaffSection(profile) {
   currentProfile = profile;
 
   supervisorLookup = {};
-  await loadSupervisorLookup();
+  campusLookup = {};
+  await Promise.all([loadSupervisorLookup(), loadCampusLookup()]);
   populateAddStaffSupervisorSelect();
+  populateAddStaffCampusSelect();
   
   if (!initialized) {
     wireStaticEvents();
@@ -37,7 +40,9 @@ export async function initStaffSection(profile) {
       email,
       position,
       active,
-      supervisor_id
+      supervisor_id,
+      campus_id,
+      employment_months
     `,
 
     searchFields: [
@@ -48,12 +53,12 @@ export async function initStaffSection(profile) {
     ],
 
     filters: {
-  active: val =>
-    val === 'true' || val === 'false'
-      ? { column: 'active', op: 'eq', value: val === 'true' }
-      : null
-}
-,
+      active: val =>
+        val === 'true' || val === 'false'
+          ? { column: 'active', op: 'eq', value: val === 'true' }
+          : null,
+      campus: val => val ? { column: 'campus_id', op: 'eq', value: val } : null
+    },
 
     defaultSort: { column: 'last_name', ascending: true },
 
@@ -96,6 +101,30 @@ async function loadSupervisorLookup() {
   });
 }
 
+async function loadCampusLookup() {
+  const { data, error } = await supabase
+    .from('campuses')
+    .select('id, name')
+    .eq('school_id', currentProfile.school_id)
+    .order('name');
+
+  if (error) { console.error('Failed to load campuses', error); return; }
+
+  campusLookup = {};
+  (data || []).forEach(c => { campusLookup[c.id] = c.name; });
+
+  const filterSelect = document.getElementById('staffCampusFilter');
+  if (filterSelect) {
+    filterSelect.innerHTML = '<option value="">All campuses</option>';
+    (data || []).forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      filterSelect.appendChild(opt);
+    });
+  }
+}
+
 function populateAddStaffSupervisorSelect() {
   const select = document.getElementById('staffSupervisor');
   if (!select) return;
@@ -110,6 +139,18 @@ function populateAddStaffSupervisorSelect() {
   select.appendChild(placeholder);
 
   populateSupervisorSelect(select, null, false);
+}
+
+function populateAddStaffCampusSelect() {
+  const select = document.getElementById('staffCampusAdd');
+  if (!select) return;
+  select.innerHTML = '<option value="">Campus (optional)</option>';
+  Object.entries(campusLookup).forEach(([id, name]) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
 }
 
 function debounce(fn, delay = 250) {
@@ -161,6 +202,21 @@ function renderStaffRow(emp) {
     </td>
 
     <td>
+      <span class="view">${campusLookup[emp.campus_id] ?? '—'}</span>
+      <select class="form-input edit campus" hidden></select>
+    </td>
+
+    <td>
+      <span class="view">${emp.employment_months ? emp.employment_months + 'mo' : '—'}</span>
+      <select class="form-input edit emp-months" hidden>
+        <option value="">—</option>
+        <option value="10" ${emp.employment_months === 10 ? 'selected' : ''}>10-month</option>
+        <option value="11" ${emp.employment_months === 11 ? 'selected' : ''}>11-month</option>
+        <option value="12" ${emp.employment_months === 12 ? 'selected' : ''}>12-month</option>
+      </select>
+    </td>
+
+    <td>
      <button class="btn editBtn">Edit</button>
 <button class="btn saveBtn" hidden>Save</button>
 <button class="btn cancelBtn" hidden>Cancel</button>
@@ -168,7 +224,7 @@ function renderStaffRow(emp) {
     </td>
   `;
 
-  wireRow(tr, emp.id, emp.supervisor_id);
+  wireRow(tr, emp.id, emp.supervisor_id, emp.campus_id);
   return tr;
 }
 
@@ -184,6 +240,7 @@ function wireStaticEvents() {
 
   const searchInput = document.getElementById('staffSearch');
   const activeFilter = document.getElementById('staffActiveFilter');
+  const campusFilter = document.getElementById('staffCampusFilter');
   const sortSelect = document.getElementById('staffSort');
 
   if (searchInput) {
@@ -197,6 +254,12 @@ function wireStaticEvents() {
   if (activeFilter) {
     activeFilter.addEventListener('change', e =>
       staffDirectory.setFilter('active', e.target.value)
+    );
+  }
+
+  if (campusFilter) {
+    campusFilter.addEventListener('change', e =>
+      staffDirectory.setFilter('campus', e.target.value)
     );
   }
 
@@ -220,7 +283,7 @@ function wireStaticEvents() {
     );
 }
 
-function wireRow(tr, empId, supervisorId) {
+function wireRow(tr, empId, supervisorId, campusId) {
   const editBtn   = tr.querySelector('.editBtn');
   const saveBtn   = tr.querySelector('.saveBtn');
   const cancelBtn = tr.querySelector('.cancelBtn');
@@ -229,8 +292,10 @@ function wireRow(tr, empId, supervisorId) {
   const views = tr.querySelectorAll('.view');
   const edits = tr.querySelectorAll('.edit');
   const supervisorSelect = tr.querySelector('.supervisor');
+  const campusSelect = tr.querySelector('.campus');
 
   populateSupervisorSelect(supervisorSelect, supervisorId, true);
+  populateCampusSelect(campusSelect, campusId);
 
   /* ---------- EDIT ---------- */
   editBtn.onclick = () => {
@@ -245,13 +310,16 @@ function wireRow(tr, empId, supervisorId) {
 
   /* ---------- SAVE ---------- */
   saveBtn.onclick = async () => {
+    const empMonthsVal = tr.querySelector('.emp-months').value;
     const updated = {
       first_name: tr.querySelector('.first').value.trim(),
       last_name: tr.querySelector('.last').value.trim(),
       email: tr.querySelector('.email').value.trim(),
       position: tr.querySelector('.position').value.trim(),
       supervisor_id: supervisorSelect.value || null,
-      active: tr.querySelector('.active').checked
+      active: tr.querySelector('.active').checked,
+      campus_id: campusSelect.value || null,
+      employment_months: empMonthsVal ? parseInt(empMonthsVal) : null
     };
 
     await supabase
@@ -315,6 +383,23 @@ function populateSupervisorSelect(select, selectedId, includeNone = true) {
 
 
 
+function populateCampusSelect(select, selectedId) {
+  select.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = '— None —';
+  if (!selectedId) none.selected = true;
+  select.appendChild(none);
+
+  Object.entries(campusLookup).forEach(([id, name]) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = name;
+    if (id === selectedId) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
+
 /* ===============================
    CREATE STAFF
 ================================ */
@@ -325,6 +410,10 @@ async function createStaff() {
   const position = document.getElementById('staffPosition').value.trim();
   const supervisorId =
     document.getElementById('staffSupervisor')?.value || null;
+  const campusId =
+    document.getElementById('staffCampusAdd')?.value || null;
+  const empMonthsRaw = document.getElementById('staffEmploymentMonths')?.value;
+  const employmentMonths = empMonthsRaw ? parseInt(empMonthsRaw) : null;
 
   if (!first || !last) {
     alert('First and last name required');
@@ -338,6 +427,8 @@ async function createStaff() {
     email,
     position,
     supervisor_id: supervisorId,
+    campus_id: campusId,
+    employment_months: employmentMonths,
     active: true
   });
 

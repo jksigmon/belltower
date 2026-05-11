@@ -18,7 +18,8 @@ export async function initStudentsSection(profile) {
   loadFamilyOptions(['#studentFamily']),
   loadBusGroupOptions('#studentBusGroup'),
   loadHomeroomTeacherOptions(),
-  loadHomeroomFilterOptions()
+  loadHomeroomFilterOptions(),
+  loadCampusOptions()
 ])
 
 
@@ -35,10 +36,12 @@ export async function initStudentsSection(profile) {
 	  last_name,
 	  grade_level,
 	  homeroom_teacher_id,
+	  campus_id,
 	  active,
 	  families!inner(carline_tag_number, family_name),
 	  employees!left(id, first_name, last_name),
-	  bus_groups(id, name)
+	  bus_groups(id, name),
+	  campuses(id, name)
 	`,
 
 
@@ -53,9 +56,10 @@ export async function initStudentsSection(profile) {
       filters: {
         grade: val =>
           val ? { column: 'grade_level', op: 'eq', value: val } : null,
-
         homeroom: val =>
-		val ? { column: 'homeroom_teacher_id', op: 'eq', value: val } : null
+          val ? { column: 'homeroom_teacher_id', op: 'eq', value: val } : null,
+        campus: val =>
+          val ? { column: 'campus_id', op: 'eq', value: val } : null
       },
 
       defaultSort: {
@@ -149,6 +153,28 @@ async function loadHomeroomFilterOptions() {
   }
 }
 
+async function loadCampusOptions() {
+  const { data } = await supabase
+    .from('campuses')
+    .select('id, name')
+    .eq('school_id', currentProfile.school_id)
+    .order('name');
+
+  const addSelect = document.getElementById('studentCampus');
+  const filterSelect = document.getElementById('studentCampusFilter');
+
+  [addSelect, filterSelect].forEach((sel, i) => {
+    if (!sel) return;
+    sel.innerHTML = i === 0
+      ? '<option value="">Campus (optional)</option>'
+      : '<option value="">All campuses</option>';
+    (data || []).forEach(c => {
+      sel.appendChild(new Option(c.name, c.id));
+    });
+    if (!data || data.length === 0) sel.style.display = 'none';
+  });
+}
+
 /* ===============================
    RENDER ROW
 ================================ */
@@ -198,11 +224,14 @@ function renderStudentRow(r) {
     </td>
 
     <td>
+      <span class="view">${r.campuses?.name ?? '—'}</span>
+      <select class="form-input edit campus" hidden></select>
+    </td>
+
+    <td>
       <span class="view">${r.active ? 'Yes' : 'No'}</span>
       <input type="checkbox" class="edit active" ${r.active ? 'checked' : ''} hidden>
     </td>
-
-    
 
 <td class="col-actions">
   <div class="action-buttons">
@@ -238,6 +267,12 @@ function wireStudentRow(tr, r) {
     busSelect.appendChild(opt.cloneNode(true))
   );
   busSelect.value = r.bus_groups?.id ?? '';
+
+  const campusSelect = tr.querySelector('.campus');
+  document.querySelectorAll('#studentCampus option').forEach(opt =>
+    campusSelect.appendChild(opt.cloneNode(true))
+  );
+  campusSelect.value = r.campus_id ?? '';
     
 const homeroomSelect = tr.querySelector('.homeroom');
 
@@ -267,6 +302,7 @@ homeroomSelect.value = r.homeroom_teacher_id ?? '';
       grade_level: tr.querySelector('.grade').value.trim() || null,
       homeroom_teacher_id: tr.querySelector('.homeroom').value || null,
       bus_group_id: busSelect.value || null,
+      campus_id: campusSelect.value || null,
       active: tr.querySelector('.active').checked
     };
 
@@ -327,6 +363,7 @@ async function createStudent() {
     grade_level: document.getElementById('studentGrade').value.trim() || null,
     homeroom_teacher_id: document.getElementById('studentHomeroom').value || null,
     bus_group_id: document.getElementById('studentBusGroup').value || null,
+    campus_id: document.getElementById('studentCampus')?.value || null,
     student_number: document.getElementById('studentNumber').value.trim() || null,
     active: true
   };
@@ -393,6 +430,13 @@ function wireStudentEvents() {
   if (homeroomFilter) {
     homeroomFilter.addEventListener('change', e =>
       studentsDirectory.setFilter('homeroom', e.target.value)
+    );
+  }
+
+  const campusFilter = document.getElementById('studentCampusFilter');
+  if (campusFilter) {
+    campusFilter.addEventListener('change', e =>
+      studentsDirectory.setFilter('campus', e.target.value)
     );
   }
 

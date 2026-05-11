@@ -25,7 +25,7 @@ serve(async (req) => {
   }
 
   try {
-    const { report_type, start_date, end_date } = await req.json();
+    const { report_type, start_date, end_date, campus_id } = await req.json();
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -111,6 +111,19 @@ if (moduleError || !moduleRow?.enabled) {
 
 
     /* =====================================================
+       CAMPUS FILTER — resolve to employee ID list
+    ===================================================== */
+    let campusEmployeeIds: string[] | null = null;
+    if (campus_id) {
+      const { data: campusEmps } = await admin
+        .from("employees")
+        .select("id")
+        .eq("campus_id", campus_id)
+        .eq("school_id", profile.school_id);
+      campusEmployeeIds = (campusEmps || []).map((e: any) => e.id);
+    }
+
+    /* =====================================================
        PTO BALANCES REPORT
     ===================================================== */
     if (report_type === "balances") {
@@ -122,7 +135,7 @@ if (moduleError || !moduleRow?.enabled) {
 
       const workdayHours = Number(settingsData?.workday_hours ?? 8);
 
-      const { data, error } = await admin
+      let balancesQuery = admin
         .from("employees")
         .select(`
           first_name,
@@ -136,6 +149,8 @@ if (moduleError || !moduleRow?.enabled) {
         .eq("active", true)
         .eq("school_id", profile.school_id)
         .order("last_name");
+      if (campusEmployeeIds) balancesQuery = balancesQuery.in("id", campusEmployeeIds);
+      const { data, error } = await balancesQuery;
 
       if (error) throw error;
 
@@ -178,7 +193,7 @@ if (moduleError || !moduleRow?.enabled) {
         throw new Error("Missing date range");
       }
 
-      const { data, error } = await admin
+      let txQuery = admin
         .from("pto_ledger")
         .select(`
           pto_type,
@@ -194,6 +209,8 @@ if (moduleError || !moduleRow?.enabled) {
         .gte("created_at", start_date)
         .lte("created_at", end_date)
         .order("created_at");
+      if (campusEmployeeIds) txQuery = txQuery.in("employee_id", campusEmployeeIds);
+      const { data, error } = await txQuery;
 
       if (error) throw error;
 
@@ -240,7 +257,7 @@ if (moduleError || !moduleRow?.enabled) {
 
       const workdayHours = Number(settingsData?.workday_hours ?? 8);
 
-      const { data, error } = await admin
+      let payrollQuery = admin
         .from("pto_ledger")
         .select(`
           employee_id,
@@ -255,6 +272,8 @@ if (moduleError || !moduleRow?.enabled) {
         .eq("school_id", profile.school_id)
         .gte("created_at", start_date)
         .lte("created_at", end_date);
+      if (campusEmployeeIds) payrollQuery = payrollQuery.in("employee_id", campusEmployeeIds);
+      const { data, error } = await payrollQuery;
 
       if (error) throw error;
 
@@ -320,7 +339,7 @@ if (moduleError || !moduleRow?.enabled) {
 
       const workdayHours = Number(settingsData?.workday_hours ?? 8);
 
-      const { data, error } = await admin
+      let negQuery = admin
         .from("employees")
         .select(`
           first_name,
@@ -334,6 +353,8 @@ if (moduleError || !moduleRow?.enabled) {
         .eq("active", true)
         .eq("school_id", profile.school_id)
         .order("last_name");
+      if (campusEmployeeIds) negQuery = negQuery.in("id", campusEmployeeIds);
+      const { data, error } = await negQuery;
 
       if (error) throw error;
 
@@ -398,19 +419,23 @@ if (moduleError || !moduleRow?.enabled) {
 
       const workdayHours = Number(settingsData?.workday_hours ?? 8);
 
-      const { data: employees, error: empErr } = await admin
+      let yesEmpQuery = admin
         .from("employees")
         .select("id, first_name, last_name, employment_months")
         .eq("school_id", profile.school_id)
         .eq("active", true)
         .order("last_name");
+      if (campusEmployeeIds) yesEmpQuery = yesEmpQuery.in("id", campusEmployeeIds);
+      const { data: employees, error: empErr } = await yesEmpQuery;
 
       if (empErr) throw empErr;
 
-      const { data: balances, error: balErr } = await admin
+      let balQuery = admin
         .from("pto_balances")
         .select("employee_id, pto_type, balance_hours")
         .eq("school_id", profile.school_id);
+      if (campusEmployeeIds) balQuery = balQuery.in("employee_id", campusEmployeeIds);
+      const { data: balances, error: balErr } = await balQuery;
 
       if (balErr) throw balErr;
 
@@ -420,12 +445,14 @@ if (moduleError || !moduleRow?.enabled) {
         balanceMap[b.employee_id][b.pto_type] = Number(b.balance_hours);
       });
 
-      const { data: ledger, error: ledErr } = await admin
+      let ledgerQuery = admin
         .from("pto_ledger")
         .select("employee_id, pto_type, delta_hours, reason")
         .eq("school_id", profile.school_id)
         .gte("created_at", start_date)
         .lte("created_at", end_date);
+      if (campusEmployeeIds) ledgerQuery = ledgerQuery.in("employee_id", campusEmployeeIds);
+      const { data: ledger, error: ledErr } = await ledgerQuery;
 
       if (ledErr) throw ledErr;
 

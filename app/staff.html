@@ -1376,12 +1376,33 @@ async function loadSchoolSettings(schoolId) {
   }
 
   SCHOOL_WORKDAY_HOURS = data.workday_hours ?? 8;
-
   PTO_INCREMENT_MINUTES = data.pto_time_increment_minutes ?? 30;
+  DAY_START_TIME = (data.day_start_time ?? "08:00").slice(0, 5);
+  DAY_END_TIME   = (data.day_end_time   ?? "16:00").slice(0, 5);
 
-  // Supabase time may come as HH:MM:SS
-  DAY_START_TIME = (data.day_start_time ?? "08:00").slice(0,5);
-  DAY_END_TIME   = (data.day_end_time ?? "16:00").slice(0,5);
+  // Campus overrides school_settings if this employee has a campus assigned
+  if (currentProfile?.employee_id) {
+    const { data: emp } = await supabase
+      .from('employees')
+      .select('campus_id')
+      .eq('id', currentProfile.employee_id)
+      .single();
+
+    if (emp?.campus_id) {
+      const { data: campus } = await supabase
+        .from('campuses')
+        .select('workday_hours, pto_increment_minutes, day_start_time, day_end_time')
+        .eq('id', emp.campus_id)
+        .single();
+
+      if (campus) {
+        if (campus.workday_hours        != null) SCHOOL_WORKDAY_HOURS  = campus.workday_hours;
+        if (campus.pto_increment_minutes != null) PTO_INCREMENT_MINUTES = campus.pto_increment_minutes;
+        if (campus.day_start_time        != null) DAY_START_TIME        = campus.day_start_time.slice(0, 5);
+        if (campus.day_end_time          != null) DAY_END_TIME          = campus.day_end_time.slice(0, 5);
+      }
+    }
+  }
 }
 
 function timeToMinutes(t) {
