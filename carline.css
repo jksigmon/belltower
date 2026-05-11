@@ -489,24 +489,50 @@ html, body {
   overflow: hidden;
 }
 
-/* Input page header (slightly shorter) */
+/* Input page header — two-row layout */
 #inputHeader {
   background: var(--cl-header-bg);
   color: #fff;
   display: flex;
-  align-items: center;
-  padding: 0 14px;
-  gap: 10px;
-  height: 56px;
+  flex-direction: column;
+  padding: 6px 14px 8px;
   flex-shrink: 0;
-  overflow: hidden;
 }
-/* Always let school name flex-shrink so buttons on right never overflow */
-#inputHeader .cl-header-left  { flex: 1; min-width: 0; }
-#inputHeader .cl-header-spacer { display: none; }
-#inputHeader .cl-header-right  { flex-shrink: 0; }
 
-#inputHeader .cl-school-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.inp-header-top {
+  text-align: center;
+  padding-bottom: 4px;
+}
+
+.inp-header-top .cl-school-name {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inp-header-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inp-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.inp-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
 
 #campusSelector {
   font-size: 13px;

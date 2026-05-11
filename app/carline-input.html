@@ -25,24 +25,27 @@
 <div id="inputApp" hidden>
 
   <header id="inputHeader">
-    <div class="cl-header-left">
+    <div class="inp-header-top">
       <span class="cl-school-name" id="inpSchoolName">Carline</span>
-      <span class="cl-status-badge open" id="inpStatusBadge">OPEN</span>
-      <select id="campusSelector" style="display:none;"></select>
     </div>
-    <div class="cl-header-spacer"></div>
-    <div class="cl-header-right">
-      <button class="cl-icon-btn" id="btnDarkMode" title="Toggle dark mode">🌙</button>
-      <button class="cl-dismiss-btn start" id="btnStartDismissal" hidden>▶ Start</button>
-      <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden>✕ Close</button>
-      <button class="cl-signout-btn" id="btnSignOut">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-          <polyline points="16 17 21 12 16 7"/>
-          <line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
-        <span class="cl-btn-label">Sign out</span>
-      </button>
+    <div class="inp-header-bottom">
+      <div class="inp-header-left">
+        <span class="cl-status-badge open" id="inpStatusBadge">OPEN</span>
+        <select id="campusSelector" style="display:none;"></select>
+      </div>
+      <div class="inp-header-right">
+        <button class="cl-icon-btn" id="btnDarkMode" title="Toggle dark mode">🌙</button>
+        <button class="cl-dismiss-btn start" id="btnStartDismissal" hidden>▶ Start</button>
+        <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden>✕ Close</button>
+        <button class="cl-signout-btn" id="btnSignOut">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          <span class="cl-btn-label">Sign out</span>
+        </button>
+      </div>
     </div>
   </header>
 
