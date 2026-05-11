@@ -28,7 +28,7 @@
     <div class="cl-header-left">
       <span class="cl-school-name" id="inpSchoolName">Carline</span>
       <span class="cl-status-badge open" id="inpStatusBadge">OPEN</span>
-      <select id="campusSelector" style="display:none; font-size:13px; padding:3px 6px; border-radius:6px; border:1px solid rgba(255,255,255,0.3); background:rgba(255,255,255,0.15); color:inherit; cursor:pointer;"></select>
+      <select id="campusSelector" style="display:none;"></select>
     </div>
     <div class="cl-header-spacer"></div>
     <div class="cl-header-right">
@@ -246,21 +246,26 @@ async function loadExistingCalls() {
 // ─── Campus selector ──────────────────────────────────────────────────
 function renderCampusSelector() {
   const sel = document.getElementById('campusSelector');
-  if (!sel || allCampuses.length === 0) return;
+  if (!sel || allCampuses.length < 2) return;
 
-  sel.innerHTML = '<option value="">All campuses</option>';
+  sel.innerHTML = '';
   allCampuses.forEach(c => {
     const opt = document.createElement('option');
     opt.value = c.id;
     opt.textContent = c.name;
-    if (c.id === activeCampusId) opt.selected = true;
     sel.appendChild(opt);
   });
 
+  // Default to staff campus if set, otherwise first campus
+  const defaultId = activeCampusId && allCampuses.find(c => c.id === activeCampusId)
+    ? activeCampusId
+    : allCampuses[0].id;
+  sel.value = defaultId;
+  activeCampusId = defaultId;
+
   sel.style.display = '';
   sel.addEventListener('change', e => {
-    activeCampusId = e.target.value || null;
-    // Re-check for an open event on the newly selected campus
+    activeCampusId = e.target.value;
     ensureCarlineEvent();
   });
 }

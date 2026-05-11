@@ -502,11 +502,28 @@ html, body {
   overflow: hidden;
 }
 /* Always let school name flex-shrink so buttons on right never overflow */
-#inputHeader .cl-header-left  { flex: 1; min-width: 0; overflow: hidden; }
+#inputHeader .cl-header-left  { flex: 1; min-width: 0; }
 #inputHeader .cl-header-spacer { display: none; }
 #inputHeader .cl-header-right  { flex-shrink: 0; }
 
-#inputHeader .cl-school-name { font-size: 14px; }
+#inputHeader .cl-school-name { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+
+#campusSelector {
+  font-size: 13px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  cursor: pointer;
+  flex-shrink: 1;
+  min-width: 80px;
+  max-width: 160px;
+}
+#campusSelector option {
+  background: #fff;
+  color: #1e293b;
+}
 
 /* Input page main area */
 #inputMain {
