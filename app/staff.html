@@ -116,17 +116,41 @@
       "submit    submit";
     gap: 8px;
     align-items: stretch;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* All form controls collapse to fit their grid cell (exclude radio/checkbox) */
+  .pto-form select,
+  .pto-form input[type="text"] {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   /* Assign each field to its grid area */
-  #subCoverageWrap              { grid-area: coverage; }
+  #subCoverageWrap              { grid-area: coverage; min-width: 0; }
   #ptoType                      { grid-area: type; }
   #ptoDateRange                 { grid-area: date; }
-  .pto-form-row-main > label    { grid-area: dur; display: flex; align-items: center; gap: 8px; }
-  .pto-form-row-main > label select { flex: 1; }
+  .pto-form-row-main > label    { grid-area: dur; display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .pto-form-row-main > label select { flex: 1; min-width: 0; }
   #ptoNotes                     { grid-area: notes; flex: unset; }
   .pto-form-row-conditional     { grid-area: cond; }
   #submitPtoRequest             { grid-area: submit; width: 100%; }
+
+  /* Coverage row: allow messages to wrap to a new line */
+  #subCoverageWrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+
+  #subCoverageMsg,
+  #subCoverageErr {
+    margin-left: 0 !important;
+    flex-basis: 100%;
+  }
 
   /* Conditional row internals: Start and End side by side */
   .pto-form-row-conditional {

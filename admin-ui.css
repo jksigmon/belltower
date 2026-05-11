@@ -2061,6 +2061,12 @@ nav a[data-cap-group] {
     overflow-x: auto;
   }
 
+  /* Form panels don't have wide tables — clip instead of scroll */
+  .panel-action,
+  .panel-summary {
+    overflow-x: hidden;
+  }
+
   /* Don't min-width the PTO history table (it gets card layout below) */
   .panel table {
     min-width: 480px;
