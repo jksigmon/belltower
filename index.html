@@ -1,69 +1,45 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Belltower – School Management</title>
-  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
-  <link rel="manifest" href="/icons/site.webmanifest">
-  <!-- Fallback for older browsers -->
-  <link rel="icon" href="/icons/favicon.ico">
+<title>Belltower – School Operations Platform</title>
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+<link rel="manifest" href="/icons/site.webmanifest">
+<link rel="icon" href="/icons/favicon.ico">
 <style>
-/* ======================================================
-   THEME (MATCHES LOGIN / CALLBACK)
-====================================================== */
+/* ── Variables ───────────────────────────────────────────── */
 :root {
   --navy-900: #071c2f;
   --navy-800: #0b2d4f;
   --blue-main: #1f5fa8;
   --blue-soft: #eaf3ff;
-  --accent: #f59e0b;
-  --white: #ffffff;
-  --text-muted: #cbd5e1;
+  --accent:    #f59e0b;
+  --white:     #ffffff;
+  --muted:     #cbd5e1;
+  --ease:      cubic-bezier(0.22, 1, 0.36, 1);
 }
-
-:root {
-  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-out-fast: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--white);
-  background:
-    linear-gradient(
-      rgba(7, 28, 47, 0.45),
-      rgba(7, 28, 47, 0.75)
-    ),
-    url("images/hero-belltower-wide.png");
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
+  background: var(--navy-900);
 }
 
-/* ======================================================
-   HEADER (FROSTED)
-====================================================== */
+/* ── Header ──────────────────────────────────────────────── */
 header {
   position: fixed;
   inset: 0 0 auto 0;
   z-index: 50;
-
   background: rgba(11, 45, 79, 0.6);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-
   border-bottom: 1px solid rgba(255,255,255,0.12);
-
-height: 80px;         
-  overflow: visible; 
-
+  height: 80px;
 }
 
 .header-inner {
@@ -75,283 +51,373 @@ height: 80px;
   justify-content: space-between;
 }
 
-
 .logo img {
-  height: 48px;              /* base layout size */
-  transform: scale(2);    /* visual size increase */
+  height: 48px;
+  transform: scale(2);
   transform-origin: left center;
 }
-
 
 nav a {
   color: var(--white);
   text-decoration: none;
   margin-left: 1.25rem;
   font-size: 0.95rem;
-  opacity: 0.9;
+  opacity: 0.85;
+  transition: opacity 0.2s;
 }
-
 nav a:hover { opacity: 1; }
 
-/* ======================================================
-   HERO
-====================================================== */
-
+/* ── Hero ────────────────────────────────────────────────── */
 .hero {
-  min-height: calc(100vh - 80px); /* subtract header height */
-  padding: 4rem 2rem 3rem;
+  min-height: 100vh;
+  padding: 120px 2rem 5rem;
   display: flex;
   align-items: center;
+  background:
+    linear-gradient(160deg, rgba(7,28,47,0.5) 0%, rgba(7,28,47,0.78) 100%),
+    url("images/hero-belltower-wide.png") center / cover no-repeat;
 }
-
 
 .hero-inner {
   max-width: 1200px;
   margin: auto;
-}
-
-.hero h1 {
-  font-size: 3rem;
-  font-weight: 800;
-  max-width: 700px;
-  line-height: 1.1;
-}
-
-.hero p {
-  margin-top: 1rem;
-  font-size: 1.15rem;
-  max-width: 620px;
-  color: var(--text-muted);
+  width: 100%;
 }
 
 .hero-glass {
-  background: linear-gradient(
-    180deg,
-    rgba(255,255,255,0.18),
-    rgba(255,255,255,0.08)
-  );
-  backdrop-filter: blur(18px);
+  background: linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0.07));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,0.22);
   border-radius: 24px;
-  padding: 3rem;
-  max-width: 760px;
-  box-shadow:
-    0 20px 50px rgba(0,0,0,0.35),
-    inset 0 1px 0 rgba(255,255,255,0.3);
+  padding: 3rem 3.5rem;
+  max-width: 720px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.28);
 }
 
+.hero-eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.9rem;
+}
 
+.hero h1 {
+  font-size: 2.8rem;
+  font-weight: 800;
+  line-height: 1.1;
+  max-width: 580px;
+}
 
+.hero-sub {
+  margin-top: 1.1rem;
+  font-size: 1.05rem;
+  color: var(--muted);
+  line-height: 1.65;
+  max-width: 560px;
+}
 
-/* ======================================================
-   CTA BUTTONS
-====================================================== */
-.section-cta {
-  margin-top: 1.75rem;
+.hero-actions {
+  margin-top: 2rem;
   display: flex;
-  gap: 1rem;
+  gap: 0.9rem;
   flex-wrap: wrap;
 }
 
 .btn {
-  padding: 0.65rem 1.5rem;
+  padding: 0.7rem 1.6rem;
   border-radius: 10px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   border: none;
   text-decoration: none;
-  transition:
-    transform 0.25s var(--ease-out-soft),
-    box-shadow 0.25s var(--ease-out-soft),
-    filter 0.2s ease;
-
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.35); }
 
-.btn-primary {
-  background: linear-gradient(180deg,#2563eb,#1e40af);
-  color: #fff;
-}
-
+.btn-primary { background: linear-gradient(180deg,#2563eb,#1e40af); color:#fff; }
+.btn-accent  { background: linear-gradient(180deg,#fb923c,#ea580c); color:#fff; }
 .btn-outline {
-  background: rgba(255,255,255,0.9);
-  color: #1e40af;
-}
-
-.btn-accent {
-  background: linear-gradient(180deg,#fb923c,#ea580c);
+  background: rgba(255,255,255,0.12);
   color: #fff;
+  border: 1px solid rgba(255,255,255,0.28);
 }
-
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
-}
-
+.btn-outline:hover { background: rgba(255,255,255,0.2); }
 
 .hero-login {
-  margin-top: 1.25rem;
-  font-size: 0.9rem;
-  color: rgba(255,255,255,0.85);
+  margin-top: 1.4rem;
+  font-size: 0.88rem;
+  color: rgba(255,255,255,0.75);
+}
+.hero-login a { color:#fff; font-weight:600; text-decoration:underline; }
+
+/* ── Module strip ────────────────────────────────────────── */
+.modules-strip {
+  background: rgba(7,28,47,0.92);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  padding: 2rem;
 }
 
-.hero-login a {
-  color: #ffffff;
-  font-weight: 600;
-  text-decoration: underline;
-}
-
-
-/* ======================================================
-   FEATURES – FROSTED CARDS
-====================================================== */
-.features {
-  background: linear-gradient(
-    rgba(7,28,47,0.85),
-    rgba(7,28,47,0.95)
-  );
-
-  scroll-margin-top: 96px;
-  margin-top: 0; /* ENSURE no negative margin */
-
-  padding: 6rem 2rem 4rem;
-}
-
-.feature-grid {
-  max-width: 1200px;
+.modules-strip-inner {
+  max-width: 1100px;
   margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem 1.8rem;
+  flex-wrap: wrap;
+}
+
+.mod-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+  white-space: nowrap;
+}
+
+.mod-pill svg { width:16px; height:16px; opacity:0.7; flex-shrink:0; }
+
+.mod-divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(255,255,255,0.15);
+}
+
+/* ── Sections shared ─────────────────────────────────────── */
+section.features {
+  padding: 5rem 2rem;
+  background: linear-gradient(180deg, rgba(7,28,47,0.97), rgba(11,45,79,0.97));
+}
+
+.section-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+}
+
+.section-title {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  max-width: 620px;
+  margin-bottom: 0.9rem;
+}
+
+.section-sub {
+  font-size: 1rem;
+  color: var(--muted);
+  line-height: 1.65;
+  max-width: 640px;
+}
+
+/* ── Feature cards ───────────────────────────────────────── */
+.feature-grid {
+  max-width: 1100px;
+  margin: 3rem auto 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit,minmax(260px,1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
 }
 
 .card {
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 16px;
-  padding: 1.6rem;
-  transition:
-    transform 0.35s var(--ease-out-soft),
-    box-shadow 0.35s var(--ease-out-soft);
-
+  padding: 1.75rem;
+  transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease), border-color 0.3s;
+  position: relative;
+  overflow: hidden;
 }
 
-.card-header {
-  display: flex;
-  gap: 0.6rem;
-  align-items: center;
-}
-
-.card h3 {
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
-.card p {
-  margin-top: 0.6rem;
-  font-size: 0.95rem;
-  color: var(--text-muted);
-}
-
-
-
-.card::before,
-.hero-glass::before {
+.card::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: radial-gradient(
-    circle at top left,
-    rgba(255,255,255,0.25),
-    transparent 60%
-  );
+  background: radial-gradient(circle at top left, rgba(255,255,255,0.12), transparent 60%);
   pointer-events: none;
 }
+
 .card:hover {
-  transform: translateY(-6px);
+  transform: translateY(-5px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+  border-color: rgba(255,255,255,0.22);
 }
 
-.reveal {
-  opacity: 0;
-  transform: translateY(24px);
-  transition:
-    opacity 0.6s var(--ease-out-soft),
-    transform 0.6s var(--ease-out-soft);
+.card-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
 }
 
-.reveal.visible {
-  opacity: 1;
-  transform: none;
+.card-icon-wrap svg { width: 20px; height: 20px; }
+
+.card h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
 }
 
+.card p {
+  font-size: 0.9rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
 
-.card-icon {
-  width: 26px;
-  height: 26px;
-  color: white;
-  opacity: 0.95;
+.card-bullets {
+  list-style: none;
+  margin-top: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.card-bullets li {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.7);
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.card-bullets li::before {
+  content: "✓";
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #34d399;
   flex-shrink: 0;
-  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35));
 }
 
+/* ── Value section ───────────────────────────────────────── */
+section.value {
+  padding: 5rem 2rem;
+  background: rgba(7,28,47,0.98);
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
 
-.features-inner {
-  max-width: 1200px;
+.value-inner {
+  max-width: 1100px;
   margin: auto;
-}
-
-.features-header {
-  max-width: 720px;
-  margin-bottom: 2rem;
-}
-
-.features-header h2 {
-  font-size: 2rem;
-  font-weight: 800;
-  margin-bottom: 0.75rem;
-}
-
-.features-header p {
-  color: var(--text-muted);
-  font-size: 1rem;
-  line-height: 1.6;
-}
-
-.features-value {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: 1fr 1fr;
+  gap: 4rem;
+  align-items: start;
+}
+
+.value-blocks {
+  display: flex;
+  flex-direction: column;
   gap: 2rem;
-  margin-top: 3rem;
+}
+
+.value-block {
+  border-left: 3px solid rgba(37,99,235,0.6);
+  padding-left: 1.2rem;
 }
 
 .value-block h3 {
-  font-size: 1.05rem;
+  font-size: 1rem;
   font-weight: 700;
   margin-bottom: 0.4rem;
 }
 
 .value-block p {
-  font-size: 0.95rem;
-  color: var(--text-muted);
-  line-height: 1.5;
+  font-size: 0.92rem;
+  color: var(--muted);
+  line-height: 1.6;
 }
 
+.value-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
 
-/* ======================================================
-   FOOTER
-====================================================== */
+.stat-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 1.4rem;
+  text-align: center;
+}
+
+.stat-num {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.35rem;
+  line-height: 1.4;
+}
+
+/* ── Bottom CTA ──────────────────────────────────────────── */
+section.cta-section {
+  padding: 5rem 2rem;
+  background: linear-gradient(135deg, var(--navy-800), var(--navy-900));
+  border-top: 1px solid rgba(255,255,255,0.07);
+  text-align: center;
+}
+
+.cta-inner {
+  max-width: 600px;
+  margin: auto;
+}
+
+.cta-inner h2 {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 0.8rem;
+}
+
+.cta-inner p {
+  font-size: 1rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.cta-actions {
+  display: flex;
+  gap: 0.9rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Footer ──────────────────────────────────────────────── */
 footer {
   text-align: center;
-  padding: 2rem;
-  background: rgba(7,28,47,0.95);
-  color: var(--text-muted);
-  font-size: 0.85rem;
+  padding: 1.75rem 2rem;
+  background: rgba(7,28,47,0.98);
+  border-top: 1px solid rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.45);
+  font-size: 0.82rem;
 }
 
-/* ======================================================
-   MODAL (UNCHANGED FUNCTIONALITY)
-====================================================== */
+/* ── Modal ───────────────────────────────────────────────── */
 .modal {
   position: fixed;
   inset: 0;
@@ -360,98 +426,94 @@ footer {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 1rem;
 }
-
 .modal.active { display: flex; }
 
 .modal-box {
-  background: rgba(11,45,79,0.85);
+  background: rgba(11,45,79,0.92);
   backdrop-filter: blur(14px);
-  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 18px;
   padding: 2rem;
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   color: var(--white);
 }
 
-.modal input,
-.modal textarea {
+.modal-box h2 { font-size: 1.2rem; margin-bottom: 0.25rem; }
+.modal-box p  { font-size: 0.88rem; color: var(--muted); margin-bottom: 0.5rem; }
+
+.modal-box input,
+.modal-box textarea {
   width: 100%;
-  margin-top: 0.75rem;
-  padding: 0.6rem;
-  border-radius: 6px;
-  border: none;
+  margin-top: 0.65rem;
+  padding: 0.65rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 0.93rem;
+  font-family: inherit;
 }
+.modal-box input::placeholder,
+.modal-box textarea::placeholder { color: rgba(255,255,255,0.4); }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  margin-top: 1rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.12);
 }
-
-.cancel { background: #e5e7eb; }
-.submit { background: var(--accent); font-weight: 600; }
-
-@media(max-width:900px){
-  nav { display:none }
-  .hero h1 { font-size: 2.3rem }
-}
-
-/* =========================
- MODAL BUTTONS
-========================= */
 
 .modal-actions button {
-  padding: 0.55rem 1.1rem;
-  border-radius: 10px;
+  padding: 0.55rem 1.2rem;
+  border-radius: 9px;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition:
-    transform 0.2s var(--ease-out-soft),
-    box-shadow 0.2s var(--ease-out-soft),
-    background 0.2s ease,
-    color 0.2s ease;
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.cancel { background: rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.2) !important; }
+.cancel:hover { background: rgba(255,255,255,0.2); }
+.submit { background: linear-gradient(180deg,#fb923c,#ea580c); color:#fff; }
+.submit:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(234,88,12,0.5); }
+
+/* ── Reveal animation ────────────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+}
+.reveal.visible { opacity: 1; transform: none; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  nav { display: none; }
+  .hero h1 { font-size: 2.1rem; }
+  .hero-glass { padding: 2rem; }
+  .value-inner { grid-template-columns: 1fr; gap: 2.5rem; }
+  .value-stats { grid-template-columns: 1fr 1fr; }
+  .section-title { font-size: 1.6rem; }
 }
 
-/* Cancel – subtle glass */
-.modal-actions .cancel {
-  background: rgba(255,255,255,0.85);
-  color: #1e293b;
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(255,255,255,0.4);
+@media (max-width: 560px) {
+  .hero { padding: 110px 1.25rem 3.5rem; }
+  .hero h1 { font-size: 1.75rem; }
+  .hero-glass { padding: 1.5rem; border-radius: 16px; }
+  section.features, section.value, section.cta-section { padding: 3.5rem 1.25rem; }
+  .cta-inner h2 { font-size: 1.6rem; }
+  .value-stats { grid-template-columns: 1fr; }
+  .mod-divider { display: none; }
 }
-
-.modal-actions .cancel:hover {
-  background: rgba(255,255,255,0.95);
-  transform: translateY(-1px);
-}
-
-.modal-actions .submit:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(234,88,12,0.6);
-}
-
-/* Press state */
-.modal-actions button:active {
-  transform: translateY(0);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-}
-
-.modal-actions {
-  padding-top: 0.75rem;
-  margin-top: 1.25rem;
-  border-top: 1px solid rgba(255,255,255,0.15);
-}
-
-
 </style>
 </head>
-
 <body>
 
+<!-- ── Header ─────────────────────────────────────────────── -->
 <header>
   <div class="header-inner">
     <div class="logo">
@@ -459,153 +521,214 @@ footer {
     </div>
     <nav>
       <a href="#features">Features</a>
-      <a href="login.html">Login</a>
+      <a href="#how-it-helps">Why Belltower</a>
+      <a href="app/login.html">Login</a>
     </nav>
   </div>
 </header>
 
-
+<!-- ── Hero ───────────────────────────────────────────────── -->
 <section class="hero">
   <div class="hero-inner">
-    <h1 class="reveal">
-      Streamline Your School Management
-    </h1>
+    <div class="hero-glass reveal">
+      <p class="hero-eyebrow">School Operations Platform</p>
+      <h1>Run your school,<br>not your inbox.</h1>
+      <p class="hero-sub">
+        Belltower brings PTO tracking, dismissal coordination, substitute management,
+        and school administration into one purpose-built platform. So your team spends
+        less time managing logistics and more time supporting students.
+      </p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="openModal('Request a Demo')">
+          Request a Demo
+        </button>
+        <button class="btn btn-accent" onclick="openModal('Suggest a New Module')">
+          Suggest a Feature
+        </button>
+      </div>
+      <p class="hero-login">Already use Belltower? <a href="app/login.html">Log in →</a></p>
+    </div>
+  </div>
+</section>
 
-    <p>
-      Automate PTO, Dismissal, Substitutes, and More!
+<!-- ── Module strip ────────────────────────────────────────── -->
+<div class="modules-strip">
+  <div class="modules-strip-inner">
+    <div class="mod-pill">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 2h6v4H9zM8 10h8M8 14h8M8 18h5" stroke-linecap="round"/></svg>
+      PTO &amp; Leave Management
+    </div>
+    <div class="mod-divider"></div>
+    <div class="mod-pill">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Substitute Assignment
+    </div>
+    <div class="mod-divider"></div>
+    <div class="mod-pill">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9" stroke-linecap="round"/></svg>
+      School Administration
+    </div>
+    <div class="mod-divider"></div>
+    <div class="mod-pill">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
+      Carline Dismissal
+    </div>
+    <div class="mod-divider"></div>
+    <div class="mod-pill">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      Multi-Campus Support
+    </div>
+  </div>
+</div>
+
+<!-- ── Features ────────────────────────────────────────────── -->
+<section class="features" id="features">
+  <div style="max-width:1100px; margin:auto;">
+    <p class="section-label reveal">What Belltower Does</p>
+    <h2 class="section-title reveal">Purpose-built tools for the tasks that slow schools down</h2>
+    <p class="section-sub reveal">
+      Every module in Belltower targets a specific operational pain point.
+      Together, they give administrators a clear, connected picture of how the school runs day to day.
     </p>
 
-    <!-- Primary CTAs -->
-    <div class="section-cta reveal">
-      <button class="btn btn-primary" onclick="openModal('Request a Demo')">
-        Request a Demo
-      </button>
-
-      <button class="btn btn-accent" onclick="openModal('Suggest a New Module')">
-        Suggest a New Module
-      </button>
-    </div>
-
-    <!-- Utility CTA -->
-    <div class="hero-login reveal">
-      Already use Belltower?
-      <a href="login.html">Log in</a>
-    </div>
-  </div>
-</section>
-
-
-<section class="features" id="features">
-  <div class="feature-grid">
-    <div class="card reveal">
-      <div class="card-header">
-<svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true">
-  <rect x="5" y="4" width="14" height="18" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/>
-  <path d="M9 2h6v4H9z" fill="none" stroke="currentColor" stroke-width="2"/>
-  <path d="M8 10h8M8 14h8M8 18h5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-</svg>
- <h3>PTO & Leave Management</h3></div>
-      <p>Easily manage requests, approvals, and staff visibility.</p>
-    </div>
-    <div class="card reveal">
-      <div class="card-header">
-
-<svg
-  class="card-icon"
-  viewBox="0 0 16 16"
-  aria-hidden="true"
->
-  <path d="M2.52 3.515A2.5 2.5 0 0 1 4.82 2h6.362c1 0
-    1.904.596 2.298 1.515l.792 1.848c.075.175.21.319.38.404
-    .5.25.855.715.965 1.262l.335 1.679q.05.242.049.49v.413
-    c0 .814-.39 1.543-1 1.997V13.5a.5.5 0 0 1-.5.5h-2a.5.5
-    0 0 1-.5-.5v-1.338c-1.292.048-2.745.088-4 .088s-2.708
-    -.04-4-.088V13.5a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5
-    -.5v-1.892c-.61-.454-1-1.183-1-1.997v-.413a2.5 2.5
-    0 0 1 .049-.49l.335-1.68c.11-.546.465-1.012.964
-    -1.261a.8.8 0 0 0 .381-.404l.792-1.848ZM3 10a1
-    1 0 1 0 0-2 1 1 0 0 0 0 2m10 0a1 1 0 1 0 0-2
-    1 1 0 0 0 0 2M6 8a1 1 0 0 0 0 2h4a1 1 0 1 0
-    0-2zM2.906 5.189a.51.51 0 0 0 .497.731c.91-.073
-    3.35-.17 4.597-.17s3.688.097 4.597.17a.51.51
-    0 0 0 .497-.731l-.956-1.913A.5.5 0 0 0
-    11.691 3H4.309a.5.5 0 0 0-.447.276z"
-    fill="currentColor"
-  />
-</svg>
-
-
- <h3>Carline Dismissal</h3></div>
-      <p>Organize safe, efficient student pickup flows.</p>
-    </div>
-    <div class="card reveal">
-      <div class="card-header">
-<svg class="card-icon" viewBox="0 0 24 24" aria-hidden="true">
-  <path d="M3 9l9-5 9 5" fill="none" stroke="currentColor" stroke-width="2"/>
-  <path d="M5 10v10h14V10" fill="none" stroke="currentColor" stroke-width="2"/>
-  <path d="M9 20v-6h6v6" fill="none" stroke="currentColor" stroke-width="2"/>
-</svg>
-<h3>School Administration</h3></div>
-      <p>Centralize staff, student, and family information.</p>
-    </div>
-  </div>
-
-
-
-
-  <div class="features-inner">
-
-    <!-- WHAT -->
-    <div class="features-header reveal">
-      <h2>Built for the tasks that slow schools down</h2>
-      <p>
-        Belltower replaces manual, repetitive school operations with simple,
-        purpose‑built tools.  So staff spend less time managing logistics
-        and more time supporting students.
-      </p>
-    </div>
-
-    <!-- FEATURE CARDS -->
     <div class="feature-grid">
-      <!-- your existing cards go here -->
-    </div>
 
-    <!-- WHO + WHY -->
-    <div class="features-value reveal">
-      <div class="value-block">
-        <h3>Who it’s for</h3>
-        <p>
-          School administrators, office staff, and leadership teams
-          who manage daily operations across students, staff, and families.
-        </p>
+      <div class="card reveal">
+        <div class="card-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 2h6v4H9zM8 10h8M8 14h8M8 18h5" stroke-linecap="round"/></svg>
+        </div>
+        <h3>PTO &amp; Leave Management</h3>
+        <p>Staff submit requests online. Supervisors approve or deny in one click. Balances update automatically.</p>
+        <ul class="card-bullets">
+          <li>Request &amp; approve in minutes</li>
+          <li>Real-time balance tracking</li>
+          <li>Automated email notifications</li>
+          <li>Calendar &amp; ICS export</li>
+          <li>Payroll-ready PTO reports</li>
+        </ul>
       </div>
 
-      <div class="value-block">
-        <h3>Why it matters</h3>
-        <p>
-          PTO requests, dismissal coordination, and administrative tracking
-          create constant interruptions. By removing friction from those
-          workflows, schools reduce errors, regain hours each week, and
-          operate with clarity instead of chaos.
-        </p>
+      <div class="card reveal">
+        <div class="card-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <h3>Substitute Assignment</h3>
+        <p>When staff call out, coverage gaps are surfaced immediately and subs are matched to open periods.</p>
+        <ul class="card-bullets">
+          <li>Triggered by PTO approvals</li>
+          <li>Period-by-period coverage view</li>
+          <li>Notifies subs and administrators</li>
+          <li>Tracks assignment history</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
+        </div>
+        <h3>Carline Dismissal</h3>
+        <p>Staff enter family tag numbers on any device. Students are announced on a live display screen as cars arrive.</p>
+        <ul class="card-bullets">
+          <li>Live call board for display screens</li>
+          <li>Multi-campus, simultaneous sessions</li>
+          <li>Instant recall &amp; undo</li>
+          <li>All-call for remaining students</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9" stroke-linecap="round"/></svg>
+        </div>
+        <h3>School Administration</h3>
+        <p>Centralize student, family, guardian, and employee records in one searchable, filterable admin panel.</p>
+        <ul class="card-bullets">
+          <li>Students, families &amp; guardians</li>
+          <li>Staff records &amp; bus groups</li>
+          <li>Bulk upload &amp; data export</li>
+          <li>Role-based access control</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Why Belltower ───────────────────────────────────────── -->
+<section class="value" id="how-it-helps">
+  <div class="value-inner">
+
+    <div>
+      <p class="section-label reveal">Why Belltower</p>
+      <h2 class="section-title reveal">Designed for schools,<br>not adapted for them</h2>
+      <p class="section-sub reveal" style="margin-bottom:2.5rem;">
+        Generic HR and admin tools weren't built with school workflows in mind.
+        Belltower is — from the way PTO balances are calculated to how dismissal runs across multiple campuses.
+      </p>
+      <div class="value-blocks reveal">
+        <div class="value-block">
+          <h3>Less coordination overhead</h3>
+          <p>PTO requests, sub assignments, and dismissal all generate the right notifications automatically. Staff spend time on students, not on chasing down approvals or coverage.</p>
+        </div>
+        <div class="value-block">
+          <h3>Multi-campus from day one</h3>
+          <p>Schools with multiple campuses can run independent carline sessions, filter reports by location, and assign staff and students to their home campus — without extra configuration.</p>
+        </div>
+        <div class="value-block">
+          <h3>Built to grow with you</h3>
+          <p>Modules activate when you need them. Start with PTO tracking, add dismissal when you're ready. Nothing is locked behind a configuration you can't control.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="value-stats reveal">
+      <div class="stat-card">
+        <div class="stat-num">4</div>
+        <div class="stat-label">Integrated operational modules</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">1</div>
+        <div class="stat-label">Login for your entire staff</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">∞</div>
+        <div class="stat-label">Campuses supported per school</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">0</div>
+        <div class="stat-label">Spreadsheets required</div>
       </div>
     </div>
 
   </div>
 </section>
 
+<!-- ── Bottom CTA ─────────────────────────────────────────── -->
+<section class="cta-section">
+  <div class="cta-inner">
+    <p class="section-label reveal" style="text-align:center;">Get Started</p>
+    <h2 class="reveal">Ready to see it in action?</h2>
+    <p class="reveal">Request a live demo and we'll walk through how Belltower fits your school's workflow.</p>
+    <div class="cta-actions reveal">
+      <button class="btn btn-primary" onclick="openModal('Request a Demo')">Request a Demo</button>
+      <button class="btn btn-outline" onclick="openModal('Suggest a New Module')">Suggest a Feature</button>
+    </div>
+  </div>
+</section>
 
+<!-- ── Footer ──────────────────────────────────────────────── -->
 <footer>
   © 2026 Belltower · All Rights Reserved
 </footer>
 
-<!-- MODAL -->
+<!-- ── Modal ───────────────────────────────────────────────── -->
 <div class="modal" id="emailModal">
   <div class="modal-box">
     <h2 id="modalTitle"></h2>
+    <p>We'll get back to you shortly.</p>
     <input id="name" placeholder="Your Name" />
     <input id="email" placeholder="Your Email" />
-    <textarea id="message" rows="4" placeholder="Message"></textarea>
+    <textarea id="message" rows="4" placeholder="Message (optional)"></textarea>
     <div class="modal-actions">
       <button class="cancel" onclick="closeModal()">Cancel</button>
       <button class="submit" onclick="sendEmail()">Send</button>
@@ -629,31 +752,23 @@ function closeModal() {
 function sendEmail() {
   const body =
     `Request Type: ${modalContext}\n` +
-    `Name: ${name.value}\n` +
-    `Email: ${email.value}\n\n` +
-    message.value;
+    `Name: ${document.getElementById('name').value}\n` +
+    `Email: ${document.getElementById('email').value}\n\n` +
+    document.getElementById('message').value;
 
   window.location.href =
     `mailto:jksigmon@gmail.com?subject=${encodeURIComponent(modalContext)}&body=${encodeURIComponent(body)}`;
 
   closeModal();
 }
-</script>
 
-<script>
-  const observer = new IntersectionObserver(
-    entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('visible');
-          observer.unobserve(entry.target);
-        }
-      });
-    },
-    { threshold: 0.15 }
-  );
-
-  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+const observer = new IntersectionObserver(
+  entries => entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+  }),
+  { threshold: 0.12 }
+);
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 </script>
 
 </body>
