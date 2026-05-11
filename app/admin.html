@@ -18,6 +18,199 @@
   <link rel="icon" href="/icons/favicon.ico">
   <style>
 
+/* ================================================================
+   MOBILE — @media (max-width: 767px)
+   ================================================================ */
+@media (max-width: 767px) {
+
+  /* ── Shared card table reset (bus groups excluded — only 3 cols) ── */
+  #staffTable,
+  #studentsTable,
+  #familiesTable,
+  #guardiansTable {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+  }
+
+  #staffTable thead,
+  #studentsTable thead,
+  #familiesTable thead,
+  #guardiansTable thead {
+    display: none;
+  }
+
+  #staffTable tbody tr,
+  #studentsTable tbody tr,
+  #familiesTable tbody tr,
+  #guardiansTable tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  #staffTable tbody tr td,
+  #studentsTable tbody tr td,
+  #familiesTable tbody tr td,
+  #guardiansTable tbody tr td {
+    display: block;
+    padding: 3px 0;
+    border: none !important;
+    font-size: 13px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Inline-edit inputs fill their card cell */
+  #staffTable td .form-input,
+  #studentsTable td .form-input,
+  #familiesTable td .form-input,
+  #guardiansTable td .form-input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  /* Micro-labels */
+  #staffTable tbody tr td::before,
+  #studentsTable tbody tr td::before,
+  #familiesTable tbody tr td::before,
+  #guardiansTable tbody tr td::before {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+
+  /* No label on action cells */
+  #staffTable tbody tr td:nth-child(6)::before,
+  #studentsTable tbody tr td:nth-child(8)::before,
+  #familiesTable tbody tr td:nth-child(4)::before,
+  #guardiansTable tbody tr td:nth-child(6)::before {
+    content: none;
+  }
+
+  /* ── Staff: Name(1) Email(2) Position(3) Supervisor(4) Active(5) Actions(6) ── */
+  #staffTable tbody tr {
+    grid-template-areas:
+      "name     active"
+      "email    email"
+      "position supervisor"
+      "action   action";
+  }
+
+  #staffTable tbody tr td:nth-child(1) { grid-area: name;       font-weight: 600; }
+  #staffTable tbody tr td:nth-child(2) { grid-area: email;      font-size: 12px; word-break: break-all; }
+  #staffTable tbody tr td:nth-child(3) { grid-area: position; }
+  #staffTable tbody tr td:nth-child(4) { grid-area: supervisor; text-align: right; }
+  #staffTable tbody tr td:nth-child(5) { grid-area: active;     text-align: right; }
+  #staffTable tbody tr td:nth-child(6) { grid-area: action;     display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+  #staffTable tbody tr td:nth-child(1)::before { content: "Name"; }
+  #staffTable tbody tr td:nth-child(2)::before { content: "Email"; }
+  #staffTable tbody tr td:nth-child(3)::before { content: "Position"; }
+  #staffTable tbody tr td:nth-child(4)::before { content: "Supervisor"; }
+  #staffTable tbody tr td:nth-child(5)::before { content: "Active"; }
+
+  #staffTable tbody tr td:nth-child(6) .btn { flex: 1; min-width: 60px; }
+
+  /* ── Students: Name(1) #(2) Family(3) Grade(4) Homeroom(5) Bus(6) Active(7) Actions(8) ── */
+  #studentsTable tbody tr {
+    grid-template-areas:
+      "name     stunum"
+      "family   grade"
+      "homeroom bus"
+      "action   action";
+  }
+
+  #studentsTable tbody tr td:nth-child(1) { grid-area: name;     font-weight: 600; }
+  #studentsTable tbody tr td:nth-child(2) { grid-area: stunum;   text-align: right; }
+  #studentsTable tbody tr td:nth-child(3) { grid-area: family; }
+  #studentsTable tbody tr td:nth-child(4) { grid-area: grade;    text-align: right; }
+  #studentsTable tbody tr td:nth-child(5) { grid-area: homeroom; font-size: 12px; }
+  #studentsTable tbody tr td:nth-child(6) { grid-area: bus;      text-align: right; font-size: 12px; }
+  #studentsTable tbody tr td:nth-child(7) { display: none; } /* Active hidden on mobile */
+  #studentsTable tbody tr td:nth-child(8) { grid-area: action;   margin-top: 4px; }
+
+  #studentsTable tbody tr td:nth-child(1)::before { content: "Name"; }
+  #studentsTable tbody tr td:nth-child(2)::before { content: "Student #"; }
+  #studentsTable tbody tr td:nth-child(3)::before { content: "Family"; }
+  #studentsTable tbody tr td:nth-child(4)::before { content: "Grade"; }
+  #studentsTable tbody tr td:nth-child(5)::before { content: "Homeroom"; }
+  #studentsTable tbody tr td:nth-child(6)::before { content: "Bus Group"; }
+
+  /* Student # readonly input — strip input chrome, show as plain text */
+  #studentsTable tbody tr td:nth-child(2) .student-number {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 13px;
+    color: #6b7280;
+    width: 100%;
+    text-align: right;
+  }
+
+  #studentsTable tbody tr td:nth-child(8) .action-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  #studentsTable tbody tr td:nth-child(8) .action-buttons .btn { flex: 1; min-width: 60px; }
+
+  /* ── Families: Carline Tag(1) Family Name(2) Active(3) Actions(4) ── */
+  #familiesTable tbody tr {
+    grid-template-areas:
+      "tag    active"
+      "name   name"
+      "action action";
+  }
+
+  #familiesTable tbody tr td:nth-child(1) { grid-area: tag;    font-size: 12px; color: #6b7280; }
+  #familiesTable tbody tr td:nth-child(2) { grid-area: name;   font-weight: 600; }
+  #familiesTable tbody tr td:nth-child(3) { grid-area: active; text-align: right; }
+  #familiesTable tbody tr td:nth-child(4) { grid-area: action; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+  #familiesTable tbody tr td:nth-child(1)::before { content: "Carline Tag"; }
+  #familiesTable tbody tr td:nth-child(2)::before { content: "Family Name"; }
+  #familiesTable tbody tr td:nth-child(3)::before { content: "Active"; }
+
+  #familiesTable tbody tr td:nth-child(4) .btn { flex: 1; min-width: 60px; }
+
+  /* ── Guardians: Name(1) Family(2) Email(3) Phone(4) Active(5) Actions(6) ── */
+  #guardiansTable tbody tr {
+    grid-template-areas:
+      "name   active"
+      "family family"
+      "email  phone"
+      "action action";
+  }
+
+  #guardiansTable tbody tr td:nth-child(1) { grid-area: name;   font-weight: 600; }
+  #guardiansTable tbody tr td:nth-child(2) { grid-area: family; font-size: 12px; color: #6b7280; }
+  #guardiansTable tbody tr td:nth-child(3) { grid-area: email;  font-size: 12px; word-break: break-all; }
+  #guardiansTable tbody tr td:nth-child(4) { grid-area: phone;  text-align: right; font-size: 12px; }
+  #guardiansTable tbody tr td:nth-child(5) { grid-area: active; text-align: right; }
+  #guardiansTable tbody tr td:nth-child(6) { grid-area: action; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+  #guardiansTable tbody tr td:nth-child(1)::before { content: "Name"; }
+  #guardiansTable tbody tr td:nth-child(2)::before { content: "Family"; }
+  #guardiansTable tbody tr td:nth-child(3)::before { content: "Email"; }
+  #guardiansTable tbody tr td:nth-child(4)::before { content: "Phone"; }
+  #guardiansTable tbody tr td:nth-child(5)::before { content: "Active"; }
+
+  #guardiansTable tbody tr td:nth-child(6) .btn { flex: 1; min-width: 60px; }
+
+}
+
   </style>
 </head>
 <body class="admin-page">

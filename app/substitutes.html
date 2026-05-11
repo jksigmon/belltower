@@ -81,10 +81,176 @@
   height: 32px;
   padding: 0 10px;
   font-size: 13px;
-  line-height: 32px; /* ensures vertical centering */
+  line-height: 32px;
   border-radius: 8px;
 }
 
+/* ================================================================
+   MOBILE — @media (max-width: 767px)
+   ================================================================ */
+@media (max-width: 767px) {
+
+  /* Shared card table reset */
+  #pendingCoverageTable,
+  #pendingCancelTable,
+  #historyTable,
+  #subTable {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+  }
+
+  #pendingCoverageTable thead,
+  #pendingCancelTable thead,
+  #historyTable thead,
+  #subTable thead {
+    display: none;
+  }
+
+  /* Shared card row base */
+  #pendingCoverageTable tbody tr,
+  #pendingCancelTable tbody tr,
+  #historyTable tbody tr,
+  #subTable tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  #pendingCoverageTable tbody tr td,
+  #pendingCancelTable tbody tr td,
+  #historyTable tbody tr td,
+  #subTable tbody tr td {
+    display: block;
+    padding: 3px 0;
+    border: none !important;
+    font-size: 13px;
+  }
+
+  /* Shared micro-label style */
+  #pendingCoverageTable tbody tr td::before,
+  #pendingCancelTable tbody tr td::before,
+  #historyTable tbody tr td::before,
+  #subTable tbody tr td::before {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+
+  /* ── Pending Coverage: Out(1) Date(2) Time(3) Type(4) Notes(5) Assign(6) ── */
+  #pendingCoverageTable tbody tr {
+    grid-template-areas:
+      "out    date"
+      "type   time"
+      "notes  notes"
+      "action action";
+  }
+
+  #pendingCoverageTable tbody tr td:nth-child(1) { grid-area: out;    font-weight: 600; }
+  #pendingCoverageTable tbody tr td:nth-child(2) { grid-area: date;   text-align: right; }
+  #pendingCoverageTable tbody tr td:nth-child(3) { grid-area: time;   text-align: right; }
+  #pendingCoverageTable tbody tr td:nth-child(4) { grid-area: type; }
+  #pendingCoverageTable tbody tr td:nth-child(5) { grid-area: notes;  color: #6b7280; font-size: 12px; }
+  #pendingCoverageTable tbody tr td:nth-child(6) { grid-area: action; margin-top: 4px; }
+
+  #pendingCoverageTable tbody tr td:nth-child(1)::before { content: "Out"; }
+  #pendingCoverageTable tbody tr td:nth-child(2)::before { content: "Date"; }
+  #pendingCoverageTable tbody tr td:nth-child(3)::before { content: "Time"; }
+  #pendingCoverageTable tbody tr td:nth-child(4)::before { content: "Type"; }
+  #pendingCoverageTable tbody tr td:nth-child(5)::before { content: "Notes"; }
+  #pendingCoverageTable tbody tr td:nth-child(6)::before { content: ""; }
+
+  #pendingCoverageTable tbody tr td:nth-child(6) .btn {
+    width: 100%;
+  }
+
+  /* ── Pending Cancellations: Out(1) Date(2) Time(3) Assigned(4) Cancel(5) ── */
+  #pendingCancelTable tbody tr {
+    grid-template-areas:
+      "out      date"
+      "assigned time"
+      "action   action";
+  }
+
+  #pendingCancelTable tbody tr td:nth-child(1) { grid-area: out;      font-weight: 600; }
+  #pendingCancelTable tbody tr td:nth-child(2) { grid-area: date;     text-align: right; }
+  #pendingCancelTable tbody tr td:nth-child(3) { grid-area: time;     text-align: right; }
+  #pendingCancelTable tbody tr td:nth-child(4) { grid-area: assigned; }
+  #pendingCancelTable tbody tr td:nth-child(5) { grid-area: action;   margin-top: 4px; }
+
+  #pendingCancelTable tbody tr td:nth-child(1)::before { content: "Out"; }
+  #pendingCancelTable tbody tr td:nth-child(2)::before { content: "Date"; }
+  #pendingCancelTable tbody tr td:nth-child(3)::before { content: "Time"; }
+  #pendingCancelTable tbody tr td:nth-child(4)::before { content: "Assigned Sub"; }
+  #pendingCancelTable tbody tr td:nth-child(5)::before { content: ""; }
+
+  #pendingCancelTable tbody tr td:nth-child(5) .btn {
+    width: 100%;
+  }
+
+  /* ── History: Date(1) Out(2) Covered By(3) Time(4) Reason(5) Status(6) ── */
+  #historyTable tbody tr {
+    grid-template-areas:
+      "date    status"
+      "out     covered"
+      "time    reason";
+  }
+
+  #historyTable tbody tr td:nth-child(1) { grid-area: date;    font-weight: 600; }
+  #historyTable tbody tr td:nth-child(2) { grid-area: out; }
+  #historyTable tbody tr td:nth-child(3) { grid-area: covered; text-align: right; }
+  #historyTable tbody tr td:nth-child(4) { grid-area: time;    color: #6b7280; font-size: 12px; }
+  #historyTable tbody tr td:nth-child(5) { grid-area: reason;  color: #6b7280; font-size: 12px; text-align: right; }
+  #historyTable tbody tr td:nth-child(6) { grid-area: status;  text-align: right; font-weight: 600; }
+
+  #historyTable tbody tr td:nth-child(1)::before { content: "Date"; }
+  #historyTable tbody tr td:nth-child(2)::before { content: "Out"; }
+  #historyTable tbody tr td:nth-child(3)::before { content: "Covered By"; }
+  #historyTable tbody tr td:nth-child(4)::before { content: "Time"; }
+  #historyTable tbody tr td:nth-child(5)::before { content: "Reason"; }
+  #historyTable tbody tr td:nth-child(6)::before { content: "Status"; }
+
+  /* ── Directory: Name(1) Email(2) Phone(3) Active(4) Notes(5) Actions(6) ── */
+  #subTable tbody tr {
+    grid-template-areas:
+      "name   active"
+      "email  phone"
+      "notes  notes"
+      "action action";
+  }
+
+  #subTable tbody tr td:nth-child(1) { grid-area: name;   font-weight: 600; }
+  #subTable tbody tr td:nth-child(2) { grid-area: email;  font-size: 12px; word-break: break-all; }
+  #subTable tbody tr td:nth-child(3) { grid-area: phone;  font-size: 12px; text-align: right; }
+  #subTable tbody tr td:nth-child(4) { grid-area: active; text-align: right; }
+  #subTable tbody tr td:nth-child(5) { grid-area: notes;  color: #6b7280; font-size: 12px; }
+  #subTable tbody tr td:nth-child(6) { grid-area: action; margin-top: 4px; }
+
+  #subTable tbody tr td:nth-child(1)::before { content: "Name"; }
+  #subTable tbody tr td:nth-child(2)::before { content: "Email"; }
+  #subTable tbody tr td:nth-child(3)::before { content: "Phone"; }
+  #subTable tbody tr td:nth-child(4)::before { content: "Active"; }
+  #subTable tbody tr td:nth-child(5)::before { content: "Notes"; }
+  #subTable tbody tr td:nth-child(6)::before { content: ""; }
+
+  #subTable tbody tr td:nth-child(6).action-buttons {
+    display: flex;
+    gap: 8px;
+  }
+
+  #subTable tbody tr td:nth-child(6).action-buttons .btn {
+    flex: 1;
+  }
+}
 
   </style>
 </head>
