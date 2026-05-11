@@ -20,6 +20,312 @@
 
   <style>
 
+/* --- Annual Allotments section --- */
+.allotment-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.allotment-divider::before,
+.allotment-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.allotment-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.allotment-card {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.allotment-card-bulk {
+  background: rgba(255, 251, 235, 0.7);
+  border-color: #fcd34d;
+}
+
+.allotment-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.allotment-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .allotment-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ================================================================
+   MOBILE — @media (max-width: 767px)
+   ================================================================ */
+@media (max-width: 767px) {
+
+  /* ── Pending & Cancellations tables → card layout ── */
+  #ptoTable,
+  #ptoCancelTable {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+  }
+
+  #ptoTable thead,
+  #ptoCancelTable thead {
+    display: none;
+  }
+
+  #ptoTable tbody tr,
+  #ptoCancelTable tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  #ptoTable tbody tr {
+    grid-template-areas:
+      "emp    type"
+      "dates  hours"
+      "notes  notes"
+      "action action";
+  }
+
+  #ptoCancelTable tbody tr {
+    grid-template-areas:
+      "emp    type"
+      "dates  hours"
+      "badge  status"
+      "action action";
+  }
+
+  #ptoTable tbody tr td,
+  #ptoCancelTable tbody tr td {
+    display: block;
+    padding: 3px 0;
+    border: none !important;
+    font-size: 13px;
+  }
+
+  /* Pending: Employee(1) Type(2) Dates(3) Hours(4) Notes(5) Status(6) Action(7) */
+  #ptoTable tbody tr td:nth-child(1) { grid-area: emp;    font-weight: 600; }
+  #ptoTable tbody tr td:nth-child(2) { grid-area: type; }
+  #ptoTable tbody tr td:nth-child(3) { grid-area: dates; }
+  #ptoTable tbody tr td:nth-child(4) { grid-area: hours;  text-align: right; }
+  #ptoTable tbody tr td:nth-child(5) { grid-area: notes;  color: #6b7280; font-size: 12px; }
+  #ptoTable tbody tr td:nth-child(6) { display: none; } /* "PENDING" is redundant on the pending list */
+  #ptoTable tbody tr td:nth-child(7) { grid-area: action; }
+
+  /* Cancellations: Employee(1) Type(2) Dates(3) Hours(4) Badge+Notes(5) Status(6) Action(7) */
+  #ptoCancelTable tbody tr td:nth-child(1) { grid-area: emp;    font-weight: 600; }
+  #ptoCancelTable tbody tr td:nth-child(2) { grid-area: type; }
+  #ptoCancelTable tbody tr td:nth-child(3) { grid-area: dates; }
+  #ptoCancelTable tbody tr td:nth-child(4) { grid-area: hours;  text-align: right; }
+  #ptoCancelTable tbody tr td:nth-child(5) { grid-area: badge;  font-size: 12px; }
+  #ptoCancelTable tbody tr td:nth-child(6) { grid-area: status; text-align: right; font-weight: 600; }
+  #ptoCancelTable tbody tr td:nth-child(7) { grid-area: action; }
+
+  /* Micro-labels above each cell value */
+  #ptoTable tbody tr td::before,
+  #ptoCancelTable tbody tr td::before {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+
+  #ptoTable tbody tr td:nth-child(1)::before { content: "Employee"; }
+  #ptoTable tbody tr td:nth-child(2)::before { content: "Type"; }
+  #ptoTable tbody tr td:nth-child(3)::before { content: "Dates"; }
+  #ptoTable tbody tr td:nth-child(4)::before { content: "Hours"; }
+  #ptoTable tbody tr td:nth-child(5)::before { content: "Notes"; }
+  #ptoTable tbody tr td:nth-child(7)::before { content: ""; }
+
+  #ptoCancelTable tbody tr td:nth-child(1)::before { content: "Employee"; }
+  #ptoCancelTable tbody tr td:nth-child(2)::before { content: "Type"; }
+  #ptoCancelTable tbody tr td:nth-child(3)::before { content: "Dates"; }
+  #ptoCancelTable tbody tr td:nth-child(4)::before { content: "Hours"; }
+  #ptoCancelTable tbody tr td:nth-child(5)::before { content: "Request"; }
+  #ptoCancelTable tbody tr td:nth-child(6)::before { content: "Status"; }
+  #ptoCancelTable tbody tr td:nth-child(7)::before { content: ""; }
+
+  /* Action buttons: full-width row, side by side */
+  #ptoTable tbody tr td:nth-child(7) .action-buttons,
+  #ptoCancelTable tbody tr td:nth-child(7) .action-buttons {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  #ptoTable tbody tr td:nth-child(7) .action-buttons .btn,
+  #ptoCancelTable tbody tr td:nth-child(7) .action-buttons .btn {
+    flex: 1;
+  }
+
+  /* ── Staff PTO History: stack header controls ── */
+  .pto-history-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .pto-history-header > select {
+    width: 100%;
+  }
+
+  .pto-summary {
+    grid-template-columns: 1fr 1fr;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    padding-left: 0;
+    padding-top: 12px;
+  }
+
+  #ptoHistoryBalancesWrap {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+
+  /* ── PTO request history table → card layout ── */
+  #ptoHistoryAdminTable {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+  }
+
+  #ptoHistoryAdminTable thead { display: none; }
+
+  #ptoHistoryAdminTable tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "type      decision"
+      "dates     submitted"
+      "hours     hours"
+      "notes     notes";
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  #ptoHistoryAdminTable tbody tr td {
+    display: block;
+    padding: 3px 0;
+    border: none !important;
+    font-size: 13px;
+  }
+
+  /* Type(1) Dates(2) Hours(3) Decision(4) Notes(5) Submitted(6) */
+  #ptoHistoryAdminTable tbody tr td:nth-child(1) { grid-area: type;      font-weight: 600; }
+  #ptoHistoryAdminTable tbody tr td:nth-child(2) { grid-area: dates; }
+  #ptoHistoryAdminTable tbody tr td:nth-child(3) { grid-area: hours; }
+  #ptoHistoryAdminTable tbody tr td:nth-child(4) { grid-area: decision;  text-align: right; }
+  #ptoHistoryAdminTable tbody tr td:nth-child(5) { grid-area: notes;     color: #6b7280; font-size: 12px; }
+  #ptoHistoryAdminTable tbody tr td:nth-child(6) { grid-area: submitted; text-align: right; font-size: 12px; color: #6b7280; }
+
+  #ptoHistoryAdminTable tbody tr td::before {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+
+  #ptoHistoryAdminTable tbody tr td:nth-child(1)::before { content: "Type"; }
+  #ptoHistoryAdminTable tbody tr td:nth-child(2)::before { content: "Dates"; }
+  #ptoHistoryAdminTable tbody tr td:nth-child(3)::before { content: "Hours"; }
+  #ptoHistoryAdminTable tbody tr td:nth-child(4)::before { content: "Decision"; }
+  #ptoHistoryAdminTable tbody tr td:nth-child(5)::before { content: "Notes"; }
+  #ptoHistoryAdminTable tbody tr td:nth-child(6)::before { content: "Submitted"; }
+
+  /* ── PTO ledger table → compact card layout ── */
+  #ptoLedgerAdminTable {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-collapse: separate;
+    border-spacing: 0 8px;
+  }
+
+  #ptoLedgerAdminTable thead { display: none; }
+
+  #ptoLedgerAdminTable tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "type    delta"
+      "date    balance"
+      "reason  reason";
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    background: #f8fafc;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  #ptoLedgerAdminTable tbody tr td {
+    display: block;
+    padding: 2px 0;
+    border: none !important;
+    font-size: 12px;
+  }
+
+  /* Type(1) Hours(2) Reason(3) Date(4) Balance After(5) */
+  #ptoLedgerAdminTable tbody tr td:nth-child(1) { grid-area: type;    font-weight: 600; font-size: 13px; }
+  #ptoLedgerAdminTable tbody tr td:nth-child(2) { grid-area: delta;   font-weight: 600; font-size: 13px; text-align: right; }
+  #ptoLedgerAdminTable tbody tr td:nth-child(3) { grid-area: reason;  color: #6b7280; }
+  #ptoLedgerAdminTable tbody tr td:nth-child(4) { grid-area: date;    color: #6b7280; }
+  #ptoLedgerAdminTable tbody tr td:nth-child(5) { grid-area: balance; text-align: right; color: #6b7280; }
+
+  #ptoLedgerAdminTable tbody tr td::before {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 1px;
+  }
+
+  #ptoLedgerAdminTable tbody tr td:nth-child(1)::before { content: "Type"; }
+  #ptoLedgerAdminTable tbody tr td:nth-child(2)::before { content: "Hours"; }
+  #ptoLedgerAdminTable tbody tr td:nth-child(3)::before { content: "Reason"; }
+  #ptoLedgerAdminTable tbody tr td:nth-child(4)::before { content: "Date"; }
+  #ptoLedgerAdminTable tbody tr td:nth-child(5)::before { content: "Balance After"; }
+}
+
   </style>
 </head>
 
@@ -306,25 +612,39 @@
 
 
 
-      <div class="muted" style="margin-top:8px;">
+      <p class="muted" style="margin:8px 0 0; font-size:12px;">
         Positive hours grant PTO. Negative hours subtract PTO. All adjustments are recorded.
-      </div>
+      </p>
 
-      <hr style="margin:12px 0; border-color: var(--border);" />
+      <div class="allotment-divider">Annual Allotments</div>
 
-      <div class="row" style="gap:8px;">
-        <button id="applyAnnualAllotmentBtn" class="btn">Apply Annual Allotment</button>
-        <span id="annualAllotmentStatus" class="muted" style="display:none;"></span>
-      </div>
+      <div class="allotment-grid">
 
-      <div class="row" style="gap:8px; margin-top:12px;">
-        <select id="bulkAnnualPtoType">
-          <option value="">Select PTO type…</option>
-        </select>
+        <div class="allotment-card">
+          <div class="allotment-card-label">Individual</div>
+          <p class="allotment-card-desc">
+            Credits the configured annual hours for the staff member and PTO type selected above. Skips automatically if already applied this year.
+          </p>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <button id="applyAnnualAllotmentBtn" class="btn">Apply Allotment</button>
+            <span id="annualAllotmentStatus" class="muted" style="display:none; font-size:12px;"></span>
+          </div>
+        </div>
 
-        <button id="applyAnnualAllotmentsBulk" class="btn warn">
-          Apply Annual Allotments (Bulk)
-        </button>
+        <div class="allotment-card allotment-card-bulk">
+          <div class="allotment-card-label">Bulk — All Staff</div>
+          <p class="allotment-card-desc">
+            Credits annual hours to every active employee with a policy configured for the chosen type. Employees who already received their allotment this year are skipped.
+          </p>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <select id="bulkAnnualPtoType" style="flex:1; min-width:130px;">
+              <option value="">Select PTO type…</option>
+            </select>
+            <button id="applyAnnualAllotmentsBulk" class="btn warn">Apply to All Staff</button>
+          </div>
+          <div id="bulkAllotmentStatus" class="muted" style="display:none; font-size:12px; margin-top:8px;"></div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -1699,6 +2019,35 @@ async function hasAnnualAllotmentBeenApplied(employeeId, ptoType, year) {
   return data.length > 0;
 }
 
+async function updateBulkAllotmentStatus() {
+  const ptoType = document.getElementById('bulkAnnualPtoType').value;
+  const statusEl = document.getElementById('bulkAllotmentStatus');
+  if (!ptoType) { statusEl.style.display = 'none'; return; }
+
+  const year = new Date().getFullYear();
+
+  // Find the most recent allotment for this type this year across any employee
+  const { data } = await supabase
+    .from('pto_ledger')
+    .select('created_at')
+    .eq('school_id', currentProfile.school_id)
+    .eq('pto_type', ptoType)
+    .eq('reason', `ANNUAL_ALLOTMENT_${year}`)
+    .order('created_at', { ascending: false })
+    .limit(1);
+
+  if (data && data.length > 0) {
+    const date = new Date(data[0].created_at).toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+    statusEl.textContent = `⚠ ${year} allotment last applied ${date}. Running again will skip anyone already credited.`;
+    statusEl.style.display = 'block';
+  } else {
+    statusEl.textContent = `No ${year} allotment has been applied yet for ${ptoType}.`;
+    statusEl.style.display = 'block';
+  }
+}
+
 async function loadPtoAdjustStaff() {
   const select = document.getElementById('ptoAdjustStaff');
   select.innerHTML = '<option value="">Select staff…</option>';
@@ -2439,6 +2788,8 @@ alert(
   `❌ Failed: ${failed}`
 );
 
+updateBulkAllotmentStatus();
+
   });
   
 function handlePtoRoute() {
@@ -2610,6 +2961,10 @@ document
 document
   .getElementById('ptoAdjustType')
   .addEventListener('change', updateAnnualAllotmentUI);
+
+document
+  .getElementById('bulkAnnualPtoType')
+  .addEventListener('change', updateBulkAllotmentStatus);
 
 
 // =============================================================
