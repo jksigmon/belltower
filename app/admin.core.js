@@ -89,7 +89,7 @@ async function setActive(hash) {
 
 
 if (target === '#dashboard') {
-  await loadDashboardStats(section);
+  await loadDashboardStats();
 }
 
   
@@ -212,33 +212,152 @@ function gateNavigation() {
 
 
 
-async function loadDashboardStats(dashboardSection) {
-  const statStudents   = dashboardSection.querySelector('#statStudents');
-  const statStaff      = dashboardSection.querySelector('#statStaff');
-  const statFamilies   = dashboardSection.querySelector('#statFamilies');
-  const statBusGroups  = dashboardSection.querySelector('#statBusGroups');
-
-  // Defensive guard (never crashes again)
-  if (!statStudents) return;
-
+async function loadDashboardStats() {
   const schoolId = currentProfile.school_id;
+  const today    = new Date().toISOString().slice(0, 10);
+  const p        = currentProfile;
 
-  const [
-    students,
-    staff,
-    families,
-    buses
-  ] = await Promise.all([
-    supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
-    supabase.from('employees').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
+  const dateEl = document.getElementById('dashBannerDate');
+  if (dateEl) {
+    dateEl.textContent = new Date().toLocaleDateString('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+    });
+  }
+
+  const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
+  const set  = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+
+  // ── Directory counts ──────────────────────────────────────────────
+  const [students, activeStaff, inactiveStaff, families, buses] = await Promise.all([
+    supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', true),
+    supabase.from('employees').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', true),
+    supabase.from('employees').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', false),
     supabase.from('families').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
-    supabase.from('bus_groups').select('id', { count: 'exact', head: true }).eq('school_id', schoolId)
+    supabase.from('bus_groups').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
   ]);
 
-  statStudents.textContent  = students.count ?? 0;
-  statStaff.textContent     = staff.count ?? 0;
-  statFamilies.textContent  = families.count ?? 0;
-  statBusGroups.textContent = buses.count ?? 0;
+  set('statStudents', students.count ?? 0);
+  set('statStaff', activeStaff.count ?? 0);
+  set('statStaffLabel', `Staff${(inactiveStaff.count ?? 0) > 0 ? ` (${inactiveStaff.count} inactive)` : ''}`);
+  set('statFamilies', families.count ?? 0);
+  set('statBusGroups', buses.count ?? 0);
+
+  // ── Active/inactive staff tile ────────────────────────────────────
+  const activePct = (activeStaff.count ?? 0) + (inactiveStaff.count ?? 0);
+  if (activePct > 0) {
+    set('statActiveStaff', activeStaff.count ?? 0);
+    set('statActiveStaffSub', `${inactiveStaff.count ?? 0} inactive`);
+    const subEl = document.getElementById('statActiveStaffSub');
+    if (subEl) subEl.className = 'stat-sub';
+    show('dashActiveStaff');
+    show('dashStatus');
+  }
+
+  // ── Quick actions ─────────────────────────────────────────────────
+  const row = document.getElementById('dashActionsRow');
+  const isAdmin = p.is_superadmin || p.can_access_admin || p.can_manage_access;
+  const actions = [];
+  if (isAdmin) actions.push({ label: '+ Add Student', href: '#students' });
+  if (isAdmin) actions.push({ label: '+ Add Staff',   href: '#staff' });
+  if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: '📋 PTO', href: '/app/pto.html' });
+  if (moduleEnabled('substitutes') && p.can_manage_substitutes) actions.push({ label: '🔄 Substitutes', href: '/app/substitutes.html' });
+  if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: '🚗 Carline', href: '/app/carline-input.html' });
+
+  if (row && actions.length) {
+    row.innerHTML = '';
+    actions.forEach(({ label, href }) => {
+      const a = document.createElement('a');
+      a.className = 'dash-action-btn';
+      a.textContent = label;
+      a.href = href;
+      if (!href.startsWith('#')) a.target = '_blank';
+      row.appendChild(a);
+    });
+    show('dashQuickActions');
+  }
+
+  // ── PTO tiles (can_approve_pto) ───────────────────────────────────
+  if (moduleEnabled('pto') && p.can_approve_pto) {
+    const [ptoPending, ptoCancels, staffOut] = await Promise.all([
+      supabase.from('pto_requests').select('id', { count: 'exact', head: true })
+        .eq('school_id', schoolId).eq('status', 'PENDING'),
+      supabase.from('pto_requests').select('id', { count: 'exact', head: true })
+        .eq('school_id', schoolId).in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED']),
+      supabase.from('pto_requests').select('id', { count: 'exact', head: true })
+        .eq('school_id', schoolId).eq('status', 'APPROVED')
+        .lte('start_date', today).gte('end_date', today),
+    ]);
+
+    set('statPtoPending', ptoPending.count ?? 0);
+    show('dashPtoPending');
+
+    set('statPtoCancels', ptoCancels.count ?? 0);
+    show('dashPtoCancels');
+
+    set('statStaffOut', staffOut.count ?? 0);
+    show('dashStaffOut');
+    show('dashAttention');
+  }
+
+  // ── Substitute tiles (can_manage_substitutes) ─────────────────────
+  if (moduleEnabled('substitutes') && p.can_manage_substitutes) {
+    const [subUnassigned, subToday] = await Promise.all([
+      supabase.from('v_pending_coverage_days').select('pto_request_id', { count: 'exact', head: true })
+        .eq('school_id', schoolId),
+      supabase.from('substitute_assignments').select('id', { count: 'exact', head: true })
+        .eq('school_id', schoolId).eq('status', 'scheduled')
+        .eq('start_date', today),
+    ]);
+
+    set('statSubUnassigned', subUnassigned.count ?? 0);
+    show('dashSubUnassigned');
+
+    set('statSubToday', subToday.count ?? 0);
+    show('dashSubToday');
+    show('dashAttention');
+  }
+
+  // ── Carline status (can_view_carline) ─────────────────────────────
+  if (moduleEnabled('carline') && (p.can_view_carline || p.is_superadmin)) {
+    const { data: carlineEvent } = await supabase
+      .from('carline_events')
+      .select('status')
+      .eq('school_id', schoolId)
+      .eq('event_date', today)
+      .neq('status', 'CLOSED')
+      .maybeSingle();
+
+    const statusEl = document.getElementById('statCarlineStatus');
+    if (statusEl) {
+      if (carlineEvent?.status === 'OPEN') {
+        statusEl.textContent = 'OPEN';
+        statusEl.style.color = '#16a34a';
+      } else {
+        statusEl.textContent = 'CLOSED';
+        statusEl.style.color = '#64748b';
+      }
+    }
+    show('dashCarline');
+    show('dashStatus');
+  }
+
+  // ── Data health ───────────────────────────────────────────────────
+  const canSeeHealth = p.is_superadmin || p.can_access_admin || p.can_manage_access;
+  if (canSeeHealth) {
+    const [noFamily, noSupervisor] = await Promise.all([
+      supabase.from('students').select('id', { count: 'exact', head: true })
+        .eq('school_id', schoolId).is('family_id', null),
+      supabase.from('employees').select('id', { count: 'exact', head: true })
+        .eq('school_id', schoolId).eq('active', true).is('supervisor_id', null),
+    ]);
+
+    set('statNoFamily', noFamily.count ?? 0);
+    show('dashNoFamily');
+
+    set('statNoSupervisor', noSupervisor.count ?? 0);
+    show('dashNoSupervisor');
+    show('dashHealth');
+  }
 }
 
 /* ===============================

@@ -253,7 +253,7 @@
 	  <a href="/staff.html?from=admin#pto">👤 My Portal</a>
       <a href="/pto.html?from=admin" data-cap-group="pto" data-module="pto">🗓️ PTO Management</a>
 	  <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes">👥 Substitutes</a>
-	  <a href="/carline.html" data-cap-group="carline" data-module="carline">🚗 Carline Live</a>
+	  <a href="/carline.html" data-cap-group="carline" data-module="carline">🚗 Carline</a>
       <a href="#staff" data-cap="can_manage_staff" data-module="staff">👥 Staff</a>
 	  <a href="#access"
       id="navAccess"
@@ -272,35 +272,110 @@
       <div id="pending" class="notice" style="display:none;">Your account is <strong>pending</strong>. An administrator must approve your domain or activate your profile.</div>
 
 <section id="dashboard" class="admin-section">
-        
-<h1>Dashboard</h1>
 
-<p class="muted">
-  Signed in as <strong id="dashboardUser"></strong><br>
-  <span id="dashboardSchool" class="school-name"></span>
-</p>
+  <!-- Welcome banner -->
+  <div class="dash-banner">
+    <div class="dash-banner-inner">
+      <div>
+        <div class="dash-banner-label">Welcome back</div>
+        <div class="dash-banner-name" id="dashboardUser"></div>
+      </div>
+      <div class="dash-banner-school">
+        <div class="dash-banner-label">School</div>
+        <div id="dashboardSchool"></div>
+      </div>
+      <div class="dash-banner-date" id="dashBannerDate"></div>
+    </div>
+  </div>
 
+  <!-- Quick Actions (JS-gated) -->
+  <div class="dash-section" id="dashQuickActions" style="display:none;">
+    <div class="dash-section-title">Quick Actions</div>
+    <div class="dash-actions-row" id="dashActionsRow"></div>
+  </div>
 
-<div class="stat-grid">
-  <div class="stat">
-    <strong id="statStudents">–</strong>
-    <span>Students</span>
+  <!-- Directory counts -->
+  <div class="dash-section">
+    <div class="dash-section-title">Directory</div>
+    <div class="stat-grid">
+      <a href="#students" class="stat dash-stat-link" data-accent="blue">
+        <strong id="statStudents">–</strong>
+        <span>Students</span>
+      </a>
+      <a href="#staff" class="stat dash-stat-link" data-accent="blue">
+        <strong id="statStaff">–</strong>
+        <span id="statStaffLabel">Staff</span>
+      </a>
+      <a href="#families" class="stat dash-stat-link" data-accent="blue">
+        <strong id="statFamilies">–</strong>
+        <span>Families</span>
+      </a>
+      <a href="#bus" class="stat dash-stat-link" data-accent="blue">
+        <strong id="statBusGroups">–</strong>
+        <span>Bus Groups</span>
+      </a>
+    </div>
   </div>
-  <div class="stat">
-    <strong id="statStaff">–</strong>
-    <span>Staff</span>
-  </div>
-  <div class="stat">
-    <strong id="statFamilies">–</strong>
-    <span>Families</span>
-  </div>
-  <div class="stat">
-    <strong id="statBusGroups">–</strong>
-    <span>Bus Groups</span>
-  </div>
-</div>
 
-      </section>
+  <!-- Needs Attention (JS-gated) -->
+  <div class="dash-section" id="dashAttention" style="display:none;">
+    <div class="dash-section-title">Needs Attention</div>
+    <div class="stat-grid">
+      <a href="/app/pto.html#pending" class="stat stat-alert" id="dashPtoPending" style="display:none;" data-accent="red">
+        <strong id="statPtoPending">–</strong>
+        <span>Pending PTO</span>
+      </a>
+      <a href="/app/pto.html#cancellations" class="stat stat-alert" id="dashPtoCancels" style="display:none;" data-accent="orange">
+        <strong id="statPtoCancels">–</strong>
+        <span>PTO Cancellations</span>
+      </a>
+      <a href="/app/pto.html#pending" class="stat stat-info" id="dashStaffOut" style="display:none;" data-accent="blue">
+        <strong id="statStaffOut">–</strong>
+        <span>Staff Out Today</span>
+      </a>
+      <a href="/app/substitutes.html" class="stat stat-alert" id="dashSubUnassigned" style="display:none;" data-accent="red">
+        <strong id="statSubUnassigned">–</strong>
+        <span>Unassigned Coverage</span>
+      </a>
+      <a href="/app/substitutes.html" class="stat stat-info" id="dashSubToday" style="display:none;" data-accent="blue">
+        <strong id="statSubToday">–</strong>
+        <span>Sub Assignments Today</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- Status (JS-gated) -->
+  <div class="dash-section" id="dashStatus" style="display:none;">
+    <div class="dash-section-title">Status</div>
+    <div class="stat-grid">
+      <a href="/app/carline-input.html" class="stat" id="dashCarline" style="display:none;" data-accent="green">
+        <strong id="statCarlineStatus">–</strong>
+        <span>Carline Today</span>
+      </a>
+      <div class="stat" id="dashActiveStaff" style="display:none;" data-accent="blue">
+        <strong id="statActiveStaff">–</strong>
+        <span id="statActiveStaffSub"></span>
+        <span>Staff</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data Health (JS-gated) -->
+  <div class="dash-section" id="dashHealth" style="display:none;">
+    <div class="dash-section-title">Data Health</div>
+    <div class="stat-grid">
+      <a href="#students" class="stat stat-warn" id="dashNoFamily" style="display:none;" data-accent="amber">
+        <strong id="statNoFamily">–</strong>
+        <span>Students Without Family</span>
+      </a>
+      <a href="#staff" class="stat stat-warn" id="dashNoSupervisor" style="display:none;" data-accent="amber">
+        <strong id="statNoSupervisor">–</strong>
+        <span>Staff Without Supervisor</span>
+      </a>
+    </div>
+  </div>
+
+</section>
 <section id="staff" class="admin-section">
   <!-- Skeleton (always visible initially) -->
   <div class="admin-content skeleton-container">

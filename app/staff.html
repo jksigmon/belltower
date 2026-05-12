@@ -201,9 +201,7 @@
     alt="Belltower"
     class="admin-logo"
   />
-  <div class="page-subtitle" id="pageSubtitle">
-    Time off, requests, and daily services
-  </div>
+  <div class="page-subtitle" id="pageSubtitle"></div>
 </div>
 
 <div class="header-actions">
@@ -223,7 +221,7 @@
   </a>
 
   <a href="/carline.html" data-module="carline">
-    🚗 Carline Live
+    🚗 Carline
   </a>
 </nav>
 
@@ -777,7 +775,7 @@ function setActive(hash) {
 
   // Subtitle (optional)
   const subtitle = document.getElementById('pageSubtitle');
-  if (hash === '#pto') subtitle.textContent = 'Manage your time off';
+  if (hash === '#pto') subtitle.textContent = 'PTO & Leave';
   
   // Nav active state
   document.querySelectorAll('nav a').forEach(function (a) {
