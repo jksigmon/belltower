@@ -259,9 +259,9 @@ async function loadDashboardStats() {
   const actions = [];
   if (isAdmin) actions.push({ label: '+ Add Student', href: '#students' });
   if (isAdmin) actions.push({ label: '+ Add Staff',   href: '#staff' });
-  if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: '📋 PTO', href: '/app/pto.html' });
-  if (moduleEnabled('substitutes') && p.can_manage_substitutes) actions.push({ label: '🔄 Substitutes', href: '/app/substitutes.html' });
-  if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: '🚗 Carline', href: '/app/carline-input.html' });
+  if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: 'PTO', href: '/app/pto.html' });
+  if (moduleEnabled('substitutes') && p.can_manage_substitutes) actions.push({ label: 'Substitutes', href: '/app/substitutes.html' });
+  if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: 'Carline', href: '/app/carline-input.html' });
 
   if (row && actions.length) {
     row.innerHTML = '';

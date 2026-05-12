@@ -291,17 +291,17 @@
 
 <div class="wrap">
   <nav>
-    <a href="#calendar" data-view="calendar">📅 Calendar</a>
-    <a href="#directory" data-view="directory">📇 Directory</a>
-   <a href="#pending" data-view="pending">
-  🕒 Pending Coverage
-  <span class="badge-count" id="subPendingCount"></span>
-</a>
-<a href="#cancellations" data-view="cancellations">
-  ❌ Cancellations
-  <span class="badge-count" id="subCancelCount"></span>
-</a>
-<a href="#history" data-view="history">📋 History</a>
+    <a href="#calendar" data-view="calendar"><i data-lucide="calendar"></i> Calendar</a>
+    <a href="#directory" data-view="directory"><i data-lucide="book-open"></i> Directory</a>
+    <a href="#pending" data-view="pending">
+      <i data-lucide="clock"></i> Pending Coverage
+      <span class="badge-count" id="subPendingCount"></span>
+    </a>
+    <a href="#cancellations" data-view="cancellations">
+      <i data-lucide="x-circle"></i> Cancellations
+      <span class="badge-count" id="subCancelCount"></span>
+    </a>
+    <a href="#history" data-view="history"><i data-lucide="history"></i> History</a>
 
   </nav>
 
@@ -1923,6 +1923,8 @@ await loadSubRequestCounts();
 wireExclusiveCovererSelects();
 </script>
 <script src="/app/nav-mobile.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>if (window.lucide) lucide.createIcons();</script>
 
 </body>
 </html>

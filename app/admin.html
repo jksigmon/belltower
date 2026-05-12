@@ -249,24 +249,20 @@
 
   <div class="wrap">
     <nav id="adminNav" class="nav hidden">
-      <a href="#dashboard" class="active">Dashboard</a>
-	  <a href="/staff.html?from=admin#pto">👤 My Portal</a>
-      <a href="/pto.html?from=admin" data-cap-group="pto" data-module="pto">🗓️ PTO Management</a>
-	  <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes">👥 Substitutes</a>
-	  <a href="/carline.html" data-cap-group="carline" data-module="carline">🚗 Carline</a>
-      <a href="#staff" data-cap="can_manage_staff" data-module="staff">👥 Staff</a>
-	  <a href="#access"
-      id="navAccess"
-      data-cap="can_manage_access">
-      🔐 Manage Access</a>
-      <a href="#students" data-cap="can_manage_students" data-module="students">🎓 Students</a>
-	  <a href="#families" data-cap="can_manage_families" data-module="families">👨‍👩‍👧 Families</a>
-	  <a href="#guardians" data-cap="can_manage_guardians" data-module="guardians">👪 Guardians</a>
-      <a href="#campuses" data-cap="can_manage_campuses">🏫 Campuses</a>
-      <a href="#bus" data-cap="can_manage_bus_groups" data-module="bus_groups">🚌 Bus Groups</a>
-	  <a href="#bulk-upload" data-cap="can_bulk_upload">⬆️ Bulk Upload</a>
-	  <a href="#exports" data-cap="can_export_data">📤 Exports</a>
-
+      <a href="#dashboard" class="active"><i data-lucide="layout-dashboard"></i> Dashboard</a>
+      <a href="/staff.html?from=admin#pto"><i data-lucide="user"></i> My Portal</a>
+      <a href="/pto.html?from=admin" data-cap-group="pto" data-module="pto"><i data-lucide="calendar"></i> PTO Management</a>
+      <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes"><i data-lucide="repeat-2"></i> Substitutes</a>
+      <a href="/carline.html" data-cap-group="carline" data-module="carline"><i data-lucide="car"></i> Carline</a>
+      <a href="#staff" data-cap="can_manage_staff" data-module="staff"><i data-lucide="users"></i> Staff</a>
+      <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access</a>
+      <a href="#students" data-cap="can_manage_students" data-module="students"><i data-lucide="graduation-cap"></i> Students</a>
+      <a href="#families" data-cap="can_manage_families" data-module="families"><i data-lucide="home"></i> Families</a>
+      <a href="#guardians" data-cap="can_manage_guardians" data-module="guardians"><i data-lucide="user-check"></i> Guardians</a>
+      <a href="#campuses" data-cap="can_manage_campuses"><i data-lucide="building-2"></i> Campuses</a>
+      <a href="#bus" data-cap="can_manage_bus_groups" data-module="bus_groups"><i data-lucide="bus"></i> Bus Groups</a>
+      <a href="#bulk-upload" data-cap="can_bulk_upload"><i data-lucide="upload"></i> Bulk Upload</a>
+      <a href="#exports" data-cap="can_export_data"><i data-lucide="download"></i> Exports</a>
     </nav>
     <main>
       <div id="pending" class="notice" style="display:none;">Your account is <strong>pending</strong>. An administrator must approve your domain or activate your profile.</div>
@@ -1112,5 +1108,7 @@
   if (link && TEMPLATE_URL) link.href = TEMPLATE_URL;
 </script>
 <script src="/app/nav-mobile.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>if (window.lucide) lucide.createIcons();</script>
  </body>
 </html>
