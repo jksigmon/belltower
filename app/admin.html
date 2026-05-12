@@ -255,6 +255,7 @@
       <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes"><i data-lucide="repeat-2"></i> Substitutes</a>
       <a href="/carline.html" data-cap-group="carline" data-module="carline"><i data-lucide="car"></i> Carline</a>
       <a href="#staff" data-cap="can_manage_staff" data-module="staff"><i data-lucide="users"></i> Staff</a>
+      <a href="/app/licensure.html" data-cap="can_manage_licensure" data-module="licensure"><i data-lucide="badge-check"></i> Licensure</a>
       <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access</a>
       <a href="#students" data-cap="can_manage_students" data-module="students"><i data-lucide="graduation-cap"></i> Students</a>
       <a href="#families" data-cap="can_manage_families" data-module="families"><i data-lucide="home"></i> Families</a>
@@ -336,6 +337,10 @@
       <a href="/app/substitutes.html" class="stat stat-info" id="dashSubToday" style="display:none;" data-accent="blue">
         <strong id="statSubToday">–</strong>
         <span>Sub Assignments Today</span>
+      </a>
+      <a href="/app/licensure.html" class="stat stat-alert" id="dashLicExpiring" style="display:none;" data-accent="amber">
+        <strong id="statLicExpiring">–</strong>
+        <span>Licenses Expiring (30d)</span>
       </a>
     </div>
   </div>
@@ -563,6 +568,7 @@
 		<label><input type="checkbox" data-field="can_manage_campuses"> Manage campuses</label>
 		<label><input type="checkbox" data-field="can_bulk_upload"> Bulk upload</label>
 		<label><input type="checkbox" data-field="can_export_data"> Export data</label>
+		<label data-module="licensure"><input type="checkbox" data-field="can_manage_licensure"> Manage licensure</label>
 </div>
       </div>
 

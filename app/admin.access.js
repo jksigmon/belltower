@@ -27,7 +27,8 @@ const ACCESS_ROLE_PRESETS = {
     can_generate_pto_reports: false,
     can_view_carline: false,
     can_bulk_upload: false,
-	can_export_data: false
+    can_export_data: false,
+    can_manage_licensure: false
   },
   office: {
     can_login: true,
@@ -46,7 +47,8 @@ const ACCESS_ROLE_PRESETS = {
     can_generate_pto_reports: false,
     can_view_carline: true,
     can_bulk_upload: false,
-	can_export_data: true
+    can_export_data: true,
+    can_manage_licensure: false
   },
   admin: {
     can_login: true,
@@ -66,7 +68,8 @@ const ACCESS_ROLE_PRESETS = {
     can_generate_pto_reports: true,
     can_view_carline: true,
     can_bulk_upload: true,
-	can_export_data: true
+    can_export_data: true,
+    can_manage_licensure: true
   }
 };
 

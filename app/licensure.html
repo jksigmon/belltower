@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Licensure Tracking</title>
+  <link rel="stylesheet" href="/admin-ui.css" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+  <style>
+    /* ── Compliance two-column layout ── */
+    .compliance-layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 768px) {
+      .compliance-layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Compliance stat cards ── */
+    .compliance-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .compliance-card {
+      background: #fff;
+      border: 1px solid #e6e8eb;
+      border-radius: 10px;
+      padding: 16px 18px;
+      box-shadow: 0 2px 6px rgba(11,45,79,0.07);
+    }
+
+    .compliance-card strong {
+      display: block;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #1f2937;
+      margin-bottom: 4px;
+    }
+
+    .compliance-card span {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6b7280;
+    }
+
+    .compliance-card[data-accent="red"]    { border-top: 3px solid #dc2626; }
+    .compliance-card[data-accent="orange"] { border-top: 3px solid #ea580c; }
+    .compliance-card[data-accent="amber"]  { border-top: 3px solid #f59e0b; }
+    .compliance-card[data-accent="blue"]   { border-top: 3px solid #2563eb; }
+    .compliance-card[data-accent="green"]  { border-top: 3px solid #16a34a; }
+
+    .compliance-card strong.alert { color: #dc2626; }
+    .compliance-card strong.warn  { color: #ea580c; }
+
+    /* ── Status badges ── */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .badge-active       { background: #dcfce7; color: #15803d; }
+    .badge-expiring     { background: #fef9c3; color: #a16207; }
+    .badge-expired      { background: #fee2e2; color: #991b1b; }
+    .badge-provisional  { background: #fef3c7; color: #92400e; }
+    .badge-pending      { background: #e0f2fe; color: #0369a1; }
+    .badge-suspended    { background: #f1f5f9; color: #475569; }
+    .badge-revoked      { background: #fce7f3; color: #9d174d; }
+
+    /* ── Expiry alert list ── */
+    .alert-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .alert-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #fff;
+      border: 1px solid #e6e8eb;
+      border-left: 4px solid #f59e0b;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.88rem;
+    }
+
+    .alert-row.urgent { border-left-color: #dc2626; }
+    .alert-row.warn   { border-left-color: #ea580c; }
+
+    .alert-row .alert-name   { font-weight: 600; flex: 1; }
+    .alert-row .alert-type   { color: #6b7280; flex: 1; }
+    .alert-row .alert-expiry { color: #6b7280; white-space: nowrap; }
+    .alert-row .alert-days   { font-weight: 700; white-space: nowrap; min-width: 80px; text-align: right; }
+    .alert-row .alert-days.urgent { color: #dc2626; }
+    .alert-row .alert-days.warn   { color: #ea580c; }
+    .alert-row .alert-days.caution { color: #a16207; }
+
+    /* ── Section titles ── */
+    .lic-section-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: #9ca3af;
+      margin: 0 0 14px;
+    }
+
+    /* ── Filters row ── */
+    .lic-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .lic-filters input,
+    .lic-filters select {
+      height: 36px;
+      padding: 0 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      background: #fff;
+    }
+
+    .lic-filters input { min-width: 200px; }
+
+    /* ── Verified icon ── */
+    .verified-check { color: #16a34a; font-weight: 700; }
+    .unverified-x   { color: #d1d5db; }
+
+    /* ── Modal: role checkboxes ── */
+    .role-checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .role-checks label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+
+    /* ── Provisional conditional ── */
+    #provisionalTypeRow { display: none; }
+
+    /* ── Empty states ── */
+    .lic-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: #9ca3af;
+      font-size: 0.92rem;
+    }
+
+    /* ── Export btn ── */
+    .lic-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    /* ── Audit log table ── */
+    #auditTable td:last-child {
+      font-size: 0.8rem;
+      color: #6b7280;
+      max-width: 300px;
+      white-space: normal;
+    }
+
+    /* ── Muted alert indicator ── */
+    .muted-badge {
+      font-size: 0.68rem;
+      color: #9ca3af;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 1px 5px;
+    }
+  </style>
+</head>
+
+<body class="admin-page">
+
+<header>
+  <div class="header-left">
+    <button id="hamburgerBtn" class="hamburger-btn" aria-label="Open navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="/admin.html" class="btn btn-admin">← Back to Admin</a>
+  </div>
+
+  <div class="page-header">
+    <img src="/images/belltower-logo.png" alt="Belltower" class="admin-logo" />
+    <div class="page-subtitle">Licensure Tracking</div>
+  </div>
+
+  <div class="header-actions">
+    <span id="licAdminName" class="muted"></span>
+    <button id="signOut" class="btn">Sign out</button>
+  </div>
+</header>
+
+<div id="navOverlay" class="nav-overlay"></div>
+
+<div class="wrap">
+  <nav>
+    <a href="#compliance" data-view="compliance"><i data-lucide="shield-check"></i> Compliance</a>
+    <a href="#licenses"   data-view="licenses"><i data-lucide="file-text"></i> All Licenses</a>
+    <a href="#audit"      data-view="audit"><i data-lucide="history"></i> Audit Log</a>
+  </nav>
+
+  <main class="admin-main">
+
+    <!-- ══════════════════════════════════════════════════
+         COMPLIANCE DASHBOARD
+    ══════════════════════════════════════════════════ -->
+    <section id="compliance" class="lic-view">
+      <div class="compliance-layout">
+
+        <!-- Left: alert list -->
+        <div>
+          <p class="lic-section-title">Upcoming Expirations</p>
+          <div id="alertList" class="alert-list">
+            <div class="lic-empty">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Right: stat cards -->
+        <div>
+          <p class="lic-section-title">Summary</p>
+          <div class="compliance-grid">
+            <div class="compliance-card" data-accent="blue">
+              <strong id="statTotal">—</strong>
+              <span>Total Active</span>
+            </div>
+            <div class="compliance-card" data-accent="red">
+              <strong id="stat30" class="alert">—</strong>
+              <span>Expiring 30d</span>
+            </div>
+            <div class="compliance-card" data-accent="orange">
+              <strong id="stat60" class="warn">—</strong>
+              <span>Expiring 60d</span>
+            </div>
+            <div class="compliance-card" data-accent="amber">
+              <strong id="stat90">—</strong>
+              <span>Expiring 90d</span>
+            </div>
+            <div class="compliance-card" data-accent="red">
+              <strong id="statExpired" class="alert">—</strong>
+              <span>Expired</span>
+            </div>
+            <div class="compliance-card" data-accent="amber">
+              <strong id="statProvisional">—</strong>
+              <span>Provisional</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+
+    <!-- ══════════════════════════════════════════════════
+         ALL LICENSES
+    ══════════════════════════════════════════════════ -->
+    <section id="licenses" class="lic-view" style="display:none;">
+
+      <div class="lic-toolbar">
+        <div class="lic-filters">
+          <input type="text" id="licSearch" placeholder="Search staff…">
+          <select id="licStatusFilter">
+            <option value="">All statuses</option>
+            <option value="active">Active</option>
+            <option value="expiring">Expiring Soon</option>
+            <option value="expired">Expired</option>
+            <option value="pending_renewal">Pending Renewal</option>
+            <option value="suspended">Suspended</option>
+            <option value="revoked">Revoked</option>
+          </select>
+          <select id="licTypeFilter">
+            <option value="">All types</option>
+            <option value="IPL">IPL</option>
+            <option value="CPL">CPL</option>
+            <option value="Residency">Residency</option>
+            <option value="Emergency">Emergency</option>
+            <option value="Permit">Permit</option>
+            <option value="CTE_Provisional">CTE Provisional</option>
+            <option value="Admin">Admin</option>
+            <option value="Student_Services">Student Services</option>
+          </select>
+          <select id="licCampusFilter">
+            <option value="">All campuses</option>
+          </select>
+          <select id="licExpiryFilter">
+            <option value="">Any expiry</option>
+            <option value="30">Expiring in 30 days</option>
+            <option value="60">Expiring in 60 days</option>
+            <option value="90">Expiring in 90 days</option>
+            <option value="expired">Expired</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" id="addLicenseBtn">+ Add License</button>
+          <button class="btn" id="exportLicensesBtn">Export</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="admin-table" id="licenseTable">
+          <thead>
+            <tr>
+              <th>Staff Member</th>
+              <th>License #</th>
+              <th>Type</th>
+              <th>Area / Subject</th>
+              <th>Grade Band</th>
+              <th>Expiration</th>
+              <th>Status</th>
+              <th>Provisional</th>
+              <th>Renewal</th>
+              <th>Verified</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="licenseTableBody">
+            <tr><td colspan="11" class="lic-empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="licPagination" class="pagination"></div>
+
+    </section>
+
+
+    <!-- ══════════════════════════════════════════════════
+         AUDIT LOG
+    ══════════════════════════════════════════════════ -->
+    <section id="audit" class="lic-view" style="display:none;">
+
+      <div class="lic-filters" style="margin-bottom:16px;">
+        <input type="text" id="auditSearch" placeholder="Search staff or change type…" style="min-width:260px;">
+      </div>
+
+      <div class="table-wrap">
+        <table class="admin-table" id="auditTable">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Staff Member</th>
+              <th>Change</th>
+              <th>Changed By</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody id="auditTableBody">
+            <tr><td colspan="5" class="lic-empty">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="auditPagination" class="pagination"></div>
+
+    </section>
+
+  </main>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════
+     ADD / EDIT LICENSE MODAL
+══════════════════════════════════════════════════ -->
+<div id="licenseModal" class="modal">
+  <div class="modal-content" style="max-width:580px;">
+    <div class="modal-header">
+      <h2 id="licenseModalTitle">Add License</h2>
+      <button class="modal-close" id="closeLicenseModal">&times;</button>
+    </div>
+
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+
+      <!-- Staff (add only) -->
+      <div id="staffSelectRow">
+        <label class="form-label">Staff Member <span style="color:#dc2626;">*</span></label>
+        <select id="licStaff" class="form-input" style="width:100%;">
+          <option value="">Select staff member…</option>
+        </select>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label class="form-label">License Number</label>
+          <input type="text" id="licNumber" class="form-input" style="width:100%;" placeholder="e.g. 123456">
+        </div>
+        <div>
+          <label class="form-label">State</label>
+          <select id="licState" class="form-input" style="width:100%;">
+            <option value="NC">North Carolina</option>
+            <option value="SC">South Carolina</option>
+            <option value="VA">Virginia</option>
+            <option value="GA">Georgia</option>
+            <option value="TN">Tennessee</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label class="form-label">License Type <span style="color:#dc2626;">*</span></label>
+          <select id="licType" class="form-input" style="width:100%;">
+            <option value="">Select type…</option>
+            <optgroup label="Teaching">
+              <option value="IPL">IPL — Initial Professional</option>
+              <option value="CPL">CPL — Continuing Professional</option>
+              <option value="Residency">Residency License</option>
+              <option value="Emergency">Emergency License</option>
+              <option value="Permit">Permit to Teach</option>
+              <option value="CTE_Provisional">CTE Provisional</option>
+            </optgroup>
+            <optgroup label="Administration">
+              <option value="Admin">Admin (Principal/AP/Supt)</option>
+            </optgroup>
+            <optgroup label="Student Services">
+              <option value="Student_Services">Student Services</option>
+            </optgroup>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Category</label>
+          <select id="licCategory" class="form-input" style="width:100%;">
+            <option value="teaching">Teaching</option>
+            <option value="admin">Administration</option>
+            <option value="support">Student Support</option>
+            <option value="substitute">Substitute</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label class="form-label">License Area / Subject</label>
+          <input type="text" id="licArea" class="form-input" style="width:100%;" placeholder="e.g. Elementary Education">
+        </div>
+        <div>
+          <label class="form-label">Grade Authorization</label>
+          <select id="licGrade" class="form-input" style="width:100%;">
+            <option value="">N/A</option>
+            <option value="K-6">K-6</option>
+            <option value="6-9">6-9</option>
+            <option value="9-12">9-12</option>
+            <option value="K-12">K-12</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label class="form-label">Issue Date</label>
+          <input type="text" id="licIssueDate" class="form-input" style="width:100%;" placeholder="MM/DD/YYYY">
+        </div>
+        <div>
+          <label class="form-label">Expiration Date <span style="color:#dc2626;">*</span></label>
+          <input type="text" id="licExpDate" class="form-input" style="width:100%;" placeholder="MM/DD/YYYY">
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div>
+          <label class="form-label">Status</label>
+          <select id="licStatus" class="form-input" style="width:100%;">
+            <option value="active">Active</option>
+            <option value="expiring">Expiring Soon</option>
+            <option value="expired">Expired</option>
+            <option value="pending_renewal">Pending Renewal</option>
+            <option value="suspended">Suspended</option>
+            <option value="revoked">Revoked</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Renewal Status</label>
+          <select id="licRenewalStatus" class="form-input" style="width:100%;">
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="submitted">Submitted</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Provisional -->
+      <div style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="licProvisional">
+        <label for="licProvisional" class="form-label" style="margin:0;cursor:pointer;">Provisional / Temporary License</label>
+      </div>
+      <div id="provisionalTypeRow">
+        <label class="form-label">Provisional Type</label>
+        <select id="licProvisionalType" class="form-input" style="width:100%;">
+          <option value="emergency">Emergency</option>
+          <option value="residency">Residency</option>
+          <option value="permit">Permit to Teach</option>
+          <option value="cte_provisional">CTE Provisional</option>
+        </select>
+      </div>
+
+      <!-- Campus -->
+      <div>
+        <label class="form-label">Campus Applicability</label>
+        <select id="licCampus" class="form-input" style="width:100%;">
+          <option value="">All campuses</option>
+        </select>
+      </div>
+
+      <!-- Role applicability -->
+      <div>
+        <label class="form-label">Role Applicability</label>
+        <div class="role-checks">
+          <label><input type="checkbox" value="teacher"> Teacher</label>
+          <label><input type="checkbox" value="substitute"> Substitute</label>
+          <label><input type="checkbox" value="admin"> Admin</label>
+          <label><input type="checkbox" value="ec"> Exceptional Children</label>
+          <label><input type="checkbox" value="support"> Student Support</label>
+        </div>
+      </div>
+
+      <!-- Verified + alert muted -->
+      <div style="display:flex;gap:24px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="licVerified">
+          <label for="licVerified" class="form-label" style="margin:0;cursor:pointer;">Document Verified</label>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="licAlertMuted">
+          <label for="licAlertMuted" class="form-label" style="margin:0;cursor:pointer;">Mute Alerts</label>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div>
+        <label class="form-label">Notes</label>
+        <textarea id="licNotes" class="form-input" rows="3" style="width:100%;resize:vertical;"></textarea>
+      </div>
+
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="cancelLicenseBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveLicenseBtn">Save License</button>
+    </div>
+  </div>
+</div>
+
+
+<script type="module" src="/app/admin.licensure.js"></script>
+<script src="/app/nav-mobile.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>if (window.lucide) lucide.createIcons();</script>
+</body>
+</html>

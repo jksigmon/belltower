@@ -317,6 +317,25 @@ async function loadDashboardStats() {
     show('dashAttention');
   }
 
+  // ── Licensure expiring (can_manage_licensure) ────────────────────
+  if (moduleEnabled('licensure') && p.can_manage_licensure) {
+    const in30 = new Date();
+    in30.setDate(in30.getDate() + 30);
+    const in30Str = in30.toISOString().slice(0, 10);
+    const { count: licCount } = await supabase
+      .from('staff_licenses')
+      .select('id', { count: 'exact', head: true })
+      .eq('school_id', schoolId)
+      .eq('alert_muted', false)
+      .lte('expiration_date', in30Str)
+      .gte('expiration_date', today)
+      .neq('status', 'revoked');
+
+    set('statLicExpiring', licCount ?? 0);
+    show('dashLicExpiring');
+    show('dashAttention');
+  }
+
   // ── Carline status (can_view_carline) ─────────────────────────────
   if (moduleEnabled('carline') && (p.can_view_carline || p.is_superadmin)) {
     const { data: carlineEvent } = await supabase

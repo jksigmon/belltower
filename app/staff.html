@@ -216,8 +216,9 @@
 <div class="wrap">
 
 <nav>
-  <a href="#pto" data-module="pto"><i data-lucide="calendar"></i> PTO</a>
+  <a href="#pto"        data-module="pto"><i data-lucide="calendar"></i> PTO</a>
   <a href="/carline.html" data-module="carline"><i data-lucide="car"></i> Carline</a>
+  <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
 </nav>
 
 
@@ -397,6 +398,16 @@
 </section>
 
     <section id="requests" class="panel" style="display:none;"></section>
+
+    <!-- ── My Licenses (read-only) ────────────────────── -->
+    <section id="licensure" style="display:none;">
+      <h2 style="margin-bottom:18px;">My Licenses &amp; Certifications</h2>
+
+      <div id="staffLicenseList">
+        <p style="color:#9ca3af;text-align:center;padding:32px 0;">Loading…</p>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -770,7 +781,8 @@ function setActive(hash) {
 
   // Subtitle (optional)
   const subtitle = document.getElementById('pageSubtitle');
-  if (hash === '#pto') subtitle.textContent = 'PTO & Leave';
+  if (hash === '#pto')        subtitle.textContent = 'PTO & Leave';
+  if (hash === '#licensure')  subtitle.textContent = 'My Licenses';
   
   // Nav active state
   document.querySelectorAll('nav a').forEach(function (a) {
@@ -785,6 +797,78 @@ function setActive(hash) {
   // Show active section
   const section = document.querySelector(hash);
   if (section) section.style.display = 'block';
+
+  if (hash === '#licensure') loadMyLicenses();
+}
+
+async function loadMyLicenses() {
+  const container = document.getElementById('staffLicenseList');
+  if (!container) return;
+
+  const { data, error } = await supabase
+    .from('staff_licenses')
+    .select('*')
+    .eq('employee_id', currentProfile.employee_id)
+    .order('expiration_date', { ascending: true });
+
+  if (error || !data?.length) {
+    container.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:32px 0;">No license records on file. Contact an administrator.</p>';
+    return;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  const statusBadgeMap = {
+    active:          ['#dcfce7','#15803d'],
+    expiring:        ['#fef9c3','#a16207'],
+    expired:         ['#fee2e2','#991b1b'],
+    pending_renewal: ['#e0f2fe','#0369a1'],
+    suspended:       ['#f1f5f9','#475569'],
+    revoked:         ['#fce7f3','#9d174d'],
+  };
+
+  const rows = data.map(lic => {
+    const daysLeft = lic.expiration_date
+      ? Math.round((new Date(lic.expiration_date) - new Date(today)) / 86400000)
+      : null;
+    const [bg, color] = statusBadgeMap[lic.status] ?? ['#f1f5f9','#374151'];
+    const expiryNote = daysLeft === null ? '' :
+      daysLeft < 0
+        ? `<span style="color:#dc2626;font-size:0.78rem;font-weight:600;">${Math.abs(daysLeft)}d overdue</span>`
+        : daysLeft <= 30
+          ? `<span style="color:#dc2626;font-size:0.78rem;">${daysLeft}d remaining</span>`
+          : daysLeft <= 90
+            ? `<span style="color:#ea580c;font-size:0.78rem;">${daysLeft}d remaining</span>`
+            : '';
+
+    return `<tr>
+      <td>${lic.license_type}</td>
+      <td>${lic.license_area ?? '—'}</td>
+      <td>${lic.grade_authorization ?? '—'}</td>
+      <td>${lic.license_number ?? '—'}</td>
+      <td>${lic.expiration_date ? lic.expiration_date.split('-').slice(1).concat(lic.expiration_date.split('-')[0]).join('/') : '—'}<br>${expiryNote}</td>
+      <td><span style="background:${bg};color:${color};padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;text-transform:uppercase;">${lic.status.replace('_',' ')}</span></td>
+      <td>${lic.is_provisional ? '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">Provisional</span>' : '—'}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="table-wrap">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Area / Subject</th>
+            <th>Grade Band</th>
+            <th>License #</th>
+            <th>Expiration</th>
+            <th>Status</th>
+            <th>Provisional</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 function redirectToFirstEnabledModule() {
