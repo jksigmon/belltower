@@ -20,6 +20,7 @@ CREATE TABLE public.staff_licenses (
   -- License classification
   license_type    text NOT NULL,
   -- IPL | CPL | Residency | Emergency | Permit | CTE_Provisional | Admin | Student_Services
+  license_class   text,        -- A | B | C | or any free-text value
   category        text NOT NULL DEFAULT 'teaching',
   -- teaching | admin | support | substitute
 

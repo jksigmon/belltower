@@ -215,7 +215,7 @@ function renderLicenseTable(rows) {
     tr.innerHTML = `
       <td>${employeeLookup[lic.employee_id] ?? '—'}</td>
       <td>${lic.license_number ?? '—'}</td>
-      <td>${lic.license_type}</td>
+      <td>${lic.license_type}${lic.license_class ? ` <small style="color:#6b7280;">(${lic.license_class})</small>` : ''}</td>
       <td>${lic.license_area ?? '—'}</td>
       <td>${lic.grade_authorization ?? '—'}</td>
       <td>${formatDate(lic.expiration_date)}${daysLeft !== null ? `<br><small style="color:${daysLeft < 0 ? '#dc2626' : daysLeft <= 30 ? '#dc2626' : daysLeft <= 60 ? '#ea580c' : '#9ca3af'}">${daysLeft < 0 ? Math.abs(daysLeft) + 'd overdue' : daysLeft + 'd'}</small>` : ''}</td>
@@ -258,13 +258,26 @@ async function loadAuditLog() {
 
   if (error) { console.error(error); return; }
 
-  const tbody = document.getElementById('auditTableBody');
   let rows = data || [];
+
+  // Resolve changed_by user_ids → display names
+  const changerIds = [...new Set(rows.map(r => r.changed_by).filter(Boolean))];
+  const changerLookup = {};
+  if (changerIds.length) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('user_id, display_name')
+      .in('user_id', changerIds);
+    (profiles ?? []).forEach(p => { changerLookup[p.user_id] = p.display_name ?? p.user_id; });
+  }
+
+  const tbody = document.getElementById('auditTableBody');
 
   if (search) {
     rows = rows.filter(r => {
       const name = (employeeLookup[r.staff_licenses?.employee_id] ?? '').toLowerCase();
-      return name.includes(search) || r.change_type.toLowerCase().includes(search);
+      const changer = (changerLookup[r.changed_by] ?? '').toLowerCase();
+      return name.includes(search) || r.change_type.toLowerCase().includes(search) || changer.includes(search);
     });
   }
 
@@ -276,7 +289,7 @@ async function loadAuditLog() {
   tbody.innerHTML = '';
   rows.forEach(r => {
     const employeeId = r.staff_licenses?.employee_id;
-    const changerProfile = r.changed_by ?? '—';
+    const changerProfile = changerLookup[r.changed_by] ?? '—';
     const details = r.field_changes
       ? Object.entries(r.field_changes)
           .map(([k, v]) => `${k}: ${v.old ?? '—'} → ${v.new ?? '—'}`)
@@ -319,6 +332,7 @@ function openEditModal(id) {
   document.getElementById('licNumber').value         = lic.license_number ?? '';
   document.getElementById('licState').value          = lic.state ?? 'NC';
   document.getElementById('licType').value           = lic.license_type ?? '';
+  document.getElementById('licClass').value          = lic.license_class ?? '';
   document.getElementById('licCategory').value       = lic.category ?? 'teaching';
   document.getElementById('licArea').value           = lic.license_area ?? '';
   document.getElementById('licGrade').value          = lic.grade_authorization ?? '';
@@ -346,7 +360,7 @@ function openEditModal(id) {
 }
 
 function resetForm() {
-  ['licNumber','licArea','licNotes'].forEach(id => {
+  ['licNumber','licArea','licClass','licNotes'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('licState').value         = 'NC';
@@ -394,6 +408,7 @@ async function saveLicense() {
     license_number:      document.getElementById('licNumber').value.trim() || null,
     state:               document.getElementById('licState').value,
     license_type:        licType,
+    license_class:       document.getElementById('licClass').value.trim() || null,
     category:            document.getElementById('licCategory').value,
     license_area:        document.getElementById('licArea').value.trim() || null,
     grade_authorization: document.getElementById('licGrade').value || null,
@@ -465,6 +480,7 @@ function exportLicenses() {
     'License Number':     l.license_number ?? '',
     'State':              l.state,
     'License Type':       l.license_type,
+    'License Class':      l.license_class ?? '',
     'Category':           l.category,
     'License Area':       l.license_area ?? '',
     'Grade Authorization':l.grade_authorization ?? '',
