@@ -410,6 +410,9 @@
 <script type="module">
 import { supabase } from '/app/admin.supabase.js';
 
+// Prevent browser from restoring a stale scroll position on load
+if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+
 let SCHOOL_WORKDAY_HOURS = 8;
 let PTO_INCREMENT_MINUTES = 30;
 let DAY_START_TIME = "08:00";
@@ -680,8 +683,9 @@ if (backToAdmin && cameFromAdminContext() && hasAdminAccess(currentProfile)) {
     return; // ✅ LEGAL because it's inside a function
   }
 
-  // ✅ Redirect to first enabled module
+  // ✅ Redirect to first enabled module, then lock viewport to top
   redirectToFirstEnabledModule();
+  window.scrollTo(0, 0);
 
   // ✅ Load enabled modules ONLY
   if (window.staffModules['pto'] === true) {
@@ -1616,7 +1620,6 @@ window.addEventListener('hashchange', function () {
   setActive(location.hash || '#pto');
 });
 
-redirectToFirstEnabledModule();
 initStaff();
 
   
