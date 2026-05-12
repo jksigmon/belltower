@@ -787,8 +787,9 @@ function updateTabBadge(id, count) {
 
 async function openAssignFromPending(row) {
   assignmentModalMode = 'new';
+  assignmentDropdownsLoaded = false;
   initAssignDatePickers();
-  await populateAssignmentDropdowns(); // you already do this 【1-699e3c】
+  await populateAssignmentDropdowns(row.coverage_date, row.coverage_date);
 
   // Clear fields
   assignSub.value = '';
@@ -969,10 +970,11 @@ function wireExclusiveCovererSelects() {
 
 async function openEditAssignmentModal(event) {
   assignmentModalMode = 'edit';
+  assignmentDropdownsLoaded = false;
   initAssignDatePickers();
-  await populateAssignmentDropdowns();
 
   const a = event.extendedProps;
+  await populateAssignmentDropdowns(a.start_date, a.end_date, a.substitute_id);
 
   // Set coverer (mutually exclusive)
   assignSub.value = a.substitute_id ?? '';
@@ -1084,11 +1086,10 @@ let assignmentModalMode = 'new'; // 'new' | 'edit'
 
 async function openAssignmentModalForDate(dateStr) {
   assignmentModalMode = 'new';
+  assignmentDropdownsLoaded = false;
 
   initAssignDatePickers();
-
-  // ✅ REQUIRED: load dropdowns for new assignments too
-  await populateAssignmentDropdowns();
+  await populateAssignmentDropdowns(dateStr, dateStr);
 
   assignStartFp.setDate(dateStr, true);
   assignEndFp.setDate(dateStr, true);
@@ -1148,38 +1149,58 @@ window.addEventListener('hashchange', () => setActiveView(location.hash));
 let assignmentDropdownsLoaded = false;
 loadSubRequestCounts();
 
-async function populateAssignmentDropdowns() {
-  if (assignmentDropdownsLoaded) return;
+async function populateAssignmentDropdowns(startDate = null, endDate = null, currentSubId = null) {
+  // Run sub availability + employee list in parallel
+  const bookedQuery = startDate
+    ? supabase
+        .from('substitute_assignments')
+        .select('substitute_id')
+        .eq('school_id', currentProfile.school_id)
+        .eq('status', 'scheduled')
+        .lte('start_date', endDate || startDate)
+        .gte('end_date', startDate)
+        .not('substitute_id', 'is', null)
+    : Promise.resolve({ data: [] });
 
-  // Substitutes
-  const { data: subs } = await supabase
-    .from('substitutes')
-    .select('id, first_name, last_name')
-    .eq('school_id', currentProfile.school_id)
-    .eq('active', true)
-    .order('last_name');
+  const [subsResult, employeesResult, bookedResult] = await Promise.all([
+    supabase
+      .from('substitutes')
+      .select('id, first_name, last_name')
+      .eq('school_id', currentProfile.school_id)
+      .eq('active', true)
+      .order('last_name'),
+    supabase
+      .from('employees')
+      .select('id, first_name, last_name')
+      .eq('school_id', currentProfile.school_id)
+      .eq('active', true)
+      .order('last_name'),
+    bookedQuery
+  ]);
+
+  // Build set of booked sub IDs, excluding the current assignment's sub (edit mode)
+  const bookedSubIds = new Set(
+    (bookedResult.data || [])
+      .map(b => b.substitute_id)
+      .filter(id => id && id !== currentSubId)
+  );
 
   const subSelect = document.getElementById('assignSub');
   subSelect.innerHTML = '<option value="">Select substitute…</option>';
 
-  subs.forEach(s => {
+  (subsResult.data || []).forEach(s => {
     const opt = document.createElement('option');
     opt.value = s.id;
-    opt.textContent = `${s.last_name}, ${s.first_name}`;
+    const booked = bookedSubIds.has(s.id);
+    opt.textContent = `${s.last_name}, ${s.first_name}${booked ? ' — Booked' : ''}`;
+    opt.disabled = booked;
     subSelect.appendChild(opt);
   });
 
-  // Employees (who they are covering)
-  const { data: employees } = await supabase
-    .from('employees')
-    .select('id, first_name, last_name')
-    .eq('school_id', currentProfile.school_id)
-    .eq('active', true)
-    .order('last_name');
+  const employees = employeesResult.data || [];
 
   const empSelect = document.getElementById('assignEmployee');
   empSelect.innerHTML = '<option value="">Unassigned / General Coverage</option>';
-
   employees.forEach(e => {
     const opt = document.createElement('option');
     opt.value = e.id;
@@ -1187,16 +1208,16 @@ async function populateAssignmentDropdowns() {
     empSelect.appendChild(opt);
   });
 
-const coveredSelect = document.getElementById('assignCoveredEmployee');
-if (coveredSelect) {
-  coveredSelect.innerHTML = '<option value="">Select covered employee…</option>';
-  employees.forEach(e => {
-    const opt = document.createElement('option');
-    opt.value = e.id;
-    opt.textContent = `${e.last_name}, ${e.first_name}`;
-    coveredSelect.appendChild(opt);
-  });
-}
+  const coveredSelect = document.getElementById('assignCoveredEmployee');
+  if (coveredSelect) {
+    coveredSelect.innerHTML = '<option value="">Select covered employee…</option>';
+    employees.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.id;
+      opt.textContent = `${e.last_name}, ${e.first_name}`;
+      coveredSelect.appendChild(opt);
+    });
+  }
 
   assignmentDropdownsLoaded = true;
 }

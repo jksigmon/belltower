@@ -136,8 +136,10 @@ header .header-link {
 }
 
 .header-actions {
+  flex: 1;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
 }
 
@@ -158,7 +160,7 @@ background: rgba(255, 255, 255, 0.12);
 
 
 .header-left {
-  min-width: 160px;        /* adjust to match button width */
+  flex: 1;
   display: flex;
   align-items: center;
 }
