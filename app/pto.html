@@ -786,6 +786,7 @@ import { supabase } from '/app/admin.supabase.js';
 	let currentPtoHistoryEmployeeId = null;
 	let rolloverReportData = [];
 	let committedRolloverMeta = null; // { data, ptoType, year } saved at commit time
+	const ptoViewCache = new Set();
 
 
 
@@ -886,8 +887,12 @@ if (!moduleRow?.enabled) {
 
 let ptoCalendar;
 
-await loadSchoolPtoTypes();
-await loadPtoRequestCounts();    
+// Parallelize independent startup queries; pre-fetch the default (pending) tab
+const startupLoads = [loadSchoolPtoTypes(), loadPtoRequestCounts()];
+if (currentProfile.can_approve_pto) startupLoads.push(loadPto());
+await Promise.all(startupLoads);
+// Mark pending as already loaded so the first tab switch skips a redundant fetch
+if (currentProfile.can_approve_pto) ptoViewCache.add('pending');
 
 if (currentProfile.can_view_pto_calendar) {
   initPtoCalendar();
@@ -1418,19 +1423,16 @@ async function loadPtoRequestCounts() {
 
   const schoolId = currentProfile.school_id;
 
-  // ✅ Pending PTO requests (scoped)
-  const { count: pendingCount } = await supabase
-    .from('pto_requests')
-    .select('id', { count: 'exact', head: true })
-    .eq('school_id', schoolId)
-    .eq('status', 'PENDING');
-
-  // ✅ Cancellation + Rescind requests (scoped)
-  const { count: cancelCount } = await supabase
-    .from('pto_requests')
-    .select('id', { count: 'exact', head: true })
-    .eq('school_id', schoolId)
-    .in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED']);
+  const [{ count: pendingCount }, { count: cancelCount }] = await Promise.all([
+    supabase.from('pto_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('school_id', schoolId)
+      .eq('status', 'PENDING'),
+    supabase.from('pto_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('school_id', schoolId)
+      .in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED'])
+  ]);
 
   updateTabBadge('pendingCount', pendingCount);
   updateTabBadge('cancelCount', cancelCount);
@@ -1861,10 +1863,12 @@ async function loadPtoPolicies() {
 
   if (empErr) return;
 
-  // ✅ Load policies
+  // ✅ Load policies scoped to this school's employees
+  const employeeIds = employees.map(e => e.id);
   const { data: policies, error: polErr } = await supabase
     .from('employee_pto_policies')
-    .select('employee_id, pto_type, annual_hours');
+    .select('employee_id, pto_type, annual_hours')
+    .in('employee_id', employeeIds.length ? employeeIds : ['']);
 
 
   if (polErr) return;
@@ -2059,6 +2063,8 @@ async function loadPtoAdjustStaff() {
   const { data } = await supabase
     .from('employees')
     .select('id, first_name, last_name')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true)
     .order('last_name');
 
   data.forEach(e => {
@@ -2204,7 +2210,6 @@ function colorForPtoType(type) {
 
 const ptoTabs = document.querySelectorAll('#ptoTabs .tab');
 
-
 async function setPtoView(view) {
 
   // -------------------------
@@ -2276,47 +2281,54 @@ async function setPtoView(view) {
       requestAnimationFrame(() => ptoCalendar.updateSize());
     }
 
+    // pending/cancellations always reflect live state — skip if pre-fetched on startup
     if (view === 'pending') {
-      await loadPto();
+      if (!ptoViewCache.has('pending')) {
+        await loadPto();
+      }
     }
+    ptoViewCache.delete('pending'); // always re-fetch next time
 
     if (view === 'cancellations') {
       await loadPtoCancellationRequests();
     }
 
-   
-if (view === 'history') {
-  const select = document.getElementById('ptoStaffSelect');
-  const employeeId = select?.value || null;
+    if (view === 'history') {
+      const select = document.getElementById('ptoStaffSelect');
+      const employeeId = select?.value || null;
 
-  resetStaffHistoryView();
-  currentPtoHistoryEmployeeId = employeeId;
+      resetStaffHistoryView();
+      currentPtoHistoryEmployeeId = employeeId;
 
-  if (employeeId) {
-    loadStaffPtoHistory(employeeId);
-    loadStaffPtoLedger(employeeId);
-    loadPtoHistoryBalances(employeeId); 
-    showPtoHistoryBalances(true);       
-  }
-}
+      if (employeeId) {
+        loadStaffPtoHistory(employeeId);
+        loadStaffPtoLedger(employeeId);
+        loadPtoHistoryBalances(employeeId);
+        showPtoHistoryBalances(true);
+      }
+    }
 
-
-    if (view === 'adjust') {
-      await populateAdjustPtoTypes();
-      await loadPtoAdjustStaff();
-      await populateBulkAnnualPtoTypes();
+    if (view === 'adjust' && !ptoViewCache.has('adjust')) {
+      await Promise.all([
+        populateAdjustPtoTypes(),
+        loadPtoAdjustStaff(),
+        populateBulkAnnualPtoTypes()
+      ]);
+      ptoViewCache.add('adjust');
     }
 
     if (view === 'reports') {
       initPtoReportsView();
     }
 
-    if (view === 'rollover') {
+    if (view === 'rollover' && !ptoViewCache.has('rollover')) {
       await initRolloverView();
+      ptoViewCache.add('rollover');
     }
 
-    if (view === 'policies') {
+    if (view === 'policies' && !ptoViewCache.has('policies')) {
       await loadPtoPolicies();
+      ptoViewCache.add('policies');
     }
 
   } catch (err) {

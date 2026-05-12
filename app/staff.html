@@ -236,11 +236,19 @@
   <!-- Balances -->
   <div class="panel panel-summary" style="margin-top:12px;">
     <h3>PTO Balances</h3>
+
+    <div class="pto-summary" id="staffPtoSummary" style="margin-bottom:14px; border-left:none; padding-left:0; border-top:none; width:fit-content;">
+      <div><div class="muted">Approved</div><div id="staffSumApproved">—</div></div>
+      <div><div class="muted">Pending</div><div id="staffSumPending">—</div></div>
+      <div><div class="muted">Cancelled</div><div id="staffSumCancelled">—</div></div>
+      <div><div class="muted">Net Used</div><div id="staffSumNet">—</div></div>
+    </div>
+
     <div id="ptoBalances" class="pto-balances">
-  <div class="skeleton skeleton-text"></div>
-  <div class="skeleton skeleton-text"></div>
-  <div class="skeleton skeleton-text"></div>
-</div>
+      <div class="skeleton skeleton-text"></div>
+      <div class="skeleton skeleton-text"></div>
+      <div class="skeleton skeleton-text"></div>
+    </div>
   </div>
 
 
@@ -321,7 +329,7 @@
   <div class="pto-form-row pto-form-row-conditional">
 
     <!-- Custom hours (already controlled by JS/CSS) -->
-   
+
 <label class="row">
   Start:
   <select id="ptoStartTime" class="pto-conditional"></select>
@@ -336,18 +344,15 @@
   Total: —
 </div>
 
+  </div>
 
-    <!-- Balance helper -->
-    <div
-      id="ptoBalanceHelper"
-      class="pto-balance-warning"
-      style="display:none;"
-    >
-      📝 <strong>Tracked only:</strong>
-      This leave is recorded for scheduling but
-      <strong>does not subtract</strong> from your PTO balance.
-    </div>
-
+  <!-- Balance helper — outside conditional row so it shows regardless of duration -->
+  <div
+    id="ptoBalanceHelper"
+    class="pto-balance-warning"
+    style="display:none;"
+  >
+    📝 <strong>Tracking only</strong> — This leave type is for record-keeping purposes and will <strong>not count against your PTO balance</strong>.
   </div>
 
 </div>
@@ -683,6 +688,7 @@ if (backToAdmin && cameFromAdminContext() && hasAdminAccess(currentProfile)) {
     
 await Promise.all([
   loadPtoBalances(),
+  loadPtoStats(),
   loadPtoHistory(),
   loadStaffPtoTypes()
 ]);
@@ -856,6 +862,31 @@ div.innerHTML = `
   container.appendChild(div);
 });
 
+}
+
+async function loadPtoStats() {
+  const { data, error } = await supabase
+    .from('pto_requests')
+    .select('status, requested_hours')
+    .eq('school_id', currentProfile.school_id)
+    .eq('employee_id', currentProfile.employee_id);
+
+  if (error || !data) return;
+
+  let approved = 0, pending = 0, cancelled = 0;
+  data.forEach(r => {
+    const hours = Number(r.requested_hours ?? 0);
+    if (r.status === 'APPROVED') approved += hours;
+    else if (r.status === 'PENDING') pending += hours;
+    else if (r.status === 'CANCELLED') cancelled += hours;
+  });
+
+  const net = approved - cancelled;
+
+  document.getElementById('staffSumApproved').textContent  = `${approved} hrs`;
+  document.getElementById('staffSumPending').textContent   = `${pending} hrs`;
+  document.getElementById('staffSumCancelled').textContent = `${cancelled} hrs`;
+  document.getElementById('staffSumNet').textContent       = `${net} hrs`;
 }
 
 async function loadStaffPtoTypes() {

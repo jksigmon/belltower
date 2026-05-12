@@ -112,18 +112,18 @@
   #staffTable tbody tr td:nth-child(2) { grid-area: email;      font-size: 12px; word-break: break-all; }
   #staffTable tbody tr td:nth-child(3) { grid-area: position; }
   #staffTable tbody tr td:nth-child(4) { grid-area: supervisor; text-align: right; }
-  #staffTable tbody tr td:nth-child(5) { grid-area: active;     text-align: right; }
-  #staffTable tbody tr td:nth-child(6) { grid-area: campus;     font-size: 12px; color: #6b7280; }
-  #staffTable tbody tr td:nth-child(7) { grid-area: months;     font-size: 12px; color: #6b7280; text-align: right; }
+  #staffTable tbody tr td:nth-child(5) { grid-area: campus;     font-size: 12px; color: #6b7280; }
+  #staffTable tbody tr td:nth-child(6) { grid-area: months;     font-size: 12px; color: #6b7280; text-align: right; }
+  #staffTable tbody tr td:nth-child(7) { grid-area: active;     text-align: right; }
   #staffTable tbody tr td:nth-child(8) { grid-area: action;     display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 
   #staffTable tbody tr td:nth-child(1)::before { content: "Name"; }
   #staffTable tbody tr td:nth-child(2)::before { content: "Email"; }
   #staffTable tbody tr td:nth-child(3)::before { content: "Position"; }
   #staffTable tbody tr td:nth-child(4)::before { content: "Supervisor"; }
-  #staffTable tbody tr td:nth-child(5)::before { content: "Active"; }
-  #staffTable tbody tr td:nth-child(6)::before { content: "Campus"; }
-  #staffTable tbody tr td:nth-child(7)::before { content: "Emp. Months"; }
+  #staffTable tbody tr td:nth-child(5)::before { content: "Campus"; }
+  #staffTable tbody tr td:nth-child(6)::before { content: "Emp. Months"; }
+  #staffTable tbody tr td:nth-child(7)::before { content: "Active"; }
 
   #staffTable tbody tr td:nth-child(8) .btn { flex: 1; min-width: 60px; }
 
@@ -382,15 +382,25 @@
 <div id="staffPagination" class="pagination"></div>
 
       <table id="staffTable">
+        <colgroup>
+          <col style="width:14%">  <!-- Name -->
+          <col style="width:20%">  <!-- Email -->
+          <col style="width:16%">  <!-- Position -->
+          <col style="width:13%">  <!-- Supervisor -->
+          <col style="width:12%">  <!-- Campus -->
+          <col style="width:6%">   <!-- Mos. -->
+          <col style="width:7%">   <!-- Active -->
+          <col style="width:12%">  <!-- Actions -->
+        </colgroup>
         <thead>
           <tr>
             <th>Name</th>
             <th>Email</th>
             <th>Position</th>
-			<th>Supervisor</th>
-            <th>Active</th>
+            <th>Supervisor</th>
             <th>Campus</th>
             <th>Mos.</th>
+            <th>Active</th>
             <th></th>
           </tr>
         </thead>
@@ -568,7 +578,7 @@
   </div>
 </div>
 
-<div id="familiesPagination"></div>
+<div id="familiesPagination" class="pagination"></div>
 
 
       <table id="familiesTable">
@@ -639,7 +649,7 @@
   </div>
 </div>
 
-<div id="guardiansPagination"></div>
+<div id="guardiansPagination" class="pagination"></div>
 
       <table id="guardiansTable">
         <thead>
@@ -750,7 +760,7 @@
   </div>
 </div>
 
-<div id="studentsPagination"></div>
+<div id="studentsPagination" class="pagination"></div>
 
       <table id="studentsTable">
        

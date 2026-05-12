@@ -195,13 +195,6 @@ function renderStaffRow(emp) {
     </td>
 
     <td>
-      <span class="view">${emp.active ? 'Yes' : 'No'}</span>
-      <input type="checkbox" class="edit active" ${
-        emp.active ? 'checked' : ''
-      } hidden>
-    </td>
-
-    <td>
       <span class="view">${campusLookup[emp.campus_id] ?? '—'}</span>
       <select class="form-input edit campus" hidden></select>
     </td>
@@ -214,6 +207,13 @@ function renderStaffRow(emp) {
         <option value="11" ${emp.employment_months === 11 ? 'selected' : ''}>11-month</option>
         <option value="12" ${emp.employment_months === 12 ? 'selected' : ''}>12-month</option>
       </select>
+    </td>
+
+    <td>
+      <span class="view">${emp.active ? 'Yes' : 'No'}</span>
+      <input type="checkbox" class="edit active" ${
+        emp.active ? 'checked' : ''
+      } hidden>
     </td>
 
     <td>
