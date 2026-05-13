@@ -18,7 +18,7 @@
     /* ── Compliance two-column layout ── */
     .compliance-layout {
       display: grid;
-      grid-template-columns: 1fr 280px;
+      grid-template-columns: 280px 1fr;
       gap: 24px;
       align-items: start;
     }
@@ -178,7 +178,6 @@
       font-size: 0.92rem;
     }
 
-    /* ── Export btn ── */
     .lic-toolbar {
       display: flex;
       justify-content: space-between;
@@ -187,6 +186,8 @@
       flex-wrap: wrap;
       gap: 10px;
     }
+
+    .lic-toolbar .lic-filters { margin-bottom: 0; }
 
     /* ── Audit log table ── */
     #auditTable td:last-child {
@@ -245,15 +246,7 @@
     <section id="compliance" class="lic-view">
       <div class="compliance-layout">
 
-        <!-- Left: alert list -->
-        <div>
-          <p class="lic-section-title">Upcoming Expirations</p>
-          <div id="alertList" class="alert-list">
-            <div class="lic-empty">Loading…</div>
-          </div>
-        </div>
-
-        <!-- Right: stat cards -->
+        <!-- Left: stat cards -->
         <div>
           <p class="lic-section-title">Summary</p>
           <div class="compliance-grid">
@@ -281,6 +274,14 @@
               <strong id="statProvisional">—</strong>
               <span>Provisional</span>
             </div>
+          </div>
+        </div>
+
+        <!-- Right: alert list -->
+        <div>
+          <p class="lic-section-title">Upcoming Expirations</p>
+          <div id="alertList" class="alert-list">
+            <div class="lic-empty">Loading…</div>
           </div>
         </div>
 
@@ -327,8 +328,8 @@
             <option value="expired">Expired</option>
           </select>
         </div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn" id="addLicenseBtn">+ Add License</button>
+        <div class="directory-actions">
+          <button class="btn btn-primary" id="addLicenseBtn">+ Add License</button>
           <button class="btn" id="exportLicensesBtn">Export</button>
         </div>
       </div>
@@ -394,191 +395,199 @@
 
 
 <!-- ══════════════════════════════════════════════════
-     ADD / EDIT LICENSE MODAL
+     DRAWER OVERLAY + LICENSE DRAWER
 ══════════════════════════════════════════════════ -->
-<div id="licenseModal" class="modal">
-  <div class="modal-content" style="max-width:580px;">
-    <div class="modal-header">
-      <h2 id="licenseModalTitle">Add License</h2>
-      <button class="modal-close" id="closeLicenseModal">&times;</button>
+<div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer('licenseDrawer')"></div>
+
+<div id="licenseDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="License">
+  <div class="drawer-header">
+    <h3 id="licenseModalTitle">Add License</h3>
+    <button class="drawer-close" id="closeLicenseModal" aria-label="Close">✕</button>
+  </div>
+
+  <div class="drawer-body">
+
+    <!-- Staff (add only) -->
+    <div class="drawer-field" id="staffSelectRow">
+      <label>Staff Member <span class="required">*</span></label>
+      <select id="licStaff" class="form-input">
+        <option value="">Select staff member…</option>
+      </select>
     </div>
 
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
-
-      <!-- Staff (add only) -->
-      <div id="staffSelectRow">
-        <label class="form-label">Staff Member <span style="color:#dc2626;">*</span></label>
-        <select id="licStaff" class="form-input" style="width:100%;">
-          <option value="">Select staff member…</option>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>License Number</label>
+        <input type="text" id="licNumber" class="form-input" placeholder="e.g. 123456">
+      </div>
+      <div class="drawer-field">
+        <label>State</label>
+        <select id="licState" class="form-input">
+          <option value="NC">North Carolina</option>
+          <option value="SC">South Carolina</option>
+          <option value="VA">Virginia</option>
+          <option value="GA">Georgia</option>
+          <option value="TN">Tennessee</option>
+          <option value="OTHER">Other</option>
         </select>
       </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div>
-          <label class="form-label">License Number</label>
-          <input type="text" id="licNumber" class="form-input" style="width:100%;" placeholder="e.g. 123456">
-        </div>
-        <div>
-          <label class="form-label">State</label>
-          <select id="licState" class="form-input" style="width:100%;">
-            <option value="NC">North Carolina</option>
-            <option value="SC">South Carolina</option>
-            <option value="VA">Virginia</option>
-            <option value="GA">Georgia</option>
-            <option value="TN">Tennessee</option>
-            <option value="OTHER">Other</option>
-          </select>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr 120px;gap:12px;">
-        <div>
-          <label class="form-label">License Type <span style="color:#dc2626;">*</span></label>
-          <select id="licType" class="form-input" style="width:100%;">
-            <option value="">Select type…</option>
-            <optgroup label="Teaching">
-              <option value="IPL">IPL — Initial Professional</option>
-              <option value="CPL">CPL — Continuing Professional</option>
-              <option value="Residency">Residency License</option>
-              <option value="Emergency">Emergency License</option>
-              <option value="Permit">Permit to Teach</option>
-              <option value="CTE_Provisional">CTE Provisional</option>
-            </optgroup>
-            <optgroup label="Administration">
-              <option value="Admin">Admin (Principal/AP/Supt)</option>
-            </optgroup>
-            <optgroup label="Student Services">
-              <option value="Student_Services">Student Services</option>
-            </optgroup>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Category</label>
-          <select id="licCategory" class="form-input" style="width:100%;">
-            <option value="teaching">Teaching</option>
-            <option value="admin">Administration</option>
-            <option value="support">Student Support</option>
-            <option value="substitute">Substitute</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">License Class</label>
-          <input type="text" id="licClass" class="form-input" style="width:100%;" placeholder="e.g. A, B, C">
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div>
-          <label class="form-label">License Area / Subject</label>
-          <input type="text" id="licArea" class="form-input" style="width:100%;" placeholder="e.g. Elementary Education">
-        </div>
-        <div>
-          <label class="form-label">Grade Authorization</label>
-          <select id="licGrade" class="form-input" style="width:100%;">
-            <option value="">N/A</option>
-            <option value="K-6">K-6</option>
-            <option value="6-9">6-9</option>
-            <option value="9-12">9-12</option>
-            <option value="K-12">K-12</option>
-          </select>
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div>
-          <label class="form-label">Issue Date</label>
-          <input type="text" id="licIssueDate" class="form-input" style="width:100%;" placeholder="MM/DD/YYYY">
-        </div>
-        <div>
-          <label class="form-label">Expiration Date <span style="color:#dc2626;">*</span></label>
-          <input type="text" id="licExpDate" class="form-input" style="width:100%;" placeholder="MM/DD/YYYY">
-        </div>
-      </div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-        <div>
-          <label class="form-label">Status</label>
-          <select id="licStatus" class="form-input" style="width:100%;">
-            <option value="active">Active</option>
-            <option value="expiring">Expiring Soon</option>
-            <option value="expired">Expired</option>
-            <option value="pending_renewal">Pending Renewal</option>
-            <option value="suspended">Suspended</option>
-            <option value="revoked">Revoked</option>
-          </select>
-        </div>
-        <div>
-          <label class="form-label">Renewal Status</label>
-          <select id="licRenewalStatus" class="form-input" style="width:100%;">
-            <option value="not_started">Not Started</option>
-            <option value="in_progress">In Progress</option>
-            <option value="submitted">Submitted</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Provisional -->
-      <div style="display:flex;align-items:center;gap:10px;">
-        <input type="checkbox" id="licProvisional">
-        <label for="licProvisional" class="form-label" style="margin:0;cursor:pointer;">Provisional / Temporary License</label>
-      </div>
-      <div id="provisionalTypeRow">
-        <label class="form-label">Provisional Type</label>
-        <select id="licProvisionalType" class="form-input" style="width:100%;">
-          <option value="emergency">Emergency</option>
-          <option value="residency">Residency</option>
-          <option value="permit">Permit to Teach</option>
-          <option value="cte_provisional">CTE Provisional</option>
-        </select>
-      </div>
-
-      <!-- Campus -->
-      <div>
-        <label class="form-label">Campus Applicability</label>
-        <select id="licCampus" class="form-input" style="width:100%;">
-          <option value="">All campuses</option>
-        </select>
-      </div>
-
-      <!-- Role applicability -->
-      <div>
-        <label class="form-label">Role Applicability</label>
-        <div class="role-checks">
-          <label><input type="checkbox" value="teacher"> Teacher</label>
-          <label><input type="checkbox" value="substitute"> Substitute</label>
-          <label><input type="checkbox" value="admin"> Admin</label>
-          <label><input type="checkbox" value="ec"> Exceptional Children</label>
-          <label><input type="checkbox" value="support"> Student Support</label>
-        </div>
-      </div>
-
-      <!-- Verified + alert muted -->
-      <div style="display:flex;gap:24px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input type="checkbox" id="licVerified">
-          <label for="licVerified" class="form-label" style="margin:0;cursor:pointer;">Document Verified</label>
-        </div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <input type="checkbox" id="licAlertMuted">
-          <label for="licAlertMuted" class="form-label" style="margin:0;cursor:pointer;">Mute Alerts</label>
-        </div>
-      </div>
-
-      <!-- Notes -->
-      <div>
-        <label class="form-label">Notes</label>
-        <textarea id="licNotes" class="form-input" rows="3" style="width:100%;resize:vertical;"></textarea>
-      </div>
-
     </div>
 
-    <div class="modal-actions">
-      <button class="btn" id="cancelLicenseBtn">Cancel</button>
-      <button class="btn btn-primary" id="saveLicenseBtn">Save License</button>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>License Type <span class="required">*</span></label>
+        <select id="licType" class="form-input">
+          <option value="">Select type…</option>
+          <optgroup label="Teaching">
+            <option value="IPL">IPL — Initial Professional</option>
+            <option value="CPL">CPL — Continuing Professional</option>
+            <option value="Residency">Residency License</option>
+            <option value="Emergency">Emergency License</option>
+            <option value="Permit">Permit to Teach</option>
+            <option value="CTE_Provisional">CTE Provisional</option>
+          </optgroup>
+          <optgroup label="Administration">
+            <option value="Admin">Admin (Principal/AP/Supt)</option>
+          </optgroup>
+          <optgroup label="Student Services">
+            <option value="Student_Services">Student Services</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="drawer-field">
+        <label>Category</label>
+        <select id="licCategory" class="form-input">
+          <option value="teaching">Teaching</option>
+          <option value="admin">Administration</option>
+          <option value="support">Student Support</option>
+          <option value="substitute">Substitute</option>
+        </select>
+      </div>
     </div>
+
+    <div class="drawer-field">
+      <label>License Class</label>
+      <input type="text" id="licClass" class="form-input" placeholder="e.g. A, B, C">
+    </div>
+
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>License Area / Subject</label>
+        <input type="text" id="licArea" class="form-input" placeholder="e.g. Elementary Education">
+      </div>
+      <div class="drawer-field">
+        <label>Grade Authorization</label>
+        <select id="licGrade" class="form-input">
+          <option value="">N/A</option>
+          <option value="K-6">K-6</option>
+          <option value="6-9">6-9</option>
+          <option value="9-12">9-12</option>
+          <option value="K-12">K-12</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Issue Date</label>
+        <input type="text" id="licIssueDate" class="form-input" placeholder="MM/DD/YYYY">
+      </div>
+      <div class="drawer-field">
+        <label>Expiration Date <span class="required">*</span></label>
+        <input type="text" id="licExpDate" class="form-input" placeholder="MM/DD/YYYY">
+      </div>
+    </div>
+
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Status</label>
+        <select id="licStatus" class="form-input">
+          <option value="active">Active</option>
+          <option value="expiring">Expiring Soon</option>
+          <option value="expired">Expired</option>
+          <option value="pending_renewal">Pending Renewal</option>
+          <option value="suspended">Suspended</option>
+          <option value="revoked">Revoked</option>
+        </select>
+      </div>
+      <div class="drawer-field">
+        <label>Renewal Status</label>
+        <select id="licRenewalStatus" class="form-input">
+          <option value="not_started">Not Started</option>
+          <option value="in_progress">In Progress</option>
+          <option value="submitted">Submitted</option>
+        </select>
+      </div>
+    </div>
+
+    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:0.88rem;">
+      <input type="checkbox" id="licProvisional"> Provisional / Temporary License
+    </label>
+
+    <div id="provisionalTypeRow" class="drawer-field">
+      <label>Provisional Type</label>
+      <select id="licProvisionalType" class="form-input">
+        <option value="emergency">Emergency</option>
+        <option value="residency">Residency</option>
+        <option value="permit">Permit to Teach</option>
+        <option value="cte_provisional">CTE Provisional</option>
+      </select>
+    </div>
+
+    <div class="drawer-field">
+      <label>Campus Applicability</label>
+      <select id="licCampus" class="form-input">
+        <option value="">All campuses</option>
+      </select>
+    </div>
+
+    <div class="drawer-field">
+      <label>Role Applicability</label>
+      <div class="role-checks">
+        <label><input type="checkbox" value="teacher"> Teacher</label>
+        <label><input type="checkbox" value="substitute"> Substitute</label>
+        <label><input type="checkbox" value="admin"> Admin</label>
+        <label><input type="checkbox" value="ec"> Exceptional Children</label>
+        <label><input type="checkbox" value="support"> Student Support</label>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:24px;flex-wrap:wrap;">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.88rem;">
+        <input type="checkbox" id="licVerified"> Document Verified
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.88rem;">
+        <input type="checkbox" id="licAlertMuted"> Mute Alerts
+      </label>
+    </div>
+
+    <div class="drawer-field">
+      <label>Notes</label>
+      <textarea id="licNotes" class="form-input" rows="3" style="resize:vertical;"></textarea>
+    </div>
+
+  </div>
+
+  <div class="drawer-footer">
+    <button class="btn" id="cancelLicenseBtn">Cancel</button>
+    <button class="btn btn-primary" id="saveLicenseBtn">Save License</button>
   </div>
 </div>
 
+<script>
+  function openDrawer(id) {
+    document.getElementById(id)?.classList.add('open');
+    document.getElementById('drawerOverlay')?.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer(id) {
+    document.getElementById(id)?.classList.remove('open');
+    document.getElementById('drawerOverlay')?.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  window.openDrawer = openDrawer;
+  window.closeDrawer = closeDrawer;
+</script>
 
 <script type="module" src="/app/admin.licensure.js"></script>
 <script src="/app/nav-mobile.js"></script>

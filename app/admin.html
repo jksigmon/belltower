@@ -98,6 +98,14 @@
     content: none;
   }
 
+  /* ── Staff: bypass table-layout algorithm caused by <colgroup> ── */
+  #staffTable,
+  #staffTable tbody {
+    display: block !important;
+    width: 100% !important;
+  }
+  #staffTable { margin-top: 10px; }
+
   /* ── Staff: Name(1) Email(2) Position(3) Supervisor(4) Active(5) Campus(6) Months(7) Actions(8) ── */
   #staffTable tbody tr {
     grid-template-areas:
@@ -291,6 +299,8 @@
     </div>
   </div>
 
+  <div id="dashGrid" style="opacity:0;transition:opacity 220ms ease;">
+
   <!-- Quick Actions (JS-gated) -->
   <div class="dash-section" id="dashQuickActions" style="display:none;">
     <div class="dash-section-title">Quick Actions</div>
@@ -381,6 +391,8 @@
       </a>
     </div>
   </div>
+
+  </div><!-- /dashGrid -->
 
 </section>
 <section id="staff" class="admin-section">
@@ -963,11 +975,9 @@
 
   <div class="admin-content fade-in">
     <div class="panel panel-history">
-      <div class="directory-header">
-        <h3 style="margin:0;">Campuses</h3>
-        <div class="directory-actions">
-          <button class="btn btn-primary" onclick="openDrawer('campusDrawer')">+ Add Campus</button>
-        </div>
+      <h3>Campuses</h3>
+      <div class="directory-actions" style="justify-content:flex-end; margin-bottom:12px;">
+        <button class="btn btn-primary" onclick="openDrawer('campusDrawer')">+ Add Campus</button>
       </div>
       <p id="campusEmpty" class="muted" hidden>No campuses configured yet.</p>
       <table id="campusTable" style="display:none">

@@ -224,45 +224,86 @@ async function loadDashboardStats() {
     });
   }
 
-  const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
   const set  = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
 
-  // ── Directory counts ──────────────────────────────────────────────
-  const [students, activeStaff, inactiveStaff, families, buses] = await Promise.all([
-    supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', true),
-    supabase.from('employees').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', true),
-    supabase.from('employees').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', false),
-    supabase.from('families').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
-    supabase.from('bus_groups').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
-  ]);
+  // ── Build all queries synchronously based on capabilities ─────────
+  const in30 = new Date();
+  in30.setDate(in30.getDate() + 30);
+  const in30Str = in30.toISOString().slice(0, 10);
 
-  set('statStudents', students.count ?? 0);
-  set('statStaff', activeStaff.count ?? 0);
-  set('statStaffLabel', `Staff${(inactiveStaff.count ?? 0) > 0 ? ` (${inactiveStaff.count} inactive)` : ''}`);
-  set('statFamilies', families.count ?? 0);
-  set('statBusGroups', buses.count ?? 0);
+  const queries = {
+    students:      supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', true),
+    activeStaff:   supabase.from('employees').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', true),
+    inactiveStaff: supabase.from('employees').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', false),
+    families:      supabase.from('families').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
+    buses:         supabase.from('bus_groups').select('id', { count: 'exact', head: true }).eq('school_id', schoolId),
+  };
 
-  // ── Active/inactive staff tile ────────────────────────────────────
-  const activePct = (activeStaff.count ?? 0) + (inactiveStaff.count ?? 0);
-  if (activePct > 0) {
-    set('statActiveStaff', activeStaff.count ?? 0);
-    set('statActiveStaffSub', `${inactiveStaff.count ?? 0} inactive`);
+  if (moduleEnabled('pto') && p.can_approve_pto) {
+    queries.ptoPending = supabase.from('pto_requests').select('id', { count: 'exact', head: true })
+      .eq('school_id', schoolId).eq('status', 'PENDING');
+    queries.ptoCancels = supabase.from('pto_requests').select('id', { count: 'exact', head: true })
+      .eq('school_id', schoolId).in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED']);
+    queries.staffOut = supabase.from('pto_requests').select('id', { count: 'exact', head: true })
+      .eq('school_id', schoolId).eq('status', 'APPROVED').lte('start_date', today).gte('end_date', today);
+  }
+
+  if (moduleEnabled('substitutes') && p.can_manage_substitutes) {
+    queries.subUnassigned = supabase.from('v_pending_coverage_days').select('pto_request_id', { count: 'exact', head: true })
+      .eq('school_id', schoolId);
+    queries.subToday = supabase.from('substitute_assignments').select('id', { count: 'exact', head: true })
+      .eq('school_id', schoolId).eq('status', 'scheduled').eq('start_date', today);
+  }
+
+  if (moduleEnabled('licensure') && p.can_manage_licensure) {
+    queries.licExpiring = supabase.from('staff_licenses').select('id', { count: 'exact', head: true })
+      .eq('school_id', schoolId).eq('alert_muted', false)
+      .lte('expiration_date', in30Str).gte('expiration_date', today).neq('status', 'revoked');
+  }
+
+  if (moduleEnabled('carline') && (p.can_view_carline || p.is_superadmin)) {
+    queries.carline = supabase.from('carline_events').select('status')
+      .eq('school_id', schoolId).eq('event_date', today).neq('status', 'CLOSED').maybeSingle();
+  }
+
+  const canSeeHealth = p.is_superadmin || p.can_access_admin || p.can_manage_access;
+  if (canSeeHealth) {
+    queries.noFamily     = supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).is('family_id', null);
+    queries.noSupervisor = supabase.from('employees').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', true).is('supervisor_id', null);
+  }
+
+  // ── Fire everything in parallel ───────────────────────────────────
+  const keys    = Object.keys(queries);
+  const results = await Promise.all(keys.map(k => queries[k]));
+  const r       = Object.fromEntries(keys.map((k, i) => [k, results[i]]));
+
+  // ── Apply all DOM updates synchronously ───────────────────────────
+
+  set('statStudents',  r.students.count ?? 0);
+  set('statStaff',     r.activeStaff.count ?? 0);
+  set('statStaffLabel', `Staff${(r.inactiveStaff.count ?? 0) > 0 ? ` (${r.inactiveStaff.count} inactive)` : ''}`);
+  set('statFamilies',  r.families.count ?? 0);
+  set('statBusGroups', r.buses.count ?? 0);
+
+  const totalStaff = (r.activeStaff.count ?? 0) + (r.inactiveStaff.count ?? 0);
+  if (totalStaff > 0) {
+    set('statActiveStaff', r.activeStaff.count ?? 0);
+    set('statActiveStaffSub', `${r.inactiveStaff.count ?? 0} inactive`);
     const subEl = document.getElementById('statActiveStaffSub');
     if (subEl) subEl.className = 'stat-sub';
     show('dashActiveStaff');
     show('dashStatus');
   }
 
-  // ── Quick actions ─────────────────────────────────────────────────
-  const row = document.getElementById('dashActionsRow');
   const isAdmin = p.is_superadmin || p.can_access_admin || p.can_manage_access;
+  const row = document.getElementById('dashActionsRow');
   const actions = [];
-  if (isAdmin) actions.push({ label: 'Add Student',  icon: 'user-plus',  href: '#students',                  variant: 'primary' });
-  if (isAdmin) actions.push({ label: 'Add Staff',    icon: 'user-plus',  href: '#staff',                     variant: 'primary' });
+  if (isAdmin) actions.push({ label: 'Add Student', icon: 'user-plus', href: '#students', variant: 'primary' });
+  if (isAdmin) actions.push({ label: 'Add Staff',   icon: 'user-plus', href: '#staff',    variant: 'primary' });
   if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: 'PTO', icon: 'calendar', href: '/app/pto.html', variant: 'secondary' });
   if (moduleEnabled('substitutes') && p.can_manage_substitutes) actions.push({ label: 'Substitutes', icon: 'repeat-2', href: '/app/substitutes.html', variant: 'secondary' });
   if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: 'Carline', icon: 'car', href: '/app/carline-input.html', variant: 'secondary' });
-
   if (row && actions.length) {
     row.innerHTML = '';
     actions.forEach(({ label, icon, href, variant }) => {
@@ -277,79 +318,29 @@ async function loadDashboardStats() {
     show('dashQuickActions');
   }
 
-  // ── PTO tiles (can_approve_pto) ───────────────────────────────────
-  if (moduleEnabled('pto') && p.can_approve_pto) {
-    const [ptoPending, ptoCancels, staffOut] = await Promise.all([
-      supabase.from('pto_requests').select('id', { count: 'exact', head: true })
-        .eq('school_id', schoolId).eq('status', 'PENDING'),
-      supabase.from('pto_requests').select('id', { count: 'exact', head: true })
-        .eq('school_id', schoolId).in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED']),
-      supabase.from('pto_requests').select('id', { count: 'exact', head: true })
-        .eq('school_id', schoolId).eq('status', 'APPROVED')
-        .lte('start_date', today).gte('end_date', today),
-    ]);
-
-    set('statPtoPending', ptoPending.count ?? 0);
-    show('dashPtoPending');
-
-    set('statPtoCancels', ptoCancels.count ?? 0);
-    show('dashPtoCancels');
-
-    set('statStaffOut', staffOut.count ?? 0);
-    show('dashStaffOut');
+  if (r.ptoPending !== undefined) {
+    set('statPtoPending', r.ptoPending.count ?? 0);  show('dashPtoPending');
+    set('statPtoCancels', r.ptoCancels.count ?? 0);  show('dashPtoCancels');
+    set('statStaffOut',   r.staffOut.count ?? 0);    show('dashStaffOut');
     show('dashAttention');
   }
 
-  // ── Substitute tiles (can_manage_substitutes) ─────────────────────
-  if (moduleEnabled('substitutes') && p.can_manage_substitutes) {
-    const [subUnassigned, subToday] = await Promise.all([
-      supabase.from('v_pending_coverage_days').select('pto_request_id', { count: 'exact', head: true })
-        .eq('school_id', schoolId),
-      supabase.from('substitute_assignments').select('id', { count: 'exact', head: true })
-        .eq('school_id', schoolId).eq('status', 'scheduled')
-        .eq('start_date', today),
-    ]);
-
-    set('statSubUnassigned', subUnassigned.count ?? 0);
-    show('dashSubUnassigned');
-
-    set('statSubToday', subToday.count ?? 0);
-    show('dashSubToday');
+  if (r.subUnassigned !== undefined) {
+    set('statSubUnassigned', r.subUnassigned.count ?? 0);  show('dashSubUnassigned');
+    set('statSubToday',      r.subToday.count ?? 0);       show('dashSubToday');
     show('dashAttention');
   }
 
-  // ── Licensure expiring (can_manage_licensure) ────────────────────
-  if (moduleEnabled('licensure') && p.can_manage_licensure) {
-    const in30 = new Date();
-    in30.setDate(in30.getDate() + 30);
-    const in30Str = in30.toISOString().slice(0, 10);
-    const { count: licCount } = await supabase
-      .from('staff_licenses')
-      .select('id', { count: 'exact', head: true })
-      .eq('school_id', schoolId)
-      .eq('alert_muted', false)
-      .lte('expiration_date', in30Str)
-      .gte('expiration_date', today)
-      .neq('status', 'revoked');
-
-    set('statLicExpiring', licCount ?? 0);
+  if (r.licExpiring !== undefined) {
+    set('statLicExpiring', r.licExpiring.count ?? 0);
     show('dashLicExpiring');
     show('dashAttention');
   }
 
-  // ── Carline status (can_view_carline) ─────────────────────────────
-  if (moduleEnabled('carline') && (p.can_view_carline || p.is_superadmin)) {
-    const { data: carlineEvent } = await supabase
-      .from('carline_events')
-      .select('status')
-      .eq('school_id', schoolId)
-      .eq('event_date', today)
-      .neq('status', 'CLOSED')
-      .maybeSingle();
-
+  if (r.carline !== undefined) {
     const statusEl = document.getElementById('statCarlineStatus');
     if (statusEl) {
-      if (carlineEvent?.status === 'OPEN') {
+      if (r.carline.data?.status === 'OPEN') {
         statusEl.textContent = 'OPEN';
         statusEl.style.color = '#16a34a';
       } else {
@@ -361,22 +352,16 @@ async function loadDashboardStats() {
     show('dashStatus');
   }
 
-  // ── Data health ───────────────────────────────────────────────────
-  const canSeeHealth = p.is_superadmin || p.can_access_admin || p.can_manage_access;
-  if (canSeeHealth) {
-    const [noFamily, noSupervisor] = await Promise.all([
-      supabase.from('students').select('id', { count: 'exact', head: true })
-        .eq('school_id', schoolId).is('family_id', null),
-      supabase.from('employees').select('id', { count: 'exact', head: true })
-        .eq('school_id', schoolId).eq('active', true).is('supervisor_id', null),
-    ]);
-
-    set('statNoFamily', noFamily.count ?? 0);
-    show('dashNoFamily');
-
-    set('statNoSupervisor', noSupervisor.count ?? 0);
-    show('dashNoSupervisor');
+  if (r.noFamily !== undefined) {
+    set('statNoFamily',     r.noFamily.count ?? 0);     show('dashNoFamily');
+    set('statNoSupervisor', r.noSupervisor.count ?? 0); show('dashNoSupervisor');
     show('dashHealth');
+  }
+
+  // ── Reveal everything at once ─────────────────────────────────────
+  const dashGrid = document.getElementById('dashGrid');
+  if (dashGrid) {
+    requestAnimationFrame(() => { dashGrid.style.opacity = '1'; });
   }
 }
 

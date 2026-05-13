@@ -1011,6 +1011,10 @@ table tr:hover {
   flex-shrink: 0;
 }
 
+.drawer-footer .btn-primary {
+  height: 34px;
+}
+
 .drawer-field {
   display: flex;
   flex-direction: column;
@@ -1946,6 +1950,13 @@ select {
 .btn-admin:hover {
   background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
+}
+
+.back-to-admin {
+  width: 34px;
+  padding: 0;
+  justify-content: center;
+  font-size: 16px;
 }
 
 

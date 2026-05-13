@@ -317,7 +317,7 @@ function openAddModal() {
   document.getElementById('staffSelectRow').style.display = '';
   document.getElementById('saveLicenseBtn').textContent = 'Save License';
   resetForm();
-  showModal('licenseModal');
+  window.openDrawer?.('licenseDrawer');
 }
 
 function openEditModal(id) {
@@ -356,7 +356,7 @@ function openEditModal(id) {
     cb.checked = roles.includes(cb.value);
   });
 
-  showModal('licenseModal');
+  window.openDrawer?.('licenseDrawer');
 }
 
 function resetForm() {
@@ -445,7 +445,7 @@ async function saveLicense() {
 
   if (error) { console.error(error); alert('Failed to save license.'); return; }
 
-  hideModal('licenseModal');
+  window.closeDrawer?.('licenseDrawer');
   await loadLicenses();
 }
 
@@ -587,12 +587,9 @@ function wireEvents() {
   // Export
   document.getElementById('exportLicensesBtn')?.addEventListener('click', exportLicenses);
 
-  // Modal close
-  document.getElementById('closeLicenseModal')?.addEventListener('click', () => hideModal('licenseModal'));
-  document.getElementById('cancelLicenseBtn')?.addEventListener('click', () => hideModal('licenseModal'));
-  document.getElementById('licenseModal')?.addEventListener('click', e => {
-    if (e.target.id === 'licenseModal') hideModal('licenseModal');
-  });
+  // Drawer close
+  document.getElementById('closeLicenseModal')?.addEventListener('click', () => window.closeDrawer?.('licenseDrawer'));
+  document.getElementById('cancelLicenseBtn')?.addEventListener('click', () => window.closeDrawer?.('licenseDrawer'));
 
   // Save
   document.getElementById('saveLicenseBtn')?.addEventListener('click', saveLicense);
