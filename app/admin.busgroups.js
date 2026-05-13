@@ -183,6 +183,7 @@ async function createBusGroup() {
   document.getElementById('busName').value = '';
   document.getElementById('busRoute').value = '';
 
+  window.closeDrawer?.('busGroupDrawer');
   busGroupsDirectory.load();
 }
 

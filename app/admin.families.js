@@ -77,13 +77,8 @@ function renderFamilyRow(f) {
     </td>
 
     <td>
-      <span class="view">${f.active ? 'Yes' : 'No'}</span>
-      <input
-        type="checkbox"
-        class="edit active"
-        hidden
-        ${f.active ? 'checked' : ''}
-      >
+      <span class="view">${f.active ? '' : '<span style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-size:0.72rem;padding:2px 8px;border-radius:4px;font-weight:600;white-space:nowrap;">Inactive</span>'}</span>
+      <input type="checkbox" class="edit active" hidden ${f.active ? 'checked' : ''}>
     </td>
 
     <td>
@@ -203,7 +198,8 @@ async function createFamily() {
   document.getElementById('familyTag').value = '';
   document.getElementById('familyName').value = '';
 
- familiesDirectory.load();
+  window.closeDrawer?.('familyDrawer');
+  familiesDirectory.load();
 }
 
 /* ===============================

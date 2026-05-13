@@ -173,6 +173,7 @@ async function createCampus() {
   ['campusName', 'campusStart', 'campusEnd', 'campusHours', 'campusIncrement']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 
+  window.closeDrawer?.('campusDrawer');
   await loadCampuses();
 }
 

@@ -257,22 +257,23 @@ async function loadDashboardStats() {
   const row = document.getElementById('dashActionsRow');
   const isAdmin = p.is_superadmin || p.can_access_admin || p.can_manage_access;
   const actions = [];
-  if (isAdmin) actions.push({ label: '+ Add Student', href: '#students' });
-  if (isAdmin) actions.push({ label: '+ Add Staff',   href: '#staff' });
-  if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: 'PTO', href: '/app/pto.html' });
-  if (moduleEnabled('substitutes') && p.can_manage_substitutes) actions.push({ label: 'Substitutes', href: '/app/substitutes.html' });
-  if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: 'Carline', href: '/app/carline-input.html' });
+  if (isAdmin) actions.push({ label: 'Add Student',  icon: 'user-plus',  href: '#students',                  variant: 'primary' });
+  if (isAdmin) actions.push({ label: 'Add Staff',    icon: 'user-plus',  href: '#staff',                     variant: 'primary' });
+  if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: 'PTO', icon: 'calendar', href: '/app/pto.html', variant: 'secondary' });
+  if (moduleEnabled('substitutes') && p.can_manage_substitutes) actions.push({ label: 'Substitutes', icon: 'repeat-2', href: '/app/substitutes.html', variant: 'secondary' });
+  if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: 'Carline', icon: 'car', href: '/app/carline-input.html', variant: 'secondary' });
 
   if (row && actions.length) {
     row.innerHTML = '';
-    actions.forEach(({ label, href }) => {
+    actions.forEach(({ label, icon, href, variant }) => {
       const a = document.createElement('a');
-      a.className = 'dash-action-btn';
-      a.textContent = label;
+      a.className = `dash-action-btn dash-action-btn--${variant}`;
+      a.innerHTML = `<i data-lucide="${icon}"></i>${label}`;
       a.href = href;
       if (!href.startsWith('#')) a.target = '_blank';
       row.appendChild(a);
     });
+    if (window.lucide) lucide.createIcons({ el: row });
     show('dashQuickActions');
   }
 

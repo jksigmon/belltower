@@ -210,7 +210,7 @@ function renderStaffRow(emp) {
     </td>
 
     <td>
-      <span class="view">${emp.active ? 'Yes' : 'No'}</span>
+      <span class="view">${emp.active ? '' : '<span style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-size:0.72rem;padding:2px 8px;border-radius:4px;font-weight:600;white-space:nowrap;">Inactive</span>'}</span>
       <input type="checkbox" class="edit active" ${
         emp.active ? 'checked' : ''
       } hidden>
@@ -420,7 +420,7 @@ async function createStaff() {
     return;
   }
 
-  await supabase.from('employees').insert({
+  const { error } = await supabase.from('employees').insert({
     school_id: currentProfile.school_id,
     first_name: first,
     last_name: last,
@@ -432,5 +432,15 @@ async function createStaff() {
     active: true
   });
 
+  if (error) { console.error('Failed to add staff', error); alert('Failed to add staff member.'); return; }
+
+  ['staffFirst','staffLast','staffEmail','staffPosition'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const sup = document.getElementById('staffSupervisor'); if (sup) sup.value = '';
+  const cam = document.getElementById('staffCampusAdd'); if (cam) cam.value = '';
+  const mos = document.getElementById('staffEmploymentMonths'); if (mos) mos.value = '';
+
+  window.closeDrawer?.('staffDrawer');
   staffDirectory.load();
 }

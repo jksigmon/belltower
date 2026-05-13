@@ -118,13 +118,8 @@ function renderGuardianRow(g) {
     </td>
 
     <td>
-      <span class="view">${g.active ? 'Yes' : 'No'}</span>
-      <input
-        type="checkbox"
-        class="edit active"
-        hidden
-        ${g.active ? 'checked' : ''}
-      >
+      <span class="view">${g.active ? '' : '<span style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-size:0.72rem;padding:2px 8px;border-radius:4px;font-weight:600;white-space:nowrap;">Inactive</span>'}</span>
+      <input type="checkbox" class="edit active" hidden ${g.active ? 'checked' : ''}>
     </td>
 
     <td>
@@ -260,6 +255,7 @@ async function createGuardian() {
   document.getElementById('guardianPhone').value = '';
   document.getElementById('guardianFamily').value = '';
 
+  window.closeDrawer?.('guardianDrawer');
   guardiansDirectory.load();
 }
 

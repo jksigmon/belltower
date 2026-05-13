@@ -229,7 +229,7 @@ function renderStudentRow(r) {
     </td>
 
     <td>
-      <span class="view">${r.active ? 'Yes' : 'No'}</span>
+      <span class="view">${r.active ? '' : '<span style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-size:0.72rem;padding:2px 8px;border-radius:4px;font-weight:600;white-space:nowrap;">Inactive</span>'}</span>
       <input type="checkbox" class="edit active" ${r.active ? 'checked' : ''} hidden>
     </td>
 
@@ -381,8 +381,9 @@ async function createStudent() {
   }
 
   ['studentFirst','studentLast','studentGrade','studentHomeroom','studentNumber']
-    .forEach(id => (document.getElementById(id).value = ''));
+    .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 
+  window.closeDrawer?.('studentDrawer');
   studentsDirectory.load();
 }
 

@@ -251,17 +251,23 @@
     <nav id="adminNav" class="nav hidden">
       <a href="#dashboard" class="active"><i data-lucide="layout-dashboard"></i> Dashboard</a>
       <a href="/staff.html?from=admin#pto"><i data-lucide="user"></i> My Portal</a>
+
+      <div class="nav-section">Operations</div>
       <a href="/pto.html?from=admin" data-cap-group="pto" data-module="pto"><i data-lucide="calendar"></i> PTO Management</a>
       <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes"><i data-lucide="repeat-2"></i> Substitutes</a>
       <a href="/carline.html" data-cap-group="carline" data-module="carline"><i data-lucide="car"></i> Carline</a>
-      <a href="#staff" data-cap="can_manage_staff" data-module="staff"><i data-lucide="users"></i> Staff</a>
       <a href="/app/licensure.html" data-cap="can_manage_licensure" data-module="licensure"><i data-lucide="badge-check"></i> Licensure</a>
-      <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access</a>
+
+      <div class="nav-section">Directory</div>
+      <a href="#staff" data-cap="can_manage_staff" data-module="staff"><i data-lucide="users"></i> Staff</a>
       <a href="#students" data-cap="can_manage_students" data-module="students"><i data-lucide="graduation-cap"></i> Students</a>
       <a href="#families" data-cap="can_manage_families" data-module="families"><i data-lucide="home"></i> Families</a>
       <a href="#guardians" data-cap="can_manage_guardians" data-module="guardians"><i data-lucide="user-check"></i> Guardians</a>
       <a href="#campuses" data-cap="can_manage_campuses"><i data-lucide="building-2"></i> Campuses</a>
       <a href="#bus" data-cap="can_manage_bus_groups" data-module="bus_groups"><i data-lucide="bus"></i> Bus Groups</a>
+
+      <div class="nav-section">Settings</div>
+      <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access</a>
       <a href="#bulk-upload" data-cap="can_bulk_upload"><i data-lucide="upload"></i> Bulk Upload</a>
       <a href="#exports" data-cap="can_export_data"><i data-lucide="download"></i> Exports</a>
     </nav>
@@ -386,31 +392,6 @@
 
   <!-- Real content (fades in) -->
   <div class="admin-content fade-in">
-    <!-- Add Staff -->
-    <div class="panel panel-action">
-      <h3>Add Staff</h3>
-
-      <div class="admin-form-row compact">
-        <input id="staffFirst" placeholder="First" />
-        <input id="staffLast" placeholder="Last" />
-        <input id="staffEmail" placeholder="Email" />
-        <input id="staffPosition" placeholder="Position" />
-		<select id="staffSupervisor">
-		<option value="">Supervisor / PTO Approver (optional)</option>
-		</select>
-        <select id="staffCampusAdd">
-          <option value="">Campus (optional)</option>
-        </select>
-        <select id="staffEmploymentMonths">
-          <option value="">Employment months</option>
-          <option value="10">10-month</option>
-          <option value="11">11-month</option>
-          <option value="12">12-month</option>
-        </select>
-        <button id="addStaff" class="btn btn-primary">Add</button>
-      </div>
-    </div>
-
     <!-- Staff Directory -->
     <div class="panel panel-history">
       <h3>Staff Directory</h3>
@@ -444,12 +425,9 @@
 
   <!-- RIGHT: actions -->
   <div class="directory-actions">
-    <button id="exportStaffCurrent" class="btn">
-      Export view
-    </button>
-    <button id="exportStaffAll" class="btn">
-      Export all
-    </button>
+    <button id="exportStaffCurrent" class="btn">Export view</button>
+    <button id="exportStaffAll" class="btn">Export all</button>
+    <button class="btn btn-primary" onclick="openDrawer('staffDrawer')">+ Add Staff</button>
   </div>
 </div>
 
@@ -476,7 +454,7 @@
             <th>Supervisor</th>
             <th>Campus</th>
             <th>Mos.</th>
-            <th>Active</th>
+            <th></th>
             <th></th>
           </tr>
         </thead>
@@ -605,27 +583,6 @@
 
   <!-- Real content (fades in after data loads) -->
   <div class="admin-content fade-in">
-    <!-- Add Family -->
-    <div class="panel panel-action">
-      <h3>Add Family</h3>
-
-      <div class="admin-form-row compact">
-        <input
-          id="familyName"
-          placeholder="Family name (optional)"
-        />
-
-        <input
-          id="familyTag"
-          placeholder="Carline tag #"
-        />
-
-        <button id="addFamily" class="btn btn-primary">
-          Add
-        </button>
-      </div>
-    </div>
-
     <!-- Family Directory -->
     <div class="panel panel-history">
       <h3>Family Directory</h3>
@@ -646,12 +603,9 @@
   </div>
 
   <div class="directory-actions">
-    <button id="exportFamiliesCurrent" class="btn">
-      Export view
-    </button>
-    <button id="exportFamiliesAll" class="btn">
-      Export all
-    </button>
+    <button id="exportFamiliesCurrent" class="btn">Export view</button>
+    <button id="exportFamiliesAll" class="btn">Export all</button>
+    <button class="btn btn-primary" onclick="openDrawer('familyDrawer')">+ Add Family</button>
   </div>
 </div>
 
@@ -663,7 +617,7 @@
           <tr>
             <th>Carline Tag</th>
             <th>Family Name</th>
-            <th>Active</th>
+            <th></th>
             <th></th>
           </tr>
         </thead>
@@ -682,21 +636,6 @@
 
   <!-- Real content -->
   <div class="admin-content fade-in">
-
-    <!-- Add Guardian -->
-    <div class="panel panel-action">
-      <h3>Add Guardian</h3>
-      <div class="admin-form-row compact">
-        <input id="guardianFirst" placeholder="First name" />
-        <input id="guardianLast" placeholder="Last name" />
-        <input id="guardianEmail" placeholder="Email" />
-        <input id="guardianPhone" placeholder="Phone" />
-        <select id="guardianFamily"></select>
-        <button id="addGuardian" class="btn btn-primary">
-          Add
-        </button>
-      </div>
-    </div>
 
     <!-- Guardian Directory -->
     <div class="panel panel-history">
@@ -717,12 +656,9 @@
   </div>
 
   <div class="directory-actions">
-    <button id="exportGuardiansCurrent" class="btn">
-      Export view
-    </button>
-    <button id="exportGuardiansAll" class="btn">
-      Export all
-    </button>
+    <button id="exportGuardiansCurrent" class="btn">Export view</button>
+    <button id="exportGuardiansAll" class="btn">Export all</button>
+    <button class="btn btn-primary" onclick="openDrawer('guardianDrawer')">+ Add Guardian</button>
   </div>
 </div>
 
@@ -735,7 +671,7 @@
             <th>Family</th>
             <th>Email</th>
             <th>Phone</th>
-            <th>Active</th>
+            <th></th>
             <th></th>
           </tr>
         </thead>
@@ -754,37 +690,6 @@
 
   <!-- Real content (fades in after data loads) -->
   <div class="admin-content fade-in">
-    <!-- Add Student -->
-    <div class="panel panel-action">
-      <h3>Add Student</h3>
-<div id="studentFormError" class="form-error" style="display:none;"></div>
-
-      <div class="admin-form-row compact">
-        <input id="studentFirst" placeholder="First name" />
-        <input id="studentLast" placeholder="Last name" />
-        <input id="studentGrade" placeholder="Grade" />
-        <select id="studentHomeroom" class="form-input">
-  <option value="">Select homeroom teacher</option>
-</select>
-        <select id="studentFamily"></select>
-        <select id="studentBusGroup"></select>
-        <select id="studentCampus">
-          <option value="">Campus (optional)</option>
-        </select>
-		<input
-		  id="studentNumber"
-		  placeholder="Student Number (optional)"
-		/>
-		<small class="muted">
-		  Leave blank to auto-generate a student number.
-		</small>
-
-        <button id="addStudent" class="btn btn-primary">
-          Add
-        </button>
-      </div>
-    </div>
-
     <!-- Student Directory -->
     <div class="panel panel-history">
       <h3>Student Directory</h3>
@@ -834,6 +739,7 @@
   <div class="directory-actions">
     <button id="exportStudentsCurrent" class="btn">Export view</button>
     <button id="exportStudentsAll" class="btn">Export all</button>
+    <button class="btn btn-primary" onclick="openDrawer('studentDrawer')">+ Add Student</button>
   </div>
 </div>
 
@@ -851,7 +757,7 @@
     <th>Homeroom</th>
     <th>Bus Group</th>
     <th>Campus</th>
-    <th class="col-active">Active</th>
+    <th class="col-active"></th>
     <th class="col-actions"></th>
   </tr>
 </thead>
@@ -873,20 +779,6 @@
   <!-- Real content -->
   <div class="admin-content fade-in">
 
-    <!-- Add Bus Group -->
-    <div class="panel panel-action">
-      <h3>Add Bus Group</h3>
-
-      <div class="admin-form-row compact">
-        <input id="busName" placeholder="Group name (e.g. Blue)" />
-        <input id="busRoute" placeholder="Route # (e.g. R12)" />
-
-        <button id="addBusGroup" class="btn btn-primary">
-          Add
-        </button>
-      </div>
-    </div>
-
     <!-- Bus Groups Directory -->
     <div class="panel panel-history">
       <h3>Bus Groups</h3>
@@ -907,12 +799,9 @@
   </div>
 
   <div class="directory-actions">
-    <button id="exportBusGroupsCurrent" class="btn">
-      Export view
-    </button>
-    <button id="exportBusGroupsAll" class="btn">
-      Export all
-    </button>
+    <button id="exportBusGroupsCurrent" class="btn">Export view</button>
+    <button id="exportBusGroupsAll" class="btn">Export all</button>
+    <button class="btn btn-primary" onclick="openDrawer('busGroupDrawer')">+ Add Bus Group</button>
   </div>
 </div>
 
@@ -1073,20 +962,13 @@
   </div>
 
   <div class="admin-content fade-in">
-    <div class="panel panel-action">
-      <h3>Add Campus</h3>
-      <div class="admin-form-row compact">
-        <input id="campusName" placeholder="Campus Name" />
-        <input id="campusStart" type="time" title="Day Start Time" />
-        <input id="campusEnd" type="time" title="Day End Time" />
-        <input id="campusHours" type="number" step="0.5" placeholder="Workday Hours" />
-        <input id="campusIncrement" type="number" step="5" placeholder="PTO Increment (min)" />
-        <button id="addCampus" class="btn btn-primary">Add</button>
-      </div>
-    </div>
-
     <div class="panel panel-history">
-      <h3>Campuses</h3>
+      <div class="directory-header">
+        <h3 style="margin:0;">Campuses</h3>
+        <div class="directory-actions">
+          <button class="btn btn-primary" onclick="openDrawer('campusDrawer')">+ Add Campus</button>
+        </div>
+      </div>
       <p id="campusEmpty" class="muted" hidden>No campuses configured yet.</p>
       <table id="campusTable" style="display:none">
         <thead>
@@ -1107,6 +989,286 @@
 
  </main>
  </div>
+<!-- =============================================
+     DRAWER OVERLAY
+     ============================================= -->
+<div id="drawerOverlay" class="drawer-overlay" onclick="closeAllDrawers()"></div>
+
+<!-- =============================================
+     STAFF DRAWER
+     ============================================= -->
+<div id="staffDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Staff Member">
+  <div class="drawer-header">
+    <h3>Add Staff Member</h3>
+    <button class="drawer-close" onclick="closeDrawer('staffDrawer')" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>First Name <span class="required">*</span></label>
+        <input id="staffFirst" class="form-input" placeholder="First name" />
+      </div>
+      <div class="drawer-field">
+        <label>Last Name <span class="required">*</span></label>
+        <input id="staffLast" class="form-input" placeholder="Last name" />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Email</label>
+      <input id="staffEmail" class="form-input" type="email" placeholder="Email address" />
+    </div>
+    <div class="drawer-field">
+      <label>Position</label>
+      <input id="staffPosition" class="form-input" placeholder="Job title / position" />
+    </div>
+    <div class="drawer-field">
+      <label>Supervisor / PTO Approver</label>
+      <select id="staffSupervisor" class="form-input"></select>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Campus</label>
+        <select id="staffCampusAdd" class="form-input">
+          <option value="">Campus (optional)</option>
+        </select>
+      </div>
+      <div class="drawer-field">
+        <label>Employment Months</label>
+        <select id="staffEmploymentMonths" class="form-input">
+          <option value="">—</option>
+          <option value="10">10-month</option>
+          <option value="11">11-month</option>
+          <option value="12">12-month</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" onclick="closeDrawer('staffDrawer')">Cancel</button>
+    <button id="addStaff" class="btn btn-primary">Add Staff</button>
+  </div>
+</div>
+
+<!-- =============================================
+     STUDENT DRAWER
+     ============================================= -->
+<div id="studentDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Student">
+  <div class="drawer-header">
+    <h3>Add Student</h3>
+    <button class="drawer-close" onclick="closeDrawer('studentDrawer')" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Family <span class="required">*</span></label>
+      <select id="studentFamily" class="form-input">
+        <option value="">Select family…</option>
+      </select>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>First Name <span class="required">*</span></label>
+        <input id="studentFirst" class="form-input" placeholder="First name" />
+      </div>
+      <div class="drawer-field">
+        <label>Last Name <span class="required">*</span></label>
+        <input id="studentLast" class="form-input" placeholder="Last name" />
+      </div>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Grade</label>
+        <input id="studentGrade" class="form-input" placeholder="e.g. K, 1, 2…" />
+      </div>
+      <div class="drawer-field">
+        <label>Student #</label>
+        <input id="studentNumber" class="form-input" placeholder="Student number" />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Homeroom Teacher</label>
+      <select id="studentHomeroom" class="form-input">
+        <option value="">Select homeroom…</option>
+      </select>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Bus Group</label>
+        <select id="studentBusGroup" class="form-input">
+          <option value="">No bus group</option>
+        </select>
+      </div>
+      <div class="drawer-field">
+        <label>Campus</label>
+        <select id="studentCampus" class="form-input">
+          <option value="">Select campus…</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" onclick="closeDrawer('studentDrawer')">Cancel</button>
+    <button id="addStudent" class="btn btn-primary">Add Student</button>
+  </div>
+</div>
+
+<!-- =============================================
+     FAMILY DRAWER
+     ============================================= -->
+<div id="familyDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Family">
+  <div class="drawer-header">
+    <h3>Add Family</h3>
+    <button class="drawer-close" onclick="closeDrawer('familyDrawer')" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Carline Tag # <span class="required">*</span></label>
+      <input id="familyTag" class="form-input" placeholder="e.g. 104" />
+    </div>
+    <div class="drawer-field">
+      <label>Family Name</label>
+      <input id="familyName" class="form-input" placeholder="e.g. Smith Family" />
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" onclick="closeDrawer('familyDrawer')">Cancel</button>
+    <button id="addFamily" class="btn btn-primary">Add Family</button>
+  </div>
+</div>
+
+<!-- =============================================
+     GUARDIAN DRAWER
+     ============================================= -->
+<div id="guardianDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Guardian">
+  <div class="drawer-header">
+    <h3>Add Guardian</h3>
+    <button class="drawer-close" onclick="closeDrawer('guardianDrawer')" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Family <span class="required">*</span></label>
+      <select id="guardianFamily" class="form-input">
+        <option value="">Select family…</option>
+      </select>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>First Name <span class="required">*</span></label>
+        <input id="guardianFirst" class="form-input" placeholder="First name" />
+      </div>
+      <div class="drawer-field">
+        <label>Last Name <span class="required">*</span></label>
+        <input id="guardianLast" class="form-input" placeholder="Last name" />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Email</label>
+      <input id="guardianEmail" class="form-input" type="email" placeholder="Email address" />
+    </div>
+    <div class="drawer-field">
+      <label>Phone</label>
+      <input id="guardianPhone" class="form-input" type="tel" placeholder="Phone number" />
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" onclick="closeDrawer('guardianDrawer')">Cancel</button>
+    <button id="addGuardian" class="btn btn-primary">Add Guardian</button>
+  </div>
+</div>
+
+<!-- =============================================
+     BUS GROUP DRAWER
+     ============================================= -->
+<div id="busGroupDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Bus Group">
+  <div class="drawer-header">
+    <h3>Add Bus Group</h3>
+    <button class="drawer-close" onclick="closeDrawer('busGroupDrawer')" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Group Name <span class="required">*</span></label>
+      <input id="busName" class="form-input" placeholder="e.g. Blue" />
+    </div>
+    <div class="drawer-field">
+      <label>Route #</label>
+      <input id="busRoute" class="form-input" placeholder="e.g. R12" />
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" onclick="closeDrawer('busGroupDrawer')">Cancel</button>
+    <button id="addBusGroup" class="btn btn-primary">Add Bus Group</button>
+  </div>
+</div>
+
+<!-- =============================================
+     CAMPUS DRAWER
+     ============================================= -->
+<div id="campusDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Campus">
+  <div class="drawer-header">
+    <h3>Add Campus</h3>
+    <button class="drawer-close" onclick="closeDrawer('campusDrawer')" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Campus Name <span class="required">*</span></label>
+      <input id="campusName" class="form-input" placeholder="Campus name" />
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Day Start Time</label>
+        <input id="campusStart" type="time" class="form-input" />
+      </div>
+      <div class="drawer-field">
+        <label>Day End Time</label>
+        <input id="campusEnd" type="time" class="form-input" />
+      </div>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Workday Hours</label>
+        <input id="campusHours" type="number" step="0.5" class="form-input" placeholder="e.g. 7.5" />
+      </div>
+      <div class="drawer-field">
+        <label>PTO Increment (min)</label>
+        <input id="campusIncrement" type="number" step="5" class="form-input" placeholder="e.g. 30" />
+      </div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" onclick="closeDrawer('campusDrawer')">Cancel</button>
+    <button id="addCampus" class="btn btn-primary">Add Campus</button>
+  </div>
+</div>
+
+<!-- =============================================
+     DRAWER SCRIPTS
+     ============================================= -->
+<script>
+  function openDrawer(id) {
+    document.getElementById(id)?.classList.add('open');
+    document.getElementById('drawerOverlay')?.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeDrawer(id) {
+    document.getElementById(id)?.classList.remove('open');
+    const anyOpen = document.querySelectorAll('.drawer.open').length > 0;
+    if (!anyOpen) {
+      document.getElementById('drawerOverlay')?.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  }
+
+  function closeAllDrawers() {
+    document.querySelectorAll('.drawer.open').forEach(d => d.classList.remove('open'));
+    document.getElementById('drawerOverlay')?.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  window.openDrawer = openDrawer;
+  window.closeDrawer = closeDrawer;
+  window.closeAllDrawers = closeAllDrawers;
+</script>
+
 <script type="module" src="/app/admin.core.js"></script>
 <script type="module">
   import { TEMPLATE_URL } from '/app/config.js';
