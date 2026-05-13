@@ -216,6 +216,7 @@
 <div class="wrap">
 
 <nav>
+  <a href="#dashboard"><i data-lucide="home"></i> Home</a>
   <a href="#pto"        data-module="pto"><i data-lucide="calendar"></i> PTO</a>
   <a href="/carline.html" data-module="carline"><i data-lucide="car"></i> Carline</a>
   <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
@@ -224,6 +225,48 @@
 
 
   <main>
+
+  <section id="dashboard" style="display:none;">
+
+    <div class="dash-banner">
+      <div class="dash-banner-inner">
+        <div>
+          <div class="dash-banner-label">Welcome back</div>
+          <div class="dash-banner-name" id="staffDashName"></div>
+        </div>
+        <div class="dash-banner-school">
+          <div class="dash-banner-label">School</div>
+          <div id="staffDashSchool"></div>
+        </div>
+        <div class="dash-banner-date" id="staffDashDate"></div>
+      </div>
+    </div>
+
+    <div id="staffDashGrid" style="opacity:0;transition:opacity 220ms ease;">
+
+      <div class="dash-section" id="staffDashActions" style="display:none;">
+        <div class="dash-section-title">Quick Actions</div>
+        <div class="dash-actions-row" id="staffDashActionsRow"></div>
+      </div>
+
+      <div class="dash-section" id="staffDashBalances" style="display:none;">
+        <div class="dash-section-title">PTO Balances</div>
+        <div class="stat-grid" id="staffDashBalanceGrid"></div>
+      </div>
+
+      <div class="dash-section" id="staffDashRequests" style="display:none;">
+        <div class="dash-section-title">Upcoming Requests</div>
+        <div id="staffDashRequestList" class="staff-dash-list"></div>
+      </div>
+
+      <div class="dash-section" id="staffDashLicenses" style="display:none;">
+        <div class="dash-section-title">License Alerts</div>
+        <div id="staffDashLicenseList" class="staff-dash-list"></div>
+      </div>
+
+    </div>
+  </section>
+
   <section id="pto" class="pto-section fade-in" style="display:none;">
   
 
@@ -608,6 +651,165 @@ ptoTypeSelect.addEventListener('change', () => {
   }
 });
 
+let ptoSectionLoaded = false;
+
+async function loadPtoSection() {
+  await Promise.all([
+    loadPtoBalances(),
+    loadPtoStats(),
+    loadPtoHistory(),
+    loadStaffPtoTypes()
+  ]);
+  requestAnimationFrame(function () {
+    document.getElementById('pto').classList.add('visible');
+  });
+}
+
+async function loadStaffDashboard() {
+  const p = currentProfile;
+  const schoolId = p.school_id;
+  const today = new Date().toISOString().slice(0, 10);
+
+  document.getElementById('staffDashName').textContent = p.display_name ?? p.email ?? '';
+  document.getElementById('staffDashDate').textContent = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+  });
+
+  const in90 = new Date();
+  in90.setDate(in90.getDate() + 90);
+  const in90Str = in90.toISOString().slice(0, 10);
+
+  const queries = {
+    school: supabase.from('schools').select('name').eq('id', schoolId).single()
+  };
+
+  if (window.staffModules['pto'] === true) {
+    queries.balances = supabase.from('pto_balances')
+      .select('pto_type, balance_hours')
+      .eq('school_id', schoolId)
+      .eq('employee_id', p.employee_id)
+      .order('pto_type');
+    queries.requests = supabase.from('pto_requests')
+      .select('id, pto_type, start_date, end_date, requested_hours, status')
+      .eq('employee_id', p.employee_id)
+      .in('status', ['PENDING', 'APPROVED'])
+      .gte('end_date', today)
+      .order('start_date', { ascending: true })
+      .limit(5);
+  }
+
+  if (window.staffModules['licensure'] === true) {
+    queries.licenses = supabase.from('staff_licenses')
+      .select('id, license_type, license_area, expiration_date, status')
+      .eq('school_id', schoolId)
+      .eq('employee_id', p.employee_id)
+      .eq('alert_muted', false)
+      .lte('expiration_date', in90Str)
+      .gte('expiration_date', today)
+      .neq('status', 'revoked')
+      .order('expiration_date');
+  }
+
+  const keys    = Object.keys(queries);
+  const results = await Promise.all(keys.map(k => queries[k]));
+  const r       = Object.fromEntries(keys.map((k, i) => [k, results[i]]));
+
+  if (r.school?.data?.name) {
+    document.getElementById('staffDashSchool').textContent = r.school.data.name;
+  }
+
+  // Quick actions
+  const actionsRow = document.getElementById('staffDashActionsRow');
+  const actions = [];
+  if (window.staffModules['pto'] === true)
+    actions.push({ label: 'Submit PTO', icon: 'calendar-plus', href: '#pto' });
+  if (window.staffModules['carline'] === true && p.can_view_carline)
+    actions.push({ label: 'Carline', icon: 'car', href: '/carline.html' });
+  if (window.staffModules['licensure'] === true)
+    actions.push({ label: 'My Licenses', icon: 'badge-check', href: '#licensure' });
+  if (actionsRow && actions.length) {
+    actionsRow.innerHTML = '';
+    actions.forEach(function ({ label, icon, href }) {
+      const a = document.createElement('a');
+      a.className = 'dash-action-btn dash-action-btn--secondary';
+      a.innerHTML = '<i data-lucide="' + icon + '"></i>' + label;
+      a.href = href;
+      actionsRow.appendChild(a);
+    });
+    if (window.lucide) lucide.createIcons({ el: actionsRow });
+    document.getElementById('staffDashActions').style.display = '';
+  }
+
+  // PTO balances
+  if (r.balances?.data?.length) {
+    const grid = document.getElementById('staffDashBalanceGrid');
+    grid.innerHTML = '';
+    r.balances.data.forEach(function (b) {
+      const card = document.createElement('div');
+      card.className = 'stat';
+      card.setAttribute('data-accent', 'blue');
+      const hrs = b.balance_hours.toFixed(1);
+      const breakdown = formatHoursAsDays(b.balance_hours);
+      card.innerHTML =
+        '<strong>' + hrs + '<span style="font-size:0.6em;font-weight:500;margin-left:4px;">hrs</span></strong>' +
+        '<span style="display:block;margin-top:6px;font-weight:600;font-size:12px;color:#374151;">' + b.pto_type + '</span>' +
+        '<span style="display:block;margin-top:2px;font-size:11px;color:#9ca3af;">' + breakdown + '</span>';
+      grid.appendChild(card);
+    });
+    document.getElementById('staffDashBalances').style.display = '';
+  }
+
+  // Upcoming / pending requests
+  if (r.requests?.data?.length) {
+    const statusStyle = {
+      PENDING:  ['#fef3c7', '#92400e', 'Pending'],
+      APPROVED: ['#dcfce7', '#15803d', 'Approved'],
+    };
+    const list = document.getElementById('staffDashRequestList');
+    list.innerHTML = r.requests.data.map(function (req) {
+      const dateText = req.start_date === req.end_date
+        ? req.start_date
+        : req.start_date + ' → ' + req.end_date;
+      const [bg, color, label] = statusStyle[req.status] ?? ['#f1f5f9', '#374151', req.status];
+      const hrs = Number(req.requested_hours ?? 0);
+      return '<div class="staff-dash-request-row">' +
+        '<span class="staff-dash-req-type">' + req.pto_type + '</span>' +
+        '<span class="staff-dash-req-dates">' + dateText + '</span>' +
+        (hrs > 0 ? '<span class="staff-dash-req-hours">' + hrs + ' hrs</span>' : '') +
+        '<span class="staff-dash-req-badge" style="background:' + bg + ';color:' + color + ';">' + label + '</span>' +
+        '</div>';
+    }).join('');
+    document.getElementById('staffDashRequests').style.display = '';
+  }
+
+  // License alerts
+  if (r.licenses?.data?.length) {
+    const list = document.getElementById('staffDashLicenseList');
+    list.innerHTML = r.licenses.data.map(function (lic) {
+      const daysLeft = lic.expiration_date
+        ? Math.round((new Date(lic.expiration_date) - new Date(today)) / 86400000)
+        : null;
+      const urgent = daysLeft !== null && daysLeft <= 30;
+      const bg     = urgent ? '#fff1f2' : '#fffbeb';
+      const border = urgent ? '#fca5a5' : '#fcd34d';
+      const txt    = urgent ? '#991b1b' : '#92400e';
+      const typeLabel = lic.license_type + (lic.license_area ? ' – ' + lic.license_area : '');
+      const expLabel  = lic.expiration_date ? 'Expires ' + lic.expiration_date : '';
+      const daysLabel = daysLeft !== null ? daysLeft + 'd remaining' : '';
+      return '<div class="staff-dash-license-alert" style="background:' + bg + ';border:1px solid ' + border + ';color:' + txt + ';">' +
+        '<strong>' + typeLabel + '</strong>' +
+        '<span>' + expLabel + '</span>' +
+        (daysLabel ? '<span style="font-weight:600;">' + daysLabel + '</span>' : '') +
+        '</div>';
+    }).join('');
+    document.getElementById('staffDashLicenses').style.display = '';
+  }
+
+  requestAnimationFrame(function () {
+    document.getElementById('staffDashGrid').style.opacity = '1';
+  });
+}
+
 function hasAdminAccess(profile) {
   return (
     profile.is_superadmin === true ||
@@ -667,45 +869,12 @@ if (backToAdmin && cameFromAdminContext() && hasAdminAccess(currentProfile)) {
 }
 
 
-  // ✅ Apply nav visibility
   applyModuleNavVisibility();
 
-  // ✅ Empty-state handling (THIS FIXES YOUR BUG)
-  if (!hasAnyEnabledModule()) {
-    // Hide all sections
-    document.querySelectorAll('main section').forEach(function (s) {
-      s.style.display = 'none';
-    });
-
-    // Show empty state
-    document.getElementById('no-modules').style.display = 'block';
-
-    // Update subtitle
-    const subtitle = document.getElementById('pageSubtitle');
-    subtitle.textContent = 'No services available';
-
-    return; // ✅ LEGAL because it's inside a function
-  }
-
-  // ✅ Redirect to first enabled module, then lock viewport to top
-  redirectToFirstEnabledModule();
+  setActive('#dashboard');
   window.scrollTo(0, 0);
 
-  // ✅ Load enabled modules ONLY
-  if (window.staffModules['pto'] === true) {
-    
-await Promise.all([
-  loadPtoBalances(),
-  loadPtoStats(),
-  loadPtoHistory(),
-  loadStaffPtoTypes()
-]);
-
-
-    requestAnimationFrame(function () {
-      document.getElementById('pto').classList.add('visible');
-    });
-  }
+  await loadStaffDashboard();
 
 }
 
@@ -772,32 +941,33 @@ requestAnimationFrame(() => {
 
 
 function setActive(hash) {
-  // ✅ Guard: module must be enabled
+  // Guard: module-gated links must not be hidden; dashboard is always available
   const navLink = document.querySelector('nav a[href="' + hash + '"]');
   if (!navLink || navLink.style.display === 'none') {
-    redirectToFirstEnabledModule();
+    setActive('#dashboard');
     return;
   }
 
-  // Subtitle (optional)
   const subtitle = document.getElementById('pageSubtitle');
-  if (hash === '#pto')        subtitle.textContent = 'PTO & Leave';
-  if (hash === '#licensure')  subtitle.textContent = 'My Licenses';
-  
-  // Nav active state
+  if (hash === '#dashboard') subtitle.textContent = '';
+  if (hash === '#pto')       subtitle.textContent = 'PTO & Leave';
+  if (hash === '#licensure') subtitle.textContent = 'My Licenses';
+
   document.querySelectorAll('nav a').forEach(function (a) {
     a.classList.toggle('active', a.getAttribute('href') === hash);
   });
 
-  // Hide all sections
   document.querySelectorAll('main section').forEach(function (s) {
     s.style.display = 'none';
   });
 
-  // Show active section
   const section = document.querySelector(hash);
   if (section) section.style.display = 'block';
 
+  if (hash === '#pto' && !ptoSectionLoaded) {
+    ptoSectionLoaded = true;
+    loadPtoSection();
+  }
   if (hash === '#licensure') loadMyLicenses();
 }
 
@@ -872,13 +1042,7 @@ async function loadMyLicenses() {
 }
 
 function redirectToFirstEnabledModule() {
-  const firstEnabled = document.querySelector(
-    'nav a[data-module]:not([style*="display: none"])'
-  );
-
-  if (firstEnabled) {
-    setActive(firstEnabled.getAttribute('href'));
-  }
+  setActive('#dashboard');
 }
 
 function formatHoursAsDays(hours) {
@@ -1694,7 +1858,7 @@ document
 
 
 window.addEventListener('hashchange', function () {
-  setActive(location.hash || '#pto');
+  setActive(location.hash || '#dashboard');
 });
 
 initStaff();

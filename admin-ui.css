@@ -414,96 +414,167 @@ nav a .badge-count:empty {
 }
 
 /* =============================================
-   PTO Calendar (FullCalendar)
+   Shared FullCalendar Theme (PTO + Substitutes)
    ============================================= */
 
-#pto-calendar {
-  --fc-border-color: var(--border);
-  --fc-page-bg-color: var(--surface);
-  --fc-today-bg-color: rgba(37, 99, 235, 0.06);
-  --fc-neutral-bg-color: var(--surface);
+#pto-calendar,
+#subs-calendar {
+  --fc-border-color: #e5e7eb;
+  --fc-page-bg-color: #ffffff;
+  --fc-today-bg-color: rgba(11, 45, 79, 0.04);
+  --fc-neutral-bg-color: #ffffff;
+  --fc-list-event-hover-bg-color: #f8fafc;
   font-family: inherit;
 }
 
-#pto-calendar .fc-toolbar {
-  margin-bottom: 12px;
+/* Toolbar layout */
+#pto-calendar .fc-toolbar,
+#subs-calendar .fc-toolbar {
+  margin-bottom: 16px;
+  align-items: center;
 }
 
-#pto-calendar .fc-button {
+#pto-calendar .fc-toolbar-chunk,
+#subs-calendar .fc-toolbar-chunk {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Column headers (Sun, Mon, …) */
+#pto-calendar .fc-col-header-cell,
+#subs-calendar .fc-col-header-cell {
+  padding: 8px 0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* All buttons — flat light style */
+#pto-calendar .fc-button,
+#pto-calendar .fc-button-primary,
+#subs-calendar .fc-button,
+#subs-calendar .fc-button-primary {
   background: #f1f5f9;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-weight: 500;
-  padding: 6px 10px;
-}
-
-#pto-calendar .fc-button:hover {
-  background: #e5e7eb;
-}
-
-#pto-calendar .fc-button-primary {
-  background: var(--primary);
-  color: white;
-  border: none;
-}
-
-#pto-calendar .fc-button-primary:hover {
-  background: var(--primary-hover);
-}
-
-
-#pto-calendar .fc-daygrid-day {
-  padding: 4px;
-}
-
-#pto-calendar .fc-daygrid-day-number {
+  color: #1e293b;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
   font-size: 13px;
-  color: var(--text-secondary);
+  font-weight: 500;
+  padding: 5px 12px;
+  height: auto;
+  box-shadow: none;
+  text-transform: none;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 
-#pto-calendar .fc-day-today {
-  border-radius: 8px;
+#pto-calendar .fc-button:hover,
+#pto-calendar .fc-button-primary:hover,
+#subs-calendar .fc-button:hover,
+#subs-calendar .fc-button-primary:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+  border-color: #b0b7c3;
+  box-shadow: none;
 }
 
+/* Active view button (month / week / day) — navy fill */
+#pto-calendar .fc-button-primary.fc-button-active,
+#subs-calendar .fc-button-primary.fc-button-active {
+  background: #0b2d4f;
+  color: #ffffff;
+  border-color: #0b2d4f;
+}
 
-#pto-calendar .fc-event {
-  border-radius: 6px;
+#pto-calendar .fc-button-primary.fc-button-active:hover,
+#subs-calendar .fc-button-primary.fc-button-active:hover {
+  background: #1a3a5c;
+  border-color: #1a3a5c;
+  color: #ffffff;
+}
+
+/* Button group — connected pills, no internal gaps */
+#pto-calendar .fc-button-group,
+#subs-calendar .fc-button-group {
+  display: flex;
+  gap: 0;
+}
+
+#pto-calendar .fc-button-group .fc-button,
+#subs-calendar .fc-button-group .fc-button {
+  border-radius: 0;
+}
+
+#pto-calendar .fc-button-group .fc-button:first-child,
+#subs-calendar .fc-button-group .fc-button:first-child {
+  border-radius: 7px 0 0 7px;
+}
+
+#pto-calendar .fc-button-group .fc-button:last-child,
+#subs-calendar .fc-button-group .fc-button:last-child {
+  border-radius: 0 7px 7px 0;
+}
+
+/* Day cells */
+#pto-calendar .fc-daygrid-day,
+#subs-calendar .fc-daygrid-day {
+  padding: 2px;
+}
+
+#pto-calendar .fc-daygrid-day-number,
+#subs-calendar .fc-daygrid-day-number {
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  padding: 4px 6px;
+}
+
+#pto-calendar .fc-day-other .fc-daygrid-day-number,
+#subs-calendar .fc-day-other .fc-daygrid-day-number {
+  color: #d1d5db;
+}
+
+/* Today — subtle navy tint, no extra border */
+#pto-calendar .fc-day-today .fc-daygrid-day-number,
+#subs-calendar .fc-day-today .fc-daygrid-day-number {
+  background: #0b2d4f;
+  color: #ffffff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+/* Events */
+#pto-calendar .fc-event,
+#subs-calendar .fc-event {
   border: none;
+  border-radius: 5px;
   padding: 2px 6px;
   font-size: 12px;
   font-weight: 500;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  cursor: pointer;
 }
 
-#pto-calendar .fc-event-title {
-  white-space: normal;
-  line-height: 1.2;
+#pto-calendar .fc-event-title,
+#subs-calendar .fc-event-title {
+  line-height: 1.3;
 }
 
-
-#pto-calendar .fc-event {
-  box-shadow: 0 1px 0 rgba(0,0,0,0.05);
-}
-
-/* =============================================
-   PTO Calendar – Toolbar polish
-   ============================================= */
-
-#pto-calendar .fc-button-group {
-  display: flex;
-  gap: 6px;
-}
-
-#pto-calendar .fc-button {
-  font-weight: 400;
-  padding: 5px 10px;
-  height: auto;
-}
-
-#pto-calendar .fc-toolbar-chunk {
-  display: flex;
-  align-items: center;
-  flex-wrap: nowrap;
+/* Title */
+#pto-calendar .fc-toolbar-title,
+#subs-calendar .fc-toolbar-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 
@@ -2184,6 +2255,68 @@ a.stat, a.dash-stat-link {
   gap: 16px;
   margin-top: 20px;
   max-width: 800px;
+}
+
+/* Staff dashboard list rows */
+.staff-dash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.staff-dash-request-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.staff-dash-req-type {
+  font-weight: 600;
+  color: #1e293b;
+  min-width: 110px;
+}
+
+.staff-dash-req-dates {
+  color: #475569;
+  flex: 1;
+  min-width: 120px;
+}
+
+.staff-dash-req-hours {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.staff-dash-req-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.staff-dash-license-alert {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.staff-dash-license-alert strong {
+  flex: 1;
+  font-size: 13px;
+  min-width: 160px;
 }
 
 .stat {
