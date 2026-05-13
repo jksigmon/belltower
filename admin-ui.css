@@ -2278,7 +2278,8 @@ a.stat, a.dash-stat-link {
 
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(160px, 200px));
+  justify-content: start;
   gap: 16px;
   margin-top: 20px;
   max-width: 800px;

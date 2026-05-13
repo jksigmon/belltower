@@ -31,6 +31,9 @@
     <div class="cl-header-spacer"></div>
 
     <div class="cl-header-right">
+      <span class="cl-clock" id="clClock"></span>
+      <button class="cl-icon-btn cl-fontsize-btn" id="btnFontSize" title="Font size (S/M/L)">M</button>
+      <button class="cl-icon-btn" id="btnActivityLog" title="Activity log">📋</button>
       <a href="/carline-input.html" class="cl-input-link-btn" id="btnInputLink" target="_blank" hidden>📱 <span class="cl-btn-label">Input Page</span></a>
       <button class="cl-icon-btn" id="btnDarkMode" title="Toggle dark mode">🌙</button>
       <button class="cl-icon-btn" id="btnFullscreen" title="Fullscreen">⛶</button>
@@ -118,6 +121,17 @@
       <div class="cl-status-col-body" id="bodyRecalled">
         <div class="cl-col-empty" id="emptyRecalled">—</div>
       </div>
+    </div>
+  </div>
+
+  <!-- Activity log panel -->
+  <div class="cl-log-panel" id="activityLog">
+    <div class="cl-log-hdr">
+      <span class="cl-log-hdr-title">Activity Log</span>
+      <button class="cl-log-close" id="btnCloseLog" title="Close">✕</button>
+    </div>
+    <div class="cl-log-body" id="logBody">
+      <div class="cl-log-empty">No calls yet</div>
     </div>
   </div>
 
@@ -210,6 +224,7 @@ let allCampuses   = [];
 let familyTagMap  = new Map(); // family_id → tag_number
 let callStatus    = new Map(); // student_id → status string
 let calledAt      = new Map(); // student_id → ISO string
+let callLog       = [];        // { name, status, time } newest-first
 let activeTeacherIds = new Set();
 let teacherNameMap   = new Map(); // employee_id → "First Last"
 let realtimeChannel  = null;
@@ -255,6 +270,9 @@ async function boot() {
   setupRealtime();
   if (currentEvent) startCallsPoller();
   watchForNewEvents();
+
+  startClock();
+  initFontSize();
 
   document.getElementById('clLoading').hidden = true;
   document.getElementById('clApp').hidden = false;
@@ -315,6 +333,19 @@ async function loadExistingCalls() {
     callStatus.set(c.student_id, c.status);
     if (c.called_at) calledAt.set(c.student_id, c.called_at);
   });
+
+  // Rebuild call log sorted newest-first
+  callLog = (data || [])
+    .filter(c => c.called_at && (c.status === 'CALLED' || c.status === 'RECALLED'))
+    .sort((a, b) => b.called_at.localeCompare(a.called_at))
+    .map(c => {
+      const student = allStudents.find(s => s.id === c.student_id);
+      return student
+        ? { name: `${student.first_name} ${student.last_name}`, status: c.status, time: c.called_at }
+        : null;
+    })
+    .filter(Boolean);
+  renderLog();
 
   // Detect All Call from data — works on boot and every poll cycle
   const hadAllCall = !!allCallAt;
@@ -622,16 +653,30 @@ function renderColumn(bodyId, emptyId, students, statusClass, multi, emptyMsg) {
 }
 
 function buildCard(student, statusClass) {
-  const tag  = familyTagMap.get(student.family_id) ?? '';
-  const icon = statusClass === 'called' ? '🚗' : statusClass === 'recalled' ? '🔔' : '';
-  const el   = document.createElement('div');
+  const tag   = familyTagMap.get(student.family_id) ?? '';
+  const icon  = statusClass === 'called' ? '🚗' : statusClass === 'recalled' ? '🔔' : '';
+  const grade = student.grade_level ? ` <span class="cl-card-grade">· ${esc(student.grade_level)}</span>` : '';
+  let timeStr = '';
+  if (statusClass === 'called') {
+    const iso = calledAt.get(student.id);
+    if (iso) {
+      const t = new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      timeStr = `<span class="cl-card-time">${t}</span>`;
+    }
+  }
+  const el = document.createElement('div');
   el.className = `cl-student-card ${statusClass}`;
   el.id = `card-${student.id}`;
   el.dataset.studentId = student.id;
   el.innerHTML = `
     ${icon ? `<span class="cl-card-icon">${icon}</span>` : ''}
-    <span class="cl-card-name">${esc(student.first_name)} ${esc(student.last_name)}</span>
-    ${tag ? `<span class="cl-card-tag">${esc(tag)}</span>` : ''}
+    <span class="cl-card-body">
+      <span class="cl-card-name">${esc(student.first_name)} ${esc(student.last_name)}${grade}</span>
+    </span>
+    <span class="cl-card-meta">
+      ${tag ? `<span class="cl-card-tag">${esc(tag)}</span>` : ''}
+      ${timeStr}
+    </span>
   `;
   return el;
 }
@@ -656,6 +701,13 @@ function setupRealtime() {
       if (r.called_at) calledAt.set(r.student_id, r.called_at);
 
       const changed = r.status !== prev;
+      if (changed && (r.status === 'CALLED' || r.status === 'RECALLED')) {
+        const student = allStudents.find(s => s.id === r.student_id);
+        if (student) {
+          callLog.unshift({ name: `${student.first_name} ${student.last_name}`, status: r.status, time: r.called_at || new Date().toISOString() });
+          renderLog();
+        }
+      }
       if (r.status === 'CALLED'   && changed) { playCallSound();   if (isMobile()) setActiveTab('called');   }
       if (r.status === 'RECALLED' && changed) { playRecallSound(); if (isMobile()) setActiveTab('recalled'); }
 
@@ -842,12 +894,80 @@ function updateAllCallBanner(isNew = false) {
   }
 }
 
+// ─── Clock ────────────────────────────────────────────────────────────
+function startClock() {
+  const el = document.getElementById('clClock');
+  const tick = () => {
+    el.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  };
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ─── Font size toggle ─────────────────────────────────────────────────
+const FONT_SIZES  = ['sm', 'md', 'lg'];
+const FONT_LABELS = ['S', 'M', 'L'];
+let fontSizeIdx = 1;
+
+function initFontSize() {
+  const saved = localStorage.getItem('cl-font-size');
+  const idx = FONT_SIZES.indexOf(saved);
+  fontSizeIdx = idx >= 0 ? idx : 1;
+  applyFontSize(false);
+}
+
+function cycleFontSize() {
+  fontSizeIdx = (fontSizeIdx + 1) % FONT_SIZES.length;
+  applyFontSize(true);
+}
+
+function applyFontSize(save = true) {
+  document.documentElement.dataset.fontsize = FONT_SIZES[fontSizeIdx];
+  document.getElementById('btnFontSize').textContent = FONT_LABELS[fontSizeIdx];
+  if (save) localStorage.setItem('cl-font-size', FONT_SIZES[fontSizeIdx]);
+}
+
+// ─── Activity log ─────────────────────────────────────────────────────
+function toggleActivityLog() {
+  const panel = document.getElementById('activityLog');
+  const app   = document.getElementById('clApp');
+  const btn   = document.getElementById('btnActivityLog');
+  const isOpen = panel.classList.toggle('open');
+  app.classList.toggle('log-open', isOpen);
+  btn.classList.toggle('active', isOpen);
+}
+
+function renderLog() {
+  const body = document.getElementById('logBody');
+  if (!body) return;
+  if (!callLog.length) {
+    body.innerHTML = '<div class="cl-log-empty">No calls yet</div>';
+    return;
+  }
+  body.innerHTML = '';
+  callLog.forEach(entry => {
+    const icon    = entry.status === 'CALLED' ? '🚗' : '🔔';
+    const timeStr = new Date(entry.time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const div = document.createElement('div');
+    div.className = `cl-log-item ${entry.status.toLowerCase()}`;
+    div.innerHTML = `
+      <span class="cl-log-item-icon">${icon}</span>
+      <span class="cl-log-item-name">${esc(entry.name)}</span>
+      <span class="cl-log-item-time">${timeStr}</span>
+    `;
+    body.appendChild(div);
+  });
+}
+
 // ─── Wire events ──────────────────────────────────────────────────────
 function wireEvents() {
   document.getElementById('btnSignOut').addEventListener('click', async () => {
     await supabase.auth.signOut();
     window.location.href = '/login.html';
   });
+  document.getElementById('btnFontSize').addEventListener('click', cycleFontSize);
+  document.getElementById('btnActivityLog').addEventListener('click', toggleActivityLog);
+  document.getElementById('btnCloseLog').addEventListener('click', toggleActivityLog);
   document.getElementById('btnDarkMode').addEventListener('click', toggleDarkMode);
   document.getElementById('btnFullscreen').addEventListener('click', toggleFullscreen);
   document.getElementById('btnStartNoEvent').addEventListener('click', handleStartClick);

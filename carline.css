@@ -17,7 +17,9 @@
   --cl-waiting-bg:      #f8fafc;
   --cl-waiting-border:  #cbd5e1;
   --cl-waiting-text:    #475569;
-  --cl-waiting-hdr:     #475569;
+  --cl-waiting-hdr:     #0b2d4f;
+
+  --cl-card-name-size:  20px;
 
   --cl-called-bg:       #d1fae5;
   --cl-called-border:   #6ee7b7;
@@ -36,6 +38,11 @@
   --cl-font: Inter, ui-sans-serif, system-ui, -apple-system,
              Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;
 }
+
+/* Font-size scale (toggled via data-fontsize on <html>) */
+[data-fontsize="sm"] { --cl-card-name-size: 15px; }
+[data-fontsize="md"] { --cl-card-name-size: 20px; }
+[data-fontsize="lg"] { --cl-card-name-size: 27px; }
 
 [data-theme="dark"] {
   --cl-bg:              #0f172a;
@@ -443,21 +450,44 @@ html, body {
   color: var(--cl-text-muted);
 }
 
-.cl-card-icon { font-size: 13px; flex-shrink: 0; width: 18px; text-align: center; }
-.cl-card-name {
+.cl-card-icon { font-size: 15px; flex-shrink: 0; width: 20px; text-align: center; }
+
+.cl-card-body {
   flex: 1;
-  font-size: 15px;
-  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+}
+.cl-card-name {
+  font-size: var(--cl-card-name-size, 20px);
+  font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.2;
+}
+.cl-card-grade {
+  font-size: 0.65em;
+  font-weight: 400;
+  opacity: 0.55;
+}
+.cl-card-meta {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
 }
 .cl-card-tag {
-  font-size: 11px;
-  font-weight: 700;
-  opacity: 0.6;
-  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 800;
+  opacity: 0.8;
   font-variant-numeric: tabular-nums;
+}
+.cl-card-time {
+  font-size: 11px;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 /* --- Flash animations --- */
@@ -473,6 +503,113 @@ html, body {
 }
 .cl-student-card.new-call   { animation: callFlash   0.7s ease-out; }
 .cl-student-card.new-recall { animation: recallFlash 0.7s ease-out; }
+
+/* Clock in header */
+.cl-clock {
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  padding: 0 6px;
+}
+
+/* Font-size toggle button active state */
+.cl-icon-btn.active,
+.cl-icon-btn.cl-fontsize-btn {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* Log panel */
+.cl-log-panel {
+  position: fixed;
+  right: 0;
+  top: calc(var(--cl-header-h) + var(--cl-bar-h));
+  bottom: 0;
+  width: 270px;
+  background: var(--cl-surface);
+  border-left: 1px solid var(--cl-border);
+  display: flex;
+  flex-direction: column;
+  z-index: 100;
+  transform: translateX(100%);
+  transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -6px 0 24px rgba(0,0,0,0.1);
+}
+.cl-log-panel.open { transform: translateX(0); }
+
+#clApp.log-open #displayGrid { padding-right: 280px; }
+
+.cl-log-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--cl-border);
+  flex-shrink: 0;
+}
+.cl-log-hdr-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--cl-text-muted);
+}
+.cl-log-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--cl-text-muted);
+  font-size: 15px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: background 120ms;
+}
+.cl-log-close:hover { background: var(--cl-bg); color: var(--cl-text); }
+
+.cl-log-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.cl-log-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--cl-text-muted);
+  font-size: 13px;
+}
+.cl-log-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--cl-border);
+  border-left: 3px solid transparent;
+}
+.cl-log-item:last-child { border-bottom: none; }
+.cl-log-item.called   { border-left-color: #16a34a; }
+.cl-log-item.recalled { border-left-color: #d97706; }
+.cl-log-item-icon { font-size: 13px; flex-shrink: 0; }
+.cl-log-item-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cl-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cl-log-item-time {
+  font-size: 11px;
+  color: var(--cl-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
 /* No-class empty state */
 #displayNoClass {
