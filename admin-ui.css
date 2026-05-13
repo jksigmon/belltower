@@ -947,9 +947,17 @@ table tr:hover {
   display: flex;
   flex-direction: column;
   transform: translateX(100%);
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  visibility: hidden;
+  /* visibility delays match the slide duration so shadow is gone before/after animation */
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0s linear 0.25s;
 }
-.drawer.open { transform: translateX(0); }
+.drawer.open {
+  transform: translateX(0);
+  visibility: visible;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0s linear 0s;
+}
 
 .drawer-header {
   display: flex;
@@ -2244,12 +2252,17 @@ a.stat, a.dash-stat-link {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-shrink: 0;
 }
 
-/* Optional polish */
+/* Match .btn height when used alongside regular buttons */
+.directory-actions .btn-primary {
+  height: 34px;
+}
+
 .directory-header select,
 .directory-header input {
-  min-width: 160px;
+  min-width: 140px;
 }
 
 
@@ -2370,6 +2383,28 @@ a.stat, a.dash-stat-link {
   /* Hide the back-to-admin link on mobile (use browser back) */
   .header-left .btn-admin {
     display: none;
+  }
+
+  /* Prevent directory action buttons from overflowing the panel */
+  .directory-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .directory-filters {
+    width: 100%;
+  }
+
+  .directory-filters select,
+  .directory-filters input {
+    min-width: 0;
+    flex: 1 1 120px;
+  }
+
+  .directory-actions {
+    width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
   }
 
   /* Remove nav link hover transform on touch devices */
