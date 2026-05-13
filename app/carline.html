@@ -25,6 +25,7 @@
       <span class="cl-school-name" id="clSchoolName">Belltower</span>
       <span class="cl-event-date" id="clEventDate"></span>
       <span class="cl-status-badge open" id="clStatusBadge">OPEN</span>
+      <span class="cl-campus-label" id="clCampusLabel" hidden></span>
     </div>
 
     <div class="cl-header-spacer"></div>
@@ -33,8 +34,7 @@
       <a href="/carline-input.html" class="cl-input-link-btn" id="btnInputLink" target="_blank" hidden>📱 <span class="cl-btn-label">Input Page</span></a>
       <button class="cl-icon-btn" id="btnDarkMode" title="Toggle dark mode">🌙</button>
       <button class="cl-icon-btn" id="btnFullscreen" title="Fullscreen">⛶</button>
-      <button class="cl-dismiss-btn start" id="btnStartDismissal" hidden>▶ <span class="cl-btn-label">Start Dismissal</span></button>
-      <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden>✕ <span class="cl-btn-label">Close</span></button>
+      <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden><span>✕</span><span class="cl-btn-label">Close</span></button>
       <button class="cl-signout-btn" id="btnSignOut">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -82,9 +82,10 @@
 
   <!-- No active event state -->
   <div id="displayNoEvent" class="cl-no-event" hidden>
-    <h2>No Active Dismissal</h2>
-    <p>Dismissal hasn't started yet for today. Check back shortly or start dismissal if you're an administrator.</p>
+    <h2 id="displayNoEventTitle">No Active Dismissal</h2>
+    <p id="displayNoEventMsg">Dismissal hasn't started yet for today. Check back shortly or start dismissal if you're an administrator.</p>
     <button class="cl-start-btn" id="btnStartNoEvent" hidden>▶ Start Dismissal</button>
+    <button class="cl-start-btn reopen" id="btnReopenDismissal" hidden>↩ Reopen Dismissal</button>
   </div>
 
   <!-- 3-column grid -->
@@ -124,6 +125,80 @@
 
 <div class="cl-toast" id="clToast"></div>
 
+<!-- Campus picker (shown when school has multiple campuses) -->
+<div id="campusPicker" hidden>
+  <div id="campusPickerDialog">
+    <h3>Select Campus</h3>
+    <p>Which campus is this dismissal for?</p>
+    <div id="campusPickerList"></div>
+    <button id="campusPickerCancel">Cancel</button>
+  </div>
+</div>
+
+<style>
+  #campusPicker {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #campusPicker[hidden] { display: none !important; }
+  #campusPickerDialog {
+    background: var(--cl-surface);
+    border-radius: 14px;
+    padding: 28px 24px;
+    max-width: 340px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  #campusPickerDialog h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--cl-text);
+    margin-bottom: 6px;
+  }
+  #campusPickerDialog p {
+    font-size: 13px;
+    color: var(--cl-text-muted);
+    margin-bottom: 20px;
+  }
+  #campusPickerList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .cl-campus-pick-btn {
+    padding: 14px 18px;
+    background: #059669;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+    transition: background 120ms;
+  }
+  .cl-campus-pick-btn:hover { background: #047857; }
+  #campusPickerCancel {
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    border: 1px solid var(--cl-border);
+    border-radius: 8px;
+    color: var(--cl-text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 120ms;
+  }
+  #campusPickerCancel:hover { background: var(--cl-bg); }
+</style>
+
 <script type="module">
 import { supabase } from '/app/admin.supabase.js';
 
@@ -131,6 +206,7 @@ import { supabase } from '/app/admin.supabase.js';
 let profile       = null;
 let currentEvent  = null;
 let allStudents   = [];
+let allCampuses   = [];
 let familyTagMap  = new Map(); // family_id → tag_number
 let callStatus    = new Map(); // student_id → status string
 let calledAt      = new Map(); // student_id → ISO string
@@ -168,7 +244,7 @@ async function boot() {
     weekday: 'short', month: 'short', day: 'numeric'
   });
 
-  await Promise.all([ loadStudents(), loadFamilyTags(), loadTeacherNames() ]);
+  await Promise.all([ loadStudents(), loadFamilyTags(), loadTeacherNames(), loadCampuses() ]);
   await ensureCarlineEvent();
   if (currentEvent) await loadExistingCalls();
 
@@ -219,6 +295,15 @@ async function loadFamilyTags() {
   });
 }
 
+async function loadCampuses() {
+  const { data } = await supabase
+    .from('campuses')
+    .select('id, name')
+    .eq('school_id', profile.school_id)
+    .order('name');
+  allCampuses = data || [];
+}
+
 async function loadExistingCalls() {
   const { data } = await supabase
     .from('carline_calls')
@@ -248,7 +333,6 @@ async function ensureCarlineEvent() {
     .select('id, status, name, all_call_at')
     .eq('school_id', profile.school_id)
     .eq('event_date', today)
-    .neq('status', 'CLOSED')
     .maybeSingle();
 
   currentEvent = data ?? null;
@@ -257,15 +341,17 @@ async function ensureCarlineEvent() {
   updateAllCallBanner(false);
 }
 
-async function startDismissal() {
-  const today = new Date().toISOString().slice(0, 10);
+async function startDismissal(campusId = null) {
+  const today      = new Date().toISOString().slice(0, 10);
+  const campusName = allCampuses.find(c => c.id === campusId)?.name ?? null;
   const { data, error } = await supabase
     .from('carline_events')
     .insert({
-      school_id: profile.school_id,
-      name: 'PM Dismissal',
-      event_date: today,
-      status: 'OPEN',
+      school_id:             profile.school_id,
+      name:                  campusName ?? 'PM Dismissal',
+      event_date:            today,
+      status:                'OPEN',
+      campus_id:             campusId,
       created_by_profile_id: profile.id,
     })
     .select('id, status, name')
@@ -276,6 +362,26 @@ async function startDismissal() {
   setupRealtime();
   renderColumns();
   showToast('Dismissal started');
+}
+
+function handleStartClick() {
+  if (allCampuses.length <= 1) {
+    startDismissal(allCampuses[0]?.id ?? null);
+    return;
+  }
+  const list = document.getElementById('campusPickerList');
+  list.innerHTML = '';
+  allCampuses.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className   = 'cl-campus-pick-btn';
+    btn.textContent = c.name;
+    btn.addEventListener('click', () => {
+      document.getElementById('campusPicker').hidden = true;
+      startDismissal(c.id);
+    });
+    list.appendChild(btn);
+  });
+  document.getElementById('campusPicker').hidden = false;
 }
 
 async function closeDismissal() {
@@ -292,6 +398,22 @@ async function closeDismissal() {
   showToast('Dismissal closed');
 }
 
+async function reopenDismissal() {
+  if (!currentEvent) return;
+  if (!confirm("Reopen today's dismissal?")) return;
+  const { error } = await supabase
+    .from('carline_events')
+    .update({ status: 'OPEN', closed_at: null, closed_by_profile_id: null })
+    .eq('id', currentEvent.id);
+  if (error) { showToast('Failed to reopen dismissal'); return; }
+  currentEvent.status = 'OPEN';
+  updateEventUI();
+  setupRealtime();
+  await loadExistingCalls();
+  renderColumns();
+  showToast('Dismissal reopened');
+}
+
 function setActiveTab(tab) {
   document.getElementById('displayGrid').dataset.activeTab = tab;
   document.querySelectorAll('.cl-tab-btn').forEach(btn => {
@@ -302,20 +424,38 @@ function setActiveTab(tab) {
 function updateEventUI() {
   const hasEvent  = !!currentEvent;
   const isOpen    = hasEvent && currentEvent.status !== 'CLOSED';
+  const isClosed  = hasEvent && currentEvent.status === 'CLOSED';
   const canManage = profile.is_superadmin || profile.can_manage_carline;
 
-  document.getElementById('displayNoEvent').hidden = hasEvent;
-  document.getElementById('displayGrid').hidden    = !hasEvent;
-  document.getElementById('displayTabBar').hidden  = !hasEvent;
+  document.getElementById('displayNoEvent').hidden = isOpen;
+  document.getElementById('displayGrid').hidden    = !isOpen;
+  document.getElementById('displayTabBar').hidden  = !isOpen;
+
+  document.getElementById('displayNoEventTitle').textContent = isClosed
+    ? 'Dismissal Closed'
+    : 'No Active Dismissal';
+  document.getElementById('displayNoEventMsg').textContent = isClosed
+    ? "Today's dismissal has been closed. An administrator can reopen it to continue."
+    : "Dismissal hasn't started yet for today. Check back shortly or start dismissal if you're an administrator.";
 
   const badge = document.getElementById('clStatusBadge');
   badge.textContent = isOpen ? 'OPEN' : 'CLOSED';
   badge.className   = 'cl-status-badge ' + (isOpen ? 'open' : 'closed');
 
-  document.getElementById('btnInputLink').hidden      = !canManage;
-  document.getElementById('btnStartDismissal').hidden = hasEvent || !canManage;
-  document.getElementById('btnCloseDismissal').hidden = !isOpen  || !canManage;
-  document.getElementById('btnStartNoEvent').hidden   = hasEvent || !canManage;
+  document.getElementById('btnInputLink').hidden         = !canManage;
+  document.getElementById('btnCloseDismissal').hidden    = !isOpen   || !canManage;
+  document.getElementById('btnStartNoEvent').hidden      = hasEvent  || !canManage;
+  document.getElementById('btnReopenDismissal').hidden   = !isClosed || !canManage;
+
+  const campusLabel = document.getElementById('clCampusLabel');
+  if (campusLabel) {
+    if (hasEvent && currentEvent.name) {
+      campusLabel.textContent = currentEvent.name;
+      campusLabel.hidden = false;
+    } else {
+      campusLabel.hidden = true;
+    }
+  }
 }
 
 // ─── Teacher auto-detection ────────────────────────────────────────────
@@ -710,9 +850,12 @@ function wireEvents() {
   });
   document.getElementById('btnDarkMode').addEventListener('click', toggleDarkMode);
   document.getElementById('btnFullscreen').addEventListener('click', toggleFullscreen);
-  document.getElementById('btnStartDismissal').addEventListener('click', startDismissal);
-  document.getElementById('btnStartNoEvent').addEventListener('click', startDismissal);
+  document.getElementById('btnStartNoEvent').addEventListener('click', handleStartClick);
+  document.getElementById('btnReopenDismissal').addEventListener('click', reopenDismissal);
   document.getElementById('btnCloseDismissal').addEventListener('click', closeDismissal);
+  document.getElementById('campusPickerCancel').addEventListener('click', () => {
+    document.getElementById('campusPicker').hidden = true;
+  });
   document.querySelectorAll('.cl-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
   });

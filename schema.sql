@@ -760,6 +760,7 @@ CREATE TABLE public.carline_events (
     school_id uuid NOT NULL,
     name text,
     event_date date DEFAULT CURRENT_DATE NOT NULL,
+    campus_id uuid,
     created_by uuid,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     status text,
@@ -882,6 +883,7 @@ CREATE TABLE public.profiles (
     can_manage_students boolean DEFAULT false NOT NULL,
     can_manage_bus_groups boolean DEFAULT false NOT NULL,
     can_export_data boolean DEFAULT false NOT NULL,
+    can_manage_licensure boolean DEFAULT false NOT NULL,
     id uuid DEFAULT gen_random_uuid() NOT NULL
 );
 
@@ -969,6 +971,69 @@ CREATE TABLE public.school_modules (
 
 
 --
+-- Name: staff_licenses; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.staff_licenses (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    school_id uuid NOT NULL,
+    employee_id uuid NOT NULL,
+    license_number text,
+    state text DEFAULT 'NC'::text NOT NULL,
+    license_type text NOT NULL,
+    license_class text,
+    category text DEFAULT 'teaching'::text NOT NULL,
+    license_area text,
+    grade_authorization text,
+    issue_date date,
+    expiration_date date,
+    is_provisional boolean DEFAULT false NOT NULL,
+    provisional_type text,
+    status text DEFAULT 'active'::text NOT NULL,
+    renewal_status text DEFAULT 'not_started'::text NOT NULL,
+    campus_id uuid,
+    role_applicability text[] DEFAULT '{}'::text[],
+    verified boolean DEFAULT false NOT NULL,
+    verified_by uuid,
+    verified_at timestamp with time zone,
+    alert_muted boolean DEFAULT false NOT NULL,
+    notes text,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    updated_at timestamp with time zone DEFAULT now() NOT NULL,
+    created_by uuid
+);
+
+
+--
+-- Name: staff_license_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.staff_license_history (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    license_id uuid NOT NULL,
+    school_id uuid NOT NULL,
+    changed_by uuid,
+    changed_at timestamp with time zone DEFAULT now() NOT NULL,
+    change_type text NOT NULL,
+    field_changes jsonb
+);
+
+
+--
+-- Name: license_alert_log; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.license_alert_log (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    school_id uuid NOT NULL,
+    license_id uuid NOT NULL,
+    employee_id uuid NOT NULL,
+    alert_type text NOT NULL,
+    sent_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+
+--
 -- Name: school_pto_types; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -1034,6 +1099,7 @@ CREATE TABLE public.students (
     grade_level text,
     homeroom_teacher text,
     bus_group_id uuid,
+    campus_id uuid,
     active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     homeroom_teacher_id uuid
@@ -1170,6 +1236,30 @@ CREATE VIEW public.v_pending_coverage_days AS
    FROM (public.v_pto_coverage_days_approved v
      LEFT JOIN public.substitute_assignments sa ON (((sa.pto_request_id = v.pto_request_id) AND (sa.start_date = v.coverage_date) AND (sa.end_date = v.coverage_date) AND (sa.status = 'scheduled'::text))))
   WHERE ((sa.id IS NULL) AND (v.coverage_date >= CURRENT_DATE));
+
+
+--
+-- Name: staff_licenses staff_licenses_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.staff_licenses
+    ADD CONSTRAINT staff_licenses_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: staff_license_history staff_license_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.staff_license_history
+    ADD CONSTRAINT staff_license_history_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: license_alert_log license_alert_log_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.license_alert_log
+    ADD CONSTRAINT license_alert_log_pkey PRIMARY KEY (id);
 
 
 --
@@ -1470,6 +1560,55 @@ CREATE INDEX carline_events_school_id_event_date_idx ON public.carline_events US
 
 
 --
+-- Name: carline_events_school_campus_date_uq; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX carline_events_school_campus_date_uq ON public.carline_events USING btree (school_id, event_date, COALESCE(campus_id, '00000000-0000-0000-0000-000000000000'::uuid));
+
+
+--
+-- Name: idx_staff_licenses_school_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_staff_licenses_school_id ON public.staff_licenses USING btree (school_id);
+
+
+--
+-- Name: idx_staff_licenses_employee_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_staff_licenses_employee_id ON public.staff_licenses USING btree (employee_id);
+
+
+--
+-- Name: idx_staff_licenses_expiration; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_staff_licenses_expiration ON public.staff_licenses USING btree (school_id, expiration_date);
+
+
+--
+-- Name: idx_license_history_license_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_license_history_license_id ON public.staff_license_history USING btree (license_id);
+
+
+--
+-- Name: idx_license_alert_log; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_license_alert_log ON public.license_alert_log USING btree (license_id, alert_type, sent_at);
+
+
+--
+-- Name: uq_license_alert_daily; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX uq_license_alert_daily ON public.license_alert_log USING btree (license_id, alert_type, ((sent_at AT TIME ZONE 'America/New_York')::date));
+
+
+--
 -- Name: carline_tags_school_id_family_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1645,6 +1784,13 @@ CREATE TRIGGER trg_pto_status_change AFTER UPDATE ON public.pto_requests FOR EAC
 
 
 --
+-- Name: staff_licenses trg_staff_licenses_updated_at; Type: TRIGGER; Schema: public; Owner: -
+--
+
+CREATE TRIGGER trg_staff_licenses_updated_at BEFORE UPDATE ON public.staff_licenses FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+
+--
 -- Name: bus_groups bus_groups_school_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1714,6 +1860,54 @@ ALTER TABLE ONLY public.carline_events
 
 ALTER TABLE ONLY public.carline_events
     ADD CONSTRAINT carline_events_school_id_fkey FOREIGN KEY (school_id) REFERENCES public.schools(id) ON DELETE CASCADE;
+
+
+--
+-- Name: carline_events carline_events_campus_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.carline_events
+    ADD CONSTRAINT carline_events_campus_id_fkey FOREIGN KEY (campus_id) REFERENCES public.campuses(id) ON DELETE SET NULL;
+
+
+--
+-- Name: staff_licenses staff_licenses_school_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.staff_licenses
+    ADD CONSTRAINT staff_licenses_school_id_fkey FOREIGN KEY (school_id) REFERENCES public.schools(id) ON DELETE CASCADE;
+
+
+--
+-- Name: staff_licenses staff_licenses_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.staff_licenses
+    ADD CONSTRAINT staff_licenses_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES public.employees(id) ON DELETE CASCADE;
+
+
+--
+-- Name: staff_licenses staff_licenses_campus_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.staff_licenses
+    ADD CONSTRAINT staff_licenses_campus_id_fkey FOREIGN KEY (campus_id) REFERENCES public.campuses(id) ON DELETE SET NULL;
+
+
+--
+-- Name: staff_license_history staff_license_history_license_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.staff_license_history
+    ADD CONSTRAINT staff_license_history_license_id_fkey FOREIGN KEY (license_id) REFERENCES public.staff_licenses(id) ON DELETE CASCADE;
+
+
+--
+-- Name: license_alert_log license_alert_log_license_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.license_alert_log
+    ADD CONSTRAINT license_alert_log_license_id_fkey FOREIGN KEY (license_id) REFERENCES public.staff_licenses(id) ON DELETE CASCADE;
 
 
 --
@@ -1954,6 +2148,14 @@ ALTER TABLE ONLY public.students
 
 ALTER TABLE ONLY public.students
     ADD CONSTRAINT students_school_id_fkey FOREIGN KEY (school_id) REFERENCES public.schools(id) ON DELETE CASCADE;
+
+
+--
+-- Name: students students_campus_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.students
+    ADD CONSTRAINT students_campus_id_fkey FOREIGN KEY (campus_id) REFERENCES public.campuses(id) ON DELETE SET NULL;
 
 
 --
@@ -2735,6 +2937,105 @@ ALTER TABLE public.schools ENABLE ROW LEVEL SECURITY;
 CREATE POLICY schools_read_my_school ON public.schools FOR SELECT USING ((EXISTS ( SELECT 1
    FROM public.profiles p
   WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.school_id = schools.id))))));
+
+
+--
+-- Name: staff_licenses; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.staff_licenses ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: staff_licenses Licenses: admin select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Licenses: admin select" ON public.staff_licenses FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.school_id = staff_licenses.school_id) AND ((p.is_superadmin = true) OR (p.can_manage_licensure = true))))));
+
+
+--
+-- Name: staff_licenses Licenses: staff own select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Licenses: staff own select" ON public.staff_licenses FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.employee_id = staff_licenses.employee_id)))));
+
+
+--
+-- Name: staff_licenses Licenses: admin insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Licenses: admin insert" ON public.staff_licenses FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.school_id = staff_licenses.school_id) AND ((p.is_superadmin = true) OR (p.can_manage_licensure = true))))));
+
+
+--
+-- Name: staff_licenses Licenses: admin update; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Licenses: admin update" ON public.staff_licenses FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.school_id = staff_licenses.school_id) AND ((p.is_superadmin = true) OR (p.can_manage_licensure = true))))));
+
+
+--
+-- Name: staff_licenses Licenses: admin delete; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "Licenses: admin delete" ON public.staff_licenses FOR DELETE USING ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.school_id = staff_licenses.school_id) AND ((p.is_superadmin = true) OR (p.can_manage_licensure = true))))));
+
+
+--
+-- Name: staff_license_history; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.staff_license_history ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: staff_license_history License history: admin select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "License history: admin select" ON public.staff_license_history FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.school_id = staff_license_history.school_id) AND ((p.is_superadmin = true) OR (p.can_manage_licensure = true))))));
+
+
+--
+-- Name: staff_license_history License history: insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "License history: insert" ON public.staff_license_history FOR INSERT WITH CHECK ((school_id = ( SELECT profiles.school_id
+   FROM public.profiles
+  WHERE (profiles.user_id = auth.uid()))));
+
+
+--
+-- Name: license_alert_log; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.license_alert_log ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: license_alert_log License alerts: admin select; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "License alerts: admin select" ON public.license_alert_log FOR SELECT USING ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.school_id = license_alert_log.school_id) AND ((p.is_superadmin = true) OR (p.can_manage_licensure = true))))));
+
+
+--
+-- Name: license_alert_log License alerts: insert; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY "License alerts: insert" ON public.license_alert_log FOR INSERT WITH CHECK ((school_id = ( SELECT profiles.school_id
+   FROM public.profiles
+  WHERE (profiles.user_id = auth.uid()))));
 
 
 --

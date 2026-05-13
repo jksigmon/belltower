@@ -29,7 +29,7 @@
   --cl-recalled-text:   #92400e;
   --cl-recalled-hdr:    #b45309;
 
-  --cl-header-bg:       #0b2d4f;
+  --cl-header-bg:       linear-gradient(135deg, #0b2d4f 0%, #1a3a5c 55%, #0e3660 100%);
   --cl-header-h:        60px;
   --cl-bar-h:           48px;
   --cl-radius:          10px;
@@ -60,7 +60,7 @@
   --cl-recalled-text:   #fde68a;
   --cl-recalled-hdr:    #92400e;
 
-  --cl-header-bg:       #0f172a;
+  --cl-header-bg:       linear-gradient(135deg, #0b1929 0%, #0f2236 55%, #091d32 100%);
 }
 
 /* ---------- Reset ---------- */
@@ -152,6 +152,18 @@ html, body {
 
 .cl-header-spacer { flex: 1; }
 
+.cl-campus-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 6px;
+  padding: 3px 9px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .cl-header-right {
   display: flex;
   align-items: center;
@@ -198,6 +210,8 @@ html, body {
   transition: background 120ms;
   display: flex;
   align-items: center;
+  gap: 5px;
+  line-height: 1;
 }
 .cl-dismiss-btn.start { background: #16a34a; color: #fff; }
 .cl-dismiss-btn.start:hover { background: #15803d; }

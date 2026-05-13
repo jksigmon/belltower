@@ -15,57 +15,6 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
   <style>
-    /* ── Compliance two-column layout ── */
-    .compliance-layout {
-      display: grid;
-      grid-template-columns: 280px 1fr;
-      gap: 24px;
-      align-items: start;
-    }
-
-    @media (max-width: 768px) {
-      .compliance-layout { grid-template-columns: 1fr; }
-    }
-
-    /* ── Compliance stat cards ── */
-    .compliance-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 14px;
-      margin-bottom: 28px;
-    }
-
-    .compliance-card {
-      background: #fff;
-      border: 1px solid #e6e8eb;
-      border-radius: 10px;
-      padding: 16px 18px;
-      box-shadow: 0 2px 6px rgba(11,45,79,0.07);
-    }
-
-    .compliance-card strong {
-      display: block;
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: #1f2937;
-      margin-bottom: 4px;
-    }
-
-    .compliance-card span {
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #6b7280;
-    }
-
-    .compliance-card[data-accent="red"]    { border-top: 3px solid #dc2626; }
-    .compliance-card[data-accent="orange"] { border-top: 3px solid #ea580c; }
-    .compliance-card[data-accent="amber"]  { border-top: 3px solid #f59e0b; }
-    .compliance-card[data-accent="blue"]   { border-top: 3px solid #2563eb; }
-    .compliance-card[data-accent="green"]  { border-top: 3px solid #16a34a; }
-
-    .compliance-card strong.alert { color: #dc2626; }
-    .compliance-card strong.warn  { color: #ea580c; }
 
     /* ── Status badges ── */
     .badge {
@@ -115,16 +64,6 @@
     .alert-row .alert-days.urgent { color: #dc2626; }
     .alert-row .alert-days.warn   { color: #ea580c; }
     .alert-row .alert-days.caution { color: #a16207; }
-
-    /* ── Section titles ── */
-    .lic-section-title {
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.09em;
-      color: #9ca3af;
-      margin: 0 0 14px;
-    }
 
     /* ── Filters row ── */
     .lic-filters {
@@ -224,7 +163,6 @@
   </div>
 
   <div class="header-actions">
-    <span id="licAdminName" class="muted"></span>
     <button id="signOut" class="btn">Sign out</button>
   </div>
 </header>
@@ -244,48 +182,44 @@
          COMPLIANCE DASHBOARD
     ══════════════════════════════════════════════════ -->
     <section id="compliance" class="lic-view">
-      <div class="compliance-layout">
 
-        <!-- Left: stat cards -->
-        <div>
-          <p class="lic-section-title">Summary</p>
-          <div class="compliance-grid">
-            <div class="compliance-card" data-accent="blue">
-              <strong id="statTotal">—</strong>
-              <span>Total Active</span>
-            </div>
-            <div class="compliance-card" data-accent="red">
-              <strong id="stat30" class="alert">—</strong>
-              <span>Expiring 30d</span>
-            </div>
-            <div class="compliance-card" data-accent="orange">
-              <strong id="stat60" class="warn">—</strong>
-              <span>Expiring 60d</span>
-            </div>
-            <div class="compliance-card" data-accent="amber">
-              <strong id="stat90">—</strong>
-              <span>Expiring 90d</span>
-            </div>
-            <div class="compliance-card" data-accent="red">
-              <strong id="statExpired" class="alert">—</strong>
-              <span>Expired</span>
-            </div>
-            <div class="compliance-card" data-accent="amber">
-              <strong id="statProvisional">—</strong>
-              <span>Provisional</span>
-            </div>
+      <div class="dash-section" style="margin-top:0;">
+        <p class="dash-section-title">Summary</p>
+        <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="stat stat-info">
+            <strong id="statTotal">—</strong>
+            <span>Total Active</span>
+          </div>
+          <div class="stat stat-alert">
+            <strong id="stat30">—</strong>
+            <span>Expiring 30d</span>
+          </div>
+          <div class="stat stat-warn">
+            <strong id="stat60">—</strong>
+            <span>Expiring 60d</span>
+          </div>
+          <div class="stat">
+            <strong id="stat90">—</strong>
+            <span>Expiring 90d</span>
+          </div>
+          <div class="stat stat-alert">
+            <strong id="statExpired">—</strong>
+            <span>Expired</span>
+          </div>
+          <div class="stat stat-warn">
+            <strong id="statProvisional">—</strong>
+            <span>Provisional</span>
           </div>
         </div>
-
-        <!-- Right: alert list -->
-        <div>
-          <p class="lic-section-title">Upcoming Expirations</p>
-          <div id="alertList" class="alert-list">
-            <div class="lic-empty">Loading…</div>
-          </div>
-        </div>
-
       </div>
+
+      <div class="dash-section">
+        <p class="dash-section-title">Upcoming Expirations</p>
+        <div id="alertList" class="alert-list">
+          <div class="lic-empty">Loading…</div>
+        </div>
+      </div>
+
     </section>
 
 

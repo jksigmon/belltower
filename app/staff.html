@@ -948,6 +948,9 @@ function setActive(hash) {
     return;
   }
 
+  // Keep URL in sync so clicking the same link again still fires hashchange
+  history.replaceState(null, '', hash);
+
   const subtitle = document.getElementById('pageSubtitle');
   if (hash === '#dashboard') subtitle.textContent = '';
   if (hash === '#pto')       subtitle.textContent = 'PTO & Leave';

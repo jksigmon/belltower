@@ -307,26 +307,15 @@
     <div class="dash-actions-row" id="dashActionsRow"></div>
   </div>
 
-  <!-- Directory counts -->
-  <div class="dash-section">
-    <div class="dash-section-title">Directory</div>
-    <div class="stat-grid">
-      <a href="#students" class="stat dash-stat-link" data-accent="blue">
-        <strong id="statStudents">–</strong>
-        <span>Students</span>
-      </a>
-      <a href="#staff" class="stat dash-stat-link" data-accent="blue">
-        <strong id="statStaff">–</strong>
-        <span id="statStaffLabel">Staff</span>
-      </a>
-      <a href="#families" class="stat dash-stat-link" data-accent="blue">
-        <strong id="statFamilies">–</strong>
-        <span>Families</span>
-      </a>
-      <a href="#bus" class="stat dash-stat-link" data-accent="blue">
-        <strong id="statBusGroups">–</strong>
-        <span>Bus Groups</span>
-      </a>
+  <!-- Today's Alerts (JS-gated) -->
+  <div class="dash-section" id="dashAlertsSection" style="display:none;">
+    <div class="dash-section-title">Today's Alerts</div>
+    <div class="dash-alerts-panel">
+      <div id="dashAlertsAllClear" class="dash-alert-clear" style="display:none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        All clear — no issues requiring attention
+      </div>
+      <div id="dashAlertsList"></div>
     </div>
   </div>
 
@@ -365,15 +354,41 @@
   <div class="dash-section" id="dashStatus" style="display:none;">
     <div class="dash-section-title">Status</div>
     <div class="stat-grid">
-      <a href="/app/carline-input.html" class="stat" id="dashCarline" style="display:none;" data-accent="green">
+      <a href="/app/carline-input.html" class="stat" id="dashCarline" style="display:none;">
         <strong id="statCarlineStatus">–</strong>
-        <span>Carline Today</span>
+        <span id="statCarlineTime" class="stat-sub"></span>
+        <span id="statCarlineDismissed" class="stat-sub"></span>
+        <span id="statCarlineIssues" class="stat-sub"></span>
+        <span style="margin-top:6px;">Carline Today</span>
       </a>
       <div class="stat" id="dashActiveStaff" style="display:none;" data-accent="blue">
         <strong id="statActiveStaff">–</strong>
         <span id="statActiveStaffSub"></span>
         <span>Staff</span>
       </div>
+    </div>
+  </div>
+
+  <!-- Directory counts -->
+  <div class="dash-section">
+    <div class="dash-section-title">Directory</div>
+    <div class="stat-grid">
+      <a href="#students" class="stat dash-stat-link" data-accent="blue">
+        <strong id="statStudents">–</strong>
+        <span>Students</span>
+      </a>
+      <a href="#staff" class="stat dash-stat-link" data-accent="blue">
+        <strong id="statStaff">–</strong>
+        <span id="statStaffLabel">Staff</span>
+      </a>
+      <a href="#families" class="stat dash-stat-link" data-accent="blue">
+        <strong id="statFamilies">–</strong>
+        <span>Families</span>
+      </a>
+      <a href="#bus" class="stat dash-stat-link" data-accent="blue">
+        <strong id="statBusGroups">–</strong>
+        <span>Bus Groups</span>
+      </a>
     </div>
   </div>
 

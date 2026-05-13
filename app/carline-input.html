@@ -31,12 +31,11 @@
     <div class="inp-header-bottom">
       <div class="inp-header-left">
         <span class="cl-status-badge open" id="inpStatusBadge">OPEN</span>
-        <select id="campusSelector" style="display:none;"></select>
+        <span class="cl-campus-label" id="inpCampusLabel" hidden></span>
       </div>
       <div class="inp-header-right">
         <button class="cl-icon-btn" id="btnDarkMode" title="Toggle dark mode">🌙</button>
-        <button class="cl-dismiss-btn start" id="btnStartDismissal" hidden>▶ Start</button>
-        <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden>✕ Close</button>
+        <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden><span>✕</span><span>Close</span></button>
         <button class="cl-signout-btn" id="btnSignOut">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -51,9 +50,10 @@
 
   <!-- No active event -->
   <div id="inpNoEvent" class="cl-no-event" hidden>
-    <h2>No Active Dismissal</h2>
-    <p>Dismissal hasn't started yet. Ask an administrator to start today's dismissal.</p>
+    <h2 id="inpNoEventTitle">No Active Dismissal</h2>
+    <p id="inpNoEventMsg">Dismissal hasn't started yet. Ask an administrator to start today's dismissal.</p>
     <button class="cl-start-btn" id="btnStartNoEvent" hidden>▶ Start Dismissal</button>
+    <button class="cl-start-btn reopen" id="btnReopenDismissal" hidden>↩ Reopen Dismissal</button>
   </div>
 
   <!-- Main input content -->
@@ -111,6 +111,80 @@
   </div><!-- /inputMain -->
 
 </div><!-- /inputApp -->
+
+<!-- Campus picker -->
+<div id="campusPicker" hidden>
+  <div id="campusPickerDialog">
+    <h3>Select Campus</h3>
+    <p>Which campus is this dismissal for?</p>
+    <div id="campusPickerList"></div>
+    <button id="campusPickerCancel">Cancel</button>
+  </div>
+</div>
+
+<style>
+  #campusPicker {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #campusPicker[hidden] { display: none !important; }
+  #campusPickerDialog {
+    background: var(--cl-surface);
+    border-radius: 14px;
+    padding: 28px 24px;
+    max-width: 340px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  #campusPickerDialog h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--cl-text);
+    margin-bottom: 6px;
+  }
+  #campusPickerDialog p {
+    font-size: 13px;
+    color: var(--cl-text-muted);
+    margin-bottom: 20px;
+  }
+  #campusPickerList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .cl-campus-pick-btn {
+    padding: 14px 18px;
+    background: #059669;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    text-align: left;
+    transition: background 120ms;
+  }
+  .cl-campus-pick-btn:hover { background: #047857; }
+  #campusPickerCancel {
+    width: 100%;
+    padding: 10px;
+    background: transparent;
+    border: 1px solid var(--cl-border);
+    border-radius: 8px;
+    color: var(--cl-text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 120ms;
+  }
+  #campusPickerCancel:hover { background: var(--cl-bg); }
+</style>
 
 <div class="cl-toast" id="clToast"></div>
 
@@ -175,7 +249,6 @@ async function boot() {
       .single();
     activeCampusId = emp?.campus_id ?? null;
   }
-  renderCampusSelector();
   await ensureCarlineEvent();
   console.log('[boot] 7 - event:', currentEvent?.id ?? 'none');
   if (currentEvent) await loadExistingCalls();
@@ -246,31 +319,25 @@ async function loadExistingCalls() {
   updateBusButtonStates();
 }
 
-// ─── Campus selector ──────────────────────────────────────────────────
-function renderCampusSelector() {
-  const sel = document.getElementById('campusSelector');
-  if (!sel || allCampuses.length < 2) return;
-
-  sel.innerHTML = '';
+// ─── Campus picker ────────────────────────────────────────────────────
+function handleStartClick() {
+  if (allCampuses.length <= 1) {
+    startDismissal(allCampuses[0]?.id ?? null);
+    return;
+  }
+  const list = document.getElementById('campusPickerList');
+  list.innerHTML = '';
   allCampuses.forEach(c => {
-    const opt = document.createElement('option');
-    opt.value = c.id;
-    opt.textContent = c.name;
-    sel.appendChild(opt);
+    const btn = document.createElement('button');
+    btn.className   = 'cl-campus-pick-btn';
+    btn.textContent = c.name;
+    btn.addEventListener('click', () => {
+      document.getElementById('campusPicker').hidden = true;
+      startDismissal(c.id);
+    });
+    list.appendChild(btn);
   });
-
-  // Default to staff campus if set, otherwise first campus
-  const defaultId = activeCampusId && allCampuses.find(c => c.id === activeCampusId)
-    ? activeCampusId
-    : allCampuses[0].id;
-  sel.value = defaultId;
-  activeCampusId = defaultId;
-
-  sel.style.display = '';
-  sel.addEventListener('change', e => {
-    activeCampusId = e.target.value;
-    ensureCarlineEvent();
-  });
+  document.getElementById('campusPicker').hidden = false;
 }
 
 // ─── Carline event ─────────────────────────────────────────────────────
@@ -280,8 +347,7 @@ async function ensureCarlineEvent() {
     .from('carline_events')
     .select('id, status, name')
     .eq('school_id', profile.school_id)
-    .eq('event_date', today)
-    .neq('status', 'CLOSED');
+    .eq('event_date', today);
 
   if (activeCampusId) {
     q = q.eq('campus_id', activeCampusId);
@@ -294,18 +360,18 @@ async function ensureCarlineEvent() {
   updateEventUI();
 }
 
-async function startDismissal() {
-  const today = new Date().toISOString().slice(0, 10);
+async function startDismissal(campusId = null) {
+  activeCampusId = campusId;
+  const today      = new Date().toISOString().slice(0, 10);
+  const campusName = allCampuses.find(c => c.id === campusId)?.name ?? null;
   const { data, error } = await supabase
     .from('carline_events')
     .insert({
-      school_id: profile.school_id,
-      name: activeCampusId
-        ? (allCampuses.find(c => c.id === activeCampusId)?.name ?? 'PM Dismissal')
-        : 'PM Dismissal',
-      event_date: today,
-      status: 'OPEN',
-      campus_id: activeCampusId,
+      school_id:             profile.school_id,
+      name:                  campusName ?? 'PM Dismissal',
+      event_date:            today,
+      status:                'OPEN',
+      campus_id:             campusId,
       created_by_profile_id: profile.id,
     })
     .select('id, status, name')
@@ -331,27 +397,57 @@ async function closeDismissal() {
   showToast('Dismissal closed');
 }
 
+async function reopenDismissal() {
+  if (!currentEvent) return;
+  if (!confirm("Reopen today's dismissal?")) return;
+  const { error } = await supabase
+    .from('carline_events')
+    .update({ status: 'OPEN', closed_at: null, closed_by_profile_id: null })
+    .eq('id', currentEvent.id);
+  if (error) { showToast('Failed to reopen dismissal'); return; }
+  currentEvent.status = 'OPEN';
+  updateEventUI();
+  setupRealtime();
+  showToast('Dismissal reopened');
+}
+
 function updateEventUI() {
-  const hasEvent = !!currentEvent;
-  const isOpen   = hasEvent && currentEvent.status !== 'CLOSED';
+  const hasEvent  = !!currentEvent;
+  const isOpen    = hasEvent && currentEvent.status !== 'CLOSED';
+  const isClosed  = hasEvent && currentEvent.status === 'CLOSED';
   const canManage = profile.is_superadmin || profile.can_manage_carline;
 
-  document.getElementById('inpNoEvent').hidden  = hasEvent;
-  document.getElementById('inputMain').hidden   = !hasEvent;
+  document.getElementById('inpNoEvent').hidden = isOpen;
+  document.getElementById('inputMain').hidden  = !isOpen;
+
+  document.getElementById('inpNoEventTitle').textContent = isClosed
+    ? 'Dismissal Closed'
+    : 'No Active Dismissal';
+  document.getElementById('inpNoEventMsg').textContent = isClosed
+    ? "Today's dismissal has been closed. Tap Reopen to continue."
+    : "Dismissal hasn't started yet. Ask an administrator to start today's dismissal.";
 
   const badge = document.getElementById('inpStatusBadge');
   badge.textContent = isOpen ? 'OPEN' : 'CLOSED';
   badge.className   = 'cl-status-badge ' + (isOpen ? 'open' : 'closed');
 
-  document.getElementById('btnStartDismissal').hidden = hasEvent || !canManage;
-  document.getElementById('btnCloseDismissal').hidden = !isOpen  || !canManage;
-  document.getElementById('btnStartNoEvent').hidden   = hasEvent || !canManage;
+  document.getElementById('btnCloseDismissal').hidden    = !isOpen   || !canManage;
+  document.getElementById('btnStartNoEvent').hidden      = hasEvent  || !canManage;
+  document.getElementById('btnReopenDismissal').hidden   = !isClosed || !canManage;
 
-  // Disable call buttons if event closed
+  const campusLabel = document.getElementById('inpCampusLabel');
+  if (campusLabel) {
+    if (hasEvent && currentEvent.name) {
+      campusLabel.textContent = currentEvent.name;
+      campusLabel.hidden = false;
+    } else {
+      campusLabel.hidden = true;
+    }
+  }
+
   document.getElementById('btnCall').disabled   = !isOpen;
   document.getElementById('btnRecall').disabled = !isOpen;
-
-  document.getElementById('allCallRow').hidden = !isOpen || !canManage;
+  document.getElementById('allCallRow').hidden  = !isOpen || !canManage;
 
   if (isOpen) setupRealtime();
 }
@@ -767,9 +863,12 @@ function wireEvents() {
     window.location.href = '/login.html';
   });
   document.getElementById('btnDarkMode').addEventListener('click', toggleDarkMode);
-  document.getElementById('btnStartDismissal').addEventListener('click', startDismissal);
-  document.getElementById('btnStartNoEvent').addEventListener('click', startDismissal);
+  document.getElementById('btnStartNoEvent').addEventListener('click', handleStartClick);
+  document.getElementById('btnReopenDismissal').addEventListener('click', reopenDismissal);
   document.getElementById('btnCloseDismissal').addEventListener('click', closeDismissal);
+  document.getElementById('campusPickerCancel').addEventListener('click', () => {
+    document.getElementById('campusPicker').hidden = true;
+  });
 
   document.getElementById('btnCall').addEventListener('click', () => {
     if (tagBuffer) callByTag(tagBuffer, false);

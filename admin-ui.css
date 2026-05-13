@@ -80,7 +80,7 @@ p {
 
 header {
   height: 72px;                 /* fixed header height */
-  background: #0b2d4f;
+  background: linear-gradient(135deg, #0b2d4f 0%, #1a3a5c 55%, #0e3660 100%);
   display: flex;                /* ✅ flex, not grid */
   align-items: center;          /* ✅ vertical centering */
   justify-content: space-between;
@@ -2001,25 +2001,27 @@ select {
 }
 
 
-/* Admin return button */
+/* Header glass buttons — back arrow + sign out */
 
 .btn-admin {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
   height: 34px;
-  padding: 0 12px;
-  border-radius: 8px;
-  font-weight: 600;
+  padding: 0 14px;
+  border-radius: 20px;
+  font-weight: 500;
   font-size: 13px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
   text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .btn-admin:hover {
   background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
   color: #ffffff;
 }
 
@@ -2028,6 +2030,26 @@ select {
   padding: 0;
   justify-content: center;
   font-size: 16px;
+  border-radius: 10px;
+}
+
+/* Sign out button inherits the same glass style when inside the header */
+header .btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 0 16px;
+  height: 34px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+header .btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.35);
+  color: #ffffff;
 }
 
 
@@ -2104,8 +2126,11 @@ nav a[data-cap-group] {
 .dash-banner {
   background: linear-gradient(135deg, #0b2d4f 0%, #1a3a5c 55%, #0e3660 100%);
   border-radius: 14px;
-  padding: 24px 28px;
-  margin-bottom: 28px;
+  padding: 0 28px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
   box-shadow: 0 4px 20px rgba(11, 45, 79, 0.22);
 }
 
@@ -2115,36 +2140,36 @@ nav a[data-cap-group] {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  width: 100%;
 }
 
 .dash-banner-label {
-  font-size: 0.68rem;
+  font-size: 0.6rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: #f59e0b;
-  margin-bottom: 3px;
+  margin-bottom: 1px;
 }
 
 .dash-banner-name {
-  font-size: 1.45rem;
+  font-size: 1.1rem;
   font-weight: 700;
   color: #ffffff;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .dash-banner-school > div:last-child {
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: rgba(255,255,255,0.88);
 }
 
 .dash-banner-date {
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 500;
   color: rgba(255,255,255,0.55);
   white-space: nowrap;
-  align-self: flex-end;
 }
 
 /* Stat card accent borders */
@@ -2187,7 +2212,9 @@ a.stat, a.dash-stat-link {
   display: block;
   font-size: 0.75rem;
   color: #9ca3af;
-  margin-top: -2px;
+  margin-top: 2px;
+  text-transform: none;
+  letter-spacing: 0;
   margin-bottom: 2px;
   text-transform: none;
   letter-spacing: 0;
@@ -2257,12 +2284,87 @@ a.stat, a.dash-stat-link {
   max-width: 800px;
 }
 
+/* ── Today's Alerts panel ──────────────────────────────── */
+.dash-alerts-panel {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  max-width: 800px;
+}
+
+.dash-alert-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+  line-height: 1.4;
+  transition: background 0.1s;
+}
+
+.dash-alert-item:last-child {
+  border-bottom: none;
+}
+
+.dash-alert-item:hover {
+  background: #f8fafc;
+}
+
+.dash-alert-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dash-alert-dot--red   { background: #dc2626; }
+.dash-alert-dot--amber { background: #f59e0b; }
+.dash-alert-dot--blue  { background: #3b82f6; }
+
+.dash-alert-text {
+  flex: 1;
+  color: #1e293b;
+}
+
+.dash-alert-link {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-decoration: none;
+  white-space: nowrap;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.1s;
+}
+
+.dash-alert-link:hover {
+  color: #0b2d4f;
+}
+
+.dash-alert-clear {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 /* Staff dashboard list rows */
 .staff-dash-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: 4px;
+  max-width: 800px;
+}
+
+/* Balance grid: cap column width so 2-card rows don't stretch wall-to-wall */
+#staffDashBalanceGrid {
+  grid-template-columns: repeat(auto-fill, minmax(155px, 200px));
 }
 
 .staff-dash-request-row {

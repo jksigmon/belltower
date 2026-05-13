@@ -228,8 +228,9 @@ async function loadDashboardStats() {
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
 
   // ── Build all queries synchronously based on capabilities ─────────
-  const in30 = new Date();
-  in30.setDate(in30.getDate() + 30);
+  const in7  = new Date(); in7.setDate(in7.getDate() + 7);
+  const in7Str  = in7.toISOString().slice(0, 10);
+  const in30 = new Date(); in30.setDate(in30.getDate() + 30);
   const in30Str = in30.toISOString().slice(0, 10);
 
   const queries = {
@@ -247,6 +248,14 @@ async function loadDashboardStats() {
       .eq('school_id', schoolId).in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED']);
     queries.staffOut = supabase.from('pto_requests').select('id', { count: 'exact', head: true })
       .eq('school_id', schoolId).eq('status', 'APPROVED').lte('start_date', today).gte('end_date', today);
+    // Named alert queries
+    queries.alertCancels = supabase.from('pto_requests')
+      .select('id, status, employees(first_name, last_name)')
+      .eq('school_id', schoolId).in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED']).limit(8);
+    queries.alertStaffOut = supabase.from('pto_requests')
+      .select('id, pto_type, employees(first_name, last_name)')
+      .eq('school_id', schoolId).eq('status', 'APPROVED')
+      .lte('start_date', today).gte('end_date', today).limit(8);
   }
 
   if (moduleEnabled('substitutes') && p.can_manage_substitutes) {
@@ -254,17 +263,33 @@ async function loadDashboardStats() {
       .eq('school_id', schoolId);
     queries.subToday = supabase.from('substitute_assignments').select('id', { count: 'exact', head: true })
       .eq('school_id', schoolId).eq('status', 'scheduled').eq('start_date', today);
+    // Named alert queries
+    queries.alertCoverage = supabase.from('v_pending_coverage_days')
+      .select('out_first_name, out_last_name, coverage_date, pto_type')
+      .eq('school_id', schoolId).order('coverage_date', { ascending: true }).limit(8);
   }
 
   if (moduleEnabled('licensure') && p.can_manage_licensure) {
     queries.licExpiring = supabase.from('staff_licenses').select('id', { count: 'exact', head: true })
       .eq('school_id', schoolId).eq('alert_muted', false)
       .lte('expiration_date', in30Str).gte('expiration_date', today).neq('status', 'revoked');
+    // Named alert queries — split into critical (≤7d) and warning (8–30d)
+    queries.alertLicCritical = supabase.from('staff_licenses')
+      .select('id, license_type, expiration_date, employees(first_name, last_name)')
+      .eq('school_id', schoolId).eq('alert_muted', false)
+      .lte('expiration_date', in7Str).gte('expiration_date', today)
+      .neq('status', 'revoked').order('expiration_date').limit(8);
+    queries.alertLicWarning = supabase.from('staff_licenses')
+      .select('id, license_type, expiration_date, employees(first_name, last_name)')
+      .eq('school_id', schoolId).eq('alert_muted', false)
+      .gt('expiration_date', in7Str).lte('expiration_date', in30Str)
+      .neq('status', 'revoked').order('expiration_date').limit(8);
   }
 
   if (moduleEnabled('carline') && (p.can_view_carline || p.is_superadmin)) {
-    queries.carline = supabase.from('carline_events').select('status')
-      .eq('school_id', schoolId).eq('event_date', today).neq('status', 'CLOSED').maybeSingle();
+    queries.carline = supabase.from('carline_events')
+      .select('id, status, closed_at, carline_calls(status)')
+      .eq('school_id', schoolId).eq('event_date', today).maybeSingle();
   }
 
   const canSeeHealth = p.is_superadmin || p.can_access_admin || p.can_manage_access;
@@ -338,24 +363,139 @@ async function loadDashboardStats() {
   }
 
   if (r.carline !== undefined) {
-    const statusEl = document.getElementById('statCarlineStatus');
-    if (statusEl) {
-      if (r.carline.data?.status === 'OPEN') {
-        statusEl.textContent = 'OPEN';
-        statusEl.style.color = '#16a34a';
-      } else {
-        statusEl.textContent = 'CLOSED';
-        statusEl.style.color = '#64748b';
+    const event = r.carline.data;
+    if (event) {
+      const calls      = event.carline_calls ?? [];
+      const dismissed  = calls.filter(c => c.status === 'CALLED' || c.status === 'LOADED').length;
+      const issues     = calls.filter(c => c.status === 'RECALLED').length;
+      const isOpen     = event.status === 'OPEN';
+
+      const statusEl    = document.getElementById('statCarlineStatus');
+      const timeEl      = document.getElementById('statCarlineTime');
+      const dismissedEl = document.getElementById('statCarlineDismissed');
+      const issuesEl    = document.getElementById('statCarlineIssues');
+      const cardEl      = document.getElementById('dashCarline');
+
+      if (statusEl) {
+        statusEl.textContent = isOpen ? 'Open' : 'Closed';
+        statusEl.style.color = isOpen ? '#16a34a' : '#64748b';
       }
+      if (timeEl) {
+        if (isOpen) {
+          timeEl.textContent = 'In progress';
+        } else if (event.closed_at) {
+          const t = new Date(event.closed_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+          timeEl.textContent = `Closed at ${t}`;
+        }
+      }
+      if (dismissedEl) {
+        dismissedEl.textContent = `${dismissed} student${dismissed !== 1 ? 's' : ''} dismissed`;
+      }
+      if (issuesEl) {
+        issuesEl.textContent = issues > 0 ? `${issues} issue${issues !== 1 ? 's' : ''}` : '0 issues';
+        issuesEl.style.color = issues > 0 ? '#dc2626' : '';
+      }
+      if (cardEl) {
+        cardEl.className = 'stat' + (issues > 0 && !isOpen ? ' stat-warn' : '');
+      }
+
+      show('dashCarline');
+      show('dashStatus');
     }
-    show('dashCarline');
-    show('dashStatus');
   }
 
   if (r.noFamily !== undefined) {
     set('statNoFamily',     r.noFamily.count ?? 0);     show('dashNoFamily');
     set('statNoSupervisor', r.noSupervisor.count ?? 0); show('dashNoSupervisor');
     show('dashHealth');
+  }
+
+  // ── Today's Alerts panel ──────────────────────────────────────────
+  const canSeeAlerts = p.is_superadmin || p.can_approve_pto || p.can_manage_substitutes || p.can_manage_licensure;
+  if (canSeeAlerts) {
+    const fmtDate = d => {
+      if (d === today) return 'today';
+      const dt = new Date(d + 'T00:00:00');
+      return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+    const daysUntil = d => Math.round((new Date(d + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000);
+    const fullName = e => e ? `${e.first_name} ${e.last_name}` : 'Unknown';
+
+    const alerts = [];
+
+    // 🔴 Coverage gaps (most critical — named, upcoming)
+    (r.alertCoverage?.data ?? []).forEach(row => {
+      alerts.push({
+        level: 'red',
+        text: `${row.out_first_name} ${row.out_last_name} is out ${fmtDate(row.coverage_date)} — no substitute assigned`,
+        href: '/app/substitutes.html'
+      });
+    });
+
+    // 🔴 Licenses expiring within 7 days
+    (r.alertLicCritical?.data ?? []).forEach(lic => {
+      const d = daysUntil(lic.expiration_date);
+      const when = d === 0 ? 'today' : d === 1 ? 'tomorrow' : `in ${d} days`;
+      alerts.push({
+        level: 'red',
+        text: `${fullName(lic.employees)}'s ${lic.license_type} license expires ${when}`,
+        href: '/app/licensure.html'
+      });
+    });
+
+    // 🟡 PTO cancellation / rescission requests
+    (r.alertCancels?.data ?? []).forEach(req => {
+      const action = req.status === 'RESCIND_REQUESTED' ? 'rescind' : 'cancel';
+      alerts.push({
+        level: 'amber',
+        text: `${fullName(req.employees)} has requested to ${action} approved PTO`,
+        href: '/app/pto.html'
+      });
+    });
+
+    // 🟡 Pending PTO count
+    if ((r.ptoPending?.count ?? 0) > 0) {
+      const n = r.ptoPending.count;
+      alerts.push({
+        level: 'amber',
+        text: `${n} PTO request${n === 1 ? '' : 's'} awaiting approval`,
+        href: '/app/pto.html'
+      });
+    }
+
+    // 🟡 Licenses expiring in 8–30 days
+    (r.alertLicWarning?.data ?? []).forEach(lic => {
+      const d = daysUntil(lic.expiration_date);
+      alerts.push({
+        level: 'amber',
+        text: `${fullName(lic.employees)}'s ${lic.license_type} license expires in ${d} days`,
+        href: '/app/licensure.html'
+      });
+    });
+
+    // 🔵 Staff out today (informational)
+    (r.alertStaffOut?.data ?? []).forEach(req => {
+      alerts.push({
+        level: 'blue',
+        text: `${fullName(req.employees)} is out today — ${req.pto_type}`,
+        href: '/app/pto.html'
+      });
+    });
+
+    const list = document.getElementById('dashAlertsList');
+    const allClear = document.getElementById('dashAlertsAllClear');
+    if (alerts.length === 0) {
+      allClear.style.display = '';
+    } else {
+      list.innerHTML = alerts.map(a =>
+        `<div class="dash-alert-item">` +
+        `<span class="dash-alert-dot dash-alert-dot--${a.level}"></span>` +
+        `<span class="dash-alert-text">${a.text}</span>` +
+        `<a href="${a.href}" class="dash-alert-link">View →</a>` +
+        `</div>`
+      ).join('');
+    }
+    show('dashAlertsSection');
   }
 
   // ── Reveal everything at once ─────────────────────────────────────
