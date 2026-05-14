@@ -1,4 +1,5 @@
 import { supabase } from './admin.supabase.js';
+import { initUserMenu } from './user-menu.js';
 
 /* ─────────────────────────────────────────────────────
    STATE
@@ -36,9 +37,7 @@ async function init() {
   }
 
   currentProfile = profile;
-
-  const nameEl = document.getElementById('licAdminName');
-  if (nameEl) nameEl.textContent = profile.display_name ?? profile.email;
+  initUserMenu(profile.display_name ?? profile.email);
 
   await Promise.all([loadCampuses(), loadEmployees()]);
   populateCampusSelects();

@@ -3153,6 +3153,118 @@ a.stat, a.dash-stat-link {
   font-weight: 800 !important;
 }
 
+/* ── User Avatar Menu ───────────────────────────── */
+.user-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--primary, #2563eb);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border: 2px solid rgba(255,255,255,0.25);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s, box-shadow 0.15s;
+  flex-shrink: 0;
+  padding: 0;
+}
+.user-avatar:hover {
+  opacity: 0.88;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.30);
+}
+.user-avatar[aria-expanded="true"] {
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.40);
+}
+
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 196px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.13), 0 2px 6px rgba(0,0,0,0.06);
+  padding: 6px;
+  z-index: 9999;
+  animation: userDropdownIn 0.13s ease;
+}
+.user-dropdown[hidden] { display: none; }
+
+@keyframes userDropdownIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.user-dropdown-header {
+  padding: 10px 12px 10px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 4px;
+}
+
+.user-dropdown-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.1s, color 0.1s;
+  text-align: left;
+  font-family: inherit;
+  line-height: 1;
+}
+.user-dropdown-item:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+.user-dropdown-item svg {
+  flex-shrink: 0;
+  color: #6b7280;
+}
+
+.user-dropdown-divider {
+  height: 1px;
+  background: #f1f5f9;
+  margin: 4px 0;
+}
+
+.user-dropdown-item.signout {
+  color: #dc2626;
+}
+.user-dropdown-item.signout:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.user-dropdown-item.signout svg {
+  color: currentColor;
+}
+
 /* Grade level badge (students directory) */
 .grade-badge {
   display: inline-flex;

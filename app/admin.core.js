@@ -1,4 +1,5 @@
 import { supabase } from './admin.supabase.js';
+import { initUserMenu } from './user-menu.js';
 
 let currentProfile = null;
 let currentModules = {}; // { pto: true, substitutes: false, ... }
@@ -37,6 +38,7 @@ const { data: profile, error } = await supabase
   }
 
   currentProfile = profile;
+  initUserMenu(profile.display_name ?? profile.email);
 
   // Load school modules before gating nav
   const { data: moduleRows } = await supabase
