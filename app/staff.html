@@ -205,6 +205,24 @@
   flex: 1;
 }
 
+/* Access request checkboxes */
+.ar-check-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  padding: 4px 0;
+}
+.ar-check-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  accent-color: var(--primary, #2563eb);
+}
+
 /* ── Mid-range ── */
 @media (min-width: 768px) and (max-width: 1100px) {
   .pto-fields-grid {
@@ -293,11 +311,12 @@
 
 <div class="wrap">
 
-<nav>
+<nav id="staffNav" class="nav hidden">
   <a href="#dashboard"><i data-lucide="home"></i> Home</a>
   <a href="#pto"        data-module="pto"><i data-lucide="calendar"></i> PTO</a>
   <a href="/carline.html" data-module="carline"><i data-lucide="car"></i> Carline</a>
   <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
+  <a href="#access-request"><i data-lucide="key"></i> Request Access</a>
 </nav>
 
 
@@ -500,6 +519,35 @@
       <div id="staffLicenseList">
         <p style="color:#9ca3af;text-align:center;padding:32px 0;">Loading…</p>
       </div>
+    </section>
+
+    <!-- ── Request Access ─────────────────────────── -->
+    <section id="access-request" style="display:none;">
+
+      <div class="panel panel-action">
+        <h3>Request Access</h3>
+        <p class="muted" style="margin-bottom:18px;">Select the features you need access to and briefly explain why. An administrator will review your request.</p>
+
+        <div id="arPermissionsList" style="display:flex;flex-direction:column;margin-bottom:18px;"></div>
+
+        <div class="pto-field" style="margin-bottom:18px;">
+          <span class="pto-field-label">Reason / Context</span>
+          <textarea id="arReason" placeholder="Briefly explain why you need this access…"></textarea>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span id="arSubmitMsg" style="font-size:13px;color:#dc2626;flex:1;"></span>
+          <button id="arSubmitBtn" class="btn btn-primary">Submit Request</button>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px;">
+        <h4>My Requests</h4>
+        <div id="myAccessRequests">
+          <p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>
+        </div>
+      </div>
+
     </section>
 
   </main>
@@ -921,6 +969,7 @@ if (backToAdmin && cameFromAdminContext() && hasAdminAccess(currentProfile)) {
 
 
   applyModuleNavVisibility();
+  document.getElementById('staffNav')?.classList.remove('hidden');
 
   setActive('#dashboard');
   window.scrollTo(0, 0);
@@ -1003,9 +1052,10 @@ function setActive(hash) {
   history.replaceState(null, '', hash);
 
   const subtitle = document.getElementById('pageSubtitle');
-  if (hash === '#dashboard') subtitle.textContent = '';
-  if (hash === '#pto')       subtitle.textContent = 'PTO & Leave';
-  if (hash === '#licensure') subtitle.textContent = 'My Licenses';
+  if (hash === '#dashboard')       subtitle.textContent = '';
+  if (hash === '#pto')             subtitle.textContent = 'PTO & Leave';
+  if (hash === '#licensure')       subtitle.textContent = 'My Licenses';
+  if (hash === '#access-request')  subtitle.textContent = 'Request Access';
 
   document.querySelectorAll('nav a').forEach(function (a) {
     a.classList.toggle('active', a.getAttribute('href') === hash);
@@ -1022,7 +1072,8 @@ function setActive(hash) {
     ptoSectionLoaded = true;
     loadPtoSection();
   }
-  if (hash === '#licensure') loadMyLicenses();
+  if (hash === '#licensure')      loadMyLicenses();
+  if (hash === '#access-request') { buildAccessRequestOptions(); loadMyAccessRequests(); }
 }
 
 async function loadMyLicenses() {
@@ -1904,6 +1955,152 @@ function wireSubCoverageUI() {
   // initialize
   update();
 }
+
+/* ── Access Requests ── */
+
+const ACCESS_REQUEST_OPTIONS = [
+  { label: 'PTO Calendar',                          module: 'pto' },
+  { label: 'PTO Approval (review & approve)',       module: 'pto' },
+  { label: 'View Carline',                          module: 'carline' },
+  { label: 'Manage Carline (start/close sessions)', module: 'carline' },
+  { label: 'Manage Substitutes',                    module: 'substitutes' },
+  { label: 'Manage Students',                       module: 'students' },
+  { label: 'Manage Staff',                          module: 'staff' },
+  { label: 'Manage Licensure',                      module: 'licensure' },
+  { label: 'Admin Portal Access',                   module: null },
+  { label: 'Export Data',                           module: null },
+  { label: 'Bulk Upload',                           module: null },
+];
+
+function buildAccessRequestOptions() {
+  const container = document.getElementById('arPermissionsList');
+  if (!container) return;
+
+  const visible = ACCESS_REQUEST_OPTIONS.filter(opt =>
+    !opt.module || window.staffModules?.[opt.module] === true
+  );
+
+  container.innerHTML = visible.map(opt =>
+    `<label class="ar-check-label"><input type="checkbox" value="${opt.label}"> ${opt.label}</label>`
+  ).join('');
+}
+
+async function loadMyAccessRequests() {
+  const container = document.getElementById('myAccessRequests');
+  if (!container) return;
+
+  const { data, error } = await supabase
+    .from('access_requests')
+    .select('id, requested_permissions, reason, status, admin_note, created_at')
+    .eq('employee_id', currentProfile.employee_id)
+    .order('created_at', { ascending: false });
+
+  if (error || !data?.length) {
+    container.innerHTML = '<p class="muted" style="text-align:center;padding:20px 0;">No requests yet.</p>';
+    return;
+  }
+
+  const statusBadge = {
+    pending:  ['#fef3c7', '#92400e', 'Pending'],
+    approved: ['#dcfce7', '#15803d', 'Approved'],
+    denied:   ['#fee2e2', '#991b1b', 'Denied'],
+  };
+
+  container.innerHTML = data.map(req => {
+    const [bg, color, label] = statusBadge[req.status] ?? ['#f1f5f9', '#374151', req.status];
+    const perms = (req.requested_permissions ?? []).join(', ') || '—';
+    const date  = new Date(req.created_at).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric'
+    });
+    const noteHTML = req.admin_note
+      ? `<div style="margin-top:8px;padding:8px 12px;background:#f8fafc;border-left:3px solid #cbd5e1;border-radius:4px;font-size:13px;color:#374151;"><strong>Admin note:</strong> ${escHtml(req.admin_note)}</div>`
+      : '';
+    const withdrawBtn = req.status === 'pending'
+      ? `<button class="ar-withdraw-btn" data-id="${req.id}" style="margin-top:8px;background:none;border:1px solid #fca5a5;border-radius:6px;color:#dc2626;font-size:12px;font-weight:600;padding:3px 10px;cursor:pointer;">Withdraw</button>`
+      : '';
+    return `
+      <div style="padding:12px 0;border-bottom:1px solid #f1f5f9;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+          <span style="font-size:13px;font-weight:600;">${escHtml(perms)}</span>
+          <span style="background:${bg};color:${color};padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;">${label}</span>
+          <span class="muted" style="margin-left:auto;font-size:12px;">${date}</span>
+        </div>
+        ${req.reason ? `<div style="font-size:13px;color:#6b7280;">${escHtml(req.reason)}</div>` : ''}
+        ${noteHTML}
+        ${withdrawBtn}
+      </div>`;
+  }).join('');
+}
+
+document.getElementById('myAccessRequests')?.addEventListener('click', async e => {
+  const btn = e.target.closest('.ar-withdraw-btn');
+  if (!btn) return;
+  if (!confirm('Withdraw this request?')) return;
+
+  btn.disabled = true;
+  const { error, count } = await supabase
+    .from('access_requests')
+    .delete({ count: 'exact' })
+    .eq('id', btn.dataset.id);
+
+  if (error || count === 0) {
+    alert(error ? 'Failed to withdraw: ' + error.message : 'Could not withdraw this request. Please contact an administrator.');
+    btn.disabled = false;
+    return;
+  }
+
+  showToast('Request withdrawn');
+  await loadMyAccessRequests();
+});
+
+function escHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+document.getElementById('arSubmitBtn')?.addEventListener('click', async () => {
+  const checked = [...document.querySelectorAll('#access-request .ar-check-label input:checked')]
+    .map(el => el.value);
+  const reason = document.getElementById('arReason').value.trim();
+  const msgEl  = document.getElementById('arSubmitMsg');
+
+  if (!checked.length) {
+    msgEl.textContent = 'Please select at least one permission to request.';
+    return;
+  }
+  msgEl.textContent = '';
+
+  const btn = document.getElementById('arSubmitBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Submitting…';
+
+  const { error } = await supabase.from('access_requests').insert({
+    school_id:               currentProfile.school_id,
+    employee_id:             currentProfile.employee_id,
+    requested_permissions:   checked,
+    reason:                  reason || null,
+    status:                  'pending'
+  });
+
+  btn.disabled    = false;
+  btn.textContent = 'Submit Request';
+
+  if (error) {
+    msgEl.textContent = 'Failed to submit. Please try again.';
+    console.error(error);
+    return;
+  }
+
+  document.querySelectorAll('#access-request .ar-check-label input:checked')
+    .forEach(el => { el.checked = false; });
+  document.getElementById('arReason').value = '';
+
+  showToast('Access request submitted');
+  await loadMyAccessRequests();
+});
 
 //Button Wirings
 document

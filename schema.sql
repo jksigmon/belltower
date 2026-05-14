@@ -3122,6 +3122,91 @@ ALTER TABLE public.substitute_assignments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.substitutes ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: access_requests; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.access_requests (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    school_id uuid NOT NULL REFERENCES public.schools(id),
+    employee_id uuid NOT NULL REFERENCES public.employees(id),
+    requested_permissions text[] NOT NULL DEFAULT '{}',
+    reason text,
+    status text NOT NULL DEFAULT 'pending',
+    admin_note text,
+    reviewed_by uuid,
+    created_at timestamp with time zone NOT NULL DEFAULT now(),
+    updated_at timestamp with time zone NOT NULL DEFAULT now(),
+    CONSTRAINT access_requests_pkey PRIMARY KEY (id),
+    CONSTRAINT access_requests_status_check CHECK (status = ANY (ARRAY['pending'::text, 'approved'::text, 'denied'::text]))
+);
+
+ALTER TABLE public.access_requests ENABLE ROW LEVEL SECURITY;
+
+-- Staff can view their own requests
+CREATE POLICY access_requests_self_read ON public.access_requests
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.user_id = auth.uid()
+              AND p.status = 'active'
+              AND p.employee_id = access_requests.employee_id
+        )
+    );
+
+-- Staff can submit requests for themselves
+CREATE POLICY access_requests_self_insert ON public.access_requests
+    FOR INSERT WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.user_id = auth.uid()
+              AND p.status = 'active'
+              AND p.school_id = access_requests.school_id
+              AND p.employee_id = access_requests.employee_id
+        )
+    );
+
+-- Admins can view all requests for their school
+CREATE POLICY access_requests_admin_read ON public.access_requests
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.user_id = auth.uid()
+              AND p.status = 'active'
+              AND (p.is_superadmin = true OR (p.can_manage_access = true AND p.school_id = access_requests.school_id))
+        )
+    );
+
+-- Admins can update (approve/deny) requests
+CREATE POLICY access_requests_admin_update ON public.access_requests
+    FOR UPDATE USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.user_id = auth.uid()
+              AND p.status = 'active'
+              AND (p.is_superadmin = true OR (p.can_manage_access = true AND p.school_id = access_requests.school_id))
+        )
+    ) WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.user_id = auth.uid()
+              AND p.status = 'active'
+              AND (p.is_superadmin = true OR (p.can_manage_access = true AND p.school_id = access_requests.school_id))
+        )
+    );
+
+-- Staff can withdraw (delete) their own pending requests
+CREATE POLICY access_requests_self_delete ON public.access_requests
+    FOR DELETE USING (
+        status = 'pending'
+        AND EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.user_id = auth.uid()
+              AND p.status = 'active'
+              AND p.employee_id = access_requests.employee_id
+        )
+    );
+
+--
 -- PostgreSQL database dump complete
 --
 

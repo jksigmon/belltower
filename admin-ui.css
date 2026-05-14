@@ -951,6 +951,12 @@ table tr:hover {
   background: var(--primary-hover);
 }
 
+.btn-sm {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+  border-radius: 6px;
+}
 
 /* =============================================
    Forms
@@ -3072,6 +3078,10 @@ a.stat, a.dash-stat-link {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.confirm-modal-actions .btn-primary {
+  height: 34px;
 }
 
 /* Carline tag badge (families directory) */

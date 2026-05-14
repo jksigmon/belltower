@@ -62,6 +62,17 @@ document.getElementById('dashboardSchool').textContent =
   // Apply permissions + module gates before anything is visible
   gateNavigation();
 
+  // Load access request badge count for admins
+  if (currentProfile.can_manage_access || currentProfile.is_superadmin) {
+    const { count } = await supabase
+      .from('access_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('school_id', currentProfile.school_id)
+      .eq('status', 'pending');
+    const badge = document.getElementById('accessRequestBadge');
+    if (badge && count > 0) badge.textContent = String(count);
+  }
+
   // Resolve initial route FIRST
   await setActive(location.hash || '#dashboard');
 
@@ -130,6 +141,8 @@ if (target === '#bus') {
 if (target === '#access') {
   const access = await import('./admin.access.js');
   await access.initAccessSection(currentProfile, currentModules);
+  const accessReqs = await import('./admin.access-requests.js');
+  await accessReqs.initAccessRequests(currentProfile);
 }
 
 if (target === '#bulk-upload') {
@@ -292,6 +305,13 @@ async function loadDashboardStats() {
       .eq('school_id', schoolId).eq('event_date', today).maybeSingle();
   }
 
+  if (p.can_manage_access || p.is_superadmin) {
+    queries.accessRequests = supabase.from('access_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('school_id', schoolId)
+      .eq('status', 'pending');
+  }
+
   const canSeeHealth = p.is_superadmin || p.can_access_admin || p.can_manage_access;
   if (canSeeHealth) {
     queries.noFamily     = supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).is('family_id', null);
@@ -411,7 +431,7 @@ async function loadDashboardStats() {
   }
 
   // ── Today's Alerts panel ──────────────────────────────────────────
-  const canSeeAlerts = p.is_superadmin || p.can_approve_pto || p.can_manage_substitutes || p.can_manage_licensure;
+  const canSeeAlerts = p.is_superadmin || p.can_approve_pto || p.can_manage_substitutes || p.can_manage_licensure || p.can_manage_access;
   if (canSeeAlerts) {
     const fmtDate = d => {
       if (d === today) return 'today';
@@ -442,6 +462,16 @@ async function loadDashboardStats() {
         href: '/app/licensure.html'
       });
     });
+
+    // 🟡 Pending access requests
+    if ((r.accessRequests?.count ?? 0) > 0) {
+      const n = r.accessRequests.count;
+      alerts.push({
+        level: 'amber',
+        text: `${n} access request${n === 1 ? '' : 's'} pending review`,
+        href: '/admin.html#access'
+      });
+    }
 
     // 🟡 PTO cancellation / rescission requests
     (r.alertCancels?.data ?? []).forEach(req => {

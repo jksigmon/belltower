@@ -189,7 +189,9 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
       return;
     }
 
-    const rows = data.map(r => flattenRow(r));
+    const rows = data.map(r =>
+      typeof config.exportRow === 'function' ? config.exportRow(r) : flattenRow(r)
+    );
     const worksheet = XLSX.utils.json_to_sheet(rows);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Export');

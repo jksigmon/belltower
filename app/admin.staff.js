@@ -57,6 +57,17 @@ export async function initStaffSection(profile) {
 
       defaultSort: { column: 'last_name', ascending: true },
 
+      exportRow: (emp) => ({
+        'First Name':        emp.first_name ?? '',
+        'Last Name':         emp.last_name ?? '',
+        'Email':             emp.email ?? '',
+        'Position':          emp.position ?? '',
+        'Active':            emp.active ? 'Yes' : 'No',
+        'Supervisor':        supervisorLookup[emp.supervisor_id] ?? '',
+        'Campus':            campusLookup[emp.campus_id] ?? '',
+        'Employment Months': emp.employment_months ?? '',
+      }),
+
       tbodySelector: '#staffTable tbody',
       paginationContainer: '#staffPagination',
       renderRow: renderStaffRow

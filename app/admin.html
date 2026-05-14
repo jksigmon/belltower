@@ -275,7 +275,7 @@
       <a href="#bus" data-cap="can_manage_bus_groups" data-module="bus_groups"><i data-lucide="bus"></i> Bus Groups</a>
 
       <div class="nav-section">Settings</div>
-      <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access</a>
+      <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access <span class="badge-count" id="accessRequestBadge"></span></a>
       <a href="#bulk-upload" data-cap="can_bulk_upload"><i data-lucide="upload"></i> Bulk Upload</a>
       <a href="#exports" data-cap="can_export_data"><i data-lucide="download"></i> Exports</a>
     </nav>
@@ -501,12 +501,6 @@
     <!-- User selection -->
     <div class="panel panel-action">
       <h3>User Access & Permissions</h3>
- 
-
-<small class="muted" style="opacity:0.75;">
-  Only staff who have signed in will appear in this list.
-</small>
-
 
       <div class="admin-form-row compact">
         <select id="accessUserSelect">
@@ -575,6 +569,25 @@
 </div>
       </div>
 
+    </div>
+
+    <!-- Access Requests -->
+    <div class="panel" id="accessRequestsPanel" style="margin-top:16px;">
+      <h4>Access Requests</h4>
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Requested</th>
+            <th>Reason</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="accessRequestsBody">
+          <tr><td colspan="5" class="muted">Loading…</td></tr>
+        </tbody>
+      </table>
     </div>
 
     <!-- ✅ Pending users (GLOBAL, stays visible) -->
@@ -1698,6 +1711,41 @@
   window.closeDrawer = closeDrawer;
   window.closeAllDrawers = closeAllDrawers;
 </script>
+
+<!-- Access Request Review Modal -->
+<div id="arReviewModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog" style="max-width:480px;">
+    <h3 class="confirm-modal-title" id="arReviewTitle">Review Access Request</h3>
+    <p class="confirm-modal-body">
+      Reviewing request from <strong id="arReviewEmployee"></strong>.
+    </p>
+    <div style="margin:12px 0;">
+      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151;">Reply / Note <span style="font-weight:400;color:#9ca3af;">(optional)</span></label>
+      <textarea id="arAdminNote"
+        style="width:100%;box-sizing:border-box;height:80px;padding:8px 10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;outline:none;"
+        placeholder="Add a message for the employee…"></textarea>
+    </div>
+    <div class="confirm-modal-actions">
+      <button id="arReviewCancel" class="btn">Cancel</button>
+      <button id="arReviewConfirm" class="btn btn-primary">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Access Request Approval Reminder Modal -->
+<div id="arReminderModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog" style="max-width:440px;">
+    <h3 class="confirm-modal-title" style="color:#d97706;">Action Required</h3>
+    <div class="confirm-modal-body" style="display:flex;flex-direction:column;gap:10px;">
+      <p><strong id="arReminderName"></strong>'s request has been approved and a reply has been saved.</p>
+      <p>Don't forget to <strong>manually grant the requested permissions</strong> in their profile above:</p>
+      <p style="background:#fef3c7;padding:10px 14px;border-radius:8px;font-size:13px;color:#78350f;font-weight:500;" id="arReminderPerms"></p>
+    </div>
+    <div class="confirm-modal-actions">
+      <button id="arReminderClose" class="btn btn-primary">Got it — I'll grant their permissions now</button>
+    </div>
+  </div>
+</div>
 
 <script type="module" src="/app/admin.core.js"></script>
 <script type="module">
