@@ -198,8 +198,9 @@ let allStudents  = [];
 let allBusGroups = [];
 let allCampuses  = [];
 let activeCampusId = null;    // null = no campus filter (school-wide)
-let familyTagMap = new Map(); // family_id → tag_number
-let tagFamilyMap = new Map(); // tag_number → family_id
+let familyTagMap  = new Map(); // family_id → tag_number  (individual family tags)
+let tagFamilyMap  = new Map(); // tag_number → family_id  (individual family lookup)
+let carpoolTagMap = new Map(); // tag_number → [family_id, ...]  (carpool lookup)
 let callStatus   = new Map(); // student_id → status
 let undoStack    = [];        // [{ studentIds, prevStatus }]
 let recentCalls  = [];        // [{ tag, names, type, time, ts, isRecall }]
@@ -237,7 +238,7 @@ async function boot() {
   }
 
   console.log('[boot] 5 - loading data');
-  await Promise.all([ loadStudents(), loadBusGroups(), loadFamilyTags(), loadCampuses() ]);
+  await Promise.all([ loadStudents(), loadBusGroups(), loadFamilyTags(), loadCarpoolTags(), loadCampuses() ]);
   console.log('[boot] 6 - data loaded, students:', allStudents.length);
 
   // Default campus from employee assignment
@@ -306,6 +307,20 @@ async function loadFamilyTags() {
       familyTagMap.set(f.id, tag);
       tagFamilyMap.set(tag, f.id);
     }
+  });
+}
+
+async function loadCarpoolTags() {
+  const { data } = await supabase
+    .from('carpools')
+    .select('tag_number, carline_tags ( family_id )')
+    .eq('school_id', profile.school_id)
+    .eq('active', true);
+  carpoolTagMap.clear();
+  (data || []).forEach(cp => {
+    const tag       = String(cp.tag_number);
+    const familyIds = (cp.carline_tags || []).map(ct => ct.family_id).filter(Boolean);
+    if (familyIds.length) carpoolTagMap.set(tag, familyIds);
   });
 }
 
@@ -480,25 +495,30 @@ async function callByTag(tag, isRecall = false) {
     showToast('Dismissal is not open'); return;
   }
 
-  const familyId = tagFamilyMap.get(tag);
-  if (!familyId) { showToast(`Tag ${tag} not found`); return; }
+  // Carpool tags take precedence over individual family tags
+  let familyIds = carpoolTagMap.get(tag);
+  if (!familyIds) {
+    const fid = tagFamilyMap.get(tag);
+    if (!fid) { showToast(`Tag ${tag} not found`); return; }
+    familyIds = [fid];
+  }
 
   const students = allStudents.filter(s =>
-    s.family_id === familyId &&
+    familyIds.includes(s.family_id) &&
     (activeCampusId === null || s.campus_id === activeCampusId)
   );
   if (!students.length) { showToast(`Tag ${tag}: no students at this campus`); return; }
 
   if (isRecall) {
-    await recallStudents(students, familyId, tag);
+    await recallStudents(students, familyIds, tag);
   } else {
-    await callStudents(students, familyId, tag, 'FAMILY');
+    await callStudents(students, familyIds, tag, 'FAMILY');
   }
 
   clearTag();
 }
 
-async function callStudents(students, familyId, tag, callType) {
+async function callStudents(students, familyIds, tag, callType) {
   const prevStatuses = students.map(s => ({ id: s.id, prev: callStatus.get(s.id) ?? 'WAITING' }));
   const now = new Date().toISOString();
 
@@ -506,7 +526,7 @@ async function callStudents(students, familyId, tag, callType) {
     school_id: profile.school_id,
     carline_event_id: currentEvent.id,
     student_id: s.id,
-    family_id: familyId ?? s.family_id,
+    family_id: s.family_id,
     call_type: callType,
     status: 'CALLED',
     called_at: now,
@@ -530,14 +550,14 @@ async function callStudents(students, familyId, tag, callType) {
   updateBusButtonStates();
 }
 
-async function recallStudents(students, familyId, tag) {
+async function recallStudents(students, familyIds, tag) {
   const prevStatuses = students.map(s => ({ id: s.id, prev: callStatus.get(s.id) ?? 'WAITING' }));
 
   const { error } = await supabase
     .from('carline_calls')
     .update({ status: 'RECALLED', recalled_at: new Date().toISOString() })
     .eq('carline_event_id', currentEvent.id)
-    .eq('family_id', familyId)
+    .in('family_id', familyIds)
     .in('status', ['CALLED', 'WAITING']);
 
   if (error) { showToast('Recall failed'); return; }
@@ -565,7 +585,7 @@ async function callBusGroup(busGroupId) {
   if (!students.length) { showToast('No students in this bus group'); return; }
 
   const group = allBusGroups.find(b => b.id === busGroupId);
-  await callStudents(students, null, group?.name ?? 'Bus', 'BUS');
+  await callStudents(students, [], group?.name ?? 'Bus', 'BUS');
 }
 
 async function undoLast() {
@@ -597,11 +617,14 @@ async function undoLast() {
 async function undoByTag() {
   const tag = prompt('Enter tag number to undo:');
   if (!tag) return;
-  const familyId = tagFamilyMap.get(tag.trim());
-  if (!familyId) { showToast(`Tag ${tag} not found`); return; }
+  const trimmed = tag.trim();
+
+  const familyIds = carpoolTagMap.get(trimmed) ??
+    (tagFamilyMap.get(trimmed) ? [tagFamilyMap.get(trimmed)] : null);
+  if (!familyIds) { showToast(`Tag ${tag} not found`); return; }
 
   const students = allStudents.filter(s =>
-    s.family_id === familyId &&
+    familyIds.includes(s.family_id) &&
     (activeCampusId === null || s.campus_id === activeCampusId)
   );
   if (!students.length) { showToast(`No students for tag ${tag} at this campus`); return; }
@@ -610,7 +633,7 @@ async function undoByTag() {
     .from('carline_calls')
     .update({ status: 'WAITING' })
     .eq('carline_event_id', currentEvent.id)
-    .eq('family_id', familyId);
+    .in('family_id', familyIds);
 
   if (error) { showToast('Undo failed'); return; }
   students.forEach(s => callStatus.set(s.id, 'WAITING'));

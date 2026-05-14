@@ -792,13 +792,83 @@ CREATE TABLE public.carline_events (
 -- Name: carline_tags; Type: TABLE; Schema: public; Owner: -
 --
 
+-- carpools: one record per shared carpool tag
+CREATE TABLE public.carpools (
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
+    school_id uuid NOT NULL REFERENCES public.schools(id),
+    tag_number text NOT NULL,
+    label text,
+    active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT carpools_pkey PRIMARY KEY (id),
+    CONSTRAINT carpools_school_tag_unique UNIQUE (school_id, tag_number)
+);
+
+ALTER TABLE public.carpools ENABLE ROW LEVEL SECURITY;
+
+-- Carline operators can read carpools for their school
+CREATE POLICY carpools_read ON public.carpools
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.user_id = auth.uid()
+              AND p.status = 'active'
+              AND p.school_id = carpools.school_id
+              AND (p.can_view_carline = true OR p.can_manage_carline = true
+                   OR p.can_manage_carpools = true OR p.is_superadmin = true)
+        )
+    );
+
+-- Carpool admins can create, edit, and delete carpools
+CREATE POLICY carpools_admin_write ON public.carpools
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.user_id = auth.uid()
+              AND p.status = 'active'
+              AND (p.is_superadmin = true
+                   OR (p.can_manage_carpools = true AND p.school_id = carpools.school_id))
+        )
+    );
+
+-- carline_tags: maps a carpool to its member families (replaces old school_id/tag_number structure)
 CREATE TABLE public.carline_tags (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
-    school_id uuid NOT NULL,
-    family_id uuid NOT NULL,
-    tag_number text NOT NULL,
-    active boolean DEFAULT true NOT NULL
+    carpool_id uuid NOT NULL REFERENCES public.carpools(id) ON DELETE CASCADE,
+    family_id uuid NOT NULL REFERENCES public.families(id) ON DELETE CASCADE,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT carline_tags_pkey PRIMARY KEY (id),
+    CONSTRAINT carline_tags_carpool_family_unique UNIQUE (carpool_id, family_id)
 );
+
+ALTER TABLE public.carline_tags ENABLE ROW LEVEL SECURITY;
+
+-- Carline operators can read tag assignments
+CREATE POLICY carline_tags_read ON public.carline_tags
+    FOR SELECT USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            JOIN public.carpools c ON c.id = carline_tags.carpool_id
+            WHERE p.user_id = auth.uid()
+              AND p.status = 'active'
+              AND p.school_id = c.school_id
+              AND (p.can_view_carline = true OR p.can_manage_carline = true
+                   OR p.can_manage_carpools = true OR p.is_superadmin = true)
+        )
+    );
+
+-- Carpool admins can manage tag assignments
+CREATE POLICY carline_tags_admin_write ON public.carline_tags
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.profiles p
+            JOIN public.carpools c ON c.id = carline_tags.carpool_id
+            WHERE p.user_id = auth.uid()
+              AND p.status = 'active'
+              AND (p.is_superadmin = true
+                   OR (p.can_manage_carpools = true AND p.school_id = c.school_id))
+        )
+    );
 
 
 --
@@ -899,6 +969,7 @@ CREATE TABLE public.profiles (
     can_manage_substitutes boolean DEFAULT false NOT NULL,
     can_manage_students boolean DEFAULT false NOT NULL,
     can_manage_bus_groups boolean DEFAULT false NOT NULL,
+    can_manage_carpools boolean DEFAULT false NOT NULL,
     can_export_data boolean DEFAULT false NOT NULL,
     can_manage_licensure boolean DEFAULT false NOT NULL,
     id uuid DEFAULT gen_random_uuid() NOT NULL

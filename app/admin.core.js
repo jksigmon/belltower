@@ -138,6 +138,11 @@ if (target === '#bus') {
   await busGroups.initBusGroupsSection(currentProfile);
 }
 
+if (target === '#carpools') {
+  const carpools = await import('./admin.carpools.js');
+  await carpools.initCarpoolsSection(currentProfile);
+}
+
 if (target === '#access') {
   const access = await import('./admin.access.js');
   await access.initAccessSection(currentProfile, currentModules);
