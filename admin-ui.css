@@ -2469,14 +2469,65 @@ a.stat, a.dash-stat-link {
 
 .pagination {
   display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-  margin-top: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  gap: 8px;
 }
 
-.pagination button {
-  min-width: 32px;
-  height: 32px;
+.pagination-info {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.pagination-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 7px;
+  border-radius: 7px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #374151;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 80ms, border-color 80ms, color 80ms;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #d1d5db;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.pagination-active {
+  background: var(--primary, #2563eb) !important;
+  color: #fff !important;
+  border-color: var(--primary, #2563eb) !important;
+  font-weight: 600;
+}
+
+.pagination-ellipsis {
+  color: #9ca3af;
+  font-size: 0.82rem;
+  padding: 0 3px;
+  user-select: none;
 }
 
 .directory-header {
@@ -2497,7 +2548,7 @@ a.stat, a.dash-stat-link {
 
 .directory-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   flex-shrink: 0;
 }
@@ -2507,9 +2558,68 @@ a.stat, a.dash-stat-link {
   height: 34px;
 }
 
-.directory-header select,
-.directory-header input {
-  min-width: 140px;
+/* ── Search input — icon + clean styling ── */
+.directory-filters input[type="text"] {
+  height: 36px;
+  min-width: 180px;
+  padding: 0 10px 0 34px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 10px center;
+  background-size: 14px 14px;
+  transition: border-color 100ms, box-shadow 100ms;
+}
+
+.directory-filters input[type="text"]:focus {
+  outline: none;
+  border-color: var(--primary, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* ── Filter + sort selects — custom arrow ── */
+.directory-header select {
+  height: 36px;
+  min-width: 130px;
+  padding: 0 28px 0 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 13px;
+  background-color: #fff;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 11px 11px;
+  cursor: pointer;
+  transition: border-color 100ms;
+  color: var(--text, #111827);
+}
+
+.directory-header select:focus {
+  outline: none;
+  border-color: var(--primary, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* ── Export buttons — ghost outline style ── */
+.directory-actions .btn:not(.btn-primary) {
+  background: transparent;
+  border: 1px solid #d1d5db;
+  color: #4b5563;
+  font-size: 0.81rem;
+  font-weight: 600;
+  height: 34px;
+}
+
+.directory-actions .btn:not(.btn-primary):hover {
+  background: #f8fafc;
+  border-color: #9ca3af;
+  color: #111827;
 }
 
 
@@ -2747,5 +2857,269 @@ a.stat, a.dash-stat-link {
     font-size: 13px;
     margin-bottom: 16px;
   }
+}
+
+/* =============================================
+   Staff Directory — Premium UI
+   ============================================= */
+
+/* Avatar circle */
+.staff-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+  user-select: none;
+}
+.staff-avatar-lg {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+  user-select: none;
+}
+
+/* Name cell layout */
+.staff-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.staff-name-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.staff-fullname {
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.staff-inactive-badge {
+  display: inline-block;
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+  font-size: 0.67rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  width: fit-content;
+}
+
+/* Position pill */
+.staff-position-badge {
+  display: inline-block;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  font-size: 0.73rem;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-weight: 500;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Contract type badges */
+.contract-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+.contract-badge.mo-10 {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+.contract-badge.mo-11 {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+.contract-badge.mo-12 {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+/* Table cell helpers */
+.staff-cell-muted { color: var(--text-muted, #6b7280); font-size: 0.875rem; }
+.staff-cell-email { color: var(--text-muted, #6b7280); font-size: 0.85rem; }
+.staff-cell-chevron { color: #d1d5db; text-align: right; width: 28px; }
+
+/* Clickable rows */
+.dir-row-link { cursor: pointer; transition: background 80ms; }
+.dir-row-link:hover td { background: #f8fafc !important; }
+.dir-row-link:hover .staff-cell-chevron { color: var(--primary, #2563eb); }
+.dir-row-link td { vertical-align: middle; }
+
+/* Edit staff drawer — persona header */
+.staff-drawer-person {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+.staff-drawer-person h3 {
+  margin: 0 0 2px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.staff-drawer-subtitle {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Active toggle row */
+.staff-active-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text);
+  padding: 10px 0 2px;
+}
+.staff-active-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary, #2563eb);
+  flex-shrink: 0;
+}
+
+/* Drawer footer split layout (delete left, save/cancel right) */
+.drawer-footer-split {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-top: 1px solid #e5e7eb;
+  flex-shrink: 0;
+}
+.drawer-footer-split .btn,
+.drawer-footer-split .btn-primary {
+  height: 34px;
+}
+
+/* Delete confirmation modal */
+.confirm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.confirm-modal-overlay[hidden] { display: none !important; }
+.confirm-modal-dialog {
+  background: var(--surface, #fff);
+  border-radius: 14px;
+  padding: 28px 24px;
+  max-width: 380px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+}
+.confirm-modal-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--text);
+}
+.confirm-modal-body {
+  font-size: 0.9rem;
+  color: var(--text-muted, #6b7280);
+  margin: 0 0 24px;
+  line-height: 1.5;
+}
+.confirm-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Carline tag badge (families directory) */
+.carline-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+/* Route badge (bus groups directory) */
+.route-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+/* Grade level badge (students directory) */
+.grade-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 8px;
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #ddd6fe;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
 }
 

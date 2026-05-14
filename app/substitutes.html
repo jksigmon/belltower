@@ -219,37 +219,29 @@
   #historyTable tbody tr td:nth-child(5)::before { content: "Reason"; }
   #historyTable tbody tr td:nth-child(6)::before { content: "Status"; }
 
-  /* ── Directory: Name(1) Email(2) Phone(3) Active(4) Notes(5) Actions(6) ── */
+  /* ── Sub directory: bypass table-layout algorithm ── */
+  #subTable,
+  #subTable tbody {
+    display: block !important;
+    width: 100% !important;
+  }
+  #subTable { margin-top: 10px; }
+
+  /* ── Directory: Name+avatar(1) Email(2) Phone(3) Chevron(4) ── */
   #subTable tbody tr {
     grid-template-areas:
-      "name   active"
-      "email  phone"
-      "notes  notes"
-      "action action";
+      "name  name"
+      "email phone";
   }
 
-  #subTable tbody tr td:nth-child(1) { grid-area: name;   font-weight: 600; }
-  #subTable tbody tr td:nth-child(2) { grid-area: email;  font-size: 12px; word-break: break-all; }
-  #subTable tbody tr td:nth-child(3) { grid-area: phone;  font-size: 12px; text-align: right; }
-  #subTable tbody tr td:nth-child(4) { grid-area: active; text-align: right; }
-  #subTable tbody tr td:nth-child(5) { grid-area: notes;  color: #6b7280; font-size: 12px; }
-  #subTable tbody tr td:nth-child(6) { grid-area: action; margin-top: 4px; }
+  #subTable tbody tr td:nth-child(1) { grid-area: name; }
+  #subTable tbody tr td:nth-child(2) { grid-area: email; font-size: 12px; word-break: break-all; }
+  #subTable tbody tr td:nth-child(3) { grid-area: phone; font-size: 12px; text-align: right; }
+  #subTable tbody tr td:nth-child(4) { display: none; }
 
-  #subTable tbody tr td:nth-child(1)::before { content: "Name"; }
+  #subTable tbody tr td:nth-child(1)::before { content: ""; }
   #subTable tbody tr td:nth-child(2)::before { content: "Email"; }
   #subTable tbody tr td:nth-child(3)::before { content: "Phone"; }
-  #subTable tbody tr td:nth-child(4)::before { content: "Active"; }
-  #subTable tbody tr td:nth-child(5)::before { content: "Notes"; }
-  #subTable tbody tr td:nth-child(6)::before { content: ""; }
-
-  #subTable tbody tr td:nth-child(6).action-buttons {
-    display: flex;
-    gap: 8px;
-  }
-
-  #subTable tbody tr td:nth-child(6).action-buttons .btn {
-    flex: 1;
-  }
 }
 
   </style>
@@ -346,14 +338,18 @@
       </div>
 
       <table id="subTable" style="margin-top:12px;">
+        <colgroup>
+          <col>                    <!-- Name + notes -->
+          <col style="width:28%">  <!-- Email -->
+          <col style="width:16%">  <!-- Phone -->
+          <col style="width:36px"> <!-- Chevron -->
+        </colgroup>
         <thead>
           <tr>
             <th>Name</th>
             <th>Email</th>
             <th>Phone</th>
-            <th class="col-active">Active</th>
-            <th>Notes</th>
-            <th class="col-actions"></th>
+            <th></th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -461,53 +457,46 @@
 
 
 <!-- =========================
-     ADD SUBSTITUTE MODAL
+     ADD SUBSTITUTE DRAWER
 ========================= -->
-<div class="modal modal-md no-scroll" id="subModal">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h3 id="subModalTitle">Add Substitute</h3>
-      <span class="modal-close" data-close="subModal">×</span>
+<div id="subDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Substitute">
+  <div class="drawer-header">
+    <h3>Add Substitute</h3>
+    <button class="drawer-close" onclick="closeDrawer('subDrawer')" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>First Name <span class="required">*</span></label>
+        <input id="subFirst" class="form-input" placeholder="First name" />
+      </div>
+      <div class="drawer-field">
+        <label>Last Name <span class="required">*</span></label>
+        <input id="subLast" class="form-input" placeholder="Last name" />
+      </div>
     </div>
-
-    <div class="field">
-      <label>First name</label>
-      <input id="subFirst" />
-    </div>
-
-    <div class="field">
-      <label>Last name</label>
-      <input id="subLast" />
-    </div>
-
-    <div class="field">
+    <div class="drawer-field">
       <label>Email</label>
-      <input id="subEmail" />
+      <input id="subEmail" class="form-input" type="email" placeholder="Email address" />
     </div>
-
-    <div class="field">
+    <div class="drawer-field">
       <label>Phone</label>
-      <input id="subPhone" />
+      <input id="subPhone" class="form-input" type="tel" placeholder="Phone number" />
     </div>
-
-    
-<div class="field field-full">
-  <label>Notes</label>
-  <textarea id="subNotes"></textarea>
-</div>
-
-
-    <label class="checkbox-compact">
-      <input type="checkbox" id="subActive" checked />
-      Active
-    </label>
-
-    <div class="modal-actions compact-actions">
-      <button class="btn" id="cancelSubBtn">Cancel</button>
-      <button class="btn btn-primary btn-sm" id="saveSubBtn">
-        Save
-      </button>
+    <div class="drawer-field">
+      <label>Notes</label>
+      <textarea id="subNotes" class="form-input" rows="3" placeholder="Any notes about this substitute…" style="resize:vertical;height:auto;"></textarea>
     </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="subActive" checked />
+        <span>Active substitute</span>
+      </label>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="cancelSubBtn">Cancel</button>
+    <button class="btn btn-primary" id="saveSubBtn">Add Substitute</button>
   </div>
 </div>
 
@@ -571,6 +560,96 @@
   </div>
 </div>
 
+
+<!-- =============================================
+     EDIT SUBSTITUTE DRAWER
+     ============================================= -->
+<div id="editSubDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Edit Substitute">
+  <div class="drawer-header">
+    <div class="staff-drawer-person">
+      <div class="staff-avatar-lg" id="esubAvatar"></div>
+      <div style="min-width:0;">
+        <h3 id="esubTitle">Substitute</h3>
+        <span class="staff-drawer-subtitle" id="esubSubtitle"></span>
+      </div>
+    </div>
+    <button class="drawer-close" id="esubCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>First Name <span class="required">*</span></label>
+        <input id="esubFirst" class="form-input" placeholder="First name" />
+      </div>
+      <div class="drawer-field">
+        <label>Last Name <span class="required">*</span></label>
+        <input id="esubLast" class="form-input" placeholder="Last name" />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Email</label>
+      <input id="esubEmail" class="form-input" type="email" placeholder="Email address" />
+    </div>
+    <div class="drawer-field">
+      <label>Phone</label>
+      <input id="esubPhone" class="form-input" type="tel" placeholder="Phone number" />
+    </div>
+    <div class="drawer-field">
+      <label>Notes</label>
+      <textarea id="esubNotes" class="form-input" rows="3" placeholder="Any notes about this substitute…" style="resize:vertical;height:auto;"></textarea>
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="esubActive" />
+        <span>Active substitute</span>
+      </label>
+    </div>
+  </div>
+  <div class="drawer-footer-split">
+    <button id="esubDeleteBtn" class="btn danger">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button id="esubCancelBtn" class="btn">Cancel</button>
+      <button id="esubSaveBtn" class="btn btn-primary">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete substitute confirmation -->
+<div id="deleteSubModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title">Delete Substitute?</h3>
+    <p class="confirm-modal-body" id="deleteSubMsg"></p>
+    <div class="confirm-modal-actions">
+      <button id="deleteSubCancel" class="btn">Cancel</button>
+      <button id="deleteSubConfirm" class="btn danger">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div id="drawerOverlay" class="drawer-overlay"></div>
+
+<script>
+  function openDrawer(id) {
+    document.getElementById(id)?.classList.add('open');
+    document.getElementById('drawerOverlay')?.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeDrawer(id) {
+    document.getElementById(id)?.classList.remove('open');
+    const anyOpen = document.querySelectorAll('.drawer.open').length > 0;
+    if (!anyOpen) {
+      document.getElementById('drawerOverlay')?.classList.remove('open');
+      document.body.style.overflow = '';
+    }
+  }
+  document.getElementById('drawerOverlay')?.addEventListener('click', () => {
+    document.querySelectorAll('.drawer.open').forEach(d => d.classList.remove('open'));
+    document.getElementById('drawerOverlay')?.classList.remove('open');
+    document.body.style.overflow = '';
+  });
+  window.openDrawer = openDrawer;
+  window.closeDrawer = closeDrawer;
+</script>
 
 <script type="module">
 import { supabase } from '/app/admin.supabase.js';
@@ -682,24 +761,16 @@ async function loadSubstitutes() {
   data.forEach(sub => tbody.appendChild(renderSubRow(sub)));
 }
 
-async function deleteSubstitute(subId) {
-  if (!subId) return;
-  const confirmed = confirm('Delete this substitute?');
-  if (!confirmed) return;
+/* ── Helpers ── */
+function esc(str) {
+  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
-  const { error } = await supabase
-    .from('substitutes')
-    .delete()
-    .eq('id', subId)
-    .eq('school_id', currentProfile.school_id); // extra safety
-
-  if (error) {
-    console.error('Failed to delete substitute:', error);
-    alert('Failed to delete substitute.');
-    return;
-  }
-
-  await loadSubstitutes();
+function getAvatarColor(name) {
+  const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
 }
 
 async function loadPendingCoverage() {
@@ -826,118 +897,117 @@ if (coveredSelect) coveredSelect.value = '';
 }
 
 function renderSubRow(sub) {
-  const tr = document.createElement('tr');
+  const initials = `${sub.first_name?.[0] ?? ''}${sub.last_name?.[0] ?? ''}`.toUpperCase();
+  const color    = getAvatarColor((sub.first_name ?? '') + (sub.last_name ?? ''));
+  const inactive = sub.active ? '' : '<span class="staff-inactive-badge">Inactive</span>';
+  const notes    = sub.notes
+    ? `<span style="display:block;font-size:0.78rem;color:#6b7280;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(sub.notes)}</span>`
+    : '';
 
+  const tr = document.createElement('tr');
+  tr.className = 'dir-row-link';
   tr.innerHTML = `
-    <td>${sub.last_name}, ${sub.first_name}</td>
-    <td>${sub.email ?? '—'}</td>
-    <td>${sub.phone ?? '—'}</td>
-    <td>${sub.active ? 'Yes' : 'No'}</td>
-    <td class="truncate">
-      ${sub.notes ? sub.notes : '—'}
+    <td>
+      <div class="staff-name-cell">
+        <div class="staff-avatar" style="background:${color}">${initials}</div>
+        <div class="staff-name-group">
+          <span class="staff-fullname">${esc(sub.last_name)}, ${esc(sub.first_name)}</span>
+          ${inactive}
+          ${notes}
+        </div>
+      </div>
     </td>
-    <td class="action-buttons">
-      <button class="btn editBtn">Edit</button>
-      <button class="btn danger deleteBtn">Delete</button>
+    <td class="staff-cell-email">${esc(sub.email ?? '—')}</td>
+    <td class="staff-cell-muted">${esc(sub.phone ?? '—')}</td>
+    <td class="staff-cell-chevron">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </td>
   `;
 
-  wireSubRowActions(tr, sub);
+  tr.addEventListener('click', () => openEditSubDrawer(sub));
   return tr;
 }
 
-function wireSubRowActions(tr, sub) {
-  const editBtn = tr.querySelector('.editBtn');
-  const deleteBtn = tr.querySelector('.deleteBtn');
+/* ── Edit drawer ── */
+let editingSubId = null;
 
-  editBtn.onclick = () => openEditSubModal(sub);
-  deleteBtn.onclick = () => deleteSubstitute(sub.id);
+function openEditSubDrawer(sub) {
+  editingSubId = sub.id;
+
+  const initials = `${sub.first_name?.[0] ?? ''}${sub.last_name?.[0] ?? ''}`.toUpperCase();
+  const color    = getAvatarColor((sub.first_name ?? '') + (sub.last_name ?? ''));
+
+  const avatar = document.getElementById('esubAvatar');
+  avatar.textContent      = initials;
+  avatar.style.background = color;
+
+  document.getElementById('esubTitle').textContent    = `${sub.first_name} ${sub.last_name}`;
+  document.getElementById('esubSubtitle').textContent = sub.email ?? '';
+
+  document.getElementById('esubFirst').value    = sub.first_name ?? '';
+  document.getElementById('esubLast').value     = sub.last_name ?? '';
+  document.getElementById('esubEmail').value    = sub.email ?? '';
+  document.getElementById('esubPhone').value    = sub.phone ?? '';
+  document.getElementById('esubNotes').value    = sub.notes ?? '';
+  document.getElementById('esubActive').checked = !!sub.active;
+
+  const saveBtn = document.getElementById('esubSaveBtn');
+  saveBtn.disabled    = false;
+  saveBtn.textContent = 'Save Changes';
+
+  window.openDrawer?.('editSubDrawer');
 }
 
-function openEditSubModal(sub) {
-  document.getElementById('subModalTitle').textContent = 'Edit Substitute';
+async function saveEditSub() {
+  if (!editingSubId) return;
 
-  document.getElementById('subFirst').value = sub.first_name;
-  document.getElementById('subLast').value = sub.last_name;
-  document.getElementById('subEmail').value = sub.email ?? '';
-  document.getElementById('subPhone').value = sub.phone ?? '';
-  document.getElementById('subNotes').value = sub.notes ?? '';
-  document.getElementById('subActive').checked = sub.active === true;
+  const first = document.getElementById('esubFirst').value.trim();
+  const last  = document.getElementById('esubLast').value.trim();
+  if (!first || !last) { alert('First and last name are required.'); return; }
 
-  // store id for save
-  document.getElementById('saveSubBtn').dataset.subId = sub.id;
+  const updated = {
+    first_name: first,
+    last_name:  last,
+    email:      document.getElementById('esubEmail').value.trim() || null,
+    phone:      document.getElementById('esubPhone').value.trim() || null,
+    notes:      document.getElementById('esubNotes').value.trim() || null,
+    active:     document.getElementById('esubActive').checked,
+  };
 
-  openModal('subModal');
+  const saveBtn = document.getElementById('esubSaveBtn');
+  saveBtn.disabled    = true;
+  saveBtn.textContent = 'Saving…';
+
+  const { error } = await supabase.from('substitutes').update(updated).eq('id', editingSubId);
+
+  saveBtn.disabled    = false;
+  saveBtn.textContent = 'Save Changes';
+
+  if (error) { alert('Failed to save: ' + error.message); return; }
+  window.closeDrawer?.('editSubDrawer');
+  assignmentDropdownsLoaded = false;
+  await loadSubstitutes();
 }
 
-function wireSubRow(tr, subId) {
-  const editBtn = tr.querySelector('.editBtn');
-  const saveBtn = tr.querySelector('.saveBtn');
-  const cancelBtn = tr.querySelector('.cancelBtn');
-  const deleteBtn = tr.querySelector('.deleteBtn');
+function confirmDeleteSub() {
+  if (!editingSubId) return;
+  const name = `${document.getElementById('esubFirst').value} ${document.getElementById('esubLast').value}`;
+  document.getElementById('deleteSubMsg').textContent =
+    `Are you sure you want to delete ${name}? This cannot be undone.`;
+  document.getElementById('deleteSubModal').hidden = false;
+}
 
-  const views = tr.querySelectorAll('.view');
-  const edits = tr.querySelectorAll('.edit');
-
-  // ---------- EDIT ----------
-  editBtn.onclick = () => {
-    views.forEach(v => (v.hidden = true));
-    edits.forEach(e => (e.hidden = false));
-    editBtn.hidden = true;
-    saveBtn.hidden = false;
-    cancelBtn.hidden = false;
-    deleteBtn.hidden = true;
-  };
-
-  // ---------- SAVE ----------
-  saveBtn.onclick = async () => {
-    const updated = {
-      first_name: tr.querySelector('.first').value.trim(),
-      last_name: tr.querySelector('.last').value.trim(),
-      active: tr.querySelector('.active').checked
-    };
-
-    if (!updated.first_name || !updated.last_name) {
-      alert('First and last name are required.');
-      return;
-    }
-
-    const { error } = await supabase
-      .from('substitutes')
-      .update(updated)
-      .eq('id', subId);
-
-    if (error) {
-      console.error(error);
-      alert('Failed to save substitute.');
-      return;
-    }
-
-    loadSubstitutes(); // ✔ reset view
-  };
-
-  // ---------- CANCEL ----------
-  cancelBtn.onclick = () => {
-    loadSubstitutes(); // ✔ simple + safe
-  };
-
-  // ---------- DELETE ----------
-  deleteBtn.onclick = async () => {
-    if (!confirm('Delete this substitute?')) return;
-
-    const { error } = await supabase
-      .from('substitutes')
-      .delete()
-      .eq('id', subId);
-
-    if (error) {
-      console.error(error);
-      alert('Failed to delete substitute.');
-      return;
-    }
-
-    loadSubstitutes();
-  };
+async function executeDeleteSub() {
+  if (!editingSubId) return;
+  const { error } = await supabase.from('substitutes').delete()
+    .eq('id', editingSubId)
+    .eq('school_id', currentProfile.school_id);
+  document.getElementById('deleteSubModal').hidden = true;
+  if (error) { alert('Failed to delete: ' + error.message); return; }
+  window.closeDrawer?.('editSubDrawer');
+  editingSubId = null;
+  assignmentDropdownsLoaded = false;
+  await loadSubstitutes();
 }
 
 function wireExclusiveCovererSelects() {
@@ -1523,20 +1593,13 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
 
-function clearSubModal() {
-  subFirst.value = '';
-  subLast.value = '';
-  subEmail.value = '';
-  subPhone.value = '';
-  subNotes.value = '';
-  subActive.checked = true;
-  delete saveSubBtn.dataset.subId;
-  document.getElementById('subModalTitle').textContent = 'Add Substitute';
-}
-
-function handleSubCancel() {
-  clearSubModal();
-  closeModal('subModal');
+function clearSubDrawer() {
+  document.getElementById('subFirst').value = '';
+  document.getElementById('subLast').value = '';
+  document.getElementById('subEmail').value = '';
+  document.getElementById('subPhone').value = '';
+  document.getElementById('subNotes').value = '';
+  document.getElementById('subActive').checked = true;
 }
 
 document.querySelectorAll('.modal-close').forEach(btn => {
@@ -1548,8 +1611,8 @@ document.querySelectorAll('.modal-close').forEach(btn => {
 
 
 document.getElementById('cancelSubBtn').addEventListener('click', () => {
-  clearSubModal();
-  closeModal('subModal');
+  clearSubDrawer();
+  closeDrawer('subDrawer');
 });
 
 
@@ -1561,7 +1624,8 @@ document.getElementById('cancelAssignBtn').addEventListener('click', () => {
 
 
 document.getElementById('addSubBtn').addEventListener('click', () => {
-  openModal('subModal');
+  clearSubDrawer();
+  openDrawer('subDrawer');
 });
 
 document.getElementById('saveSubBtn').addEventListener('click', async () => {
@@ -1577,8 +1641,6 @@ document.getElementById('saveSubBtn').addEventListener('click', async () => {
     return;
   }
 
-  const subId = saveSubBtn.dataset.subId;
-
   const payload = {
     first_name: first,
     last_name: last,
@@ -1588,22 +1650,12 @@ document.getElementById('saveSubBtn').addEventListener('click', async () => {
     active
   };
 
-  let result;
-  if (subId) {
-    // ✅ EDIT
-    result = await supabase
-      .from('substitutes')
-      .update(payload)
-      .eq('id', subId);
-  } else {
-    // ✅ ADD
-    result = await supabase
-      .from('substitutes')
-      .insert({
-        school_id: currentProfile.school_id,
-        ...payload
-      });
-  }
+  const result = await supabase
+    .from('substitutes')
+    .insert({
+      school_id: currentProfile.school_id,
+      ...payload
+    });
 
   if (result.error) {
     console.error(result.error);
@@ -1611,9 +1663,9 @@ document.getElementById('saveSubBtn').addEventListener('click', async () => {
     return;
   }
 
-  clearSubModal();
-  closeModal('subModal');
-  assignmentDropdownsLoaded = false; // force dropdown refresh so new sub appears
+  clearSubDrawer();
+  closeDrawer('subDrawer');
+  assignmentDropdownsLoaded = false;
   loadSubstitutes();
 });
 
@@ -1930,6 +1982,16 @@ document.getElementById('subActiveFilter')
   ?.addEventListener('change', () => loadSubstitutes());
 document.getElementById('subSort')
   ?.addEventListener('change', () => loadSubstitutes());
+
+// Edit sub drawer
+document.getElementById('esubSaveBtn')?.addEventListener('click', saveEditSub);
+document.getElementById('esubCancelBtn')?.addEventListener('click', () => window.closeDrawer?.('editSubDrawer'));
+document.getElementById('esubCloseBtn')?.addEventListener('click', () => window.closeDrawer?.('editSubDrawer'));
+document.getElementById('esubDeleteBtn')?.addEventListener('click', confirmDeleteSub);
+
+// Delete sub modal
+document.getElementById('deleteSubCancel')?.addEventListener('click', () => { document.getElementById('deleteSubModal').hidden = true; });
+document.getElementById('deleteSubConfirm')?.addEventListener('click', executeDeleteSub);
 
 document.getElementById('historySubFilter')
   ?.addEventListener('change', () => loadHistory());

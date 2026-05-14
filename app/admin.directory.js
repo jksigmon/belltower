@@ -112,22 +112,64 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
     if (!paginationContainer) return;
     const container = document.querySelector(paginationContainer);
     if (!container) return;
-
     container.innerHTML = '';
 
     const totalPages = Math.ceil(totalCount / pageSize);
+
+    // Record count label (always shown)
+    const from = Math.min((state.page - 1) * pageSize + 1, totalCount);
+    const to   = Math.min(state.page * pageSize, totalCount);
+    const info = document.createElement('span');
+    info.className = 'pagination-info';
+    info.textContent = totalCount === 0
+      ? 'No results'
+      : totalPages <= 1
+        ? `${totalCount} record${totalCount !== 1 ? 's' : ''}`
+        : `${from}–${to} of ${totalCount}`;
+    container.appendChild(info);
+
     if (totalPages <= 1) return;
 
-    for (let p = 1; p <= totalPages; p++) {
+    const controls = document.createElement('div');
+    controls.className = 'pagination-controls';
+
+    function makeBtn(label, page, disabled = false) {
       const btn = document.createElement('button');
-      btn.textContent = p;
-      btn.className = p === state.page ? 'btn-primary' : 'btn';
-      btn.onclick = () => {
-        state.page = p;
-        load();
-      };
-      container.appendChild(btn);
+      btn.innerHTML = label;
+      btn.className = 'pagination-btn' + (page === state.page ? ' pagination-active' : '');
+      btn.disabled = disabled;
+      if (!disabled && page !== state.page) {
+        btn.onclick = () => { state.page = page; load(); };
+      }
+      return btn;
     }
+
+    // Prev
+    controls.appendChild(makeBtn('&#8249;', state.page - 1, state.page === 1));
+
+    // Page numbers with ellipsis
+    getPageRange(state.page, totalPages).forEach(p => {
+      if (p === '…') {
+        const el = document.createElement('span');
+        el.className = 'pagination-ellipsis';
+        el.textContent = '…';
+        controls.appendChild(el);
+      } else {
+        controls.appendChild(makeBtn(p, p));
+      }
+    });
+
+    // Next
+    controls.appendChild(makeBtn('&#8250;', state.page + 1, state.page === totalPages));
+
+    container.appendChild(controls);
+  }
+
+  function getPageRange(current, total) {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    if (current <= 4) return [1, 2, 3, 4, 5, '…', total];
+    if (current >= total - 3) return [1, '…', total - 4, total - 3, total - 2, total - 1, total];
+    return [1, '…', current - 1, current, current + 1, '…', total];
   }
 
   async function exportXlsx({ all = false, filename }) {

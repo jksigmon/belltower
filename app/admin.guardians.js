@@ -6,6 +6,7 @@ import { createDirectory } from './admin.directory.js';
 let currentProfile;
 let initialized = false;
 let guardiansDirectory;
+let editingGuardianId = null;
 
 /* ===============================
    ENTRY POINT
@@ -14,68 +15,44 @@ let guardiansDirectory;
 export async function initGuardiansSection(profile) {
   currentProfile = profile;
 
-  // Shared dropdown
   await loadFamilyOptions(['#guardianFamily']);
 
-  // ✅ Ensure directory exists first
   if (!guardiansDirectory) {
- guardiansDirectory = createDirectory({
-  table: 'guardians',
-  schoolId: () => currentProfile.school_id,
+    guardiansDirectory = createDirectory({
+      table: 'guardians',
+      schoolId: () => currentProfile.school_id,
 
-  select: `
-    id,
-    first_name,
-    last_name,
-    email,
-    phone,
-    active,
-    families!inner(carline_tag_number, family_name)
-  `,
+      select: `
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        active,
+        family_id,
+        families!inner(carline_tag_number, family_name)
+      `,
 
-  // ✅ ONLY base-table fields here
-  searchFields: [
-    'first_name',
-    'last_name',
-    'email',
-    'phone'
-  ],
+      searchFields: ['first_name', 'last_name', 'email', 'phone'],
 
-  defaultSort: {
-    column: 'last_name',
-    ascending: true
-  },
+      defaultSort: { column: 'last_name', ascending: true },
 
-  tbodySelector: '#guardiansTable tbody',
-  paginationContainer: '#guardiansPagination',
-  renderRow: renderGuardianRow,
+      tbodySelector: '#guardiansTable tbody',
+      paginationContainer: '#guardiansPagination',
+      renderRow: renderGuardianRow,
 
-
-augmentQuery(query, searchTerm) {
-  if (!searchTerm) return query;
-
-  const term = `%${searchTerm}%`;
-  const isNumeric = /^\d+$/.test(searchTerm);
-
-  // 🔢 Numeric → family carline tag ONLY
-  if (isNumeric) {
-    return {
-      query: query.or(
-        `carline_tag_number.ilike.${term}`,
-        { foreignTable: 'families' }
-      ),
-      skipBaseSearch: true
-    };
-  }
-
-  // 🔤 Text → guardian search only (engine handles it)
-  return query;
-}
-
-
-});
-
-
+      augmentQuery(query, searchTerm) {
+        if (!searchTerm) return query;
+        const term = `%${searchTerm}%`;
+        if (/^\d+$/.test(searchTerm)) {
+          return {
+            query: query.or(`carline_tag_number.ilike.${term}`, { foreignTable: 'families' }),
+            skipBaseSearch: true
+          };
+        }
+        return query;
+      }
+    });
   }
 
   if (!initialized) {
@@ -87,140 +64,152 @@ augmentQuery(query, searchTerm) {
 }
 
 /* ===============================
-   LOAD / RENDER
+   HELPERS
 ================================ */
+
+function esc(str) {
+  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function getAvatarColor(name) {
+  const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function cloneSelectOptions(sourceId, target, selectedValue) {
+  target.innerHTML = '';
+  document.querySelectorAll(`${sourceId} option`).forEach(opt =>
+    target.appendChild(opt.cloneNode(true))
+  );
+  target.value = selectedValue ?? '';
+}
+
+/* ===============================
+   RENDER ROW
+================================ */
+
 function renderGuardianRow(g) {
+  const initials = `${g.first_name?.[0] ?? ''}${g.last_name?.[0] ?? ''}`.toUpperCase();
+  const color    = getAvatarColor((g.first_name ?? '') + (g.last_name ?? ''));
+  const inactive = g.active ? '' : '<span class="staff-inactive-badge">Inactive</span>';
+
   const familyLabel = g.families
-    ? `${g.families.carline_tag_number} – ${g.families.family_name ?? '(no name)'}`
-    : '';
+    ? `${g.families.carline_tag_number ? '#' + g.families.carline_tag_number + ' · ' : ''}${g.families.family_name ?? ''}`
+    : '—';
 
   const tr = document.createElement('tr');
-
+  tr.className = 'dir-row-link';
   tr.innerHTML = `
     <td>
-      <span class="view">${g.first_name} ${g.last_name}</span>
-      <div class="edit" hidden>
-        <input class="form-input first" value="${g.first_name}">
-        <input class="form-input last" value="${g.last_name}">
+      <div class="staff-name-cell">
+        <div class="staff-avatar" style="background:${color}">${initials}</div>
+        <div class="staff-name-group">
+          <span class="staff-fullname">${esc(g.first_name)} ${esc(g.last_name)}</span>
+          ${inactive}
+        </div>
       </div>
     </td>
-
-    <td>${familyLabel}</td>
-
-    <td>
-      <span class="view">${g.email ?? ''}</span>
-      <input class="form-input edit email" hidden value="${g.email ?? ''}">
+    <td class="staff-cell-muted">${esc(familyLabel)}</td>
+    <td class="staff-cell-muted">${esc(g.email ?? '—')}</td>
+    <td class="staff-cell-muted">${esc(g.phone ?? '—')}</td>
+    <td class="staff-cell-chevron">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </td>
-
-    <td>
-      <span class="view">${g.phone ?? ''}</span>
-      <input class="form-input edit phone" hidden value="${g.phone ?? ''}">
-    </td>
-
-    <td>
-      <span class="view">${g.active ? '' : '<span style="background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;font-size:0.72rem;padding:2px 8px;border-radius:4px;font-weight:600;white-space:nowrap;">Inactive</span>'}</span>
-      <input type="checkbox" class="edit active" hidden ${g.active ? 'checked' : ''}>
-    </td>
-
-    <td>
-    <button class="btn editBtn">Edit</button>
-	<button class="btn saveBtn" hidden>Save</button>
-	<button class="btn cancelBtn" hidden>Cancel</button>
-	<button class="btn danger deleteBtn">Delete</button>
-	</td>
   `;
 
-  wireGuardianRow(tr, g.id);
+  tr.addEventListener('click', () => {
+    if (!currentProfile?.can_manage_guardians) return;
+    openEditGuardianDrawer(g);
+  });
   return tr;
 }
 
 /* ===============================
-   ROW LOGIC
+   EDIT DRAWER
 ================================ */
 
-function wireGuardianRow(tr, guardianId) {
-  const editBtn   = tr.querySelector('.editBtn');
-  const saveBtn   = tr.querySelector('.saveBtn');
-  const cancelBtn = tr.querySelector('.cancelBtn');
-  const deleteBtn = tr.querySelector('.deleteBtn');
+function openEditGuardianDrawer(g) {
+  editingGuardianId = g.id;
 
-  const views = tr.querySelectorAll('.view');
-  const edits = tr.querySelectorAll('.edit');
+  const initials = `${g.first_name?.[0] ?? ''}${g.last_name?.[0] ?? ''}`.toUpperCase();
+  const color    = getAvatarColor((g.first_name ?? '') + (g.last_name ?? ''));
 
-  /* ---------- Permission Guard ---------- */
-  if (!currentProfile?.can_manage_guardians) {
-    editBtn?.remove();
-    saveBtn?.remove();
-    cancelBtn?.remove();
-    deleteBtn?.remove();
-    return;
-  }
+  const avatar = document.getElementById('egAvatar');
+  avatar.textContent      = initials;
+  avatar.style.background = color;
 
-  /* ---------- EDIT ---------- */
-  editBtn.onclick = () => {
-    views.forEach(v => (v.hidden = true));
-    edits.forEach(e => (e.hidden = false));
+  document.getElementById('egTitle').textContent    = `${g.first_name} ${g.last_name}`;
+  document.getElementById('egSubtitle').textContent = g.families?.family_name ?? '';
 
-    editBtn.hidden   = true;
-    saveBtn.hidden   = false;
-    cancelBtn.hidden = false;
-    deleteBtn.hidden = true;
-  };
+  cloneSelectOptions('#guardianFamily', document.getElementById('egFamily'), g.family_id);
+  document.getElementById('egFirst').value  = g.first_name ?? '';
+  document.getElementById('egLast').value   = g.last_name ?? '';
+  document.getElementById('egEmail').value  = g.email ?? '';
+  document.getElementById('egPhone').value  = g.phone ?? '';
+  document.getElementById('egActive').checked = !!g.active;
 
-  /* ---------- SAVE ---------- */
-  saveBtn.onclick = async () => {
-    const updated = {
-      first_name: tr.querySelector('.first').value.trim(),
-      last_name: tr.querySelector('.last').value.trim(),
-      email: tr.querySelector('.email').value.trim(),
-      phone: tr.querySelector('.phone').value.trim(),
-      active: tr.querySelector('.active').checked
-    };
+  const saveBtn = document.getElementById('egSaveBtn');
+  saveBtn.disabled    = false;
+  saveBtn.textContent = 'Save Changes';
 
-    const { error } = await supabase
-      .from('guardians')
-      .update(updated)
-      .eq('id', guardianId);
-
-    if (error) {
-      console.error('Failed to update guardian', error);
-      alert('Failed to update guardian');
-      return;
-    }
-
-    // Reload resets everything
-    guardiansDirectory.load();
-  };
-
-  /* ---------- CANCEL ---------- */
-  cancelBtn.onclick = () => {
-    // Discard edits, restore defaults
-   guardiansDirectory.load();
-  };
-
-  /* ---------- DELETE ---------- */
-  deleteBtn.onclick = async () => {
-    if (!confirm('Delete this guardian?')) return;
-
-    const { error } = await supabase
-      .from('guardians')
-      .delete()
-      .eq('id', guardianId);
-
-    if (error) {
-      console.error('Failed to delete guardian', error);
-      alert('Failed to delete guardian');
-      return;
-    }
-
-    guardiansDirectory.load();
-  };
+  window.openDrawer?.('editGuardianDrawer');
 }
 
+async function saveEditGuardian() {
+  if (!editingGuardianId) return;
+
+  const first  = document.getElementById('egFirst').value.trim();
+  const last   = document.getElementById('egLast').value.trim();
+  const family = document.getElementById('egFamily').value;
+  if (!first || !last || !family) { alert('First name, last name, and family are required.'); return; }
+
+  const updated = {
+    first_name: first,
+    last_name:  last,
+    family_id:  family,
+    email:      document.getElementById('egEmail').value.trim() || null,
+    phone:      document.getElementById('egPhone').value.trim() || null,
+    active:     document.getElementById('egActive').checked,
+  };
+
+  const saveBtn = document.getElementById('egSaveBtn');
+  saveBtn.disabled    = true;
+  saveBtn.textContent = 'Saving…';
+
+  const { error } = await supabase.from('guardians').update(updated).eq('id', editingGuardianId);
+
+  saveBtn.disabled    = false;
+  saveBtn.textContent = 'Save Changes';
+
+  if (error) { alert('Failed to save: ' + error.message); return; }
+  window.closeDrawer?.('editGuardianDrawer');
+  guardiansDirectory.load();
+}
+
+function confirmDeleteGuardian() {
+  if (!editingGuardianId) return;
+  const name = `${document.getElementById('egFirst').value} ${document.getElementById('egLast').value}`;
+  document.getElementById('deleteGuardianMsg').textContent =
+    `Are you sure you want to delete ${name}? This cannot be undone.`;
+  document.getElementById('deleteGuardianModal').hidden = false;
+}
+
+async function executeDeleteGuardian() {
+  if (!editingGuardianId) return;
+  const { error } = await supabase.from('guardians').delete().eq('id', editingGuardianId);
+  document.getElementById('deleteGuardianModal').hidden = true;
+  if (error) { alert('Failed to delete: ' + error.message); return; }
+  window.closeDrawer?.('editGuardianDrawer');
+  editingGuardianId = null;
+  guardiansDirectory.load();
+}
 
 /* ===============================
    CREATE
 ================================ */
+
 async function createGuardian() {
   if (!currentProfile?.can_manage_guardians) {
     alert('You do not have permission to manage guardians.');
@@ -228,13 +217,13 @@ async function createGuardian() {
   }
 
   const guardian = {
-    school_id: currentProfile.school_id,
-    family_id: document.getElementById('guardianFamily').value,
+    school_id:  currentProfile.school_id,
+    family_id:  document.getElementById('guardianFamily').value,
     first_name: document.getElementById('guardianFirst').value.trim(),
-    last_name: document.getElementById('guardianLast').value.trim(),
-    email: document.getElementById('guardianEmail').value.trim(),
-    phone: document.getElementById('guardianPhone').value.trim(),
-    active: true
+    last_name:  document.getElementById('guardianLast').value.trim(),
+    email:      document.getElementById('guardianEmail').value.trim() || null,
+    phone:      document.getElementById('guardianPhone').value.trim() || null,
+    active:     true
   };
 
   if (!guardian.first_name || !guardian.last_name || !guardian.family_id) {
@@ -243,17 +232,12 @@ async function createGuardian() {
   }
 
   const { error } = await supabase.from('guardians').insert(guardian);
-  if (error) {
-    console.error('Failed to create guardian', error);
-    alert('Failed to add guardian');
-    return;
-  }
+  if (error) { alert('Failed to add guardian'); return; }
 
-  document.getElementById('guardianFirst').value = '';
-  document.getElementById('guardianLast').value = '';
-  document.getElementById('guardianEmail').value = '';
-  document.getElementById('guardianPhone').value = '';
-  document.getElementById('guardianFamily').value = '';
+  ['guardianFirst', 'guardianLast', 'guardianEmail', 'guardianPhone'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const fam = document.getElementById('guardianFamily'); if (fam) fam.value = '';
 
   window.closeDrawer?.('guardianDrawer');
   guardiansDirectory.load();
@@ -264,25 +248,18 @@ async function createGuardian() {
 ================================ */
 
 function wireGuardianEvents() {
-  document
-    .getElementById('addGuardian')
-    ?.addEventListener('click', createGuardian);
+  document.getElementById('addGuardian')?.addEventListener('click', createGuardian);
 
   const searchInput = document.getElementById('guardianSearch');
-  const sortSelect = document.getElementById('guardianSort');
+  const sortSelect  = document.getElementById('guardianSort');
 
-  // 🔍 Search
   if (searchInput) {
-    let debounceTimer;
+    let t;
     searchInput.addEventListener('input', e => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        guardiansDirectory.setSearch(e.target.value.trim());
-      }, 300);
+      clearTimeout(t);
+      t = setTimeout(() => guardiansDirectory.setSearch(e.target.value.trim()), 300);
     });
   }
-
-  // ↕️ Sort
   if (sortSelect) {
     sortSelect.addEventListener('change', e => {
       const [column, dir] = e.target.value.split('.');
@@ -290,17 +267,20 @@ function wireGuardianEvents() {
     });
   }
 
-  // 📤 Export current view
-  document
-    .getElementById('exportGuardiansCurrent')
-    ?.addEventListener('click', () =>
-      guardiansDirectory.exportFiltered()
-    );
+  document.getElementById('exportGuardiansCurrent')?.addEventListener('click', () => guardiansDirectory.exportFiltered());
+  document.getElementById('exportGuardiansAll')?.addEventListener('click',     () => guardiansDirectory.exportAll());
 
-  // 📤 Export all
-  document
-    .getElementById('exportGuardiansAll')
-    ?.addEventListener('click', () =>
-      guardiansDirectory.exportAll()
-    );
+  // Edit drawer (only wired if user has permission)
+  if (currentProfile?.can_manage_guardians) {
+    document.getElementById('egSaveBtn')?.addEventListener('click',   saveEditGuardian);
+    document.getElementById('egCancelBtn')?.addEventListener('click', () => window.closeDrawer?.('editGuardianDrawer'));
+    document.getElementById('egCloseBtn')?.addEventListener('click',  () => window.closeDrawer?.('editGuardianDrawer'));
+    document.getElementById('egDeleteBtn')?.addEventListener('click', confirmDeleteGuardian);
+
+    document.getElementById('deleteGuardianCancel')?.addEventListener('click',  () => { document.getElementById('deleteGuardianModal').hidden = true; });
+    document.getElementById('deleteGuardianConfirm')?.addEventListener('click', executeDeleteGuardian);
+  } else {
+    // Still allow closing the drawer (shouldn't open, but defensive)
+    document.getElementById('egCloseBtn')?.addEventListener('click', () => window.closeDrawer?.('editGuardianDrawer'));
+  }
 }

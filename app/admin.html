@@ -23,11 +23,12 @@
    ================================================================ */
 @media (max-width: 767px) {
 
-  /* ── Shared card table reset (bus groups excluded — only 3 cols) ── */
+  /* ── Shared card table reset ── */
   #staffTable,
   #studentsTable,
   #familiesTable,
-  #guardiansTable {
+  #guardiansTable,
+  #busTable {
     min-width: 0 !important;
     width: 100% !important;
     border-collapse: separate;
@@ -37,14 +38,16 @@
   #staffTable thead,
   #studentsTable thead,
   #familiesTable thead,
-  #guardiansTable thead {
+  #guardiansTable thead,
+  #busTable thead {
     display: none;
   }
 
   #staffTable tbody tr,
   #studentsTable tbody tr,
   #familiesTable tbody tr,
-  #guardiansTable tbody tr {
+  #guardiansTable tbody tr,
+  #busTable tbody tr {
     display: grid;
     grid-template-columns: 1fr 1fr;
     border: 1px solid #e5e7eb;
@@ -57,7 +60,8 @@
   #staffTable tbody tr td,
   #studentsTable tbody tr td,
   #familiesTable tbody tr td,
-  #guardiansTable tbody tr td {
+  #guardiansTable tbody tr td,
+  #busTable tbody tr td {
     display: block;
     padding: 3px 0;
     border: none !important;
@@ -70,7 +74,8 @@
   #staffTable td .form-input,
   #studentsTable td .form-input,
   #familiesTable td .form-input,
-  #guardiansTable td .form-input {
+  #guardiansTable td .form-input,
+  #busTable td .form-input {
     width: 100%;
     min-width: 0;
     box-sizing: border-box;
@@ -80,7 +85,8 @@
   #staffTable tbody tr td::before,
   #studentsTable tbody tr td::before,
   #familiesTable tbody tr td::before,
-  #guardiansTable tbody tr td::before {
+  #guardiansTable tbody tr td::before,
+  #busTable tbody tr td::before {
     display: block;
     font-size: 10px;
     font-weight: 700;
@@ -90,72 +96,76 @@
     margin-bottom: 2px;
   }
 
-  /* No label on action cells */
+  /* No label on chevron cells */
   #staffTable tbody tr td:nth-child(8)::before,
-  #studentsTable tbody tr td:nth-child(9)::before,
-  #familiesTable tbody tr td:nth-child(4)::before,
+  #studentsTable tbody tr td:nth-child(8)::before,
   #guardiansTable tbody tr td:nth-child(6)::before {
     content: none;
   }
 
-  /* ── Staff: bypass table-layout algorithm caused by <colgroup> ── */
+  /* ── Bypass table-layout algorithm caused by <colgroup> on all dir tables ── */
   #staffTable,
-  #staffTable tbody {
+  #staffTable tbody,
+  #studentsTable,
+  #studentsTable tbody,
+  #familiesTable,
+  #familiesTable tbody,
+  #guardiansTable,
+  #guardiansTable tbody,
+  #busTable,
+  #busTable tbody {
     display: block !important;
     width: 100% !important;
   }
-  #staffTable { margin-top: 10px; }
+  #staffTable,
+  #studentsTable,
+  #familiesTable,
+  #guardiansTable,
+  #busTable { margin-top: 10px; }
 
-  /* ── Staff: Name(1) Email(2) Position(3) Supervisor(4) Active(5) Campus(6) Months(7) Actions(8) ── */
+  /* ── Staff: Name(1) Email(2) Position(3) Supervisor(4) Campus(5) Contract(6) Chevron(7) ── */
   #staffTable tbody tr {
     grid-template-areas:
-      "name     active"
+      "name     name"
       "email    email"
-      "position supervisor"
-      "campus   months"
-      "action   action";
+      "position contract"
+      "campus   supervisor";
   }
 
-  #staffTable tbody tr td:nth-child(1) { grid-area: name;       font-weight: 600; }
+  #staffTable tbody tr td:nth-child(1) { grid-area: name; }
   #staffTable tbody tr td:nth-child(2) { grid-area: email;      font-size: 12px; word-break: break-all; }
   #staffTable tbody tr td:nth-child(3) { grid-area: position; }
-  #staffTable tbody tr td:nth-child(4) { grid-area: supervisor; text-align: right; }
+  #staffTable tbody tr td:nth-child(4) { grid-area: supervisor; font-size: 12px; color: #6b7280; text-align: right; }
   #staffTable tbody tr td:nth-child(5) { grid-area: campus;     font-size: 12px; color: #6b7280; }
-  #staffTable tbody tr td:nth-child(6) { grid-area: months;     font-size: 12px; color: #6b7280; text-align: right; }
-  #staffTable tbody tr td:nth-child(7) { grid-area: active;     text-align: right; }
-  #staffTable tbody tr td:nth-child(8) { grid-area: action;     display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  #staffTable tbody tr td:nth-child(6) { grid-area: contract;   text-align: right; }
+  #staffTable tbody tr td:nth-child(7) { display: none; }
 
-  #staffTable tbody tr td:nth-child(1)::before { content: "Name"; }
+  #staffTable tbody tr td:nth-child(1)::before { content: ""; }
   #staffTable tbody tr td:nth-child(2)::before { content: "Email"; }
   #staffTable tbody tr td:nth-child(3)::before { content: "Position"; }
   #staffTable tbody tr td:nth-child(4)::before { content: "Supervisor"; }
   #staffTable tbody tr td:nth-child(5)::before { content: "Campus"; }
-  #staffTable tbody tr td:nth-child(6)::before { content: "Emp. Months"; }
-  #staffTable tbody tr td:nth-child(7)::before { content: "Active"; }
+  #staffTable tbody tr td:nth-child(6)::before { content: "Contract"; }
 
-  #staffTable tbody tr td:nth-child(8) .btn { flex: 1; min-width: 60px; }
-
-  /* ── Students: Name(1) #(2) Family(3) Grade(4) Homeroom(5) Bus(6) Campus(7) Active(8) Actions(9) ── */
+  /* ── Students: Name(1) #(2) Family(3) Grade(4) Homeroom(5) Bus(6) Campus(7) Chevron(8) ── */
   #studentsTable tbody tr {
     grid-template-areas:
       "name     stunum"
       "family   grade"
       "homeroom bus"
-      "campus   campus"
-      "action   action";
+      "campus   campus";
   }
 
-  #studentsTable tbody tr td:nth-child(1) { grid-area: name;     font-weight: 600; }
-  #studentsTable tbody tr td:nth-child(2) { grid-area: stunum;   text-align: right; }
+  #studentsTable tbody tr td:nth-child(1) { grid-area: name; }
+  #studentsTable tbody tr td:nth-child(2) { grid-area: stunum;   text-align: right; font-size: 12px; color: #6b7280; }
   #studentsTable tbody tr td:nth-child(3) { grid-area: family; }
   #studentsTable tbody tr td:nth-child(4) { grid-area: grade;    text-align: right; }
   #studentsTable tbody tr td:nth-child(5) { grid-area: homeroom; font-size: 12px; }
   #studentsTable tbody tr td:nth-child(6) { grid-area: bus;      text-align: right; font-size: 12px; }
   #studentsTable tbody tr td:nth-child(7) { grid-area: campus;   font-size: 12px; color: #6b7280; }
-  #studentsTable tbody tr td:nth-child(8) { display: none; } /* Active hidden on mobile */
-  #studentsTable tbody tr td:nth-child(9) { grid-area: action;   margin-top: 4px; }
+  #studentsTable tbody tr td:nth-child(8) { display: none; }
 
-  #studentsTable tbody tr td:nth-child(1)::before { content: "Name"; }
+  #studentsTable tbody tr td:nth-child(1)::before { content: ""; }
   #studentsTable tbody tr td:nth-child(2)::before { content: "Student #"; }
   #studentsTable tbody tr td:nth-child(3)::before { content: "Family"; }
   #studentsTable tbody tr td:nth-child(4)::before { content: "Grade"; }
@@ -174,56 +184,46 @@
     text-align: right;
   }
 
-  #studentsTable tbody tr td:nth-child(9) .action-buttons {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  #studentsTable tbody tr td:nth-child(9) .action-buttons .btn { flex: 1; min-width: 60px; }
-
-  /* ── Families: Carline Tag(1) Family Name(2) Active(3) Actions(4) ── */
+  /* ── Families: Family+Tag inline(1) Chevron(2) ── */
   #familiesTable tbody tr {
-    grid-template-areas:
-      "tag    active"
-      "name   name"
-      "action action";
+    grid-template-areas: "name";
+    grid-template-columns: 1fr;
   }
 
-  #familiesTable tbody tr td:nth-child(1) { grid-area: tag;    font-size: 12px; color: #6b7280; }
-  #familiesTable tbody tr td:nth-child(2) { grid-area: name;   font-weight: 600; }
-  #familiesTable tbody tr td:nth-child(3) { grid-area: active; text-align: right; }
-  #familiesTable tbody tr td:nth-child(4) { grid-area: action; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  #familiesTable tbody tr td:nth-child(1) { grid-area: name; }
+  #familiesTable tbody tr td:nth-child(2) { display: none; }
 
-  #familiesTable tbody tr td:nth-child(1)::before { content: "Carline Tag"; }
-  #familiesTable tbody tr td:nth-child(2)::before { content: "Family Name"; }
-  #familiesTable tbody tr td:nth-child(3)::before { content: "Active"; }
+  #familiesTable tbody tr td:nth-child(1)::before { content: ""; }
 
-  #familiesTable tbody tr td:nth-child(4) .btn { flex: 1; min-width: 60px; }
+  /* ── Bus Groups: Name+Route inline(1) Chevron(2) ── */
+  #busTable tbody tr {
+    grid-template-areas: "name";
+    grid-template-columns: 1fr;
+  }
 
-  /* ── Guardians: Name(1) Family(2) Email(3) Phone(4) Active(5) Actions(6) ── */
+  #busTable tbody tr td:nth-child(1) { grid-area: name; }
+  #busTable tbody tr td:nth-child(2) { display: none; }
+
+  #busTable tbody tr td:nth-child(1)::before { content: ""; }
+
+  /* ── Guardians: Name(1) Family(2) Email(3) Phone(4) Chevron(5) ── */
   #guardiansTable tbody tr {
     grid-template-areas:
-      "name   active"
+      "name   name"
       "family family"
-      "email  phone"
-      "action action";
+      "email  phone";
   }
 
-  #guardiansTable tbody tr td:nth-child(1) { grid-area: name;   font-weight: 600; }
+  #guardiansTable tbody tr td:nth-child(1) { grid-area: name; }
   #guardiansTable tbody tr td:nth-child(2) { grid-area: family; font-size: 12px; color: #6b7280; }
   #guardiansTable tbody tr td:nth-child(3) { grid-area: email;  font-size: 12px; word-break: break-all; }
   #guardiansTable tbody tr td:nth-child(4) { grid-area: phone;  text-align: right; font-size: 12px; }
-  #guardiansTable tbody tr td:nth-child(5) { grid-area: active; text-align: right; }
-  #guardiansTable tbody tr td:nth-child(6) { grid-area: action; display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  #guardiansTable tbody tr td:nth-child(5) { display: none; }
 
-  #guardiansTable tbody tr td:nth-child(1)::before { content: "Name"; }
+  #guardiansTable tbody tr td:nth-child(1)::before { content: ""; }
   #guardiansTable tbody tr td:nth-child(2)::before { content: "Family"; }
   #guardiansTable tbody tr td:nth-child(3)::before { content: "Email"; }
   #guardiansTable tbody tr td:nth-child(4)::before { content: "Phone"; }
-  #guardiansTable tbody tr td:nth-child(5)::before { content: "Active"; }
-
-  #guardiansTable tbody tr td:nth-child(6) .btn { flex: 1; min-width: 60px; }
 
 }
 
@@ -464,14 +464,13 @@
 
       <table id="staffTable">
         <colgroup>
-          <col style="width:14%">  <!-- Name -->
-          <col style="width:20%">  <!-- Email -->
-          <col style="width:16%">  <!-- Position -->
-          <col style="width:13%">  <!-- Supervisor -->
+          <col style="width:20%">  <!-- Name -->
+          <col style="width:22%">  <!-- Email -->
+          <col style="width:20%">  <!-- Position -->
+          <col style="width:14%">  <!-- Supervisor -->
           <col style="width:12%">  <!-- Campus -->
-          <col style="width:6%">   <!-- Mos. -->
-          <col style="width:7%">   <!-- Active -->
-          <col style="width:12%">  <!-- Actions -->
+          <col style="width:9%">   <!-- Contract -->
+          <col style="width:3%">   <!-- Chevron -->
         </colgroup>
         <thead>
           <tr>
@@ -480,8 +479,7 @@
             <th>Position</th>
             <th>Supervisor</th>
             <th>Campus</th>
-            <th>Mos.</th>
-            <th></th>
+            <th>Contract</th>
             <th></th>
           </tr>
         </thead>
@@ -640,11 +638,13 @@
 
 
       <table id="familiesTable">
+        <colgroup>
+          <col>                    <!-- Family + Tag inline -->
+          <col style="width:36px"> <!-- Chevron -->
+        </colgroup>
         <thead>
           <tr>
-            <th>Carline Tag</th>
-            <th>Family Name</th>
-            <th></th>
+            <th>Family</th>
             <th></th>
           </tr>
         </thead>
@@ -692,13 +692,19 @@
 <div id="guardiansPagination" class="pagination"></div>
 
       <table id="guardiansTable">
+        <colgroup>
+          <col style="width:20%">  <!-- Name -->
+          <col style="width:22%">  <!-- Family -->
+          <col style="width:28%">  <!-- Email -->
+          <col style="width:17%">  <!-- Phone -->
+          <col style="width:3%">   <!-- Chevron -->
+        </colgroup>
         <thead>
           <tr>
             <th>Name</th>
             <th>Family</th>
             <th>Email</th>
             <th>Phone</th>
-            <th></th>
             <th></th>
           </tr>
         </thead>
@@ -773,23 +779,28 @@
 <div id="studentsPagination" class="pagination"></div>
 
       <table id="studentsTable">
-       
-	
-<thead>
-  <tr>
-    <th>Name</th>
-    <th class="col-id">Student #</th>
-    <th>Family</th>
-    <th class="col-grade">Grade</th>
-    <th>Homeroom</th>
-    <th>Bus Group</th>
-    <th>Campus</th>
-    <th class="col-active"></th>
-    <th class="col-actions"></th>
-  </tr>
-</thead>
-
-
+        <colgroup>
+          <col style="width:18%">  <!-- Name -->
+          <col style="width:8%">   <!-- Student # -->
+          <col style="width:18%">  <!-- Family -->
+          <col style="width:6%">   <!-- Grade -->
+          <col style="width:18%">  <!-- Homeroom -->
+          <col style="width:13%">  <!-- Bus Group -->
+          <col style="width:13%">  <!-- Campus -->
+          <col style="width:3%">   <!-- Chevron -->
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Student #</th>
+            <th>Family</th>
+            <th>Grade</th>
+            <th>Homeroom</th>
+            <th>Bus Group</th>
+            <th>Campus</th>
+            <th></th>
+          </tr>
+        </thead>
         <tbody></tbody>
       </table>
     </div>
@@ -833,10 +844,13 @@
 </div>
 
       <table id="busTable">
+        <colgroup>
+          <col>                    <!-- Name + Route inline -->
+          <col style="width:36px"> <!-- Chevron -->
+        </colgroup>
         <thead>
           <tr>
             <th>Name</th>
-            <th>Route</th>
             <th></th>
           </tr>
         </thead>
@@ -996,6 +1010,14 @@
       </div>
       <p id="campusEmpty" class="muted" hidden>No campuses configured yet.</p>
       <table id="campusTable" style="display:none">
+        <colgroup>
+          <col style="width:30%">  <!-- Name -->
+          <col style="width:15%">  <!-- Start -->
+          <col style="width:15%">  <!-- End -->
+          <col style="width:17%">  <!-- Hrs -->
+          <col style="width:20%">  <!-- Inc -->
+          <col style="width:3%">   <!-- Chevron -->
+        </colgroup>
         <thead>
           <tr>
             <th>Name</th>
@@ -1075,6 +1097,86 @@
 </div>
 
 <!-- =============================================
+     EDIT STAFF DRAWER
+     ============================================= -->
+<div id="editStaffDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Edit Staff Member">
+  <div class="drawer-header">
+    <div class="staff-drawer-person">
+      <div class="staff-avatar-lg" id="esAvatar"></div>
+      <div style="min-width:0;">
+        <h3 id="esTitle">Staff Member</h3>
+        <span class="staff-drawer-subtitle" id="esSubtitle"></span>
+      </div>
+    </div>
+    <button class="drawer-close" id="esCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>First Name <span class="required">*</span></label>
+        <input id="esFirst" class="form-input" placeholder="First name" />
+      </div>
+      <div class="drawer-field">
+        <label>Last Name <span class="required">*</span></label>
+        <input id="esLast" class="form-input" placeholder="Last name" />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Email</label>
+      <input id="esEmail" class="form-input" type="email" placeholder="Email address" />
+    </div>
+    <div class="drawer-field">
+      <label>Position</label>
+      <input id="esPosition" class="form-input" placeholder="Job title / position" />
+    </div>
+    <div class="drawer-field">
+      <label>Supervisor / PTO Approver</label>
+      <select id="esSupervisor" class="form-input"></select>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Campus</label>
+        <select id="esCampus" class="form-input"></select>
+      </div>
+      <div class="drawer-field">
+        <label>Contract Type</label>
+        <select id="esMonths" class="form-input">
+          <option value="">— Not set —</option>
+          <option value="10">10-Month</option>
+          <option value="11">11-Month</option>
+          <option value="12">12-Month</option>
+        </select>
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="esActive" />
+        <span>Active employee</span>
+      </label>
+    </div>
+  </div>
+  <div class="drawer-footer-split">
+    <button id="esDeleteBtn" class="btn danger">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button id="esCancelBtn" class="btn">Cancel</button>
+      <button id="esSaveBtn" class="btn btn-primary">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete staff confirmation -->
+<div id="deleteStaffModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title">Delete Staff Member?</h3>
+    <p class="confirm-modal-body" id="deleteStaffMsg"></p>
+    <div class="confirm-modal-actions">
+      <button id="deleteStaffCancel" class="btn">Cancel</button>
+      <button id="deleteStaffConfirm" class="btn danger">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
      STUDENT DRAWER
      ============================================= -->
 <div id="studentDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Student">
@@ -1137,6 +1239,87 @@
 </div>
 
 <!-- =============================================
+     EDIT STUDENT DRAWER
+     ============================================= -->
+<div id="editStudentDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Edit Student">
+  <div class="drawer-header">
+    <div class="staff-drawer-person">
+      <div class="staff-avatar-lg" id="estuAvatar"></div>
+      <div style="min-width:0;">
+        <h3 id="estuTitle">Student</h3>
+        <span class="staff-drawer-subtitle" id="estuSubtitle"></span>
+      </div>
+    </div>
+    <button class="drawer-close" id="estuCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Family <span class="required">*</span></label>
+      <select id="estuFamily" class="form-input"></select>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>First Name <span class="required">*</span></label>
+        <input id="estuFirst" class="form-input" placeholder="First name" />
+      </div>
+      <div class="drawer-field">
+        <label>Last Name <span class="required">*</span></label>
+        <input id="estuLast" class="form-input" placeholder="Last name" />
+      </div>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Grade</label>
+        <input id="estuGrade" class="form-input" placeholder="e.g. K, 1, 2…" />
+      </div>
+      <div class="drawer-field">
+        <label>Student #</label>
+        <input id="estuNumber" class="form-input" placeholder="Student number" readonly />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Homeroom Teacher</label>
+      <select id="estuHomeroom" class="form-input"></select>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Bus Group</label>
+        <select id="estuBus" class="form-input"></select>
+      </div>
+      <div class="drawer-field">
+        <label>Campus</label>
+        <select id="estuCampus" class="form-input"></select>
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="estuActive" />
+        <span>Active student</span>
+      </label>
+    </div>
+  </div>
+  <div class="drawer-footer-split">
+    <button id="estuDeleteBtn" class="btn danger">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button id="estuCancelBtn" class="btn">Cancel</button>
+      <button id="estuSaveBtn" class="btn btn-primary">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete student confirmation -->
+<div id="deleteStudentModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title">Delete Student?</h3>
+    <p class="confirm-modal-body" id="deleteStudentMsg"></p>
+    <div class="confirm-modal-actions">
+      <button id="deleteStudentCancel" class="btn">Cancel</button>
+      <button id="deleteStudentConfirm" class="btn danger">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
      FAMILY DRAWER
      ============================================= -->
 <div id="familyDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Family">
@@ -1157,6 +1340,57 @@
   <div class="drawer-footer">
     <button class="btn" onclick="closeDrawer('familyDrawer')">Cancel</button>
     <button id="addFamily" class="btn btn-primary">Add Family</button>
+  </div>
+</div>
+
+<!-- =============================================
+     EDIT FAMILY DRAWER
+     ============================================= -->
+<div id="editFamilyDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Edit Family">
+  <div class="drawer-header">
+    <div class="staff-drawer-person">
+      <div class="staff-avatar-lg" id="efAvatar"></div>
+      <div style="min-width:0;">
+        <h3 id="efTitle">Family</h3>
+        <span class="staff-drawer-subtitle" id="efSubtitle"></span>
+      </div>
+    </div>
+    <button class="drawer-close" id="efCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Carline Tag # <span class="required">*</span></label>
+      <input id="efTag" class="form-input" placeholder="e.g. 104" />
+    </div>
+    <div class="drawer-field">
+      <label>Family Name</label>
+      <input id="efName" class="form-input" placeholder="e.g. Smith Family" />
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="efActive" />
+        <span>Active family</span>
+      </label>
+    </div>
+  </div>
+  <div class="drawer-footer-split">
+    <button id="efDeleteBtn" class="btn danger">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button id="efCancelBtn" class="btn">Cancel</button>
+      <button id="efSaveBtn" class="btn btn-primary">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete family confirmation -->
+<div id="deleteFamilyModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title">Delete Family?</h3>
+    <p class="confirm-modal-body" id="deleteFamilyMsg"></p>
+    <div class="confirm-modal-actions">
+      <button id="deleteFamilyCancel" class="btn">Cancel</button>
+      <button id="deleteFamilyConfirm" class="btn danger">Delete</button>
+    </div>
   </div>
 </div>
 
@@ -1201,6 +1435,71 @@
 </div>
 
 <!-- =============================================
+     EDIT GUARDIAN DRAWER
+     ============================================= -->
+<div id="editGuardianDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Edit Guardian">
+  <div class="drawer-header">
+    <div class="staff-drawer-person">
+      <div class="staff-avatar-lg" id="egAvatar"></div>
+      <div style="min-width:0;">
+        <h3 id="egTitle">Guardian</h3>
+        <span class="staff-drawer-subtitle" id="egSubtitle"></span>
+      </div>
+    </div>
+    <button class="drawer-close" id="egCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Family <span class="required">*</span></label>
+      <select id="egFamily" class="form-input"></select>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>First Name <span class="required">*</span></label>
+        <input id="egFirst" class="form-input" placeholder="First name" />
+      </div>
+      <div class="drawer-field">
+        <label>Last Name <span class="required">*</span></label>
+        <input id="egLast" class="form-input" placeholder="Last name" />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Email</label>
+      <input id="egEmail" class="form-input" type="email" placeholder="Email address" />
+    </div>
+    <div class="drawer-field">
+      <label>Phone</label>
+      <input id="egPhone" class="form-input" type="tel" placeholder="Phone number" />
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="egActive" />
+        <span>Active guardian</span>
+      </label>
+    </div>
+  </div>
+  <div class="drawer-footer-split">
+    <button id="egDeleteBtn" class="btn danger">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button id="egCancelBtn" class="btn">Cancel</button>
+      <button id="egSaveBtn" class="btn btn-primary">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete guardian confirmation -->
+<div id="deleteGuardianModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title">Delete Guardian?</h3>
+    <p class="confirm-modal-body" id="deleteGuardianMsg"></p>
+    <div class="confirm-modal-actions">
+      <button id="deleteGuardianCancel" class="btn">Cancel</button>
+      <button id="deleteGuardianConfirm" class="btn danger">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
      BUS GROUP DRAWER
      ============================================= -->
 <div id="busGroupDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Bus Group">
@@ -1221,6 +1520,51 @@
   <div class="drawer-footer">
     <button class="btn" onclick="closeDrawer('busGroupDrawer')">Cancel</button>
     <button id="addBusGroup" class="btn btn-primary">Add Bus Group</button>
+  </div>
+</div>
+
+<!-- =============================================
+     EDIT BUS GROUP DRAWER
+     ============================================= -->
+<div id="editBusGroupDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Edit Bus Group">
+  <div class="drawer-header">
+    <div class="staff-drawer-person">
+      <div class="staff-avatar-lg" id="ebgAvatar"></div>
+      <div style="min-width:0;">
+        <h3 id="ebgTitle">Bus Group</h3>
+        <span class="staff-drawer-subtitle" id="ebgSubtitle"></span>
+      </div>
+    </div>
+    <button class="drawer-close" id="ebgCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Group Name <span class="required">*</span></label>
+      <input id="ebgName" class="form-input" placeholder="e.g. Blue" />
+    </div>
+    <div class="drawer-field">
+      <label>Route #</label>
+      <input id="ebgRoute" class="form-input" placeholder="e.g. R12" />
+    </div>
+  </div>
+  <div class="drawer-footer-split">
+    <button id="ebgDeleteBtn" class="btn danger">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button id="ebgCancelBtn" class="btn">Cancel</button>
+      <button id="ebgSaveBtn" class="btn btn-primary">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete bus group confirmation -->
+<div id="deleteBusGroupModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title">Delete Bus Group?</h3>
+    <p class="confirm-modal-body" id="deleteBusGroupMsg"></p>
+    <div class="confirm-modal-actions">
+      <button id="deleteBusGroupCancel" class="btn">Cancel</button>
+      <button id="deleteBusGroupConfirm" class="btn danger">Delete</button>
+    </div>
   </div>
 </div>
 
@@ -1261,6 +1605,67 @@
   <div class="drawer-footer">
     <button class="btn" onclick="closeDrawer('campusDrawer')">Cancel</button>
     <button id="addCampus" class="btn btn-primary">Add Campus</button>
+  </div>
+</div>
+
+<!-- =============================================
+     EDIT CAMPUS DRAWER
+     ============================================= -->
+<div id="editCampusDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Edit Campus">
+  <div class="drawer-header">
+    <div class="staff-drawer-person">
+      <div class="staff-avatar-lg" id="ecAvatar"></div>
+      <div style="min-width:0;">
+        <h3 id="ecTitle">Campus</h3>
+        <span class="staff-drawer-subtitle" id="ecSubtitle"></span>
+      </div>
+    </div>
+    <button class="drawer-close" id="ecCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Campus Name <span class="required">*</span></label>
+      <input id="ecName" class="form-input" placeholder="Campus name" />
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Day Start Time</label>
+        <input id="ecStart" type="time" class="form-input" />
+      </div>
+      <div class="drawer-field">
+        <label>Day End Time</label>
+        <input id="ecEnd" type="time" class="form-input" />
+      </div>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label>Workday Hours</label>
+        <input id="ecHours" type="number" step="0.5" class="form-input" placeholder="e.g. 7.5" />
+      </div>
+      <div class="drawer-field">
+        <label>PTO Increment (min)</label>
+        <input id="ecIncrement" type="number" step="5" class="form-input" placeholder="e.g. 30" />
+      </div>
+    </div>
+  </div>
+  <div class="drawer-footer-split">
+    <button id="ecDeleteBtn" class="btn danger">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button id="ecCancelBtn" class="btn">Cancel</button>
+      <button id="ecSaveBtn" class="btn btn-primary">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete campus confirmation -->
+<div id="deleteCampusModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title">Delete Campus?</h3>
+    <p class="confirm-modal-body" id="deleteCampusMsg"></p>
+    <div class="confirm-modal-actions">
+      <button id="deleteCampusCancel" class="btn">Cancel</button>
+      <button id="deleteCampusConfirm" class="btn danger">Delete</button>
+    </div>
   </div>
 </div>
 

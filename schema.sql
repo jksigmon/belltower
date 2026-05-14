@@ -382,6 +382,23 @@ $$;
 
 
 --
+-- Name: prevent_school_delete(); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE OR REPLACE FUNCTION public.prevent_school_delete()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+  IF NOT OLD.deletable THEN
+    RAISE EXCEPTION
+      'School "%" is protected from deletion. Run: UPDATE schools SET deletable = true WHERE id = ''%''; — then retry.',
+      OLD.name, OLD.id;
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+
+--
 -- Name: enforce_supervisor_is_pto_approver(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -1081,7 +1098,8 @@ CREATE TABLE public.schools (
     short_name text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     calendar_ics_token uuid DEFAULT gen_random_uuid() NOT NULL,
-    email_domain text
+    email_domain text,
+    deletable boolean DEFAULT false NOT NULL
 );
 
 
@@ -1744,6 +1762,8 @@ CREATE UNIQUE INDEX uq_sub_assign_pto_day ON public.substitute_assignments USING
 --
 -- Name: students before_insert_assign_student_number; Type: TRIGGER; Schema: public; Owner: -
 --
+
+CREATE TRIGGER schools_delete_guard BEFORE DELETE ON public.schools FOR EACH ROW EXECUTE FUNCTION public.prevent_school_delete();
 
 CREATE TRIGGER before_insert_assign_student_number BEFORE INSERT ON public.students FOR EACH ROW EXECUTE FUNCTION public.assign_student_number();
 

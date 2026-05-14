@@ -3,10 +3,12 @@ import { supabase } from './admin.supabase.js';
 let currentProfile;
 let campuses = [];
 let eventsWired = false;
+let editingCampusId = null;
 
 /* ===============================
    ENTRY POINT
 ================================ */
+
 export async function initCampusesSection(profile) {
   currentProfile = profile;
   if (!eventsWired) {
@@ -19,6 +21,7 @@ export async function initCampusesSection(profile) {
 /* ===============================
    DATA
 ================================ */
+
 async function loadCampuses() {
   const { data, error } = await supabase
     .from('campuses')
@@ -32,8 +35,28 @@ async function loadCampuses() {
 }
 
 /* ===============================
-   RENDERING
+   HELPERS
 ================================ */
+
+function esc(str) {
+  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function getAvatarColor(name) {
+  const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function fmtTime(t) {
+  return t ? t.slice(0, 5) : '—';
+}
+
+/* ===============================
+   RENDER TABLE
+================================ */
+
 function renderCampusTable() {
   const tbody = document.querySelector('#campusTable tbody');
   const empty = document.getElementById('campusEmpty');
@@ -52,103 +75,119 @@ function renderCampusTable() {
   if (table) table.style.display = '';
 
   campuses.forEach(c => {
-    const startView = c.day_start_time ? c.day_start_time.slice(0, 5) : '—';
-    const endView   = c.day_end_time   ? c.day_end_time.slice(0, 5)   : '—';
-    const startVal  = c.day_start_time ? c.day_start_time.slice(0, 5) : '';
-    const endVal    = c.day_end_time   ? c.day_end_time.slice(0, 5)   : '';
+    const initial = (c.name ?? '?')[0].toUpperCase();
+    const color   = getAvatarColor(c.name ?? '');
+
+    const hoursVal     = c.workday_hours != null ? `${c.workday_hours} hrs` : '—';
+    const incrementVal = c.pto_increment_minutes != null ? `${c.pto_increment_minutes} min` : '—';
 
     const tr = document.createElement('tr');
+    tr.className = 'dir-row-link';
     tr.innerHTML = `
       <td>
-        <span class="view">${c.name}</span>
-        <input class="form-input edit campus-name" hidden value="${c.name}">
+        <div class="staff-name-cell">
+          <div class="staff-avatar" style="background:${color}">${initial}</div>
+          <div class="staff-name-group">
+            <span class="staff-fullname">${esc(c.name)}</span>
+          </div>
+        </div>
       </td>
-      <td>
-        <span class="view">${startView}</span>
-        <input type="time" class="form-input edit campus-start" hidden value="${startVal}">
-      </td>
-      <td>
-        <span class="view">${endView}</span>
-        <input type="time" class="form-input edit campus-end" hidden value="${endVal}">
-      </td>
-      <td>
-        <span class="view">${c.workday_hours ?? '—'}</span>
-        <input type="number" step="0.5" class="form-input edit campus-hours" hidden
-          value="${c.workday_hours ?? ''}" placeholder="hrs">
-      </td>
-      <td>
-        <span class="view">${c.pto_increment_minutes != null ? c.pto_increment_minutes + ' min' : '—'}</span>
-        <input type="number" step="5" class="form-input edit campus-increment" hidden
-          value="${c.pto_increment_minutes ?? ''}" placeholder="min">
-      </td>
-      <td>
-        <button class="btn editBtn">Edit</button>
-        <button class="btn saveBtn" hidden>Save</button>
-        <button class="btn cancelBtn" hidden>Cancel</button>
-        <button class="btn danger deleteBtn">Delete</button>
+      <td class="staff-cell-muted">${esc(fmtTime(c.day_start_time))}</td>
+      <td class="staff-cell-muted">${esc(fmtTime(c.day_end_time))}</td>
+      <td class="staff-cell-muted">${esc(hoursVal)}</td>
+      <td class="staff-cell-muted">${esc(incrementVal)}</td>
+      <td class="staff-cell-chevron">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </td>
     `;
 
-    wireCampusRow(tr, c.id);
+    tr.addEventListener('click', () => openEditCampusDrawer(c));
     tbody.appendChild(tr);
   });
 }
 
 /* ===============================
-   ROW WIRING
+   EDIT DRAWER
 ================================ */
-function wireCampusRow(tr, campusId) {
-  const editBtn   = tr.querySelector('.editBtn');
-  const saveBtn   = tr.querySelector('.saveBtn');
-  const cancelBtn = tr.querySelector('.cancelBtn');
-  const deleteBtn = tr.querySelector('.deleteBtn');
-  const views = tr.querySelectorAll('.view');
-  const edits = tr.querySelectorAll('.edit');
 
-  editBtn.onclick = () => {
-    views.forEach(v => (v.hidden = true));
-    edits.forEach(e => (e.hidden = false));
-    editBtn.hidden = true;
-    saveBtn.hidden = false;
-    cancelBtn.hidden = false;
-    deleteBtn.hidden = true;
+function openEditCampusDrawer(c) {
+  editingCampusId = c.id;
+
+  const initial = (c.name ?? '?')[0].toUpperCase();
+  const color   = getAvatarColor(c.name ?? '');
+
+  const avatar = document.getElementById('ecAvatar');
+  avatar.textContent      = initial;
+  avatar.style.background = color;
+
+  document.getElementById('ecTitle').textContent    = c.name;
+  document.getElementById('ecSubtitle').textContent =
+    (c.day_start_time && c.day_end_time)
+      ? `${fmtTime(c.day_start_time)} – ${fmtTime(c.day_end_time)}`
+      : '';
+
+  document.getElementById('ecName').value      = c.name ?? '';
+  document.getElementById('ecStart').value     = c.day_start_time ? c.day_start_time.slice(0, 5) : '';
+  document.getElementById('ecEnd').value       = c.day_end_time   ? c.day_end_time.slice(0, 5)   : '';
+  document.getElementById('ecHours').value     = c.workday_hours ?? '';
+  document.getElementById('ecIncrement').value = c.pto_increment_minutes ?? '';
+
+  const saveBtn = document.getElementById('ecSaveBtn');
+  saveBtn.disabled    = false;
+  saveBtn.textContent = 'Save Changes';
+
+  window.openDrawer?.('editCampusDrawer');
+}
+
+async function saveEditCampus() {
+  if (!editingCampusId) return;
+
+  const name = document.getElementById('ecName').value.trim();
+  if (!name) { alert('Campus name is required.'); return; }
+
+  const updated = {
+    name,
+    day_start_time:        document.getElementById('ecStart').value     || null,
+    day_end_time:          document.getElementById('ecEnd').value       || null,
+    workday_hours:         parseFloat(document.getElementById('ecHours').value)     || null,
+    pto_increment_minutes: parseInt(document.getElementById('ecIncrement').value)   || null,
   };
 
-  saveBtn.onclick = async () => {
-    const name      = tr.querySelector('.campus-name').value.trim();
-    const startTime = tr.querySelector('.campus-start').value || null;
-    const endTime   = tr.querySelector('.campus-end').value   || null;
-    const hours     = parseFloat(tr.querySelector('.campus-hours').value)     || null;
-    const increment = parseInt(tr.querySelector('.campus-increment').value)   || null;
+  const saveBtn = document.getElementById('ecSaveBtn');
+  saveBtn.disabled    = true;
+  saveBtn.textContent = 'Saving…';
 
-    if (!name) { alert('Campus name is required.'); return; }
+  const { error } = await supabase.from('campuses').update(updated).eq('id', editingCampusId);
 
-    const { error } = await supabase
-      .from('campuses')
-      .update({ name, day_start_time: startTime, day_end_time: endTime,
-                workday_hours: hours, pto_increment_minutes: increment })
-      .eq('id', campusId);
+  saveBtn.disabled    = false;
+  saveBtn.textContent = 'Save Changes';
 
-    if (error) { alert('Failed to save campus.'); return; }
-    await loadCampuses();
-  };
+  if (error) { alert('Failed to save campus.'); return; }
+  window.closeDrawer?.('editCampusDrawer');
+  await loadCampuses();
+}
 
-  cancelBtn.onclick = () => loadCampuses();
+function confirmDeleteCampus() {
+  if (!editingCampusId) return;
+  const name = document.getElementById('ecName').value;
+  document.getElementById('deleteCampusMsg').textContent =
+    `Are you sure you want to delete "${name}"? Staff assigned to it will become unassigned.`;
+  document.getElementById('deleteCampusModal').hidden = false;
+}
 
-  deleteBtn.onclick = async () => {
-    if (!confirm('Delete this campus?\n\nStaff assigned to it will become unassigned.')) return;
-    const { error } = await supabase.from('campuses').delete().eq('id', campusId);
-    if (error) { alert('Failed to delete campus.'); return; }
-    await loadCampuses();
-  };
+async function executeDeleteCampus() {
+  if (!editingCampusId) return;
+  const { error } = await supabase.from('campuses').delete().eq('id', editingCampusId);
+  document.getElementById('deleteCampusModal').hidden = true;
+  if (error) { alert('Failed to delete campus.'); return; }
+  window.closeDrawer?.('editCampusDrawer');
+  editingCampusId = null;
+  await loadCampuses();
 }
 
 /* ===============================
    CREATE
 ================================ */
-function wireStaticEvents() {
-  document.getElementById('addCampus')?.addEventListener('click', createCampus);
-}
 
 async function createCampus() {
   const name      = document.getElementById('campusName').value.trim();
@@ -160,11 +199,11 @@ async function createCampus() {
   if (!name) { alert('Campus name is required.'); return; }
 
   const { error } = await supabase.from('campuses').insert({
-    school_id: currentProfile.school_id,
+    school_id:             currentProfile.school_id,
     name,
-    day_start_time: startTime,
-    day_end_time:   endTime,
-    workday_hours:  hours,
+    day_start_time:        startTime,
+    day_end_time:          endTime,
+    workday_hours:         hours,
     pto_increment_minutes: increment,
   });
 
@@ -178,8 +217,27 @@ async function createCampus() {
 }
 
 /* ===============================
+   EVENTS
+================================ */
+
+function wireStaticEvents() {
+  document.getElementById('addCampus')?.addEventListener('click', createCampus);
+
+  // Edit drawer
+  document.getElementById('ecSaveBtn')?.addEventListener('click',   saveEditCampus);
+  document.getElementById('ecCancelBtn')?.addEventListener('click', () => window.closeDrawer?.('editCampusDrawer'));
+  document.getElementById('ecCloseBtn')?.addEventListener('click',  () => window.closeDrawer?.('editCampusDrawer'));
+  document.getElementById('ecDeleteBtn')?.addEventListener('click', confirmDeleteCampus);
+
+  // Delete modal
+  document.getElementById('deleteCampusCancel')?.addEventListener('click',  () => { document.getElementById('deleteCampusModal').hidden = true; });
+  document.getElementById('deleteCampusConfirm')?.addEventListener('click', executeDeleteCampus);
+}
+
+/* ===============================
    SHARED LOOKUP (used by staff module)
 ================================ */
+
 export function getCampusLookup() {
   return Object.fromEntries(campuses.map(c => [c.id, c.name]));
 }
