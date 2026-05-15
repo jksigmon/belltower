@@ -319,6 +319,8 @@
 
       <div class="nav-section">Settings</div>
       <a href="#schools" id="navSchools" style="display:none;"><i data-lucide="building-2"></i> Schools</a>
+      <a href="#placement" data-cap="can_manage_students"><i data-lucide="layout-grid"></i> Class Placement</a>
+      <a href="#promotion" data-cap="can_manage_students"><i data-lucide="graduation-cap"></i> Year-End Promotion</a>
       <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access <span class="badge-count" id="accessRequestBadge"></span></a>
       <a href="#bulk-upload" data-cap="can_bulk_upload"><i data-lucide="upload"></i> Bulk Upload</a>
       <a href="#exports" data-cap="can_export_data"><i data-lucide="download"></i> Exports</a>
@@ -1133,6 +1135,187 @@
         <tbody></tbody>
       </table>
     </div>
+  </div>
+</section>
+
+<section id="placement" class="admin-section">
+  <div class="admin-content fade-in">
+
+    <!-- Session list view -->
+    <div id="placementSessionListView">
+      <div class="panel">
+        <div class="placement-header">
+          <div>
+            <h3 style="margin:0 0 4px;">Class Placement</h3>
+            <p class="muted" style="font-size:13px;margin:0;">Draft and commit student class assignments for the upcoming year.</p>
+          </div>
+          <button class="btn btn-primary" id="newPlacementSessionBtn">
+            <i data-lucide="plus"></i> New Session
+          </button>
+        </div>
+        <div id="placementSessionList"></div>
+      </div>
+    </div>
+
+    <!-- Create form view -->
+    <div id="placementCreateFormView" hidden>
+      <div class="panel">
+        <div class="placement-header" style="margin-bottom:20px;">
+          <h3 style="margin:0;">New Placement Session</h3>
+          <button class="btn btn-outline btn-sm" id="cancelCreatePlacementBtn">
+            <i data-lucide="arrow-left"></i> Back
+          </button>
+        </div>
+        <div class="placement-form-grid">
+          <div class="form-group">
+            <label class="form-label">Academic Year</label>
+            <select id="placementYear" class="form-input"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Incoming Grade <span class="muted" style="font-weight:400;">(students' current grade)</span></label>
+            <select id="placementIncomingGrade" class="form-input">
+              <option value="">— Select grade —</option>
+              <option value="PK">Pre-K</option>
+              <option value="K">Kindergarten</option>
+              <option value="1">1st Grade</option>
+              <option value="2">2nd Grade</option>
+              <option value="3">3rd Grade</option>
+              <option value="4">4th Grade</option>
+              <option value="5">5th Grade</option>
+              <option value="6">6th Grade</option>
+              <option value="7">7th Grade</option>
+              <option value="8">8th Grade</option>
+              <option value="9">9th Grade</option>
+              <option value="10">10th Grade</option>
+              <option value="11">11th Grade</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Session Label <span class="muted" style="font-weight:400;">(optional)</span></label>
+            <input type="text" id="placementLabel" class="form-input" placeholder="e.g. 2nd Grade → 3rd Grade">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:20px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
+            <div>
+              <label class="form-label" style="margin:0;">Teachers on Board</label>
+              <p class="muted" style="font-size:12px;margin:2px 0 0;">Select which teachers will appear as columns on the placement board.</p>
+            </div>
+            <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
+              <div id="placementCampusFilterWrap" hidden>
+                <select id="placementCampusFilter" class="form-input" style="min-width:160px;font-size:13px;">
+                  <option value="">All Campuses</option>
+                </select>
+              </div>
+              <select id="placementStaffSort" class="form-input" style="min-width:140px;font-size:13px;">
+                <option value="last_name">Sort: Last Name</option>
+                <option value="first_name">Sort: First Name</option>
+                <option value="position">Sort: Position</option>
+              </select>
+            </div>
+          </div>
+          <div id="placementTeacherCheckboxes" class="placement-teacher-grid"></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:24px;">
+          <button class="btn btn-primary" id="submitCreatePlacementBtn">Create Session</button>
+          <button class="btn btn-outline" id="cancelCreatePlacementBtn2">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Board view -->
+    <div id="placementBoardView" hidden>
+      <div class="panel placement-board-panel">
+        <div class="placement-board-topbar">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button class="btn btn-outline btn-sm" id="backToSessionListBtn">
+              <i data-lucide="arrow-left"></i> Sessions
+            </button>
+            <div>
+              <div id="placementBoardTitle" style="font-weight:600;font-size:15px;line-height:1.3;"></div>
+              <div id="placementBoardMeta" class="muted" style="font-size:12px;"></div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span id="placementSaveStatus" class="muted" style="font-size:12px;"></span>
+            <button class="btn btn-primary" id="commitPlacementBtn">Commit Placement</button>
+          </div>
+        </div>
+        <div class="placement-board-wrap">
+          <div class="placement-board" id="placementBoard"></div>
+        </div>
+        <p class="muted" style="font-size:12px;margin:10px 0 0;">
+          Drag cards between columns or click a card to select it, then click a column to move it. Use the <i data-lucide="tag" style="width:12px;height:12px;vertical-align:middle;"></i> button to assign color flags.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section id="promotion" class="admin-section">
+  <div class="admin-content fade-in">
+
+    <!-- Main panel: header + preview -->
+    <div class="panel">
+      <div class="promo-header">
+        <div>
+          <h3>Year-End Student Promotion</h3>
+          <p class="muted" style="margin:4px 0 0; font-size:13px;">Promote, retain, or graduate all active students before the new school year begins.</p>
+        </div>
+        <div class="promo-header-actions">
+          <select id="promotionAcademicYear" class="form-input" style="width:140px;"></select>
+          <button id="loadPromotionPreviewBtn" class="btn btn-primary">Load Preview</button>
+        </div>
+      </div>
+
+      <!-- Empty / initial state -->
+      <div id="promotionInitial" class="promo-empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        <p>Select the upcoming school year above and click <strong>Load Preview</strong> to review all students before promoting.</p>
+      </div>
+
+      <!-- Preview (shown after load) -->
+      <div id="promotionPreview" hidden>
+
+        <!-- Summary chips -->
+        <div class="promo-summary-row">
+          <div class="stat-chip">
+            <div class="stat-chip-label">Promoting</div>
+            <div class="stat-chip-value ok" id="promCount">0</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-chip-label">Retained</div>
+            <div class="stat-chip-value warn" id="retainCount">0</div>
+          </div>
+          <div class="stat-chip stat-chip-accent">
+            <div class="stat-chip-label">Graduating</div>
+            <div class="stat-chip-value" id="gradCount">0</div>
+          </div>
+          <div class="stat-chip">
+            <div class="stat-chip-label">Total Students</div>
+            <div class="stat-chip-value" id="totalCount">0</div>
+          </div>
+        </div>
+
+        <!-- Grade groups rendered by JS -->
+        <div id="promotionGradeGroups"></div>
+
+        <!-- Run button -->
+        <div class="promo-run-row">
+          <button id="runPromotionBtn" class="btn btn-primary">
+            Run Promotion for <span id="promoYearLabel"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Past runs panel -->
+    <div class="panel" style="margin-top:16px;">
+      <h4 style="margin:0 0 14px;">Past Promotion Runs</h4>
+      <div id="promotionLogEntries"></div>
+    </div>
+
   </div>
 </section>
 

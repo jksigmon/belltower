@@ -150,6 +150,16 @@ if (target === '#schools') {
   await schools.initSchoolsSection(currentProfile);
 }
 
+if (target === '#placement') {
+  const placement = await import('./admin.placement.js');
+  await placement.initPlacementSection(currentProfile);
+}
+
+if (target === '#promotion') {
+  const promotion = await import('./admin.promotion.js');
+  await promotion.initPromotionSection(currentProfile);
+}
+
 }
 
 /* ===============================

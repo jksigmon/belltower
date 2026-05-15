@@ -2376,6 +2376,230 @@ nav a[data-cap-group] {
 }
 
 
+/* =====================================================
+   Year-End Student Promotion
+   ===================================================== */
+
+.promo-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.promo-header h3 {
+  margin: 0;
+}
+
+.promo-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+/* Empty / initial state */
+.promo-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.promo-empty-state p {
+  margin: 0;
+  font-size: 13px;
+  max-width: 380px;
+  line-height: 1.6;
+}
+
+/* Summary chips row */
+.promo-summary-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+/* Grade group block */
+.promo-grade-group {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.promo-grade-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.promo-grade-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.promo-grade-count {
+  font-size: 12px;
+}
+
+.promo-bulk-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.promo-bulk-btn {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s, color 0.1s;
+}
+
+.promo-bulk-btn:hover {
+  background: #f1f5f9;
+  color: var(--text-primary);
+}
+
+/* Table inside each group */
+.promo-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.promo-table thead th {
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #fafafa;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.promo-table tbody td {
+  padding: 10px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.promo-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.promo-table tbody tr:hover td {
+  background: #fafafa;
+}
+
+/* Per-student segmented control */
+.promo-segmented {
+  display: inline-flex;
+  border: 1.5px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+  background: #f9fafb;
+}
+
+.promo-seg-btn {
+  padding: 4px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-right: 1.5px solid var(--border);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+}
+
+.promo-seg-btn:last-child {
+  border-right: none;
+}
+
+.promo-seg-btn:hover {
+  background: #f1f5f9;
+  color: var(--text-primary);
+}
+
+.promo-seg-btn.active {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+/* Run button row */
+.promo-run-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+
+/* Past runs log */
+.promo-log-entry {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.promo-log-entry:last-child {
+  border-bottom: none;
+}
+
+.promo-log-year {
+  font-weight: 700;
+  color: var(--text-primary);
+  min-width: 90px;
+}
+
+.promo-log-stats {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.promo-log-stat {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.promo-log-date {
+  font-size: 12px;
+  margin-left: auto;
+}
+
 /* ── Dashboard ─────────────────────────────────────────────── */
 
 /* Banner */
@@ -3531,5 +3755,343 @@ a.stat, a.dash-stat-link {
   font-weight: 700;
   white-space: nowrap;
   letter-spacing: 0.02em;
+}
+
+/* =====================================================
+   Class Placement Module
+   ===================================================== */
+
+/* Session list */
+.placement-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.placement-session-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.placement-session-row:last-child {
+  border-bottom: none;
+}
+
+.placement-session-info {
+  min-width: 0;
+}
+
+.placement-session-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.placement-status-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge-committed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-draft {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.placement-empty {
+  padding: 28px 0 12px;
+  text-align: center;
+}
+
+/* Create form */
+.placement-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.placement-teacher-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.placement-teacher-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.placement-teacher-check:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.placement-teacher-check input[type="checkbox"] {
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+}
+
+.placement-teacher-check-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.placement-teacher-check-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.placement-teacher-check-type {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Board panel — override overflow-x:hidden so board can scroll */
+.placement-board-panel {
+  overflow-x: visible !important;
+}
+
+.placement-board-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.placement-board-wrap {
+  overflow-x: auto;
+  padding-bottom: 12px;
+  margin: 0 -4px;
+}
+
+.placement-board {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: max-content;
+  padding: 4px;
+}
+
+/* Column */
+.placement-col {
+  width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.placement-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+}
+
+.placement-col-header.col-unplaced {
+  background: #f1f5f9;
+  border-top: 3px solid #94a3b8;
+}
+
+.placement-col-header.col-teacher {
+  background: #eff6ff;
+  border-top: 3px solid #2563eb;
+}
+
+.placement-col-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.placement-col-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.placement-col-body {
+  flex: 1;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 0 0 8px 8px;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.placement-col-body.drag-over {
+  background: #eff6ff;
+  border-color: #3b82f6;
+}
+
+.placement-col-body.click-target {
+  background: #f0fdf4;
+  border-color: #4ade80;
+  cursor: pointer;
+}
+
+/* Student card */
+.placement-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 8px 10px 6px;
+  cursor: grab;
+  user-select: none;
+  transition: box-shadow 0.12s, border-color 0.12s, transform 0.1s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.placement-card:hover {
+  box-shadow: 0 3px 8px rgba(0,0,0,0.10);
+  border-color: #94a3b8;
+}
+
+.placement-card.selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+  background: #eff6ff;
+}
+
+.placement-card.dragging {
+  opacity: 0.55;
+  cursor: grabbing;
+  transform: rotate(1.5deg);
+}
+
+.placement-card-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  margin-bottom: 5px;
+}
+
+.placement-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  min-height: 18px;
+}
+
+.placement-flag-dots {
+  display: flex;
+  gap: 3px;
+  flex-wrap: wrap;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.placement-flag-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.placement-flag-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.placement-flag-btn:hover {
+  background: #f1f5f9;
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+/* Flag popover — position set via JS (fixed to body, escapes overflow) */
+.placement-flag-popover {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 150px;
+}
+
+.placement-flag-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-secondary);
+  text-align: left;
+  width: 100%;
+  transition: background 0.1s;
+}
+
+.placement-flag-toggle:hover {
+  background: #f8fafc;
+}
+
+.placement-flag-toggle.active {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: var(--text-primary);
 }
 
