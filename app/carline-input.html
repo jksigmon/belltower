@@ -220,7 +220,7 @@ async function boot() {
   console.log('[boot] 3 - loading profile');
   const { data: p, error } = await supabase
     .from('profiles')
-    .select('*, schools(name)')
+    .select('*, schools!profiles_school_id_fkey(name)')
     .eq('user_id', session.user.id)
     .single();
 

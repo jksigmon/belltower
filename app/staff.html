@@ -91,19 +91,31 @@
   padding-right: 32px;
 }
 
-/* Coverage toggle chips */
+/* Coverage toggle — segmented control */
 .pto-coverage-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
   width: 100%;
 }
+
+.pto-segmented {
+  display: inline-flex;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f9fafb;
+}
+
 .pto-radio-btn {
   position: relative;
   display: inline-flex;
   cursor: pointer;
   flex-shrink: 0;
+}
+.pto-radio-btn + .pto-radio-btn {
+  border-left: 1.5px solid #e5e7eb;
 }
 .pto-radio-btn input[type="radio"] {
   position: absolute;
@@ -116,24 +128,21 @@
   display: inline-flex;
   align-items: center;
   height: 34px;
-  padding: 0 18px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 8px;
+  padding: 0 20px;
   font-size: 13px;
   font-weight: 500;
   color: #6b7280;
-  background: #fff;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  background: transparent;
+  transition: background 0.12s, color 0.12s;
   user-select: none;
+  white-space: nowrap;
 }
 .pto-radio-btn:hover span {
-  border-color: #9ca3af;
   background: #f3f4f6;
   color: #374151;
 }
 .pto-radio-btn input[type="radio"]:checked + span {
   background: #eff6ff;
-  border-color: var(--primary, #2563eb);
   color: var(--primary, #2563eb);
   font-weight: 600;
 }
@@ -188,21 +197,132 @@
 /* Submit row */
 .pto-submit-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
-}
-.pto-submit-row .btn-primary {
-  height: 40px;
-  min-width: 150px;
-  flex-shrink: 0;
 }
 .pto-form-message {
   font-size: 13px;
   color: #dc2626;
   font-weight: 500;
   flex: 1;
+}
+
+/* ── Submit button full-width ── */
+.pto-submit-btn {
+  width: 100%;
+  justify-content: center;
+  height: 42px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* ── PTO Balances panel ── */
+.staff-balance-panel {
+  background: #fff;
+}
+
+.staff-balance-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+/* Balance cards (per type) */
+.staff-balance-cards {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.staff-balance-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 14px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  min-width: 80px;
+}
+
+.staff-balance-type {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.staff-balance-hours {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.staff-balance-hours.low {
+  color: #b45309;
+}
+
+.staff-balance-days {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── History table: status pills ── */
+.status-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.status-pill.pending   { background: #eff6ff; color: #1d4ed8; }
+.status-pill.approved  { background: #dcfce7; color: #15803d; }
+.status-pill.denied    { background: #fee2e2; color: #b91c1c; }
+.status-pill.cancelled { background: #f1f5f9; color: #64748b; }
+.status-pill.warn-pill { background: #fef9c3; color: #854d0e; }
+
+/* ── History table: action cell ── */
+.pto-action-cell {
+  white-space: nowrap;
+}
+
+.pto-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--text-secondary);
+  font-family: inherit;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.pto-action-btn.cancel:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.pto-action-btn.rescind:hover {
+  background: #fef9c3;
+  color: #854d0e;
+  border-color: #fde047;
 }
 
 /* Access request checkboxes */
@@ -239,6 +359,16 @@
 
 /* ── Mobile ── */
 @media (max-width: 767px) {
+  .staff-balance-strip {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .stat-chip-divider {
+    width: 100%;
+    height: 1px;
+    margin: 0;
+  }
   .pto-form { gap: 12px; }
 
   .pto-fields-grid {
@@ -259,16 +389,6 @@
     padding-bottom: 0;
   }
 
-  .pto-submit-row {
-    flex-direction: column-reverse;
-    align-items: stretch;
-    gap: 8px;
-  }
-  .pto-submit-row .btn-primary {
-    width: 100%;
-    min-width: unset;
-    justify-content: center;
-  }
   .pto-form-message {
     text-align: center;
   }
@@ -385,26 +505,38 @@
   
 
   <!-- Balances -->
-  <div class="panel panel-summary" style="margin-top:12px;">
+  <div class="panel staff-balance-panel" style="margin-top:12px;">
     <h3>PTO Balances</h3>
 
-    <div class="pto-summary" id="staffPtoSummary" style="margin-bottom:14px; border-left:none; padding-left:0; border-top:none; width:fit-content;">
-      <div><div class="muted">Approved</div><div id="staffSumApproved">—</div></div>
-      <div><div class="muted">Pending</div><div id="staffSumPending">—</div></div>
-      <div><div class="muted">Cancelled</div><div id="staffSumCancelled">—</div></div>
-      <div><div class="muted">Net Used</div><div id="staffSumNet">—</div></div>
-    </div>
-
-    <div id="ptoBalances" class="pto-balances">
-      <div class="skeleton skeleton-text"></div>
-      <div class="skeleton skeleton-text"></div>
-      <div class="skeleton skeleton-text"></div>
+    <!-- Stats + balance chips unified strip -->
+    <div class="staff-balance-strip">
+      <div class="stat-chip">
+        <div class="stat-chip-label">Approved</div>
+        <div class="stat-chip-value ok" id="staffSumApproved">—</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-chip-label">Pending</div>
+        <div class="stat-chip-value warn" id="staffSumPending">—</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-chip-label">Cancelled</div>
+        <div class="stat-chip-value" id="staffSumCancelled">—</div>
+      </div>
+      <div class="stat-chip stat-chip-accent">
+        <div class="stat-chip-label">Net Used</div>
+        <div class="stat-chip-value" id="staffSumNet">—</div>
+      </div>
+      <div class="stat-chip-divider"></div>
+      <div id="ptoBalances" class="staff-balance-cards">
+        <div class="skeleton skeleton-text" style="width:90px;height:44px;border-radius:10px;"></div>
+        <div class="skeleton skeleton-text" style="width:90px;height:44px;border-radius:10px;"></div>
+      </div>
     </div>
   </div>
 
 
 <!-- PTO Request Form-->
-<div class="panel panel-action" style="margin-top:12px;">
+<div class="panel" style="margin-top:12px;">
   <h3>Request PTO</h3>
 
 <div class="pto-form">
@@ -413,14 +545,16 @@
   <div class="pto-field" id="subCoverageWrap">
     <span class="pto-field-label">Substitute / Coverage Needed?</span>
     <div class="pto-coverage-group">
-      <label class="pto-radio-btn">
-        <input type="radio" name="subCoverageNeeded" value="yes" />
-        <span>Yes</span>
-      </label>
-      <label class="pto-radio-btn">
-        <input type="radio" name="subCoverageNeeded" value="no" />
-        <span>No</span>
-      </label>
+      <div class="pto-segmented">
+        <label class="pto-radio-btn">
+          <input type="radio" name="subCoverageNeeded" value="yes" />
+          <span>Yes</span>
+        </label>
+        <label class="pto-radio-btn">
+          <input type="radio" name="subCoverageNeeded" value="no" />
+          <span>No</span>
+        </label>
+      </div>
       <span id="subCoverageMsg" class="muted" style="font-size:12px; color:#0f766e; display:none;">
         Coverage will be requested after approval.
       </span>
@@ -480,7 +614,7 @@
   <!-- Submit -->
   <div class="pto-submit-row">
     <span id="ptoRequestMessage" class="pto-form-message"></span>
-    <button id="submitPtoRequest" class="btn btn-primary">Submit Request</button>
+    <button id="submitPtoRequest" class="btn btn-primary pto-submit-btn">Submit Request</button>
   </div>
 
 </div>
@@ -948,7 +1082,7 @@ async function initStaff() {
   // Profile + school name + modules + employee campus in one round-trip
   const profileResult = await supabase
     .from('profiles')
-    .select('*, schools(id, name, school_modules(module, enabled)), employees!employee_id(campus_id, campuses(workday_hours, pto_increment_minutes, day_start_time, day_end_time))')
+    .select('*, schools!profiles_school_id_fkey(id, name, school_modules(module, enabled)), employees!employee_id(campus_id, campuses(workday_hours, pto_increment_minutes, day_start_time, day_end_time))')
     .eq('user_id', user.id)
     .single();
 
@@ -1149,7 +1283,6 @@ function formatHoursAsDays(hours) {
 
 async function loadPtoBalances() {
   const container = document.getElementById('ptoBalances');
-  container.className = 'pto-balances';
   container.innerHTML = '';
 
   const { data, error } = await supabase
@@ -1161,32 +1294,27 @@ async function loadPtoBalances() {
 
   if (error) {
     console.error(error);
-    container.textContent = 'Failed to load balances.';
+    container.innerHTML = '<span class="muted">Failed to load balances.</span>';
     return;
   }
 
   if (!data || data.length === 0) {
-    container.textContent = 'No PTO balances found.';
+    container.innerHTML = '<span class="muted">No balances yet.</span>';
     return;
   }
 
   data.forEach(b => {
-  const div = document.createElement('div');
-  div.className = 'pto-balance';
-  
-const breakdown = formatHoursAsDays(b.balance_hours);
-
-div.innerHTML = `
-  <span>${b.pto_type}</span>
-  <strong>
-    ${b.balance_hours.toFixed(2)} Hours
-    <span class="muted">(${breakdown})</span>
-  </strong>
-`;
-
-  container.appendChild(div);
-});
-
+    const low = b.balance_hours < 8;
+    const breakdown = formatHoursAsDays(b.balance_hours);
+    const card = document.createElement('div');
+    card.className = 'staff-balance-card';
+    card.innerHTML = `
+      <div class="staff-balance-type">${b.pto_type.charAt(0)+b.pto_type.slice(1).toLowerCase()}</div>
+      <div class="staff-balance-hours${low ? ' low' : ''}">${b.balance_hours % 1 === 0 ? b.balance_hours : b.balance_hours.toFixed(2)} hrs</div>
+      <div class="staff-balance-days">${breakdown}</div>
+    `;
+    container.appendChild(card);
+  });
 }
 
 async function loadPtoStats() {
@@ -1351,27 +1479,34 @@ const canRescindPast =
 let actionButton = '';
 
 if (canCancelFuture) {
-  actionButton = '<button class="btn warn cancel">Cancel</button>';
+  actionButton = '<button class="pto-action-btn cancel" title="Cancel this request"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Cancel</button>';
 } else if (canRescindPast) {
-  actionButton = '<button class="btn warn rescind">Request Rescind</button>';
+  actionButton = '<button class="pto-action-btn rescind" title="Request to rescind this approved PTO"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg> Rescind</button>';
 }
 
+const typeMap = { VACATION:'badge-pto-vacation', SICK:'badge-pto-sick', PERSONAL:'badge-pto-personal', PROFESSIONAL:'badge-pto-professional' };
+const typeBadge = `<span class="pto-type-badge ${typeMap[r.pto_type] ?? 'badge-pto-other'}">${r.pto_type.charAt(0)+r.pto_type.slice(1).toLowerCase()}</span>`;
+
+const statusMap = {
+  PENDING:           ['status-pill pending',   'Pending'],
+  APPROVED:          ['status-pill approved',  'Approved'],
+  DENIED:            ['status-pill denied',    'Denied'],
+  CANCELLED:         ['status-pill cancelled', 'Cancelled'],
+  CANCEL_REQUESTED:  ['status-pill warn-pill', 'Cancel Requested'],
+  RESCIND_REQUESTED: ['status-pill warn-pill', 'Rescind Requested'],
+  RESCINDED:         ['status-pill cancelled', 'Rescinded'],
+};
+const [pillCls, pillLabel] = statusMap[r.status] ?? ['status-pill cancelled', formatStatus(r.status, r.notes)];
+const statusPill = `<span class="${pillCls}">${r.status === 'APPROVED' && rescindWasDenied(r.notes) ? 'Approved (Rescind Denied)' : pillLabel}</span>`;
+
   tr.innerHTML = `
-    <td>${r.pto_type}</td>
+    <td>${typeBadge}</td>
     <td>${dateText}</td>
     <td class="col-hours">${hoursText}</td>
     <td>${notesText}</td>
-    
-
-<td class="status ${r.status}">
-  <span class="status-label">
-    ${formatStatus(r.status, r.notes)}
-  </span>
-</td>
-
-
+    <td>${statusPill}</td>
     <td>${new Date(r.submitted_at).toLocaleDateString()}</td>
-    <td>${actionButton}</td>
+    <td class="pto-action-cell">${actionButton}</td>
   `;
 
 const cancelBtn = tr.querySelector('.cancel');
@@ -1696,6 +1831,12 @@ function applyModuleNavVisibility() {
     link.style.display =
       moduleEnabled && userAllowed ? 'flex' : 'none';
   });
+
+  // Hide "Request Access" for superadmins and anyone who already has admin access
+  if (hasAdminAccess(currentProfile)) {
+    const arLink = document.querySelector('nav a[href="#access-request"]');
+    if (arLink) arLink.style.display = 'none';
+  }
 }
 
 function hasAnyEnabledModule() {

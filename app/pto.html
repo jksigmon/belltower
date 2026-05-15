@@ -205,28 +205,33 @@
     flex: 1;
   }
 
-  /* ── Staff PTO History: stack header controls ── */
-  .pto-history-header {
+  /* ── Staff PTO History: responsive ── */
+  .history-toolbar {
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
+  }
+
+  .history-filters {
+    flex-direction: column;
+  }
+
+  .history-filters select {
+    max-width: 100%;
+  }
+
+  .history-stats-row {
+    flex-direction: column;
     gap: 12px;
   }
 
-  .pto-history-header > select {
+  .stat-chip-divider {
     width: 100%;
+    height: 1px;
+    margin: 0;
   }
 
-  .pto-summary {
-    grid-template-columns: 1fr 1fr;
-    border-left: none;
-    border-top: 1px solid var(--border);
-    padding-left: 0;
-    padding-top: 12px;
-  }
-
-  #ptoHistoryBalancesWrap {
-    margin-left: 0 !important;
-    width: 100%;
+  .history-balance-chips {
+    flex-wrap: wrap;
   }
 
   /* ── PTO request history table → card layout ── */
@@ -501,54 +506,56 @@
   <!-- Real content -->
   <div class="admin-content fade-in">
     <div class="panel panel-history">
-      <h3>Staff PTO History</h3>
 
-      
-<div class="row pto-history-header">
-  <!-- Staff selector -->
-  <select id="ptoStaffSelect">
-    <option value="">Select staff member…</option>
-  </select>
+      <!-- Toolbar -->
+      <div class="history-toolbar">
+        <h3>Staff PTO History</h3>
+        <div class="history-actions" id="historyActionsWrap" hidden>
+          <button id="historyAdjustBtn" class="btn btn-sm btn-outline">
+            <i data-lucide="sliders-horizontal" style="width:14px;height:14px;"></i> Adjust Balance
+          </button>
+          <button id="historyExportBtn" class="btn btn-sm btn-outline">
+            <i data-lucide="download" style="width:14px;height:14px;"></i> Export CSV
+          </button>
+        </div>
+      </div>
 
-  <!-- PTO summary -->
-  <div class="pto-summary">
-    <div>
-      <div class="muted">Approved</div>
-      <div id="ptoSumApproved">—</div>
-    </div>
-    <div>
-      <div class="muted">Pending</div>
-      <div id="ptoSumPending">—</div>
-    </div>
-    <div>
-      <div class="muted">Cancelled</div>
-      <div id="ptoSumCancelled">—</div>
-    </div>
-    <div>
-      <div class="muted">Net Used</div>
-      <div id="ptoSumNet">—</div>
-    </div>
-  </div>
-  
-<div
-  id="ptoHistoryBalancesWrap"
-  style="margin-left:auto; display:none;"
->
-  <div class="muted" style="font-size:11px; margin-bottom:6px;">
-    PTO Balances
-  </div>
+      <!-- Filters -->
+      <div class="history-filters">
+        <select id="ptoStaffSelect">
+          <option value="">Select staff member…</option>
+        </select>
+        <select id="ptoYearFilter">
+          <option value="">All Years</option>
+        </select>
+        <select id="ptoTypeFilter">
+          <option value="">All Types</option>
+        </select>
+      </div>
 
-  <div id="ptoHistoryBalances" class="pto-balances compact"></div>
-</div>
+      <!-- Stat chips + inline balances -->
+      <div class="history-stats-row" id="historyStatsRow" hidden>
+        <div class="stat-chip">
+          <div class="stat-chip-label">Approved</div>
+          <div class="stat-chip-value ok" id="ptoSumApproved">—</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-label">Pending</div>
+          <div class="stat-chip-value warn" id="ptoSumPending">—</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-chip-label">Cancelled</div>
+          <div class="stat-chip-value" id="ptoSumCancelled">—</div>
+        </div>
+        <div class="stat-chip stat-chip-accent">
+          <div class="stat-chip-label">Net Used</div>
+          <div class="stat-chip-value" id="ptoSumNet">—</div>
+        </div>
+        <div class="stat-chip-divider"></div>
+        <div id="historyBalanceChips" class="history-balance-chips"></div>
+      </div>
 
-</div>
-
-
-
-      <!-- ============================
-           PTO REQUEST HISTORY BLOCK
-           ============================ -->
-
+      <!-- PTO Request History -->
       <div class="history-block">
         <table id="ptoHistoryAdminTable">
           <thead>
@@ -564,44 +571,39 @@
           <tbody></tbody>
         </table>
 
-        <!-- Empty state: no PTO history -->
         <div id="ptoHistoryEmpty" class="empty-state" hidden>
           <div class="empty-title">No PTO history</div>
-          <div class="empty-text">
-            This employee hasn’t submitted any PTO requests.
-          </div>
+          <div class="empty-text">This employee hasn’t submitted any PTO requests.</div>
         </div>
       </div>
 
       <hr style="margin:20px 0; border-color:var(--border);" />
 
-      <!-- ============================
-           PTO LEDGER BLOCK
-           ============================ -->
-
-   <div class="ledger-block">
-  <h4>PTO Ledger Adjustments</h4>
-
-  <table id="ptoLedgerAdminTable">
-    <thead>
-      <tr>
-        <th>Type</th>
-        <th>Hours</th>
-        <th>Reason</th>
-        <th>Date</th>
-        <th>Balance After</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <div id="ptoLedgerEmpty" class="empty-state empty-ledger" hidden>
-    <div class="empty-title">No ledger adjustments</div>
-    <div class="empty-text">
-      This employee has no manual PTO balance changes.
-    </div>
-  </div>
-</div>
+      <!-- Ledger (collapsible) -->
+      <div class="ledger-block">
+        <button class="ledger-toggle-btn" id="ledgerToggleBtn">
+          <span>PTO Ledger Adjustments</span>
+          <i data-lucide="chevron-right" id="ledgerChevronIcon" style="width:16px;height:16px;transition:transform .2s;"></i>
+        </button>
+        <div id="ledgerContent" hidden>
+          <table id="ptoLedgerAdminTable" style="margin-top:12px;">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Hours</th>
+                <th>Reason</th>
+                <th>Date</th>
+                <th>Balance After</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <div id="ptoLedgerEmpty" class="empty-state empty-ledger" hidden>
+            <div class="empty-title">No ledger adjustments</div>
+            <div class="empty-text">This employee has no manual PTO balance changes.</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
@@ -855,7 +857,7 @@ if (signOutBtn) {
 /* ✅ PROFILE + MODULE CHECK */
 const { data: currentProfile, error: profErr } = await supabase
   .from('profiles')
-  .select('*, schools(school_modules(module, enabled))')
+  .select('*, schools!profiles_school_id_fkey(school_modules(module, enabled))')
   .eq('user_id', sessionData.session.user.id)
   .single();
 
@@ -949,25 +951,57 @@ if (generateBtn) {
 
 if (staffSelect) {
 
-
 staffSelect.addEventListener('change', e => {
   const employeeId = e.target.value;
-
   if (employeeId === currentPtoHistoryEmployeeId) return;
   currentPtoHistoryEmployeeId = employeeId;
+  document.getElementById('ptoTypeFilter').value = '';
+  refreshStaffHistory(employeeId);
+});
 
-  resetStaffHistoryView();
+}
 
-  if (employeeId) {
-    loadStaffPtoHistory(employeeId);
-    loadStaffPtoLedger(employeeId);
-    loadPtoHistoryBalances(employeeId); // ✅ already added earlier
-    showPtoHistoryBalances(true);        // ✅ ADD THIS
-  } else {
-    showPtoHistoryBalances(false);       // ✅ ADD THIS
+document.getElementById('ptoYearFilter')?.addEventListener('change', () => {
+  refreshStaffHistory(currentPtoHistoryEmployeeId);
+});
+
+document.getElementById('ptoTypeFilter')?.addEventListener('change', () => {
+  applyPtoTypeFilter();
+});
+
+document.getElementById('historyExportBtn')?.addEventListener('click', () => {
+  const sel = document.getElementById('ptoStaffSelect');
+  const name = sel?.options[sel.selectedIndex]?.text ?? '';
+  exportHistoryToCsv(currentPtoHistoryEmployeeId, name);
+});
+
+document.getElementById('historyAdjustBtn')?.addEventListener('click', async () => {
+  await setPtoView('adjust');
+  const adjustSel = document.getElementById('ptoAdjustStaff');
+  if (adjustSel && currentPtoHistoryEmployeeId) {
+    adjustSel.value = currentPtoHistoryEmployeeId;
+    adjustSel.dispatchEvent(new Event('change'));
   }
 });
 
+document.getElementById('ledgerToggleBtn')?.addEventListener('click', () => {
+  const content = document.getElementById('ledgerContent');
+  const icon = document.getElementById('ledgerChevronIcon');
+  const open = !content.hidden;
+  content.hidden = open;
+  if (icon) icon.style.transform = open ? '' : 'rotate(90deg)';
+});
+
+function refreshStaffHistory(employeeId) {
+  resetStaffHistoryView();
+  if (employeeId) {
+    loadStaffPtoHistory(employeeId);
+    loadStaffPtoLedger(employeeId);
+    loadPtoHistoryBalances(employeeId);
+    document.getElementById('historyActionsWrap').hidden = false;
+  } else {
+    document.getElementById('historyActionsWrap').hidden = true;
+  }
 }
 
 function formatTime(t) {
@@ -997,10 +1031,99 @@ function formatHoursWithTime(r) {
 }
 
 function showPtoHistoryBalances(show) {
-  const wrap = document.getElementById('ptoHistoryBalancesWrap');
-  if (!wrap) return;
+  // legacy shim — stats row visibility now managed via loadPtoHistoryBalances / resetStaffHistoryView
+}
 
-  wrap.style.display = show ? 'block' : 'none';
+function ptoBadge(type) {
+  const map = {
+    VACATION:     'badge-pto-vacation',
+    SICK:         'badge-pto-sick',
+    PERSONAL:     'badge-pto-personal',
+    PROFESSIONAL: 'badge-pto-professional',
+  };
+  const cls = map[type] ?? 'badge-pto-other';
+  const label = type.charAt(0) + type.slice(1).toLowerCase();
+  return `<span class="pto-type-badge ${cls}">${label}</span>`;
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return '—';
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return `${m}/${d}/${y}`;
+}
+
+function humanizeReason(reason) {
+  if (!reason) return '—';
+  const allot = reason.match(/^ANNUAL_ALLOTMENT_(\d+)$/);
+  if (allot) return `Annual Allotment (${allot[1]})`;
+  const manual = reason.match(/^MANUAL_ADJUSTMENT_(\d+)(?::\s*(.*))?$/);
+  if (manual) return `Manual Adjustment (${manual[1]})${manual[2] ? ': ' + manual[2] : ''}`;
+  return reason.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function populateYearFilter() {
+  const sel = document.getElementById('ptoYearFilter');
+  if (!sel) return;
+  const cur = new Date().getFullYear();
+  sel.innerHTML = '<option value="">All Years</option>';
+  for (let y = cur; y >= cur - 4; y--) {
+    const opt = document.createElement('option');
+    opt.value = y;
+    opt.textContent = y;
+    if (y === cur) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function populatePtoTypeFilter() {
+  const sel = document.getElementById('ptoTypeFilter');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">All Types</option>';
+  currentSchoolPtoTypes.forEach(type => {
+    const opt = document.createElement('option');
+    opt.value = type;
+    opt.textContent = type.charAt(0) + type.slice(1).toLowerCase();
+    sel.appendChild(opt);
+  });
+}
+
+function applyPtoTypeFilter() {
+  const type = document.getElementById('ptoTypeFilter')?.value ?? '';
+  const rows = document.querySelectorAll('#ptoHistoryAdminTable tbody tr');
+  rows.forEach(tr => {
+    const badge = tr.querySelector('.pto-type-badge');
+    const rowType = badge?.dataset.type ?? '';
+    tr.style.display = (!type || rowType === type) ? '' : 'none';
+  });
+}
+
+function exportHistoryToCsv(employeeId, employeeName) {
+  const tbody = document.querySelector('#ptoHistoryAdminTable tbody');
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  if (!rows.length) return;
+  const lines = [['Type', 'Dates', 'Hours', 'Status', 'Notes', 'Submitted']];
+  rows.forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    lines.push([
+      cells[0]?.querySelector('.pto-type-badge')?.textContent?.trim() ?? '',
+      cells[1]?.textContent?.trim() ?? '',
+      cells[2]?.textContent?.trim() ?? '',
+      cells[3]?.innerText?.replace(/\s+/g, ' ').trim() ?? '',
+      cells[4]?.textContent?.trim() ?? '',
+      cells[5]?.textContent?.trim() ?? '',
+    ]);
+  });
+  const csv = lines.map(r =>
+    r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+  ).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pto_history_${(employeeName || employeeId || 'export').replace(/\s+/g, '_')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function loadSchoolPtoTypes() {
@@ -1492,34 +1615,37 @@ function updateTabBadge(id, count) {
 }
 
 async function loadPtoHistoryBalances(employeeId) {
-  const container = document.getElementById('ptoHistoryBalances');
-  if (!container) return;
+  const chips = document.getElementById('historyBalanceChips');
+  const statsRow = document.getElementById('historyStatsRow');
+  if (!chips) return;
 
-  container.innerHTML = '';
-  container.style.display = 'none';
+  chips.innerHTML = '';
 
-  if (!employeeId) return;
+  if (!employeeId) {
+    if (statsRow) statsRow.hidden = true;
+    return;
+  }
 
   const { data, error } = await supabase
     .from('pto_balances')
     .select('pto_type, balance_hours')
     .eq('employee_id', employeeId);
 
-  if (error || !data || data.length === 0) {
-    return;
-  }
+  if (statsRow) statsRow.hidden = false;
 
+  if (error || !data || data.length === 0) return;
+
+  const typeMap = { VACATION: 'badge-pto-vacation', SICK: 'badge-pto-sick', PERSONAL: 'badge-pto-personal', PROFESSIONAL: 'badge-pto-professional' };
   data.forEach(b => {
-    const div = document.createElement('div');
-    div.className = 'pto-balance';
-    div.innerHTML = `
-      <span>${b.pto_type}</span>
-      <strong>${b.balance_hours} hrs</strong>
+    const chip = document.createElement('div');
+    chip.className = 'balance-chip';
+    const low = b.balance_hours < 8;
+    chip.innerHTML = `
+      <div class="balance-chip-label">${b.pto_type.charAt(0)+b.pto_type.slice(1).toLowerCase()}</div>
+      <div class="balance-chip-value${low ? ' warn' : ''}">${b.balance_hours} hrs</div>
     `;
-    container.appendChild(div);
+    chips.appendChild(chip);
   });
-
-  container.style.display = 'grid';
 }
 
 async function loadStaffPtoBalances(employeeId) {
@@ -1585,51 +1711,57 @@ async function loadStaffPtoHistory(employeeId) {
   if (!currentProfile.can_review_pto) return;
   if (!tbody) return;
 
-  // Clear previous results
   tbody.innerHTML = '';
 
-  // ✅ NO STAFF SELECTED → coordinated empty state
   if (!employeeId) {
     resetStaffHistoryView();
     return;
   }
 
-  // ✅ Reset summary values
+  const year = document.getElementById('ptoYearFilter')?.value ?? '';
+
   let approvedUsed = 0;
   let cancelled = 0;
   let pending = 0;
 
-  /* -------------------------------------------------
-     1+2. LOAD LEDGER + REQUEST HISTORY in parallel
-  ------------------------------------------------- */
+  let ledgerQuery = supabase
+    .from('pto_ledger')
+    .select('delta_hours, reason')
+    .eq('employee_id', employeeId);
+
+  let histQuery = supabase
+    .from('pto_requests')
+    .select(`
+      pto_type,
+      start_date,
+      end_date,
+      partial_day,
+      partial_hours,
+      start_time,
+      end_time,
+      requested_hours,
+      status,
+      notes,
+      submitted_at,
+      decided_at,
+      employees!pto_requests_decided_by_fkey(first_name, last_name)
+    `)
+    .eq('employee_id', employeeId)
+    .order('submitted_at', { ascending: false });
+
+  if (year) {
+    ledgerQuery = ledgerQuery
+      .gte('created_at', `${year}-01-01`)
+      .lte('created_at', `${year}-12-31`);
+    histQuery = histQuery
+      .gte('start_date', `${year}-01-01`)
+      .lte('start_date', `${year}-12-31`);
+  }
+
   const [
     { data: ledger, error: ledgerError },
     { data, error }
-  ] = await Promise.all([
-    supabase
-      .from('pto_ledger')
-      .select('delta_hours, reason')
-      .eq('employee_id', employeeId),
-    supabase
-      .from('pto_requests')
-      .select(`
-        pto_type,
-        start_date,
-        end_date,
-        partial_day,
-        partial_hours,
-        start_time,
-        end_time,
-        requested_hours,
-        status,
-        notes,
-        submitted_at,
-        decided_at,
-        employees!pto_requests_decided_by_fkey(first_name, last_name)
-      `)
-      .eq('employee_id', employeeId)
-      .order('submitted_at', { ascending: false })
-  ]);
+  ] = await Promise.all([ledgerQuery, histQuery]);
 
   if (ledgerError) {
     console.error('Failed to load PTO ledger:', ledgerError);
@@ -1638,16 +1770,9 @@ async function loadStaffPtoHistory(employeeId) {
   }
 
   ledger.forEach(l => {
-    if (l.reason === 'REQUEST APPROVED') {
-      approvedUsed += Math.abs(l.delta_hours);
-    }
-
-    if (l.reason === 'REQUEST CANCELLED FUTURE') {
-      cancelled += l.delta_hours;
-    }
+    if (l.reason === 'REQUEST APPROVED') approvedUsed += Math.abs(l.delta_hours);
+    if (l.reason === 'REQUEST CANCELLED FUTURE') cancelled += l.delta_hours;
   });
-     
-
 
   if (error) {
     console.error('Failed to load PTO history:', error);
@@ -1655,96 +1780,59 @@ async function loadStaffPtoHistory(employeeId) {
     return;
   }
 
-  // ✅ STAFF SELECTED BUT NO HISTORY
   if (!data || data.length === 0) {
     table.style.display = 'none';
     emptyState.hidden = false;
-    return;
+  } else {
+    table.style.display = '';
+    emptyState.hidden = true;
+
+    data.forEach(r => {
+      const hours = Number(r.requested_hours ?? 0);
+      if (r.status === 'PENDING') pending += hours;
+
+      const dates = r.start_date === r.end_date
+        ? fmtDate(r.start_date)
+        : `${fmtDate(r.start_date)} – ${fmtDate(r.end_date)}`;
+
+      let decisionHtml = '';
+      let decisionClass = '';
+
+      if (r.status === 'PENDING') {
+        decisionHtml = '<span class="status-pending">Pending</span>';
+        decisionClass = '';
+      } else if (r.status === 'APPROVED') {
+        const name = r.employees ? `${r.employees.first_name} ${r.employees.last_name}` : 'Admin';
+        const date = r.decided_at ? fmtDate(r.decided_at.split('T')[0]) : '';
+        decisionHtml = `<span class="ok">Approved</span><br><span class="muted">by ${name} • ${date}</span>`;
+      } else if (r.status === 'DENIED') {
+        const name = r.employees ? `${r.employees.first_name} ${r.employees.last_name}` : 'Admin';
+        const date = r.decided_at ? fmtDate(r.decided_at.split('T')[0]) : '';
+        decisionHtml = `<span class="err">Denied</span><br><span class="muted">by ${name} • ${date}</span>`;
+      } else if (r.status === 'CANCELLED') {
+        decisionHtml = `<span class="warn">Cancelled</span><br><span class="muted">by employee</span>`;
+      }
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><span class="pto-type-badge ${({'VACATION':'badge-pto-vacation','SICK':'badge-pto-sick','PERSONAL':'badge-pto-personal','PROFESSIONAL':'badge-pto-professional'}[r.pto_type] ?? 'badge-pto-other')}" data-type="${r.pto_type}">${r.pto_type.charAt(0)+r.pto_type.slice(1).toLowerCase()}</span></td>
+        <td>${dates}</td>
+        <td>${formatHoursWithTime(r)}</td>
+        <td>${decisionHtml}</td>
+        <td>${r.notes || '—'}</td>
+        <td>${fmtDate(r.submitted_at?.split('T')[0])}</td>
+      `;
+      tbody.appendChild(tr);
+    });
   }
 
-  // ✅ ✅ ✅ THIS WAS MISSING
-  // ✅ DATA EXISTS — SHOW TABLE & HIDE EMPTY STATE
-  table.style.display = '';
-  emptyState.hidden = true;
-
-
-// ✅ Render rows
-data.forEach(r => {
-  const hours = Number(r.requested_hours ?? 0);
-
-  if (r.status === 'PENDING') {
-    pending += hours;
-  }
-
-
-    const dates =
-      r.start_date === r.end_date
-        ? r.start_date
-        : `${r.start_date} → ${r.end_date}`;
-
-    let decisionHtml = '';
-    let decisionClass = '';
-
-    if (r.status === 'PENDING') {
-      decisionHtml = '⏳ Pending';
-      decisionClass = 'muted';
-    } else if (r.status === 'APPROVED') {
-      const name = r.employees
-  ? `${r.employees.first_name} ${r.employees.last_name}`
-  : 'Admin';
-
-      const date = r.decided_at
-        ? new Date(r.decided_at).toLocaleDateString()
-        : '';
-      decisionHtml = `Approved<br><span class="muted">by ${name} • ${date}</span>`;
-      decisionClass = 'ok';
-    } else if (r.status === 'DENIED') {
-      
-const name = r.employees
-  ? `${r.employees.first_name} ${r.employees.last_name}`
-  : 'Admin';
-
-      const date = r.decided_at
-        ? new Date(r.decided_at).toLocaleDateString()
-        : '';
-      decisionHtml = `Denied<br><span class="muted">by ${name} • ${date}</span>`;
-      decisionClass = 'err';
-    } else if (r.status === 'CANCELLED') {
-      decisionHtml = `Cancelled<br><span class="muted">by employee</span>`;
-      decisionClass = 'warn';
-    }
-
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${r.pto_type}</td>
-      <td>${dates}</td>
-      <td>${formatHoursWithTime(r)}</td>
-      <td class="${decisionClass}">${decisionHtml}</td>
-      <td>${r.notes || '—'}</td>
-      <td>${new Date(r.submitted_at).toLocaleDateString()}</td>
-    `;
-
-    tbody.appendChild(tr);
-  });
-
-  /* -------------------------------------------------
-     3. UPDATE SUMMARY UI
-  ------------------------------------------------- */
   const netUsed = approvedUsed - cancelled;
+  document.getElementById('ptoSumApproved').textContent  = `${approvedUsed} hrs`;
+  document.getElementById('ptoSumCancelled').textContent = `${cancelled} hrs`;
+  document.getElementById('ptoSumPending').textContent   = `${pending} hrs`;
+  document.getElementById('ptoSumNet').textContent       = `${netUsed} hrs`;
 
-  
-
-const approvedEl  = document.getElementById('ptoSumApproved');
-const cancelledEl = document.getElementById('ptoSumCancelled');
-const pendingEl   = document.getElementById('ptoSumPending');
-const netEl       = document.getElementById('ptoSumNet');
-
-if (approvedEl)  approvedEl.textContent  = `${approvedUsed} hrs`;
-if (cancelledEl) cancelledEl.textContent = `${cancelled} hrs`;
-if (pendingEl)   pendingEl.textContent   = `${pending} hrs`;
-if (netEl)       netEl.textContent       = `${netUsed} hrs`;
-
-
+  applyPtoTypeFilter();
 }
 
 async function loadStaffPtoLedger(employeeId) {
@@ -1754,24 +1842,31 @@ async function loadStaffPtoLedger(employeeId) {
   if (!currentProfile.can_review_pto) return;
   if (!tbody || !table) return;
 
-  // Clear previous rows
   tbody.innerHTML = '';
 
-  // ✅ No employee selected
   if (!employeeId) {
     table.style.display = 'none';
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
-  // ✅ Load balances + ledger entries in parallel
+  const year = document.getElementById('ptoYearFilter')?.value ?? '';
+
+  let ledgerQuery = supabase
+    .from('pto_ledger')
+    .select('pto_type, delta_hours, reason, created_at')
+    .eq('employee_id', employeeId)
+    .order('created_at', { ascending: false });
+
+  if (year) {
+    ledgerQuery = ledgerQuery
+      .gte('created_at', `${year}-01-01`)
+      .lte('created_at', `${year}-12-31`);
+  }
+
   const [balanceMap, { data: ledger, error }] = await Promise.all([
     getCurrentPtoBalanceMap(employeeId),
-    supabase
-      .from('pto_ledger')
-      .select('pto_type, delta_hours, reason, created_at')
-      .eq('employee_id', employeeId)
-      .order('created_at', { ascending: false })
+    ledgerQuery
   ]);
 
   if (error) {
@@ -1781,14 +1876,12 @@ async function loadStaffPtoLedger(employeeId) {
     return;
   }
 
-  // ✅ EMPTY LEDGER
   if (!ledger || ledger.length === 0) {
     table.style.display = 'none';
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
-  // ✅ We HAVE entries
   table.style.display = '';
   if (emptyState) emptyState.hidden = true;
 
@@ -1796,25 +1889,22 @@ async function loadStaffPtoLedger(employeeId) {
 
   ledger.forEach(entry => {
     const type = entry.pto_type;
-
-    if (runningBalance[type] === undefined) {
-      runningBalance[type] = 0;
-    }
+    if (runningBalance[type] === undefined) runningBalance[type] = 0;
 
     const balanceAfter = runningBalance[type];
     const hoursClass = entry.delta_hours < 0 ? 'err' : 'ok';
+    const typeMap = { VACATION: 'badge-pto-vacation', SICK: 'badge-pto-sick', PERSONAL: 'badge-pto-personal', PROFESSIONAL: 'badge-pto-professional' };
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${type}</td>
-      <td class="${hoursClass}">${entry.delta_hours} hrs</td>
-      <td>${entry.reason}</td>
-      <td>${new Date(entry.created_at).toLocaleDateString()}</td>
+      <td><span class="pto-type-badge ${typeMap[type] ?? 'badge-pto-other'}">${type.charAt(0)+type.slice(1).toLowerCase()}</span></td>
+      <td class="${hoursClass}">${entry.delta_hours > 0 ? '+' : ''}${entry.delta_hours} hrs</td>
+      <td>${humanizeReason(entry.reason)}</td>
+      <td>${fmtDate(entry.created_at?.split('T')[0])}</td>
       <td>${balanceAfter.toFixed(2)} hrs</td>
     `;
 
     tbody.appendChild(tr);
-
     runningBalance[type] -= entry.delta_hours;
   });
 }
@@ -2393,6 +2483,8 @@ async function setPtoView(view) {
     if (view === 'history') {
       if (!ptoViewCache.has('history-staff')) {
         await loadPtoStaffOptions();
+        populateYearFilter();
+        populatePtoTypeFilter();
         ptoViewCache.add('history-staff');
       }
       const select = document.getElementById('ptoStaffSelect');
@@ -2402,10 +2494,7 @@ async function setPtoView(view) {
       currentPtoHistoryEmployeeId = employeeId;
 
       if (employeeId) {
-        loadStaffPtoHistory(employeeId);
-        loadStaffPtoLedger(employeeId);
-        loadPtoHistoryBalances(employeeId);
-        showPtoHistoryBalances(true);
+        refreshStaffHistory(employeeId);
       }
     }
 
@@ -2486,11 +2575,12 @@ function resetStaffHistoryView() {
   document.getElementById('ptoHistoryEmpty').hidden = false;
   document.getElementById('ptoLedgerAdminTable').style.display = 'none';
   document.getElementById('ptoLedgerEmpty').hidden = false;
-  
-    showPtoHistoryBalances(false);
 
-  const balances = document.getElementById('ptoHistoryBalances');
-  if (balances) balances.style.display = 'none';
+  const statsRow = document.getElementById('historyStatsRow');
+  if (statsRow) statsRow.hidden = true;
+
+  const chips = document.getElementById('historyBalanceChips');
+  if (chips) chips.innerHTML = '';
 
   ['ptoSumApproved', 'ptoSumPending', 'ptoSumCancelled', 'ptoSumNet']
     .forEach(id => {

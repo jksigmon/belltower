@@ -3,6 +3,7 @@ import { initUserMenu } from './user-menu.js';
 
 let currentProfile = null;
 let currentModules = {}; // { pto: true, substitutes: false, ... }
+let effectiveSchoolId = null;
 
 /* ===============================
    INIT
@@ -21,7 +22,7 @@ async function init() {
   
 const { data: profile, error } = await supabase
   .from('profiles')
-  .select('*, schools(id, name, school_modules(module, enabled))')
+  .select('*, schools!profiles_school_id_fkey(id, name, school_modules(module, enabled))')
   .eq('user_id', user.id)
   .single();
 
@@ -31,9 +32,9 @@ const { data: profile, error } = await supabase
   }
 
   currentProfile = profile;
+  effectiveSchoolId = profile.school_id;
   initUserMenu(profile.display_name ?? profile.email);
 
-  // Extract modules from the joined result — no second round-trip needed
   currentModules = {};
   (profile.schools?.school_modules || []).forEach(r => { currentModules[r.module] = r.enabled; });
 
@@ -42,6 +43,8 @@ document.getElementById('dashboardUser').textContent =
 
 document.getElementById('dashboardSchool').textContent =
   profile.schools?.name ?? '';
+
+  if (profile.is_superadmin) await initSchoolSwitcher(profile);
 
   // Pending status notice
   const pendingNotice = document.getElementById('pending');
@@ -142,6 +145,11 @@ if (target === '#campuses') {
   await cam.initCampusesSection(currentProfile);
 }
 
+if (target === '#schools') {
+  const schools = await import('./admin.schools.js');
+  await schools.initSchoolsSection(currentProfile);
+}
+
 }
 
 /* ===============================
@@ -156,6 +164,13 @@ function moduleEnabled(mod) {
 }
 
 function gateNavigation() {
+  // Schools link (superadmin only)
+  const schoolsLink = document.getElementById('navSchools');
+  if (schoolsLink) {
+    if (currentProfile.is_superadmin) schoolsLink.style.display = 'flex';
+    else schoolsLink.remove();
+  }
+
   // Individual capability-gated links (may also carry data-module)
   document.querySelectorAll('nav a[data-cap]').forEach(link => {
     const cap = link.dataset.cap;
@@ -208,7 +223,7 @@ function gateNavigation() {
 
 
 async function loadDashboardStats() {
-  const schoolId = currentProfile.school_id;
+  const schoolId = effectiveSchoolId;
   const today    = new Date().toISOString().slice(0, 10);
   const p        = currentProfile;
 
@@ -518,6 +533,41 @@ async function loadDashboardStats() {
     show('dashAlertsSection');
   }
 
+}
+
+/* ===============================
+   SCHOOL SWITCHER (superadmin only)
+================================ */
+
+async function initSchoolSwitcher(profile) {
+  const wrap = document.getElementById('schoolSwitcherWrap');
+  const sel  = document.getElementById('schoolSwitcher');
+  if (!wrap || !sel) return;
+
+  const { data: schools } = await supabase
+    .from('schools')
+    .select('id, name')
+    .order('name');
+
+  if (!schools || schools.length < 2) return;
+
+  sel.innerHTML = '';
+  schools.forEach(s => {
+    const opt = new Option(s.name, s.id);
+    if (s.id === profile.school_id) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  sel.addEventListener('change', async () => {
+    const chosen = sel.value;
+    // Update school_id so every page (pto, staff, subs, etc.) picks up the switch automatically
+    await supabase.from('profiles')
+      .update({ school_id: chosen, active_school_id: chosen })
+      .eq('user_id', profile.user_id);
+    location.reload();
+  });
+
+  wrap.hidden = false;
 }
 
 /* ===============================
