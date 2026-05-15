@@ -78,6 +78,21 @@
   }
 }
 
+.policy-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+.policy-bulk-bar .btn-primary {
+  height: 34px;
+}
+
 /* ================================================================
    MOBILE — @media (max-width: 767px)
    ================================================================ */
@@ -344,7 +359,7 @@
   <button id="hamburgerBtn" class="hamburger-btn" aria-label="Open navigation">
     <span></span><span></span><span></span>
   </button>
-  <a id="backToAdmin" href="/admin.html" class="btn btn-admin back-to-admin" style="visibility:hidden;">←</a>
+  <a id="backToAdmin" href="/admin.html" class="btn btn-admin back-to-admin" style="visibility:hidden;" aria-label="Admin home"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></a>
 </div>
 
 <div class="page-header">
@@ -772,7 +787,17 @@
       <h3>PTO Policies</h3>
 
       <div class="muted" style="margin-bottom:12px;">
-        Configure annual PTO hours per employee and PTO type.
+        Configure annual PTO hours per employee and PTO type. Use the bulk setter to fill a whole group at once, then override individual cells as needed.
+      </div>
+
+      <div id="policiesBulkBar" class="policy-bulk-bar" style="display:none;">
+        <strong style="font-size:13px; white-space:nowrap;">Bulk set:</strong>
+        <select id="policyBulkType"><option value="">PTO type…</option></select>
+        <input type="number" id="policyBulkHours" placeholder="Hours" min="0" step="0.5" style="width:80px;" />
+        <select id="policyBulkMonths"><option value="">All staff</option></select>
+        <button id="policyBulkSetAll" class="btn btn-primary">Set All</button>
+        <button id="policyBulkFillBlank" class="btn">Fill Blank Only</button>
+        <span id="policyBulkStatus" class="muted" style="font-size:12px;"></span>
       </div>
 
       <table id="ptoPoliciesTable">
@@ -799,7 +824,10 @@ import { initUserMenu } from '/app/user-menu.js';
     let lastCancelPtoCount = 0;
 	let currentPtoHistoryEmployeeId = null;
 	let rolloverReportData = [];
-	let committedRolloverMeta = null; // { data, ptoType, year } saved at commit time
+	let committedRolloverMeta = null;
+	let staffListCache = null;
+	let policiesEmployees = [];
+	let policiesPolicyMap = {};
 	const ptoViewCache = new Set();
 
 
@@ -824,10 +852,10 @@ if (signOutBtn) {
   });
 }
 
-/* ✅ PROFILE */
+/* ✅ PROFILE + MODULE CHECK */
 const { data: currentProfile, error: profErr } = await supabase
   .from('profiles')
-  .select('*')
+  .select('*, schools(school_modules(module, enabled))')
   .eq('user_id', sessionData.session.user.id)
   .single();
 
@@ -888,14 +916,8 @@ if (backToAdmin && hasAdminAccess(currentProfile)) {
 }
 
 /* ✅ MODULE GATE */
-const { data: moduleRow } = await supabase
-  .from('school_modules')
-  .select('enabled')
-  .eq('school_id', currentProfile.school_id)
-  .eq('module', 'pto')
-  .maybeSingle();
-
-if (!moduleRow?.enabled) {
+const ptoModule = currentProfile.schools?.school_modules?.find(r => r.module === 'pto');
+if (!ptoModule?.enabled) {
   alert('PTO is not enabled for your school.');
   window.location.href = '/admin.html';
   throw new Error('PTO disabled');
@@ -1410,22 +1432,25 @@ async function updatePtoStatus(requestId, newStatus) {
   loadPto(); // ✅ reload same table
 }
 
+async function loadStaffList() {
+  if (!staffListCache) {
+    const { data, error } = await supabase
+      .from('employees')
+      .select('id, first_name, last_name')
+      .eq('school_id', currentProfile.school_id)
+      .eq('active', true)
+      .order('last_name');
+    if (error) { console.error('Failed to load staff list:', error); return []; }
+    staffListCache = data || [];
+  }
+  return staffListCache;
+}
+
 async function loadPtoStaffOptions() {
   const select = document.getElementById('ptoStaffSelect');
+  if (!select) return;
   select.innerHTML = '<option value="">Select staff member…</option>';
-
-  const { data, error } = await supabase
-    .from('employees')
-    .select('id, first_name, last_name')
-    .eq('school_id', currentProfile.school_id)
-    .eq('active', true)
-    .order('last_name');
-
-  if (error) {
-    console.error('Failed to load staff list:', error);
-    return;
-  }
-
+  const data = await loadStaffList();
   data.forEach(emp => {
     const opt = document.createElement('option');
     opt.value = emp.id;
@@ -1575,12 +1600,36 @@ async function loadStaffPtoHistory(employeeId) {
   let pending = 0;
 
   /* -------------------------------------------------
-     1. LOAD LEDGER (for usage math ONLY)
+     1+2. LOAD LEDGER + REQUEST HISTORY in parallel
   ------------------------------------------------- */
-  const { data: ledger, error: ledgerError } = await supabase
-    .from('pto_ledger')
-    .select('delta_hours, reason')
-    .eq('employee_id', employeeId);
+  const [
+    { data: ledger, error: ledgerError },
+    { data, error }
+  ] = await Promise.all([
+    supabase
+      .from('pto_ledger')
+      .select('delta_hours, reason')
+      .eq('employee_id', employeeId),
+    supabase
+      .from('pto_requests')
+      .select(`
+        pto_type,
+        start_date,
+        end_date,
+        partial_day,
+        partial_hours,
+        start_time,
+        end_time,
+        requested_hours,
+        status,
+        notes,
+        submitted_at,
+        decided_at,
+        employees!pto_requests_decided_by_fkey(first_name, last_name)
+      `)
+      .eq('employee_id', employeeId)
+      .order('submitted_at', { ascending: false })
+  ]);
 
   if (ledgerError) {
     console.error('Failed to load PTO ledger:', ledgerError);
@@ -1597,32 +1646,6 @@ async function loadStaffPtoHistory(employeeId) {
       cancelled += l.delta_hours;
     }
   });
-
-  /* -------------------------------------------------
-     2. LOAD PTO REQUEST HISTORY
-  ------------------------------------------------- */
-  const { data, error } = await supabase
-    .from('pto_requests')
-    .select(`
-      pto_type,
-      start_date,
-      end_date,
-      partial_day,
-      partial_hours,
-	  start_time,
-      end_time,
-	  requested_hours,
-      status,
-      notes,
-      submitted_at,
-      decided_at,
-  employees!pto_requests_decided_by_fkey(
-  first_name,
-  last_name
-)
-    `)
-    .eq('employee_id', employeeId)
-    .order('submitted_at', { ascending: false });
      
 
 
@@ -1741,20 +1764,15 @@ async function loadStaffPtoLedger(employeeId) {
     return;
   }
 
-  // ✅ Load starting balances
-  const balanceMap = await getCurrentPtoBalanceMap(employeeId);
-
-  // ✅ Load ledger entries
-  const { data: ledger, error } = await supabase
-    .from('pto_ledger')
-    .select(`
-      pto_type,
-      delta_hours,
-      reason,
-      created_at
-    `)
-    .eq('employee_id', employeeId)
-    .order('created_at', { ascending: false });
+  // ✅ Load balances + ledger entries in parallel
+  const [balanceMap, { data: ledger, error }] = await Promise.all([
+    getCurrentPtoBalanceMap(employeeId),
+    supabase
+      .from('pto_ledger')
+      .select('pto_type, delta_hours, reason, created_at')
+      .eq('employee_id', employeeId)
+      .order('created_at', { ascending: false })
+  ]);
 
   if (error) {
     console.error('Failed to load PTO ledger:', error);
@@ -1867,38 +1885,50 @@ async function loadPtoPolicies() {
     headerRow.appendChild(th);
   });
 
-  // ✅ Load employees
   const { data: employees, error: empErr } = await supabase
     .from('employees')
-    .select('id, first_name, last_name')
+    .select('id, first_name, last_name, employment_months')
     .eq('school_id', currentProfile.school_id)
     .eq('active', true)
     .order('last_name');
 
-  
+  if (empErr || !employees?.length) return;
 
-  if (empErr) return;
-
-  // ✅ Load policies scoped to this school's employees
   const employeeIds = employees.map(e => e.id);
-  const { data: policies, error: polErr } = await supabase
+  const { data: allPolicies, error: polErr } = await supabase
     .from('employee_pto_policies')
     .select('employee_id, pto_type, annual_hours')
-    .in('employee_id', employeeIds.length ? employeeIds : ['']);
-
+    .in('employee_id', employeeIds);
 
   if (polErr) return;
 
-  // ✅ Build map: employee → PTO type → hours
+  // Build map: employee → PTO type → hours
   const policyMap = {};
-  policies.forEach(p => {
-    if (!policyMap[p.employee_id]) {
-      policyMap[p.employee_id] = {};
-    }
+  (allPolicies || []).forEach(p => {
+    if (!policyMap[p.employee_id]) policyMap[p.employee_id] = {};
     policyMap[p.employee_id][p.pto_type] = p.annual_hours;
   });
 
-  // ✅ ONE ROW PER EMPLOYEE
+  // Store for bulk operations
+  policiesEmployees = employees || [];
+  policiesPolicyMap = policyMap;
+
+  // Populate and show bulk bar
+  const bulkTypeSelect = document.getElementById('policyBulkType');
+  bulkTypeSelect.innerHTML = '<option value="">PTO type…</option>';
+  currentSchoolPtoTypes.forEach(type => bulkTypeSelect.appendChild(new Option(type, type)));
+
+  const distinctMonths = [...new Set(policiesEmployees.map(e => e.employment_months).filter(Boolean))].sort((a, b) => a - b);
+  const bulkMonthsSelect = document.getElementById('policyBulkMonths');
+  bulkMonthsSelect.innerHTML = '<option value="">All staff</option>';
+  distinctMonths.forEach(m => bulkMonthsSelect.appendChild(new Option(`${m}-month`, m)));
+
+  const bulkBar = document.getElementById('policiesBulkBar');
+  bulkBar.style.display = 'flex';
+  document.getElementById('policyBulkSetAll').addEventListener('click', () => bulkSetPolicies(false));
+  document.getElementById('policyBulkFillBlank').addEventListener('click', () => bulkSetPolicies(true));
+
+  // ONE ROW PER EMPLOYEE
   employees.forEach(emp => {
     const tr = document.createElement('tr');
 
@@ -1933,6 +1963,63 @@ td.innerHTML = `
 
     tbody.appendChild(tr);
   });
+}
+
+async function bulkSetPolicies(fillBlankOnly) {
+  const ptoType = document.getElementById('policyBulkType').value;
+  const hoursRaw = document.getElementById('policyBulkHours').value;
+  const monthsFilter = document.getElementById('policyBulkMonths').value;
+  const statusEl = document.getElementById('policyBulkStatus');
+
+  if (!ptoType) { alert('Select a PTO type.'); return; }
+  if (hoursRaw === '' || isNaN(Number(hoursRaw))) { alert('Enter a valid number of hours.'); return; }
+  const hours = parseFloat(hoursRaw);
+  if (hours < 0) { alert('Hours must be 0 or greater.'); return; }
+
+  const eligible = policiesEmployees.filter(e => {
+    if (monthsFilter && String(e.employment_months) !== String(monthsFilter)) return false;
+    if (fillBlankOnly) {
+      const existing = policiesPolicyMap[e.id]?.[ptoType];
+      return existing === undefined || existing === null || existing === '';
+    }
+    return true;
+  });
+
+  if (eligible.length === 0) {
+    statusEl.textContent = 'No matching employees.';
+    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+    return;
+  }
+
+  statusEl.textContent = `Saving ${eligible.length} records…`;
+
+  const { error } = await supabase
+    .from('employee_pto_policies')
+    .upsert(eligible.map(e => ({
+      employee_id: e.id,
+      pto_type: ptoType,
+      annual_hours: hours
+    })));
+
+  if (error) {
+    console.error('Bulk policy set failed:', error);
+    statusEl.textContent = 'Failed to save.';
+    return;
+  }
+
+  // Update local cache and DOM inputs
+  eligible.forEach(e => {
+    if (!policiesPolicyMap[e.id]) policiesPolicyMap[e.id] = {};
+    policiesPolicyMap[e.id][ptoType] = hours;
+    const input = document.querySelector(
+      `.pto-policy-input[data-employee="${e.id}"][data-type="${ptoType}"]`
+    );
+    if (input) input.value = hours;
+  });
+
+  const label = eligible.length === 1 ? '1 employee' : `${eligible.length} employees`;
+  statusEl.textContent = `✓ Updated ${label}.`;
+  setTimeout(() => { statusEl.textContent = ''; }, 3000);
 }
 
 async function promptForPtoType() {
@@ -2074,15 +2161,9 @@ async function updateBulkAllotmentStatus() {
 
 async function loadPtoAdjustStaff() {
   const select = document.getElementById('ptoAdjustStaff');
+  if (!select) return;
   select.innerHTML = '<option value="">Select staff…</option>';
-
-  const { data } = await supabase
-    .from('employees')
-    .select('id, first_name, last_name')
-    .eq('school_id', currentProfile.school_id)
-    .eq('active', true)
-    .order('last_name');
-
+  const data = await loadStaffList();
   data.forEach(e => {
     const opt = document.createElement('option');
     opt.value = e.id;
@@ -2310,6 +2391,10 @@ async function setPtoView(view) {
     }
 
     if (view === 'history') {
+      if (!ptoViewCache.has('history-staff')) {
+        await loadPtoStaffOptions();
+        ptoViewCache.add('history-staff');
+      }
       const select = document.getElementById('ptoStaffSelect');
       const employeeId = select?.value || null;
 
@@ -2789,24 +2874,22 @@ if (error) {
   return;
 }
 
-// ✅ Preview
+// Batch-check who already received the allotment (single query instead of N+1)
+const empIds = policies.map(p => p.employee_id);
+const { data: alreadyAppliedRows } = await supabase
+  .from('pto_ledger')
+  .select('employee_id')
+  .in('employee_id', empIds)
+  .eq('pto_type', ptoType)
+  .eq('reason', `ANNUAL_ALLOTMENT_${year}`);
+
+const appliedSet = new Set((alreadyAppliedRows || []).map(r => r.employee_id));
 let willApply = 0;
 let willSkip = 0;
 
 for (const p of policies) {
-  const { data: existing } = await supabase
-    .from('pto_ledger')
-    .select('id')
-    .eq('employee_id', p.employee_id)
-    .eq('pto_type', ptoType)
-    .eq('reason', `ANNUAL_ALLOTMENT_${year}`)
-    .limit(1);
-
-  if (existing && existing.length > 0) {
-    willSkip++;
-  } else {
-    willApply++;
-  }
+  if (appliedSet.has(p.employee_id)) willSkip++;
+  else willApply++;
 }
 
 const confirmRun = confirm(
@@ -2987,9 +3070,6 @@ if (status === 401) {
   // ✅ Reset summary + table
     document.getElementById('ptoStaffSelect').value = '';
     document.querySelector('#ptoHistoryAdminTable tbody').innerHTML = '';
-
-
-    loadPtoStaffOptions();
 
   
 

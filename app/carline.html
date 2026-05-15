@@ -708,7 +708,7 @@ function setupRealtime() {
           renderLog();
         }
       }
-      if (r.status === 'CALLED'   && changed) { playCallSound();   if (isMobile()) setActiveTab('called');   }
+      if (r.status === 'CALLED' && changed && r.call_type !== 'ALL_CALL') { playCallSound(); if (isMobile()) setActiveTab('called'); }
       if (r.status === 'RECALLED' && changed) { playRecallSound(); if (isMobile()) setActiveTab('recalled'); }
 
       renderColumns();

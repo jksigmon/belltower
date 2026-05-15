@@ -2033,10 +2033,17 @@ select {
 
 .back-to-admin {
   width: 34px;
+  height: 34px;
   padding: 0;
   justify-content: center;
-  font-size: 16px;
-  border-radius: 10px;
+  border-radius: 50%;
+  overflow: visible;
+}
+
+.back-to-admin svg {
+  stroke: #ffffff !important;
+  flex-shrink: 0;
+  display: block;
 }
 
 /* Sign out button inherits the same glass style when inside the header */
@@ -2743,9 +2750,9 @@ a.stat, a.dash-stat-link {
     gap: 8px;
   }
 
-  /* Hide the back-to-admin link on mobile (use browser back) */
-  .header-left .btn-admin {
-    display: none;
+  .back-to-admin {
+    width: 30px;
+    height: 30px;
   }
 
   /* Prevent directory action buttons from overflowing the panel */

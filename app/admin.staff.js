@@ -7,6 +7,7 @@ let currentProfile;
 let supervisorLookup = {};
 let campusLookup = {};
 let initialized = false;
+let lookupsLoaded = false;
 let staffDirectory;
 let editingEmpId = null;
 
@@ -17,11 +18,12 @@ let editingEmpId = null;
 export async function initStaffSection(profile) {
   currentProfile = profile;
 
-  supervisorLookup = {};
-  campusLookup = {};
-  await Promise.all([loadSupervisorLookup(), loadCampusLookup()]);
-  populateAddStaffSupervisorSelect();
-  populateAddStaffCampusSelect();
+  if (!lookupsLoaded) {
+    await Promise.all([loadSupervisorLookup(), loadCampusLookup()]);
+    populateAddStaffSupervisorSelect();
+    populateAddStaffCampusSelect();
+    lookupsLoaded = true;
+  }
 
   if (!staffDirectory) {
     staffDirectory = createDirectory({
@@ -68,6 +70,7 @@ export async function initStaffSection(profile) {
         'Employment Months': emp.employment_months ?? '',
       }),
 
+      columnCount: 7,
       tbodySelector: '#staffTable tbody',
       paginationContainer: '#staffPagination',
       renderRow: renderStaffRow

@@ -16,10 +16,9 @@ export async function initStudentsSection(profile) {
   currentProfile = profile;
 
   await Promise.all([
-    loadFamilyOptions(['#studentFamily']),
-    loadBusGroupOptions('#studentBusGroup'),
-    loadHomeroomTeacherOptions(),
-    loadHomeroomFilterOptions(),
+    loadFamilyOptions(['#studentFamily'], currentProfile.school_id),
+    loadBusGroupOptions('#studentBusGroup', currentProfile.school_id),
+    loadHomeroomOptions(),
     loadCampusOptions()
   ]);
 
@@ -54,6 +53,7 @@ export async function initStudentsSection(profile) {
 
       defaultSort: { column: 'last_name', ascending: true },
 
+      columnCount: 8,
       tbodySelector: '#studentsTable tbody',
       paginationContainer: '#studentsPagination',
       renderRow: renderStudentRow,
@@ -84,12 +84,7 @@ export async function initStudentsSection(profile) {
    DATA LOADERS
 ================================ */
 
-async function loadHomeroomTeacherOptions() {
-  const select = document.getElementById('studentHomeroom');
-  if (!select) return;
-  select.innerHTML = '';
-  select.appendChild(new Option('Select homeroom teacher', ''));
-
+async function loadHomeroomOptions() {
   const { data, error } = await supabase
     .from('employees')
     .select('id, first_name, last_name')
@@ -99,24 +94,20 @@ async function loadHomeroomTeacherOptions() {
     .order('last_name');
 
   if (error) { console.error('Failed to load teachers', error); return; }
-  data.forEach(t => select.appendChild(new Option(`${t.first_name} ${t.last_name}`, t.id)));
-}
 
-async function loadHomeroomFilterOptions() {
-  const select = document.getElementById('studentHomeroomFilter');
-  if (!select) return;
-  select.innerHTML = '';
-  select.appendChild(new Option('All homerooms', ''));
+  const addSelect    = document.getElementById('studentHomeroom');
+  const filterSelect = document.getElementById('studentHomeroomFilter');
 
-  const { data, error } = await supabase
-    .from('employees')
-    .select('id, first_name, last_name')
-    .eq('school_id', currentProfile.school_id)
-    .eq('active', true)
-    .ilike('position', '%teacher%')
-    .order('last_name');
-
-  if (!error) data.forEach(t => select.appendChild(new Option(`${t.first_name} ${t.last_name}`, t.id)));
+  if (addSelect) {
+    addSelect.innerHTML = '';
+    addSelect.appendChild(new Option('Select homeroom teacher', ''));
+    (data || []).forEach(t => addSelect.appendChild(new Option(`${t.first_name} ${t.last_name}`, t.id)));
+  }
+  if (filterSelect) {
+    filterSelect.innerHTML = '';
+    filterSelect.appendChild(new Option('All homerooms', ''));
+    (data || []).forEach(t => filterSelect.appendChild(new Option(`${t.first_name} ${t.last_name}`, t.id)));
+  }
 }
 
 async function loadCampusOptions() {

@@ -15,7 +15,7 @@ let editingGuardianId = null;
 export async function initGuardiansSection(profile) {
   currentProfile = profile;
 
-  await loadFamilyOptions(['#guardianFamily']);
+  await loadFamilyOptions(['#guardianFamily'], currentProfile.school_id);
 
   if (!guardiansDirectory) {
     guardiansDirectory = createDirectory({
@@ -37,6 +37,7 @@ export async function initGuardiansSection(profile) {
 
       defaultSort: { column: 'last_name', ascending: true },
 
+      columnCount: 5,
       tbodySelector: '#guardiansTable tbody',
       paginationContainer: '#guardiansPagination',
       renderRow: renderGuardianRow,

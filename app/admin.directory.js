@@ -10,6 +10,7 @@ export function createDirectory(config) {
     filters = {},
     defaultSort,
     pageSize = 25,
+    columnCount = 6,
     tbodySelector,
     paginationContainer,
     renderRow
@@ -89,18 +90,23 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
     const tbody = document.querySelector(tbodySelector);
     if (!tbody) return;
 
-    tbody.innerHTML = '';
+    tbody.innerHTML = Array.from({ length: 8 }, () =>
+      `<tr>${Array.from({ length: columnCount }, () =>
+        '<td><div class="skeleton skeleton-row"></div></td>'
+      ).join('')}</tr>`
+    ).join('');
 
     const { data, error, count } = await buildQuery();
 
     if (loadId !== state.loadSeq) return;
+
+    tbody.innerHTML = '';
 
     if (error) {
       console.error(`Load failed for ${table}`, error);
       return;
     }
 
-    tbody.innerHTML = '';
     data.forEach(row => {
       tbody.appendChild(renderRow(row));
     });

@@ -5,17 +5,18 @@ import { supabase } from './admin.supabase.js';
 /* ===============================
    SHARED CACHES
 ================================ */
-let familyCache = null;
-let busGroupCache = null;
+const familyCache = {};
+const busGroupCache = {};
 
 /* ===============================
    FAMILY OPTIONS (Students, Guardians)
 ================================ */
-export async function loadFamilyOptions(selectors = []) {
-  if (!familyCache) {
+export async function loadFamilyOptions(selectors = [], schoolId) {
+  if (!familyCache[schoolId]) {
     const { data, error } = await supabase
       .from('families')
       .select('id, carline_tag_number, family_name')
+      .eq('school_id', schoolId)
       .eq('active', true)
       .order('carline_tag_number');
 
@@ -24,7 +25,7 @@ export async function loadFamilyOptions(selectors = []) {
       return;
     }
 
-    familyCache = data || [];
+    familyCache[schoolId] = data || [];
   }
 
   selectors.forEach(selector => {
@@ -33,7 +34,7 @@ export async function loadFamilyOptions(selectors = []) {
 
     select.innerHTML = '<option value="">Select family</option>';
 
-    familyCache.forEach(f => {
+    familyCache[schoolId].forEach(f => {
       const opt = document.createElement('option');
       opt.value = f.id;
       opt.textContent =
@@ -46,11 +47,12 @@ export async function loadFamilyOptions(selectors = []) {
 /* ===============================
    BUS GROUP OPTIONS (Students)
 ================================ */
-export async function loadBusGroupOptions(selector) {
-  if (!busGroupCache) {
+export async function loadBusGroupOptions(selector, schoolId) {
+  if (!busGroupCache[schoolId]) {
     const { data, error } = await supabase
       .from('bus_groups')
       .select('id, name')
+      .eq('school_id', schoolId)
       .order('name');
 
     if (error) {
@@ -58,7 +60,7 @@ export async function loadBusGroupOptions(selector) {
       return;
     }
 
-    busGroupCache = data || [];
+    busGroupCache[schoolId] = data || [];
   }
 
   const select = document.querySelector(selector);
@@ -66,7 +68,7 @@ export async function loadBusGroupOptions(selector) {
 
   select.innerHTML = '<option value="">No bus</option>';
 
-  busGroupCache.forEach(bg => {
+  busGroupCache[schoolId].forEach(bg => {
     const opt = document.createElement('option');
     opt.value = bg.id;
     opt.textContent = bg.name;
@@ -77,10 +79,12 @@ export async function loadBusGroupOptions(selector) {
 /* ===============================
    CACHE INVALIDATION (IMPORTANT)
 ================================ */
-export function invalidateFamilyCache() {
-  familyCache = null;
+export function invalidateFamilyCache(schoolId) {
+  if (schoolId) delete familyCache[schoolId];
+  else Object.keys(familyCache).forEach(k => delete familyCache[k]);
 }
 
-export function invalidateBusGroupCache() {
-  busGroupCache = null;
+export function invalidateBusGroupCache(schoolId) {
+  if (schoolId) delete busGroupCache[schoolId];
+  else Object.keys(busGroupCache).forEach(k => delete busGroupCache[k]);
 }

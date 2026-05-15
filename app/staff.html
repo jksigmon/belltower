@@ -286,8 +286,8 @@
   </button>
   <a id="backToAdmin"
      href="/admin.html"
-     class="btn btn-admin back-to-admin">
-    ←
+     class="btn btn-admin back-to-admin" aria-label="Admin home">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
   </a>
 </div>
 
@@ -356,7 +356,7 @@
       </div>
     </div>
 
-    <div id="staffDashGrid" style="opacity:0;transition:opacity 220ms ease;">
+    <div id="staffDashGrid">
 
       <div class="dash-section" id="staffDashActions" style="display:none;">
         <div class="dash-section-title">Quick Actions</div>
@@ -794,6 +794,7 @@ async function loadStaffDashboard() {
   const today = new Date().toISOString().slice(0, 10);
 
   document.getElementById('staffDashName').textContent = p.display_name ?? p.email ?? '';
+  document.getElementById('staffDashSchool').textContent = p.schools?.name ?? '';
   document.getElementById('staffDashDate').textContent = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
   });
@@ -802,9 +803,7 @@ async function loadStaffDashboard() {
   in90.setDate(in90.getDate() + 90);
   const in90Str = in90.toISOString().slice(0, 10);
 
-  const queries = {
-    school: supabase.from('schools').select('name').eq('id', schoolId).single()
-  };
+  const queries = {};
 
   if (window.staffModules['pto'] === true) {
     queries.balances = supabase.from('pto_balances')
@@ -836,10 +835,6 @@ async function loadStaffDashboard() {
   const keys    = Object.keys(queries);
   const results = await Promise.all(keys.map(k => queries[k]));
   const r       = Object.fromEntries(keys.map((k, i) => [k, results[i]]));
-
-  if (r.school?.data?.name) {
-    document.getElementById('staffDashSchool').textContent = r.school.data.name;
-  }
 
   // Quick actions
   const actionsRow = document.getElementById('staffDashActionsRow');
@@ -928,9 +923,6 @@ async function loadStaffDashboard() {
     document.getElementById('staffDashLicenses').style.display = '';
   }
 
-  requestAnimationFrame(function () {
-    document.getElementById('staffDashGrid').style.opacity = '1';
-  });
 }
 
 function hasAdminAccess(profile) {
@@ -945,63 +937,61 @@ function hasAdminAccess(profile) {
 }
 
 async function initStaff() {
-  // ✅ Get session
   const sessionResult = await supabase.auth.getSession();
   if (!sessionResult.data || !sessionResult.data.session) {
     window.location.href = '/login.html';
     return;
   }
 
-  // ✅ Get user
   const user = sessionResult.data.session.user;
 
-  // ✅ Load profile
+  // Profile + school name + modules + employee campus in one round-trip
   const profileResult = await supabase
     .from('profiles')
-    .select('*')
+    .select('*, schools(id, name, school_modules(module, enabled)), employees!employee_id(campus_id, campuses(workday_hours, pto_increment_minutes, day_start_time, day_end_time))')
     .eq('user_id', user.id)
     .single();
 
   currentProfile = profileResult.data;
 
-if (!currentProfile.employee_id) {
-  alert(
-    'Your account is active, but staff records are not fully set up yet.\n\n' +
-    'Please contact an administrator.'
-  );
-  return;
-}
+  if (!currentProfile.employee_id) {
+    alert(
+      'Your account is active, but staff records are not fully set up yet.\n\n' +
+      'Please contact an administrator.'
+    );
+    return;
+  }
 
   initUserMenu(currentProfile.display_name ?? currentProfile.email);
 
-  await Promise.all([
-  loadSchoolSettings(currentProfile.school_id),
-  loadStaffModules(currentProfile.school_id)
-]);
-buildTimeSelectOptions();
-wireSubCoverageUI();
+  // Extract modules from joined data — no separate round-trip needed
+  window.staffModules = {};
+  (currentProfile.schools?.school_modules || []).forEach(r => {
+    window.staffModules[r.module] = r.enabled === true;
+  });
 
-const backToAdmin = document.getElementById('backToAdmin');
+  wireSubCoverageUI();
 
-function cameFromAdminContext() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('from') === 'admin') return true;
-  return window.location.hash.includes('from=admin');
-}
-
-if (backToAdmin && cameFromAdminContext() && hasAdminAccess(currentProfile)) {
-  backToAdmin.style.visibility = 'visible';
-}
-
+  const backToAdmin = document.getElementById('backToAdmin');
+  function cameFromAdminContext() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('from') === 'admin') return true;
+    return window.location.hash.includes('from=admin');
+  }
+  if (backToAdmin && cameFromAdminContext() && hasAdminAccess(currentProfile)) {
+    backToAdmin.style.visibility = 'visible';
+  }
 
   applyModuleNavVisibility();
   document.getElementById('staffNav')?.classList.remove('hidden');
-
   setActive('#dashboard');
   window.scrollTo(0, 0);
 
-  await loadStaffDashboard();
-
+  // Settings (uses campus data already in profile) and dashboard run concurrently
+  await Promise.all([
+    loadSchoolSettings(currentProfile.school_id),
+    loadStaffDashboard()
+  ]);
 }
 
 let selectedStartDate = null;
@@ -1689,25 +1679,6 @@ function showToast(message) {
   }, 3000);
 }
 
-async function loadStaffModules(schoolId) {
-  const result = await supabase
-    .from('school_modules')
-    .select('module, enabled')
-    .eq('school_id', schoolId);
-
-  if (result.error) {
-    console.warn('Failed to load school modules:', result.error);
-    window.staffModules = {};
-    return;
-  }
-
-  // ✅ Single source of truth
-  window.staffModules = {};
-
-  (result.data || []).forEach(function (row) {
-    window.staffModules[row.module] = row.enabled === true;
-  });
-}
 
 function applyModuleNavVisibility() {
   document.querySelectorAll('nav a[data-module]').forEach(function (link) {
@@ -1744,37 +1715,23 @@ async function loadSchoolSettings(schoolId) {
     PTO_INCREMENT_MINUTES = 30;
     DAY_START_TIME = "08:00";
     DAY_END_TIME = "16:00";
-    return;
-  }
+  } else {
+    SCHOOL_WORKDAY_HOURS = data.workday_hours ?? 8;
+    PTO_INCREMENT_MINUTES = data.pto_time_increment_minutes ?? 30;
+    DAY_START_TIME = (data.day_start_time ?? "08:00").slice(0, 5);
+    DAY_END_TIME   = (data.day_end_time   ?? "16:00").slice(0, 5);
 
-  SCHOOL_WORKDAY_HOURS = data.workday_hours ?? 8;
-  PTO_INCREMENT_MINUTES = data.pto_time_increment_minutes ?? 30;
-  DAY_START_TIME = (data.day_start_time ?? "08:00").slice(0, 5);
-  DAY_END_TIME   = (data.day_end_time   ?? "16:00").slice(0, 5);
-
-  // Campus overrides school_settings if this employee has a campus assigned
-  if (currentProfile?.employee_id) {
-    const { data: emp } = await supabase
-      .from('employees')
-      .select('campus_id')
-      .eq('id', currentProfile.employee_id)
-      .single();
-
-    if (emp?.campus_id) {
-      const { data: campus } = await supabase
-        .from('campuses')
-        .select('workday_hours, pto_increment_minutes, day_start_time, day_end_time')
-        .eq('id', emp.campus_id)
-        .single();
-
-      if (campus) {
-        if (campus.workday_hours        != null) SCHOOL_WORKDAY_HOURS  = campus.workday_hours;
-        if (campus.pto_increment_minutes != null) PTO_INCREMENT_MINUTES = campus.pto_increment_minutes;
-        if (campus.day_start_time        != null) DAY_START_TIME        = campus.day_start_time.slice(0, 5);
-        if (campus.day_end_time          != null) DAY_END_TIME          = campus.day_end_time.slice(0, 5);
-      }
+    // Apply campus overrides from data already loaded in the profile query
+    const campus = currentProfile?.employees?.campuses;
+    if (campus) {
+      if (campus.workday_hours         != null) SCHOOL_WORKDAY_HOURS  = campus.workday_hours;
+      if (campus.pto_increment_minutes != null) PTO_INCREMENT_MINUTES = campus.pto_increment_minutes;
+      if (campus.day_start_time        != null) DAY_START_TIME        = campus.day_start_time.slice(0, 5);
+      if (campus.day_end_time          != null) DAY_END_TIME          = campus.day_end_time.slice(0, 5);
     }
   }
+
+  buildTimeSelectOptions();
 }
 
 function timeToMinutes(t) {

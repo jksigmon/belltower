@@ -21,16 +21,9 @@ async function init() {
   
 const { data: profile, error } = await supabase
   .from('profiles')
-  .select(`
-    *,
-    schools (
-      id,
-      name
-    )
-  `)
+  .select('*, schools(id, name, school_modules(module, enabled))')
   .eq('user_id', user.id)
   .single();
-
 
   if (error) {
     console.error('Failed to load profile', error);
@@ -40,14 +33,9 @@ const { data: profile, error } = await supabase
   currentProfile = profile;
   initUserMenu(profile.display_name ?? profile.email);
 
-  // Load school modules before gating nav
-  const { data: moduleRows } = await supabase
-    .from('school_modules')
-    .select('module, enabled')
-    .eq('school_id', profile.school_id);
-
+  // Extract modules from the joined result — no second round-trip needed
   currentModules = {};
-  (moduleRows || []).forEach(r => { currentModules[r.module] = r.enabled; });
+  (profile.schools?.school_modules || []).forEach(r => { currentModules[r.module] = r.enabled; });
 
 document.getElementById('dashboardUser').textContent =
   currentProfile.display_name ?? currentProfile.email;
@@ -61,25 +49,12 @@ document.getElementById('dashboardSchool').textContent =
     pendingNotice.style.display = 'block';
   }
 
-  // Apply permissions + module gates before anything is visible
   gateNavigation();
 
-  // Load access request badge count for admins
-  if (currentProfile.can_manage_access || currentProfile.is_superadmin) {
-    const { count } = await supabase
-      .from('access_requests')
-      .select('id', { count: 'exact', head: true })
-      .eq('school_id', currentProfile.school_id)
-      .eq('status', 'pending');
-    const badge = document.getElementById('accessRequestBadge');
-    if (badge && count > 0) badge.textContent = String(count);
-  }
-
-  // Resolve initial route FIRST
-  await setActive(location.hash || '#dashboard');
-
-  // ✅ Reveal nav only once everything is ready
+  // Show nav immediately — badge and dashboard stats fill in below
   document.getElementById('adminNav')?.classList.remove('hidden');
+
+  await setActive(location.hash || '#dashboard');
 }
 
 /* ===============================
@@ -309,7 +284,7 @@ async function loadDashboardStats() {
   if (moduleEnabled('carline') && (p.can_view_carline || p.is_superadmin)) {
     queries.carline = supabase.from('carline_events')
       .select('id, status, closed_at, carline_calls(status)')
-      .eq('school_id', schoolId).eq('event_date', today).maybeSingle();
+      .eq('school_id', schoolId).eq('event_date', today);
   }
 
   if (p.can_manage_access || p.is_superadmin) {
@@ -390,12 +365,13 @@ async function loadDashboardStats() {
   }
 
   if (r.carline !== undefined) {
-    const event = r.carline.data;
-    if (event) {
-      const calls      = event.carline_calls ?? [];
-      const dismissed  = calls.filter(c => c.status === 'CALLED' || c.status === 'LOADED').length;
-      const issues     = calls.filter(c => c.status === 'RECALLED').length;
-      const isOpen     = event.status === 'OPEN';
+    const events = r.carline.data || [];
+    if (events.length > 0) {
+      const allCalls   = events.flatMap(ev => ev.carline_calls ?? []);
+      const dismissed  = allCalls.filter(c => c.status === 'CALLED' || c.status === 'LOADED').length;
+      const issues     = allCalls.filter(c => c.status === 'RECALLED').length;
+      const isOpen     = events.some(ev => ev.status === 'OPEN');
+      const latestClose = events.map(ev => ev.closed_at).filter(Boolean).sort().at(-1);
 
       const statusEl    = document.getElementById('statCarlineStatus');
       const timeEl      = document.getElementById('statCarlineTime');
@@ -410,8 +386,8 @@ async function loadDashboardStats() {
       if (timeEl) {
         if (isOpen) {
           timeEl.textContent = 'In progress';
-        } else if (event.closed_at) {
-          const t = new Date(event.closed_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        } else if (latestClose) {
+          const t = new Date(latestClose).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
           timeEl.textContent = `Closed at ${t}`;
         }
       }
@@ -419,7 +395,7 @@ async function loadDashboardStats() {
         dismissedEl.textContent = `${dismissed} student${dismissed !== 1 ? 's' : ''} dismissed`;
       }
       if (issuesEl) {
-        issuesEl.textContent = issues > 0 ? `${issues} issue${issues !== 1 ? 's' : ''}` : '0 issues';
+        issuesEl.textContent = issues > 0 ? `${issues} recall${issues !== 1 ? 's' : ''}` : '0 recalls';
         issuesEl.style.color = issues > 0 ? '#dc2626' : '';
       }
       if (cardEl) {
@@ -435,6 +411,13 @@ async function loadDashboardStats() {
     set('statNoFamily',     r.noFamily.count ?? 0);     show('dashNoFamily');
     set('statNoSupervisor', r.noSupervisor.count ?? 0); show('dashNoSupervisor');
     show('dashHealth');
+  }
+
+  // Update nav badge from already-fetched access request count
+  if (r.accessRequests !== undefined) {
+    const count = r.accessRequests.count ?? 0;
+    const badge = document.getElementById('accessRequestBadge');
+    if (badge && count > 0) badge.textContent = String(count);
   }
 
   // ── Today's Alerts panel ──────────────────────────────────────────
@@ -535,11 +518,6 @@ async function loadDashboardStats() {
     show('dashAlertsSection');
   }
 
-  // ── Reveal everything at once ─────────────────────────────────────
-  const dashGrid = document.getElementById('dashGrid');
-  if (dashGrid) {
-    requestAnimationFrame(() => { dashGrid.style.opacity = '1'; });
-  }
 }
 
 /* ===============================
