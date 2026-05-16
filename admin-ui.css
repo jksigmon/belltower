@@ -3449,6 +3449,17 @@ a.stat, a.dash-stat-link {
   font-weight: 600;
   width: fit-content;
 }
+.student-retained-badge {
+  display: inline-block;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  font-size: 0.67rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  width: fit-content;
+}
 
 /* Position pill */
 .staff-position-badge {
@@ -3649,6 +3660,48 @@ a.stat, a.dash-stat-link {
 .route-type-AM   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
 .route-type-PM   { background: #faf5ff; color: #6d28d9; border: 1px solid #ddd6fe; }
 .route-type-AMPM { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+/* Family drawer — linked students & guardians */
+.family-related-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.family-related-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--surface-alt, #f9fafb);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.family-chip-name { font-weight: 500; display: flex; align-items: center; gap: 5px; }
+.family-chip-meta {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  color: #475569;
+}
+.family-primary-star { color: #f59e0b; font-size: 12px; line-height: 1; }
+
+/* Guardian primary-contact badge (directory row) */
+.guardian-primary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 20px;
+  padding: 1px 7px;
+}
 
 /* Bus route students list (edit drawer) */
 .bus-students-list {
@@ -4386,6 +4439,62 @@ body.placement-fs .wrap {
   border-color: #bbf7d0;
   color: var(--text-primary);
 }
+
+/* ── Placement flag editor ── */
+.flag-editor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 24px;
+  margin-bottom: 14px;
+}
+.flag-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+.flag-editor-color-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.12);
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: transform 0.1s;
+}
+.flag-editor-color-dot:hover { transform: scale(1.15); }
+.flag-editor-input { flex: 1; height: 32px; font-size: 13px; }
+.flag-delete-btn { color: #dc2626; border-color: #fca5a5; padding: 0 8px; height: 30px; flex-shrink: 0; }
+.flag-delete-btn:hover { background: #fef2f2; }
+.flag-color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 500;
+}
+#newFlagColorPickerEl { position: static; box-shadow: none; margin-top: 8px; }
+.flag-color-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.flag-color-swatch:hover { transform: scale(1.15); }
+.flag-color-swatch.selected { border-color: #0f172a; }
+.flag-editor-new { border-top: 1px solid var(--border); padding-top: 14px; }
 
 /* ── Staff bulk action bar ── */
 .bulk-action-bar {

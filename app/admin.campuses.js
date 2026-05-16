@@ -161,7 +161,7 @@ function confirmDeleteCampus() {
   if (!editingCampusId) return;
   const name = document.getElementById('ecName').value;
   document.getElementById('deleteCampusMsg').textContent =
-    `Are you sure you want to delete "${name}"? Staff assigned to it will become unassigned.`;
+    `Are you sure you want to delete "${name}"?\n\nStaff, students, and licensure records assigned to this campus will become unassigned. This cannot be undone.`;
   document.getElementById('deleteCampusModal').hidden = false;
 }
 

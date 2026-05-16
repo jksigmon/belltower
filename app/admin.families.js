@@ -105,7 +105,57 @@ function openEditFamilyDrawer(f) {
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
 
+  // Reset lists to loading state before opening
+  document.getElementById('efStudentsList').innerHTML  = '<span class="muted" style="font-size:13px;">Loading…</span>';
+  document.getElementById('efGuardiansList').innerHTML = '<span class="muted" style="font-size:13px;">Loading…</span>';
+
   window.openDrawer?.('editFamilyDrawer');
+  loadFamilyRelated(f.id);
+}
+
+async function loadFamilyRelated(familyId) {
+  const [studentsRes, guardiansRes] = await Promise.all([
+    supabase
+      .from('students')
+      .select('id, first_name, last_name, grade_level')
+      .eq('family_id', familyId)
+      .eq('active', true)
+      .order('last_name'),
+    supabase
+      .from('guardians')
+      .select('id, first_name, last_name, phone, is_primary_contact')
+      .eq('family_id', familyId)
+      .eq('active', true)
+      .order('last_name'),
+  ]);
+
+  const studentsList  = document.getElementById('efStudentsList');
+  const guardiansList = document.getElementById('efGuardiansList');
+
+  if (studentsRes.error || !studentsRes.data?.length) {
+    studentsList.innerHTML = '<span class="muted" style="font-size:13px;">No active students.</span>';
+  } else {
+    studentsList.innerHTML = studentsRes.data.map(s => `
+      <div class="family-related-chip">
+        <span class="family-chip-name">${esc(s.last_name)}, ${esc(s.first_name)}</span>
+        ${s.grade_level ? `<span class="family-chip-meta">${esc(s.grade_level)}</span>` : ''}
+      </div>
+    `).join('');
+  }
+
+  if (guardiansRes.error || !guardiansRes.data?.length) {
+    guardiansList.innerHTML = '<span class="muted" style="font-size:13px;">No active guardians.</span>';
+  } else {
+    guardiansList.innerHTML = guardiansRes.data.map(g => `
+      <div class="family-related-chip">
+        <span class="family-chip-name">
+          ${g.is_primary_contact ? '<span class="family-primary-star" title="Primary contact">★</span>' : ''}
+          ${esc(g.last_name)}, ${esc(g.first_name)}
+        </span>
+        ${g.phone ? `<span class="family-chip-meta">${esc(g.phone)}</span>` : ''}
+      </div>
+    `).join('');
+  }
 }
 
 async function saveEditFamily() {

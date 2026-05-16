@@ -416,11 +416,12 @@
             <th>Requested</th>
             <th>Reason</th>
             <th>Date</th>
+            <th>Last sign-in</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody id="accessRequestsBody">
-          <tr><td colspan="5" class="muted">Loading…</td></tr>
+          <tr><td colspan="6" class="muted">Loading…</td></tr>
         </tbody>
       </table>
     </div>
@@ -1035,6 +1036,9 @@
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
             <span id="placementSaveStatus" class="muted" style="font-size:12px;"></span>
+            <button class="btn btn-outline btn-sm" id="manageFlagsBtn" title="Create and manage color flags">
+              <i data-lucide="tag" style="width:15px;height:15px;"></i> Flags
+            </button>
             <button class="btn btn-outline btn-sm" id="autoPlacementBtn" title="Distribute students evenly across teachers">
               <i data-lucide="shuffle" style="width:15px;height:15px;"></i> Auto-Place
             </button>
@@ -1042,6 +1046,7 @@
               <i data-lucide="expand" style="width:15px;height:15px;"></i>
             </button>
             <button class="btn btn-primary btn-sm" id="commitPlacementBtn">Commit Placement</button>
+            <button class="btn btn-outline btn-sm" id="undoCommitPlacementBtn" hidden style="color:#dc2626;border-color:#fca5a5;">Undo Commit</button>
           </div>
         </div>
         <div class="placement-board-wrap">
@@ -1054,6 +1059,27 @@
     </div>
 
   </div>
+
+  <!-- Flag editor modal -->
+  <div id="placementFlagEditorModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:400px;width:100%;">
+      <h3 class="confirm-modal-title">Manage Flags</h3>
+      <div id="flagEditorList" class="flag-editor-list"></div>
+      <div class="flag-editor-new">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px;">New Flag</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button id="newFlagColorDot" class="flag-editor-color-dot" title="Pick a color"></button>
+          <input id="newFlagLabel" class="form-input" style="flex:1;height:32px;" placeholder="Flag name…" />
+          <button id="addFlagBtn" class="btn btn-primary btn-sm">Add</button>
+        </div>
+        <div id="newFlagColorPickerEl" class="flag-color-picker" hidden></div>
+      </div>
+      <div class="confirm-modal-actions">
+        <button id="closeFlagEditorBtn" class="btn">Done</button>
+      </div>
+    </div>
+  </div>
+
 </section>
 
 <section id="promotion" class="admin-section">
@@ -1453,6 +1479,12 @@
     </div>
     <div class="drawer-field">
       <label class="staff-active-label">
+        <input type="checkbox" id="estuRetained" />
+        <span>Retained <span class="muted" style="font-weight:400;">(repeating current grade)</span></span>
+      </label>
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
         <input type="checkbox" id="estuActive" />
         <span>Active student</span>
       </label>
@@ -1568,6 +1600,22 @@
         <span>Active family</span>
       </label>
     </div>
+
+    <hr class="drawer-divider" />
+
+    <div class="drawer-field">
+      <label>Students</label>
+      <div id="efStudentsList" class="family-related-list">
+        <span class="muted" style="font-size:13px;">Loading…</span>
+      </div>
+    </div>
+
+    <div class="drawer-field">
+      <label>Guardians</label>
+      <div id="efGuardiansList" class="family-related-list">
+        <span class="muted" style="font-size:13px;">Loading…</span>
+      </div>
+    </div>
   </div>
   <div class="drawer-footer-split">
     <button id="efDeleteBtn" class="btn danger">Delete</button>
@@ -1623,6 +1671,12 @@
       <label>Phone</label>
       <input id="guardianPhone" class="form-input" type="tel" placeholder="Phone number" />
     </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="guardianPrimary" />
+        <span>Primary contact <span class="muted" style="font-weight:400;">(first call)</span></span>
+      </label>
+    </div>
   </div>
   <div class="drawer-footer">
     <button class="btn" onclick="closeDrawer('guardianDrawer')">Cancel</button>
@@ -1666,6 +1720,12 @@
     <div class="drawer-field">
       <label>Phone</label>
       <input id="egPhone" class="form-input" type="tel" placeholder="Phone number" />
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="egPrimary" />
+        <span>Primary contact <span class="muted" style="font-weight:400;">(first call)</span></span>
+      </label>
     </div>
     <div class="drawer-field">
       <label class="staff-active-label">

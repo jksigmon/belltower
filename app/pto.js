@@ -1567,32 +1567,28 @@ async function initPtoCalendar() {
 
         success(
           data.map(e => {
-            if (e.partial_day && e.start_time && e.end_time && e.start_date) {
-              return {
-                id: e.id,
-                title: e.title,
-                start: `${e.start_date}T${e.start_time}`,
-                end:   `${e.start_date}T${e.end_time}`,
-                allDay: false,
-                backgroundColor: colorForPtoType(e.pto_type),
-                borderColor:     colorForPtoType(e.pto_type)
-              };
-            }
-            return {
+            const base = {
               id: e.id,
               title: e.title,
-              start: e.start,
-              end:   e.end,
-              allDay: e.allDay ?? true,
               backgroundColor: colorForPtoType(e.pto_type),
-              borderColor:     colorForPtoType(e.pto_type)
+              borderColor:     colorForPtoType(e.pto_type),
+              extendedProps:   { pto_type: e.pto_type }
             };
+            if (e.partial_day && e.start_time && e.end_time && e.start_date) {
+              return { ...base, start: `${e.start_date}T${e.start_time}`, end: `${e.start_date}T${e.end_time}`, allDay: false };
+            }
+            return { ...base, start: e.start, end: e.end, allDay: e.allDay ?? true };
           })
         );
       } catch (err) {
         console.error(err);
         failure(err);
       }
+    },
+
+    eventClick({ event, el, jsEvent }) {
+      jsEvent.preventDefault();
+      openCalEventPopover(el, event);
     }
   });
 
@@ -1607,6 +1603,120 @@ function colorForPtoType(type) {
     default:         return '#64748b';
   }
 }
+
+/* =============================================
+   CALENDAR EVENT POPOVER
+============================================= */
+
+async function openCalEventPopover(el, fcEvent) {
+  const popover = document.getElementById('calEventPopover');
+  const ptoType = fcEvent.extendedProps.pto_type ?? '';
+
+  // Employee name lives before the " – " separator in the title
+  const sepIdx = fcEvent.title.lastIndexOf(' – ');
+  const empName = sepIdx >= 0 ? fcEvent.title.slice(0, sepIdx) : fcEvent.title;
+
+  // Date / time display
+  let dateStr, timeStr;
+  if (!fcEvent.allDay) {
+    const [datePart, timePart] = fcEvent.startStr.split('T');
+    const [, endTimePart]      = (fcEvent.endStr || '').split('T');
+    dateStr = fmtDate(datePart);
+    timeStr = `${formatTime(timePart?.slice(0, 8))} – ${formatTime(endTimePart?.slice(0, 8))}`;
+  } else {
+    const startDate = fcEvent.startStr;
+    const endExcl   = new Date(fcEvent.end);
+    endExcl.setDate(endExcl.getDate() - 1);
+    const endDate = endExcl.toISOString().slice(0, 10);
+    dateStr = startDate === endDate
+      ? fmtDate(startDate)
+      : `${fmtDate(startDate)} – ${fmtDate(endDate)}`;
+    timeStr = 'Full day';
+  }
+
+  // Type badge
+  const badge = document.getElementById('calPopTypeBadge');
+  const color = colorForPtoType(ptoType);
+  badge.textContent      = ptoType.charAt(0) + ptoType.slice(1).toLowerCase();
+  badge.style.background = color + '22';
+  badge.style.color      = color;
+  badge.style.border     = `1px solid ${color}55`;
+
+  document.getElementById('calPopEmpName').textContent  = empName;
+  document.getElementById('calPopDate').textContent     = dateStr;
+  document.getElementById('calPopTime').textContent     = timeStr;
+  document.getElementById('calPopHours').textContent    = '…';
+  document.getElementById('calPopNotes').textContent    = '…';
+  document.getElementById('calPopApprover').textContent = '…';
+
+  popover.hidden = false;
+  positionCalPopover(popover, el);
+
+  // Fetch full record for hours, notes, approver
+  const { data, error } = await supabase
+    .from('pto_requests')
+    .select(`
+      requested_hours,
+      requested_duration_label,
+      notes,
+      decided_at,
+      approver:employees!pto_requests_decided_by_fkey(first_name, last_name)
+    `)
+    .eq('id', fcEvent.id)
+    .single();
+
+  if (error || !data) return;
+
+  document.getElementById('calPopHours').textContent =
+    data.requested_duration_label || (data.requested_hours != null ? `${data.requested_hours} hrs` : '—');
+
+  const notes = data.notes?.trim() || '';
+  document.getElementById('calPopNotes').textContent    = notes || '—';
+  document.getElementById('calPopNotesRow').hidden      = !notes;
+
+  if (data.approver) {
+    const name = `${data.approver.first_name} ${data.approver.last_name}`;
+    const date = data.decided_at ? fmtDate(data.decided_at.slice(0, 10)) : '';
+    document.getElementById('calPopApprover').textContent = date ? `${name} · ${date}` : name;
+  } else {
+    document.getElementById('calPopApprover').textContent = '—';
+  }
+}
+
+function positionCalPopover(popover, el) {
+  const rect = el.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const gap = 8;
+
+  let top  = rect.bottom + gap;
+  let left = rect.left;
+
+  popover.style.top  = top  + 'px';
+  popover.style.left = left + 'px';
+
+  const popW = popover.offsetWidth  || 280;
+  const popH = popover.offsetHeight || 200;
+
+  if (left + popW > vw - 12) left = Math.max(12, vw - popW - 12);
+  if (top  + popH > vh - 12) top  = Math.max(12, rect.top - gap - popH);
+
+  popover.style.top  = top  + 'px';
+  popover.style.left = left + 'px';
+}
+
+function closeCalEventPopover() {
+  document.getElementById('calEventPopover').hidden = true;
+}
+
+document.getElementById('calPopClose')?.addEventListener('click', closeCalEventPopover);
+
+document.addEventListener('click', (e) => {
+  const popover = document.getElementById('calEventPopover');
+  if (!popover.hidden && !popover.contains(e.target) && !e.target.closest('.fc-event')) {
+    closeCalEventPopover();
+  }
+});
 
 /* =============================================
    TAB ROUTING

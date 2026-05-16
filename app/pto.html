@@ -83,6 +83,65 @@
   text-align: center;
 }
 
+/* ── Calendar event popover ── */
+.cal-event-popover {
+  position: fixed;
+  z-index: 1100;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.13);
+  padding: 14px 16px 16px;
+  min-width: 250px;
+  max-width: 310px;
+}
+.cal-pop-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  line-height: 1;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.cal-pop-close:hover { background: #f3f4f6; color: #374151; }
+.cal-pop-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-right: 24px;
+}
+.cal-pop-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+.cal-pop-emp {
+  font-weight: 600;
+  font-size: 14px;
+  color: #0f172a;
+}
+.cal-pop-body { display: flex; flex-direction: column; gap: 7px; }
+.cal-pop-row {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+  align-items: baseline;
+}
+.cal-pop-label {
+  color: #6b7280;
+  min-width: 76px;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
 .policy-bulk-bar {
   display: flex;
   flex-wrap: wrap;
@@ -847,6 +906,39 @@
     <div class="confirm-modal-actions">
       <button id="ptoDenyCancel" class="btn">Cancel</button>
       <button id="ptoDenyConfirm" class="btn danger">Deny</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     CALENDAR EVENT POPOVER
+============================================= -->
+<div id="calEventPopover" class="cal-event-popover" hidden>
+  <button id="calPopClose" class="cal-pop-close" aria-label="Close">&times;</button>
+  <div class="cal-pop-header">
+    <span id="calPopTypeBadge" class="cal-pop-badge"></span>
+    <span id="calPopEmpName" class="cal-pop-emp"></span>
+  </div>
+  <div class="cal-pop-body">
+    <div class="cal-pop-row">
+      <span class="cal-pop-label">Date</span>
+      <span id="calPopDate"></span>
+    </div>
+    <div class="cal-pop-row">
+      <span class="cal-pop-label">Time</span>
+      <span id="calPopTime"></span>
+    </div>
+    <div class="cal-pop-row">
+      <span class="cal-pop-label">Hours</span>
+      <span id="calPopHours"></span>
+    </div>
+    <div class="cal-pop-row" id="calPopNotesRow">
+      <span class="cal-pop-label">Notes</span>
+      <span id="calPopNotes"></span>
+    </div>
+    <div class="cal-pop-row">
+      <span class="cal-pop-label">Approved by</span>
+      <span id="calPopApprover"></span>
     </div>
   </div>
 </div>

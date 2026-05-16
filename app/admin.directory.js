@@ -139,11 +139,12 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
     const controls = document.createElement('div');
     controls.className = 'pagination-controls';
 
-    function makeBtn(label, page, disabled = false) {
+    function makeBtn(label, page, disabled = false, ariaLabel = '') {
       const btn = document.createElement('button');
       btn.innerHTML = label;
       btn.className = 'pagination-btn' + (page === state.page ? ' pagination-active' : '');
       btn.disabled = disabled;
+      if (ariaLabel) btn.setAttribute('aria-label', ariaLabel);
       if (!disabled && page !== state.page) {
         btn.onclick = () => { state.page = page; load(); };
       }
@@ -151,7 +152,7 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
     }
 
     // Prev
-    controls.appendChild(makeBtn('&#8249;', state.page - 1, state.page === 1));
+    controls.appendChild(makeBtn('&#8249;', state.page - 1, state.page === 1, 'Previous page'));
 
     // Page numbers with ellipsis
     getPageRange(state.page, totalPages).forEach(p => {
@@ -166,7 +167,7 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
     });
 
     // Next
-    controls.appendChild(makeBtn('&#8250;', state.page + 1, state.page === totalPages));
+    controls.appendChild(makeBtn('&#8250;', state.page + 1, state.page === totalPages, 'Next page'));
 
     container.appendChild(controls);
   }

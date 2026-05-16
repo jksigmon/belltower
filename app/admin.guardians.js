@@ -29,6 +29,7 @@ export async function initGuardiansSection(profile) {
         email,
         phone,
         active,
+        is_primary_contact,
         family_id,
         families!inner(carline_tag_number, family_name)
       `,
@@ -82,6 +83,10 @@ function renderGuardianRow(g) {
     ? `${g.families.carline_tag_number ? '#' + g.families.carline_tag_number + ' · ' : ''}${g.families.family_name ?? ''}`
     : '—';
 
+  const primaryBadge = g.is_primary_contact
+    ? '<span class="guardian-primary-badge" title="Primary contact">★ Primary</span>'
+    : '';
+
   const tr = document.createElement('tr');
   tr.className = 'dir-row-link';
   tr.innerHTML = `
@@ -90,7 +95,7 @@ function renderGuardianRow(g) {
         <div class="staff-avatar" style="background:${color}">${initials}</div>
         <div class="staff-name-group">
           <span class="staff-fullname">${esc(g.first_name)} ${esc(g.last_name)}</span>
-          ${inactive}
+          ${primaryBadge}${inactive}
         </div>
       </div>
     </td>
@@ -127,11 +132,12 @@ function openEditGuardianDrawer(g) {
   document.getElementById('egSubtitle').textContent = g.families?.family_name ?? '';
 
   cloneSelectOptions('#guardianFamily', document.getElementById('egFamily'), g.family_id);
-  document.getElementById('egFirst').value  = g.first_name ?? '';
-  document.getElementById('egLast').value   = g.last_name ?? '';
-  document.getElementById('egEmail').value  = g.email ?? '';
-  document.getElementById('egPhone').value  = g.phone ?? '';
-  document.getElementById('egActive').checked = !!g.active;
+  document.getElementById('egFirst').value    = g.first_name ?? '';
+  document.getElementById('egLast').value     = g.last_name ?? '';
+  document.getElementById('egEmail').value    = g.email ?? '';
+  document.getElementById('egPhone').value    = g.phone ?? '';
+  document.getElementById('egPrimary').checked = !!g.is_primary_contact;
+  document.getElementById('egActive').checked  = !!g.active;
 
   const saveBtn = document.getElementById('egSaveBtn');
   saveBtn.disabled    = false;
@@ -149,12 +155,13 @@ async function saveEditGuardian() {
   if (!first || !last || !family) { alert('First name, last name, and family are required.'); return; }
 
   const updated = {
-    first_name: first,
-    last_name:  last,
-    family_id:  family,
-    email:      document.getElementById('egEmail').value.trim() || null,
-    phone:      document.getElementById('egPhone').value.trim() || null,
-    active:     document.getElementById('egActive').checked,
+    first_name:         first,
+    last_name:          last,
+    family_id:          family,
+    email:              document.getElementById('egEmail').value.trim() || null,
+    phone:              document.getElementById('egPhone').value.trim() || null,
+    is_primary_contact: document.getElementById('egPrimary').checked,
+    active:             document.getElementById('egActive').checked,
   };
 
   const saveBtn = document.getElementById('egSaveBtn');
@@ -200,13 +207,14 @@ async function createGuardian() {
   }
 
   const guardian = {
-    school_id:  currentProfile.school_id,
-    family_id:  document.getElementById('guardianFamily').value,
-    first_name: document.getElementById('guardianFirst').value.trim(),
-    last_name:  document.getElementById('guardianLast').value.trim(),
-    email:      document.getElementById('guardianEmail').value.trim() || null,
-    phone:      document.getElementById('guardianPhone').value.trim() || null,
-    active:     true
+    school_id:          currentProfile.school_id,
+    family_id:          document.getElementById('guardianFamily').value,
+    first_name:         document.getElementById('guardianFirst').value.trim(),
+    last_name:          document.getElementById('guardianLast').value.trim(),
+    email:              document.getElementById('guardianEmail').value.trim() || null,
+    phone:              document.getElementById('guardianPhone').value.trim() || null,
+    is_primary_contact: document.getElementById('guardianPrimary').checked,
+    active:             true
   };
 
   if (!guardian.first_name || !guardian.last_name || !guardian.family_id) {
@@ -221,6 +229,7 @@ async function createGuardian() {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   const fam = document.getElementById('guardianFamily'); if (fam) fam.value = '';
+  const pri = document.getElementById('guardianPrimary'); if (pri) pri.checked = false;
 
   window.closeDrawer?.('guardianDrawer');
   guardiansDirectory.load();

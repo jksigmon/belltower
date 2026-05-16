@@ -36,7 +36,7 @@ async function loadAccessRequests() {
   const tbody = document.getElementById('accessRequestsBody');
   if (!tbody) return;
 
-  tbody.innerHTML = '<tr><td colspan="5" class="muted">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" class="muted">Loading…</td></tr>';
 
   const { data, error } = await supabase
     .from('access_requests')
@@ -45,20 +45,24 @@ async function loadAccessRequests() {
       requested_permissions,
       reason,
       created_at,
-      employees (first_name, last_name)
+      employees (
+        first_name,
+        last_name,
+        profiles!profiles_employee_id_fkey (last_sign_in_at)
+      )
     `)
     .eq('school_id', profile.school_id)
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
 
   if (error) {
-    tbody.innerHTML = '<tr><td colspan="5" class="muted">Failed to load.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="muted">Failed to load.</td></tr>';
     console.error('Access requests load error', error);
     return;
   }
 
   if (!data?.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="muted">No pending access requests.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="muted">No pending access requests.</td></tr>';
     return;
   }
 
@@ -69,6 +73,10 @@ async function loadAccessRequests() {
     const date  = new Date(req.created_at).toLocaleDateString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric'
     });
+    const rawSignIn = req.employees?.profiles?.last_sign_in_at;
+    const lastSignIn = rawSignIn
+      ? new Date(rawSignIn).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : '—';
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -76,6 +84,7 @@ async function loadAccessRequests() {
       <td>${esc(perms)}</td>
       <td class="muted">${esc(req.reason ?? '—')}</td>
       <td class="muted">${date}</td>
+      <td class="muted">${lastSignIn}</td>
       <td>
         <div style="display:flex;gap:8px;">
           <button class="btn btn-sm btn-primary ar-approve-btn"

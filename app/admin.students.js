@@ -37,6 +37,7 @@ export async function initStudentsSection(profile) {
         campus_id,
         family_id,
         active,
+        is_retained,
         withdrawn_at,
         withdrawal_reason,
         families!inner(carline_tag_number, family_name),
@@ -144,7 +145,8 @@ async function loadCampusOptions() {
 function renderStudentRow(r) {
   const initials = `${r.first_name?.[0] ?? ''}${r.last_name?.[0] ?? ''}`.toUpperCase();
   const color    = getAvatarColor((r.first_name ?? '') + (r.last_name ?? ''));
-  const inactive = r.active ? '' : '<span class="staff-inactive-badge">Inactive</span>';
+  const inactive  = r.active ? '' : '<span class="staff-inactive-badge">Inactive</span>';
+  const retained  = r.is_retained ? '<span class="student-retained-badge">Retained</span>' : '';
 
   const familyLabel = r.families
     ? `${r.families.carline_tag_number ? '#' + r.families.carline_tag_number + ' · ' : ''}${r.families.family_name ?? ''}`
@@ -166,7 +168,7 @@ function renderStudentRow(r) {
         <div class="staff-avatar" style="background:${color}">${initials}</div>
         <div class="staff-name-group">
           <span class="staff-fullname">${esc(r.first_name)} ${esc(r.last_name)}</span>
-          ${inactive}
+          ${retained}${inactive}
         </div>
       </div>
     </td>
@@ -204,11 +206,12 @@ function openEditStudentDrawer(r) {
     ? `Grade ${r.grade_level}`
     : (r.families?.family_name ?? '');
 
-  document.getElementById('estuFirst').value  = r.first_name ?? '';
-  document.getElementById('estuLast').value   = r.last_name ?? '';
-  document.getElementById('estuGrade').value  = r.grade_level ?? '';
-  document.getElementById('estuNumber').value = r.student_number ?? '';
-  document.getElementById('estuActive').checked = !!r.active;
+  document.getElementById('estuFirst').value    = r.first_name ?? '';
+  document.getElementById('estuLast').value     = r.last_name ?? '';
+  document.getElementById('estuGrade').value    = r.grade_level ?? '';
+  document.getElementById('estuNumber').value   = r.student_number ?? '';
+  document.getElementById('estuRetained').checked = !!r.is_retained;
+  document.getElementById('estuActive').checked   = !!r.active;
 
   // Withdrawal state
   const isWithdrawn = !r.active && !!r.withdrawn_at;
@@ -257,6 +260,7 @@ async function saveEditStudent() {
     homeroom_teacher_id: document.getElementById('estuHomeroom').value || null,
     bus_group_id:        document.getElementById('estuBus').value || null,
     campus_id:           document.getElementById('estuCampus').value || null,
+    is_retained:         document.getElementById('estuRetained').checked,
     active:              document.getElementById('estuActive').checked,
   };
 

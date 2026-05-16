@@ -36,6 +36,7 @@ let _assignments = {};    // studentId → teacherId | null
 let _studentFlags = {};   // studentId → Set<flagId>
 let _flags = [];
 let _initialized = false;
+let _savedAssignments = {};  // mirrors what's persisted in DB
 let _saveTimer = null;
 let _selectedStudentId = null;
 let _flagPopoverStudentId = null;
@@ -73,6 +74,16 @@ function wireGlobalEvents() {
     ?.addEventListener('click', () => { exitFullscreen(); showSessionList(); });
   document.getElementById('commitPlacementBtn')
     ?.addEventListener('click', confirmCommit);
+  document.getElementById('undoCommitPlacementBtn')
+    ?.addEventListener('click', confirmUndoCommit);
+  document.getElementById('manageFlagsBtn')
+    ?.addEventListener('click', openFlagEditor);
+  document.getElementById('closeFlagEditorBtn')
+    ?.addEventListener('click', closeFlagEditor);
+  document.getElementById('addFlagBtn')
+    ?.addEventListener('click', addFlag);
+  document.getElementById('newFlagColorDot')
+    ?.addEventListener('click', e => { e.stopPropagation(); toggleColorPicker('newFlagColorPickerEl', _newFlagColor, c => { _newFlagColor = c; document.getElementById('newFlagColorDot').style.background = c; }); });
   document.getElementById('autoPlacementBtn')
     ?.addEventListener('click', autoPlaceStudents);
   document.getElementById('togglePlacementFullscreen')
@@ -417,6 +428,8 @@ async function loadBoardData(sessionId) {
     commitBtn.disabled = isCommitted;
     commitBtn.textContent = isCommitted ? 'Committed ✓' : 'Commit Placement';
   }
+  const undoBtn = document.getElementById('undoCommitPlacementBtn');
+  if (undoBtn) undoBtn.hidden = !isCommitted;
   const autoBtn = document.getElementById('autoPlacementBtn');
   if (autoBtn) autoBtn.disabled = isCommitted;
 
@@ -428,6 +441,7 @@ async function loadBoardData(sessionId) {
     _assignments[a.student_id] = a.teacher_id ?? null;
     studentIds.push(a.student_id);
   });
+  _savedAssignments = { ..._assignments };
 
   // Batch 2: queries that depend on batch 1 IDs (all run in parallel)
   const [empResult, stuResult, sFlagsResult] = await Promise.all([
@@ -688,11 +702,14 @@ function scheduleSave() {
 async function saveAssignments() {
   if (!_currentSessionId || !_students.length) return;
 
-  const rows = _students.map((s, i) => ({
+  const changed = _students.filter(s => _assignments[s.id] !== _savedAssignments[s.id]);
+  if (!changed.length) { updateSaveStatus(''); return; }
+
+  const rows = changed.map(s => ({
     session_id: _currentSessionId,
     student_id: s.id,
     teacher_id: _assignments[s.id] ?? null,
-    sort_order: i,
+    sort_order:  _students.indexOf(s),
   }));
 
   const { error } = await supabase
@@ -703,6 +720,7 @@ async function saveAssignments() {
     console.error('Placement auto-save error:', error);
     updateSaveStatus('Save failed');
   } else {
+    changed.forEach(s => { _savedAssignments[s.id] = _assignments[s.id]; });
     updateSaveStatus('Saved ✓');
     setTimeout(() => updateSaveStatus(''), 2500);
   }
@@ -711,6 +729,88 @@ async function saveAssignments() {
 function updateSaveStatus(msg) {
   const el = document.getElementById('placementSaveStatus');
   if (el) el.textContent = msg;
+}
+
+/* ── Undo Commit ── */
+async function confirmUndoCommit() {
+  if (!_session || _session.status !== 'committed') return;
+
+  const placed = Object.values(_assignments).filter(v => v != null).length;
+  const confirmed = confirm(
+    `Undo commit for "${_session.label}"?\n\n` +
+    `This will restore the previous homeroom teacher for ${placed} student${placed !== 1 ? 's' : ''} and revert the session to Draft.\n\n` +
+    `Students who had no homeroom teacher before this commit will be set back to none.`
+  );
+  if (!confirmed) return;
+  await runUndoCommit();
+}
+
+async function runUndoCommit() {
+  const undoBtn   = document.getElementById('undoCommitPlacementBtn');
+  const commitBtn = document.getElementById('commitPlacementBtn');
+  if (undoBtn) { undoBtn.disabled = true; undoBtn.textContent = 'Reverting…'; }
+
+  // Load the saved prev_homeroom_teacher_id values
+  const placedStudentIds = Object.entries(_assignments)
+    .filter(([, tid]) => tid != null)
+    .map(([sid]) => sid);
+
+  const { data: prevData, error: loadErr } = await supabase
+    .from('placement_assignments')
+    .select('student_id, prev_homeroom_teacher_id')
+    .eq('session_id', _currentSessionId)
+    .in('student_id', placedStudentIds);
+
+  if (loadErr) {
+    alert('Failed to load previous homeroom data. Cannot undo.');
+    if (undoBtn) { undoBtn.disabled = false; undoBtn.textContent = 'Undo Commit'; }
+    return;
+  }
+
+  // Group by prev teacher (null = clear homeroom)
+  const byPrev = {};
+  const nullStudents = [];
+  const prevMap = Object.fromEntries((prevData || []).map(r => [r.student_id, r.prev_homeroom_teacher_id]));
+
+  placedStudentIds.forEach(sid => {
+    const prev = prevMap[sid] ?? null;
+    if (prev) {
+      if (!byPrev[prev]) byPrev[prev] = [];
+      byPrev[prev].push(sid);
+    } else {
+      nullStudents.push(sid);
+    }
+  });
+
+  const errors = [];
+  for (const [tid, sids] of Object.entries(byPrev)) {
+    const { error } = await supabase.from('students').update({ homeroom_teacher_id: tid }).in('id', sids);
+    if (error) errors.push(error);
+  }
+  if (nullStudents.length) {
+    const { error } = await supabase.from('students').update({ homeroom_teacher_id: null }).in('id', nullStudents);
+    if (error) errors.push(error);
+  }
+
+  if (errors.length) {
+    console.error('Undo commit errors:', errors);
+    alert('Some reversions failed. Check the console for details.');
+    if (undoBtn) { undoBtn.disabled = false; undoBtn.textContent = 'Undo Commit'; }
+    return;
+  }
+
+  await supabase
+    .from('placement_sessions')
+    .update({ status: 'draft', committed_at: null })
+    .eq('id', _currentSessionId);
+
+  _session.status = 'draft';
+  if (undoBtn)   { undoBtn.hidden = true; undoBtn.disabled = false; undoBtn.textContent = 'Undo Commit'; }
+  if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = 'Commit Placement'; }
+  const autoBtn = document.getElementById('autoPlacementBtn');
+  if (autoBtn) autoBtn.disabled = false;
+
+  alert('Commit reverted. Session is back in Draft.');
 }
 
 /* ── Auto-place ── */
@@ -816,17 +916,37 @@ async function confirmCommit() {
 }
 
 async function runCommit() {
-  const btn = document.getElementById('commitPlacementBtn');
+  const btn     = document.getElementById('commitPlacementBtn');
+  const undoBtn = document.getElementById('undoCommitPlacementBtn');
   btn.disabled = true;
   btn.textContent = 'Committing…';
 
   if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; }
   await saveAssignments();
 
-  // Group placed students by teacher for batch updates
+  const placedEntries = Object.entries(_assignments).filter(([, tid]) => tid != null);
+  const placedStudentIds = placedEntries.map(([sid]) => sid);
+
+  // Snapshot current homeroom_teacher_id so undo can restore it
+  const { data: currentHomerooms } = await supabase
+    .from('students')
+    .select('id, homeroom_teacher_id')
+    .in('id', placedStudentIds);
+
+  if (currentHomerooms?.length) {
+    const prevRows = currentHomerooms.map(s => ({
+      session_id: _currentSessionId,
+      student_id: s.id,
+      prev_homeroom_teacher_id: s.homeroom_teacher_id ?? null,
+    }));
+    await supabase
+      .from('placement_assignments')
+      .upsert(prevRows, { onConflict: 'session_id,student_id' });
+  }
+
+  // Write new homeroom_teacher_id, grouped by teacher for efficiency
   const byTeacher = {};
-  Object.entries(_assignments).forEach(([sid, tid]) => {
-    if (!tid) return;
+  placedEntries.forEach(([sid, tid]) => {
     if (!byTeacher[tid]) byTeacher[tid] = [];
     byTeacher[tid].push(sid);
   });
@@ -855,8 +975,156 @@ async function runCommit() {
 
   _session.status = 'committed';
   btn.textContent = 'Committed ✓';
+  if (undoBtn) undoBtn.hidden = false;
   updateSaveStatus('');
 
-  const placed = Object.values(_assignments).filter(v => v != null).length;
+  const placed = placedEntries.length;
   alert(`Done! ${placed} student${placed !== 1 ? 's' : ''} assigned to their homeroom teacher.`);
+}
+
+/* ── Flag editor ── */
+const FLAG_COLORS = [
+  '#ef4444','#f97316','#eab308','#22c55e',
+  '#3b82f6','#8b5cf6','#ec4899','#64748b',
+  '#06b6d4','#10b981',
+];
+let _newFlagColor = FLAG_COLORS[4];
+
+function openFlagEditor() {
+  _newFlagColor = FLAG_COLORS[4];
+  const dot = document.getElementById('newFlagColorDot');
+  if (dot) dot.style.background = _newFlagColor;
+  const input = document.getElementById('newFlagLabel');
+  if (input) input.value = '';
+  const picker = document.getElementById('newFlagColorPickerEl');
+  if (picker) picker.hidden = true;
+  renderFlagEditorList();
+  document.getElementById('placementFlagEditorModal').hidden = false;
+}
+
+function closeFlagEditor() {
+  document.getElementById('placementFlagEditorModal').hidden = true;
+  renderBoard();
+}
+
+function renderFlagEditorList() {
+  const list = document.getElementById('flagEditorList');
+  if (!list) return;
+  list.innerHTML = '';
+
+  if (_flags.length === 0) {
+    list.innerHTML = '<p class="muted" style="font-size:13px;padding:4px 0 8px;">No flags yet. Create one below.</p>';
+    return;
+  }
+
+  _flags.forEach(f => {
+    const row = document.createElement('div');
+    row.className = 'flag-editor-row';
+    row.dataset.flagId = f.id;
+
+    const colorDot = document.createElement('button');
+    colorDot.className = 'flag-editor-color-dot';
+    colorDot.style.background = f.color;
+    colorDot.title = 'Change color';
+
+    const colorPicker = document.createElement('div');
+    colorPicker.className = 'flag-color-picker';
+    colorPicker.hidden = true;
+    buildColorPicker(colorPicker, f.color, async newColor => {
+      colorDot.style.background = newColor;
+      colorPicker.hidden = true;
+      const { error } = await supabase.from('placement_flags').update({ color: newColor }).eq('id', f.id);
+      if (!error) {
+        f.color = newColor;
+        document.querySelectorAll(`.placement-flag-dot[title="${escHtml(f.label)}"]`)
+          .forEach(d => { d.style.background = newColor; });
+      }
+    });
+
+    colorDot.addEventListener('click', e => {
+      e.stopPropagation();
+      const wasHidden = colorPicker.hidden;
+      document.querySelectorAll('.flag-color-picker').forEach(p => { p.hidden = true; });
+      colorPicker.hidden = !wasHidden;
+    });
+
+    const labelInput = document.createElement('input');
+    labelInput.className = 'form-input flag-editor-input';
+    labelInput.value = f.label;
+    labelInput.addEventListener('keydown', e => { if (e.key === 'Enter') labelInput.blur(); });
+    labelInput.addEventListener('blur', async () => {
+      const newLabel = labelInput.value.trim();
+      if (!newLabel || newLabel === f.label) { labelInput.value = f.label; return; }
+      const { error } = await supabase.from('placement_flags').update({ label: newLabel }).eq('id', f.id);
+      if (error) { alert('Failed to rename flag.'); labelInput.value = f.label; }
+      else { f.label = newLabel; }
+    });
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn btn-sm flag-delete-btn';
+    deleteBtn.title = 'Delete flag';
+    deleteBtn.innerHTML = '<i data-lucide="trash-2" style="width:13px;height:13px;"></i>';
+    deleteBtn.addEventListener('click', async () => {
+      const usedBy = Object.values(_studentFlags).filter(s => s.has(f.id)).length;
+      const msg = usedBy > 0
+        ? `Delete flag "${f.label}"?\n\nIt is applied to ${usedBy} student${usedBy !== 1 ? 's' : ''} in this session. Their flag will be removed.`
+        : `Delete flag "${f.label}"?`;
+      if (!confirm(msg)) return;
+      const { error } = await supabase.from('placement_flags').delete().eq('id', f.id);
+      if (error) { alert('Failed to delete flag.'); return; }
+      _flags = _flags.filter(fl => fl.id !== f.id);
+      Object.values(_studentFlags).forEach(set => set.delete(f.id));
+      renderFlagEditorList();
+    });
+
+    row.appendChild(colorDot);
+    row.appendChild(colorPicker);
+    row.appendChild(labelInput);
+    row.appendChild(deleteBtn);
+    list.appendChild(row);
+
+    if (window.lucide) lucide.createIcons({ nodes: Array.from(row.querySelectorAll('[data-lucide]')) });
+  });
+}
+
+function buildColorPicker(container, currentColor, onSelect) {
+  container.innerHTML = '';
+  FLAG_COLORS.forEach(c => {
+    const swatch = document.createElement('button');
+    swatch.className = 'flag-color-swatch' + (c === currentColor ? ' selected' : '');
+    swatch.style.background = c;
+    swatch.title = c;
+    swatch.addEventListener('click', e => { e.stopPropagation(); onSelect(c); });
+    container.appendChild(swatch);
+  });
+}
+
+function toggleColorPicker(pickerId, currentColor, onSelect) {
+  const picker = document.getElementById(pickerId);
+  if (!picker) return;
+  const wasHidden = picker.hidden;
+  document.querySelectorAll('.flag-color-picker').forEach(p => { p.hidden = true; });
+  if (!wasHidden) return;
+  buildColorPicker(picker, currentColor, c => { onSelect(c); picker.hidden = true; buildColorPicker(picker, c, onSelect); });
+  picker.hidden = false;
+}
+
+async function addFlag() {
+  const label = document.getElementById('newFlagLabel')?.value.trim();
+  if (!label) { document.getElementById('newFlagLabel')?.focus(); return; }
+
+  const { data, error } = await supabase
+    .from('placement_flags')
+    .insert({ school_id: _profile.school_id, label, color: _newFlagColor, sort_order: _flags.length })
+    .select('id, label, color, sort_order')
+    .single();
+
+  if (error) { alert('Failed to create flag.'); return; }
+
+  _flags.push(data);
+  document.getElementById('newFlagLabel').value = '';
+  _newFlagColor = FLAG_COLORS[4];
+  const dot = document.getElementById('newFlagColorDot');
+  if (dot) dot.style.background = _newFlagColor;
+  renderFlagEditorList();
 }
