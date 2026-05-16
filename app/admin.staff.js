@@ -1,6 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
+import { esc, getAvatarColor, debounce } from './admin.shared.js';
 
 
 let currentProfile;
@@ -10,6 +11,7 @@ let initialized = false;
 let lookupsLoaded = false;
 let staffDirectory;
 let editingEmpId = null;
+const selectedStaffIds = new Set();
 
 /* ===============================
    ENTRY POINT
@@ -70,11 +72,15 @@ export async function initStaffSection(profile) {
         'Employment Months': emp.employment_months ?? '',
       }),
 
-      columnCount: 7,
+      columnCount: 8,
       tbodySelector: '#staffTable tbody',
       paginationContainer: '#staffPagination',
       renderRow: renderStaffRow
     });
+
+    // Clear selection whenever the directory reloads (filter/search/page change)
+    const _origLoad = staffDirectory.load.bind(staffDirectory);
+    staffDirectory.load = (...args) => { clearStaffSelection(); return _origLoad(...args); };
   }
 
   if (!initialized) {
@@ -153,28 +159,9 @@ function populateAddStaffCampusSelect() {
   });
 }
 
-function debounce(fn, delay = 250) {
-  let t;
-  return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), delay);
-  };
-}
-
 /* ===============================
    RENDERING
 ================================ */
-
-function esc(str) {
-  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function getAvatarColor(name) {
-  const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-}
 
 function contractBadgeHTML(months) {
   if (!months) return '<span class="staff-cell-muted">—</span>';
@@ -192,6 +179,11 @@ function renderStaffRow(emp) {
   const tr = document.createElement('tr');
   tr.className = 'dir-row-link';
   tr.innerHTML = `
+    <td class="staff-cell-check">
+      <input type="checkbox" class="staff-row-check" value="${emp.id}"
+        aria-label="Select ${esc(emp.first_name)} ${esc(emp.last_name)}"
+        ${selectedStaffIds.has(emp.id) ? 'checked' : ''}>
+    </td>
     <td>
       <div class="staff-name-cell">
         <div class="staff-avatar" style="background:${color}">${initials}</div>
@@ -211,7 +203,10 @@ function renderStaffRow(emp) {
     </td>
   `;
 
-  tr.addEventListener('click', () => openEditStaffDrawer(emp));
+  tr.addEventListener('click', e => {
+    if (e.target.type === 'checkbox') return;
+    openEditStaffDrawer(emp);
+  });
   return tr;
 }
 
@@ -253,6 +248,8 @@ function openEditStaffDrawer(emp) {
   const saveBtn = document.getElementById('esSaveBtn');
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
+
+  loadStaffDrawerInfo(emp.id);
 
   window.openDrawer?.('editStaffDrawer');
 }
@@ -311,6 +308,89 @@ async function executeDeleteStaff() {
 
 
 /* ===============================
+   BULK SELECTION
+================================ */
+
+function updateBulkBar() {
+  const bar   = document.getElementById('staffBulkBar');
+  const count = document.getElementById('staffBulkCount');
+  if (!bar) return;
+  bar.hidden = selectedStaffIds.size === 0;
+  if (count) count.textContent = `${selectedStaffIds.size} staff member${selectedStaffIds.size !== 1 ? 's' : ''} selected`;
+}
+
+function clearStaffSelection() {
+  selectedStaffIds.clear();
+  document.querySelectorAll('.staff-row-check').forEach(cb => { cb.checked = false; });
+  const all = document.getElementById('staffSelectAll');
+  if (all) { all.checked = false; all.indeterminate = false; }
+  updateBulkBar();
+}
+
+async function executeBulkStaffStatus(active) {
+  if (selectedStaffIds.size === 0) return;
+  const ids   = [...selectedStaffIds];
+  const label = active ? 'Activate' : 'Deactivate';
+  if (!confirm(`${label} ${ids.length} staff member${ids.length !== 1 ? 's' : ''}?`)) return;
+  const { error } = await supabase.from('employees').update({ active }).in('id', ids).eq('school_id', currentProfile.school_id);
+  if (error) { alert(`Failed to ${label.toLowerCase()} staff: ` + error.message); return; }
+  staffDirectory.load();
+}
+
+/* ===============================
+   STAFF DRAWER INFO
+================================ */
+
+async function loadStaffDrawerInfo(empId) {
+  const loadingHtml = '<span style="font-size:13px;color:var(--text-muted);">Loading…</span>';
+  const ptoel = document.getElementById('esPtoBalances');
+  const licel = document.getElementById('esLicensureStatus');
+  if (ptoel) ptoel.innerHTML = loadingHtml;
+  if (licel) licel.innerHTML = loadingHtml;
+
+  const [ptoResult, licResult] = await Promise.all([
+    supabase.from('pto_balances').select('pto_type, balance_hours')
+      .eq('employee_id', empId).eq('school_id', currentProfile.school_id),
+    supabase.from('staff_licenses').select('license_type, expiration_date, status')
+      .eq('employee_id', empId).eq('school_id', currentProfile.school_id).order('expiration_date')
+  ]);
+
+  if (ptoel) {
+    const balances = ptoResult.data ?? [];
+    ptoel.innerHTML = balances.length
+      ? balances.map(b => `
+          <div class="staff-info-chip">
+            <span class="staff-info-chip-label">${esc(b.pto_type)}</span>
+            <span class="staff-info-chip-value">${parseFloat(b.balance_hours).toFixed(1)}h</span>
+          </div>`).join('')
+      : '<span style="font-size:13px;color:var(--text-muted);">No balances on record.</span>';
+  }
+
+  if (licel) {
+    const licenses = licResult.data ?? [];
+    if (!licenses.length) {
+      licel.innerHTML = '<span style="font-size:13px;color:var(--text-muted);">No licenses on file.</span>';
+    } else {
+      const today = new Date().toISOString().slice(0, 10);
+      const in90  = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      licel.innerHTML = licenses.map(lic => {
+        let cls = 'lic-ok', badge = 'Active';
+        if (lic.expiration_date) {
+          if (lic.expiration_date < today)       { cls = 'lic-expired';  badge = 'Expired'; }
+          else if (lic.expiration_date <= in90)  { cls = 'lic-expiring'; badge = 'Expiring'; }
+        }
+        return `
+          <div class="staff-info-chip">
+            <span class="staff-info-chip-label">${esc(lic.license_type)}</span>
+            ${lic.expiration_date ? `<span class="staff-info-chip-sub">${esc(lic.expiration_date)}</span>` : ''}
+            <span class="staff-lic-status ${cls}">${badge}</span>
+          </div>`;
+      }).join('');
+    }
+  }
+}
+
+/* ===============================
    EVENT WIRING
 ================================ */
 
@@ -360,6 +440,44 @@ function wireStaticEvents() {
     document.getElementById('deleteStaffModal').hidden = true;
   });
   document.getElementById('deleteStaffConfirm')?.addEventListener('click', executeDeleteStaff);
+
+  // Bulk action bar
+  document.getElementById('staffBulkActivate')?.addEventListener('click',   () => executeBulkStaffStatus(true));
+  document.getElementById('staffBulkDeactivate')?.addEventListener('click', () => executeBulkStaffStatus(false));
+  document.getElementById('staffBulkClear')?.addEventListener('click', clearStaffSelection);
+
+  // Select-all checkbox
+  document.getElementById('staffSelectAll')?.addEventListener('change', e => {
+    document.querySelectorAll('.staff-row-check').forEach(cb => {
+      cb.checked = e.target.checked;
+      if (e.target.checked) selectedStaffIds.add(cb.value);
+      else selectedStaffIds.delete(cb.value);
+    });
+    updateBulkBar();
+  });
+
+  // Row checkboxes (event delegation on tbody)
+  document.querySelector('#staffTable tbody')?.addEventListener('change', e => {
+    const cb = e.target;
+    if (!cb.classList.contains('staff-row-check')) return;
+    if (cb.checked) selectedStaffIds.add(cb.value);
+    else selectedStaffIds.delete(cb.value);
+
+    const all     = document.querySelectorAll('.staff-row-check');
+    const checked = document.querySelectorAll('.staff-row-check:checked');
+    const selAll  = document.getElementById('staffSelectAll');
+    if (selAll) {
+      selAll.indeterminate = checked.length > 0 && checked.length < all.length;
+      selAll.checked       = checked.length > 0 && checked.length === all.length;
+    }
+    updateBulkBar();
+  });
+
+  // Licensure nav link
+  document.getElementById('esLicensureLink')?.addEventListener('click', () => {
+    window.closeDrawer?.('editStaffDrawer');
+    window.location.hash = '#licensure';
+  });
 }
 
 

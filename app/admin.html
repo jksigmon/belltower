@@ -5,248 +5,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>School Admin Portal</title>
-  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
   <link rel="stylesheet" href="admin-ui.css">
+  <link rel="modulepreload" href="/app/admin.staff.js">
+  <link rel="modulepreload" href="/app/admin.students.js">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="manifest" href="/icons/site.webmanifest">
   <!-- Fallback for older browsers -->
   <link rel="icon" href="/icons/favicon.ico">
-  <style>
-
-/* ================================================================
-   MOBILE — @media (max-width: 767px)
-   ================================================================ */
-@media (max-width: 767px) {
-
-  /* ── Shared card table reset ── */
-  #staffTable,
-  #studentsTable,
-  #familiesTable,
-  #guardiansTable,
-  #busTable,
-  #carpoolsTable {
-    min-width: 0 !important;
-    width: 100% !important;
-    border-collapse: separate;
-    border-spacing: 0 10px;
-  }
-
-  #staffTable thead,
-  #studentsTable thead,
-  #familiesTable thead,
-  #guardiansTable thead,
-  #busTable thead,
-  #carpoolsTable thead {
-    display: none;
-  }
-
-  #staffTable tbody tr,
-  #studentsTable tbody tr,
-  #familiesTable tbody tr,
-  #guardiansTable tbody tr,
-  #busTable tbody tr,
-  #carpoolsTable tbody tr {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    border: 1px solid #e5e7eb;
-    border-radius: 10px;
-    padding: 12px 14px;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  }
-
-  #staffTable tbody tr td,
-  #studentsTable tbody tr td,
-  #familiesTable tbody tr td,
-  #guardiansTable tbody tr td,
-  #busTable tbody tr td,
-  #carpoolsTable tbody tr td {
-    display: block;
-    padding: 3px 0;
-    border: none !important;
-    font-size: 13px;
-    min-width: 0;
-    overflow: hidden;
-  }
-
-  /* Inline-edit inputs fill their card cell */
-  #staffTable td .form-input,
-  #studentsTable td .form-input,
-  #familiesTable td .form-input,
-  #guardiansTable td .form-input,
-  #busTable td .form-input,
-  #carpoolsTable td .form-input {
-    width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-  }
-
-  /* Micro-labels */
-  #staffTable tbody tr td::before,
-  #studentsTable tbody tr td::before,
-  #familiesTable tbody tr td::before,
-  #guardiansTable tbody tr td::before,
-  #busTable tbody tr td::before,
-  #carpoolsTable tbody tr td::before {
-    display: block;
-    font-size: 10px;
-    font-weight: 700;
-    color: #9ca3af;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 2px;
-  }
-
-  /* No label on chevron cells */
-  #staffTable tbody tr td:nth-child(8)::before,
-  #studentsTable tbody tr td:nth-child(8)::before,
-  #guardiansTable tbody tr td:nth-child(6)::before {
-    content: none;
-  }
-
-  /* ── Bypass table-layout algorithm caused by <colgroup> on all dir tables ── */
-  #staffTable,
-  #staffTable tbody,
-  #studentsTable,
-  #studentsTable tbody,
-  #familiesTable,
-  #familiesTable tbody,
-  #guardiansTable,
-  #guardiansTable tbody,
-  #busTable,
-  #busTable tbody,
-  #carpoolsTable,
-  #carpoolsTable tbody {
-    display: block !important;
-    width: 100% !important;
-  }
-  #staffTable,
-  #studentsTable,
-  #familiesTable,
-  #guardiansTable,
-  #busTable { margin-top: 10px; }
-
-  /* ── Staff: Name(1) Email(2) Position(3) Supervisor(4) Campus(5) Contract(6) Chevron(7) ── */
-  #staffTable tbody tr {
-    grid-template-areas:
-      "name     name"
-      "email    email"
-      "position contract"
-      "campus   supervisor";
-  }
-
-  #staffTable tbody tr td:nth-child(1) { grid-area: name; }
-  #staffTable tbody tr td:nth-child(2) { grid-area: email;      font-size: 12px; word-break: break-all; }
-  #staffTable tbody tr td:nth-child(3) { grid-area: position; }
-  #staffTable tbody tr td:nth-child(4) { grid-area: supervisor; font-size: 12px; color: #6b7280; text-align: right; }
-  #staffTable tbody tr td:nth-child(5) { grid-area: campus;     font-size: 12px; color: #6b7280; }
-  #staffTable tbody tr td:nth-child(6) { grid-area: contract;   text-align: right; }
-  #staffTable tbody tr td:nth-child(7) { display: none; }
-
-  #staffTable tbody tr td:nth-child(1)::before { content: ""; }
-  #staffTable tbody tr td:nth-child(2)::before { content: "Email"; }
-  #staffTable tbody tr td:nth-child(3)::before { content: "Position"; }
-  #staffTable tbody tr td:nth-child(4)::before { content: "Supervisor"; }
-  #staffTable tbody tr td:nth-child(5)::before { content: "Campus"; }
-  #staffTable tbody tr td:nth-child(6)::before { content: "Contract"; }
-
-  /* ── Students: Name(1) #(2) Family(3) Grade(4) Homeroom(5) Bus(6) Campus(7) Chevron(8) ── */
-  #studentsTable tbody tr {
-    grid-template-areas:
-      "name     stunum"
-      "family   grade"
-      "homeroom bus"
-      "campus   campus";
-  }
-
-  #studentsTable tbody tr td:nth-child(1) { grid-area: name; }
-  #studentsTable tbody tr td:nth-child(2) { grid-area: stunum;   text-align: right; font-size: 12px; color: #6b7280; }
-  #studentsTable tbody tr td:nth-child(3) { grid-area: family; }
-  #studentsTable tbody tr td:nth-child(4) { grid-area: grade;    text-align: right; }
-  #studentsTable tbody tr td:nth-child(5) { grid-area: homeroom; font-size: 12px; }
-  #studentsTable tbody tr td:nth-child(6) { grid-area: bus;      text-align: right; font-size: 12px; }
-  #studentsTable tbody tr td:nth-child(7) { grid-area: campus;   font-size: 12px; color: #6b7280; }
-  #studentsTable tbody tr td:nth-child(8) { display: none; }
-
-  #studentsTable tbody tr td:nth-child(1)::before { content: ""; }
-  #studentsTable tbody tr td:nth-child(2)::before { content: "Student #"; }
-  #studentsTable tbody tr td:nth-child(3)::before { content: "Family"; }
-  #studentsTable tbody tr td:nth-child(4)::before { content: "Grade"; }
-  #studentsTable tbody tr td:nth-child(5)::before { content: "Homeroom"; }
-  #studentsTable tbody tr td:nth-child(6)::before { content: "Bus Group"; }
-  #studentsTable tbody tr td:nth-child(7)::before { content: "Campus"; }
-
-  /* Student # readonly input — strip input chrome, show as plain text */
-  #studentsTable tbody tr td:nth-child(2) .student-number {
-    background: transparent;
-    border: none;
-    padding: 0;
-    font-size: 13px;
-    color: #6b7280;
-    width: 100%;
-    text-align: right;
-  }
-
-  /* ── Families: Family+Tag inline(1) Chevron(2) ── */
-  #familiesTable tbody tr {
-    grid-template-areas: "name";
-    grid-template-columns: 1fr;
-  }
-
-  #familiesTable tbody tr td:nth-child(1) { grid-area: name; }
-  #familiesTable tbody tr td:nth-child(2) { display: none; }
-
-  #familiesTable tbody tr td:nth-child(1)::before { content: ""; }
-
-  /* ── Bus Groups: Name+Route inline(1) Chevron(2) ── */
-  #busTable tbody tr {
-    grid-template-areas: "name";
-    grid-template-columns: 1fr;
-  }
-
-  #busTable tbody tr td:nth-child(1) { grid-area: name; }
-  #busTable tbody tr td:nth-child(2) { display: none; }
-
-  #busTable tbody tr td:nth-child(1)::before { content: ""; }
-
-  /* ── Carpools: Name+Tag inline(1) Chevron(2) ── */
-  #carpoolsTable tbody tr {
-    grid-template-areas: "name";
-    grid-template-columns: 1fr;
-  }
-
-  #carpoolsTable tbody tr td:nth-child(1) { grid-area: name; }
-  #carpoolsTable tbody tr td:nth-child(2) { display: none; }
-
-  #carpoolsTable tbody tr td:nth-child(1)::before { content: ""; }
-
-  /* ── Guardians: Name(1) Family(2) Email(3) Phone(4) Chevron(5) ── */
-  #guardiansTable tbody tr {
-    grid-template-areas:
-      "name   name"
-      "family family"
-      "email  phone";
-  }
-
-  #guardiansTable tbody tr td:nth-child(1) { grid-area: name; }
-  #guardiansTable tbody tr td:nth-child(2) { grid-area: family; font-size: 12px; color: #6b7280; }
-  #guardiansTable tbody tr td:nth-child(3) { grid-area: email;  font-size: 12px; word-break: break-all; }
-  #guardiansTable tbody tr td:nth-child(4) { grid-area: phone;  text-align: right; font-size: 12px; }
-  #guardiansTable tbody tr td:nth-child(5) { display: none; }
-
-  #guardiansTable tbody tr td:nth-child(1)::before { content: ""; }
-  #guardiansTable tbody tr td:nth-child(2)::before { content: "Family"; }
-  #guardiansTable tbody tr td:nth-child(3)::before { content: "Email"; }
-  #guardiansTable tbody tr td:nth-child(4)::before { content: "Phone"; }
-
-}
-
-  </style>
 </head>
 <body class="admin-page">
   
@@ -520,18 +287,27 @@
 
 <div id="staffPagination" class="pagination"></div>
 
+<div id="staffBulkBar" class="bulk-action-bar" hidden>
+  <span id="staffBulkCount" class="bulk-count"></span>
+  <button id="staffBulkActivate"   class="btn btn-sm">Activate</button>
+  <button id="staffBulkDeactivate" class="btn btn-sm">Deactivate</button>
+  <button id="staffBulkClear"      class="btn btn-outline btn-sm">Clear selection</button>
+</div>
+
       <table id="staffTable">
         <colgroup>
-          <col style="width:20%">  <!-- Name -->
-          <col style="width:22%">  <!-- Email -->
-          <col style="width:20%">  <!-- Position -->
-          <col style="width:14%">  <!-- Supervisor -->
+          <col style="width:3%">   <!-- Checkbox -->
+          <col style="width:19%">  <!-- Name -->
+          <col style="width:21%">  <!-- Email -->
+          <col style="width:19%">  <!-- Position -->
+          <col style="width:13%">  <!-- Supervisor -->
           <col style="width:12%">  <!-- Campus -->
-          <col style="width:9%">   <!-- Contract -->
+          <col style="width:10%">  <!-- Contract -->
           <col style="width:3%">   <!-- Chevron -->
         </colgroup>
         <thead>
           <tr>
+            <th><input type="checkbox" id="staffSelectAll" style="cursor:pointer;" aria-label="Select all staff"></th>
             <th>Name</th>
             <th>Email</th>
             <th>Position</th>
@@ -809,6 +585,7 @@
 
     <select id="studentGradeFilter">
         <option value="">All grades</option>
+  <option value="PK">PK</option>
   <option value="K">K</option>
   <option value="1">1</option>
   <option value="2">2</option>
@@ -905,6 +682,8 @@
       <option value="name.asc">Name (A–Z)</option>
       <option value="name.desc">Name (Z–A)</option>
       <option value="route_number.asc">Route #</option>
+      <option value="route_type.asc">Route Type</option>
+      <option value="driver.asc">Driver (A–Z)</option>
     </select>
   </div>
 
@@ -917,12 +696,18 @@
 
       <table id="busTable">
         <colgroup>
-          <col>                    <!-- Name + Route inline -->
-          <col style="width:36px"> <!-- Chevron -->
+          <col>                     <!-- Name + Route # -->
+          <col style="width:90px">  <!-- Route Type -->
+          <col>                     <!-- Driver -->
+          <col style="width:90px">  <!-- Capacity -->
+          <col style="width:36px">  <!-- Chevron -->
         </colgroup>
         <thead>
           <tr>
             <th>Name</th>
+            <th>Type</th>
+            <th>Driver</th>
+            <th>Capacity</th>
             <th></th>
           </tr>
         </thead>
@@ -1485,6 +1270,18 @@
         <span>Active employee</span>
       </label>
     </div>
+    <hr class="drawer-divider">
+    <div class="drawer-field">
+      <label>PTO Balances</label>
+      <div id="esPtoBalances" class="staff-info-chips"></div>
+    </div>
+    <div class="drawer-field" style="margin-top:8px;">
+      <div class="drawer-field-header">
+        <label>Licensure</label>
+        <button type="button" id="esLicensureLink" class="drawer-nav-link">Manage →</button>
+      </div>
+      <div id="esLicensureStatus" class="staff-info-chips"></div>
+    </div>
   </div>
   <div class="drawer-footer-split">
     <button id="esDeleteBtn" class="btn danger">Delete</button>
@@ -1535,7 +1332,23 @@
     <div class="drawer-row-2">
       <div class="drawer-field">
         <label>Grade</label>
-        <input id="studentGrade" class="form-input" placeholder="e.g. K, 1, 2…" />
+        <select id="studentGrade" class="form-input">
+          <option value="">Select grade</option>
+          <option value="PK">PK</option>
+          <option value="K">K</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+          <option value="11">11</option>
+          <option value="12">12</option>
+        </select>
       </div>
       <div class="drawer-field">
         <label>Student #</label>
@@ -1601,7 +1414,23 @@
     <div class="drawer-row-2">
       <div class="drawer-field">
         <label>Grade</label>
-        <input id="estuGrade" class="form-input" placeholder="e.g. K, 1, 2…" />
+        <select id="estuGrade" class="form-input">
+          <option value="">Select grade</option>
+          <option value="PK">PK</option>
+          <option value="K">K</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
+          <option value="9">9</option>
+          <option value="10">10</option>
+          <option value="11">11</option>
+          <option value="12">12</option>
+        </select>
       </div>
       <div class="drawer-field">
         <label>Student #</label>
@@ -1628,9 +1457,25 @@
         <span>Active student</span>
       </label>
     </div>
+    <div id="estuWithdrawnSection" class="withdrawal-info-block" hidden>
+      <span class="withdrawal-info-label">Withdrawn</span>
+      <div id="estuWithdrawnDate" class="withdrawal-info-date"></div>
+      <div id="estuWithdrawnReason" class="withdrawal-info-reason"></div>
+    </div>
+    <hr class="drawer-divider">
+    <div class="drawer-field">
+      <div class="drawer-field-header">
+        <label>Family Guardians</label>
+        <button type="button" id="estuGuardiansLink" class="drawer-nav-link">Manage →</button>
+      </div>
+      <div id="estuGuardiansList"></div>
+    </div>
   </div>
   <div class="drawer-footer-split">
-    <button id="estuDeleteBtn" class="btn danger">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button id="estuWithdrawBtn" class="btn danger">Withdraw</button>
+      <button id="estuReenrollBtn" class="btn btn-outline" style="display:none;">Re-enroll</button>
+    </div>
     <div style="display:flex;gap:8px;">
       <button id="estuCancelBtn" class="btn">Cancel</button>
       <button id="estuSaveBtn" class="btn btn-primary">Save Changes</button>
@@ -1638,14 +1483,34 @@
   </div>
 </div>
 
-<!-- Delete student confirmation -->
-<div id="deleteStudentModal" class="confirm-modal-overlay" hidden>
+<!-- Withdraw student modal -->
+<div id="withdrawStudentModal" class="confirm-modal-overlay" hidden>
   <div class="confirm-modal-dialog">
-    <h3 class="confirm-modal-title">Delete Student?</h3>
-    <p class="confirm-modal-body" id="deleteStudentMsg"></p>
+    <h3 class="confirm-modal-title">Withdraw Student</h3>
+    <p class="confirm-modal-body" id="withdrawStudentMsg"></p>
+    <div class="drawer-field" style="margin-top:12px;">
+      <label>Withdrawal Date <span class="required">*</span></label>
+      <input type="date" id="withdrawDate" class="form-input" />
+    </div>
+    <div class="drawer-field" style="margin-top:8px;">
+      <label>Reason <span style="font-weight:400;color:var(--text-muted);">(optional)</span></label>
+      <textarea id="withdrawReason" class="form-input" rows="3" placeholder="e.g. Transferred to another school"></textarea>
+    </div>
+    <div class="confirm-modal-actions" style="margin-top:16px;">
+      <button id="withdrawStudentCancel" class="btn">Cancel</button>
+      <button id="withdrawStudentConfirm" class="btn danger">Withdraw Student</button>
+    </div>
+  </div>
+</div>
+
+<!-- Re-enroll student confirmation -->
+<div id="reenrollStudentModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title">Re-enroll Student?</h3>
+    <p class="confirm-modal-body" id="reenrollStudentMsg"></p>
     <div class="confirm-modal-actions">
-      <button id="deleteStudentCancel" class="btn">Cancel</button>
-      <button id="deleteStudentConfirm" class="btn danger">Delete</button>
+      <button id="reenrollStudentCancel" class="btn">Cancel</button>
+      <button id="reenrollStudentConfirm" class="btn btn-primary">Re-enroll</button>
     </div>
   </div>
 </div>
@@ -1847,6 +1712,27 @@
       <label>Route #</label>
       <input id="busRoute" class="form-input" placeholder="e.g. R12" />
     </div>
+    <div class="drawer-field">
+      <label>Route Type</label>
+      <select id="busRouteType" class="form-input">
+        <option value="">—</option>
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+        <option value="AM/PM">AM/PM</option>
+      </select>
+    </div>
+    <div class="drawer-field">
+      <label>Driver</label>
+      <input id="busDriver" class="form-input" placeholder="Driver name" />
+    </div>
+    <div class="drawer-field">
+      <label>Monitor</label>
+      <input id="busMonitor" class="form-input" placeholder="Monitor name" />
+    </div>
+    <div class="drawer-field">
+      <label>Capacity</label>
+      <input id="busCapacity" type="number" class="form-input" placeholder="e.g. 48" min="1" />
+    </div>
   </div>
   <div class="drawer-footer">
     <button class="btn" onclick="closeDrawer('busGroupDrawer')">Cancel</button>
@@ -1876,6 +1762,34 @@
     <div class="drawer-field">
       <label>Route #</label>
       <input id="ebgRoute" class="form-input" placeholder="e.g. R12" />
+    </div>
+    <div class="drawer-field">
+      <label>Route Type</label>
+      <select id="ebgRouteType" class="form-input">
+        <option value="">—</option>
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+        <option value="AM/PM">AM/PM</option>
+      </select>
+    </div>
+    <div class="drawer-field">
+      <label>Driver</label>
+      <input id="ebgDriver" class="form-input" placeholder="Driver name" />
+    </div>
+    <div class="drawer-field">
+      <label>Monitor</label>
+      <input id="ebgMonitor" class="form-input" placeholder="Monitor name" />
+    </div>
+    <div class="drawer-field">
+      <label>Capacity</label>
+      <input id="ebgCapacity" type="number" class="form-input" placeholder="e.g. 48" min="1" />
+    </div>
+
+    <hr class="drawer-divider">
+
+    <div class="drawer-field">
+      <label>Students on this Route</label>
+      <div id="ebgStudentsList" class="bus-students-list"></div>
     </div>
   </div>
   <div class="drawer-footer-split">

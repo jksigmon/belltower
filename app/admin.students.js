@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js';
-import { loadFamilyOptions, loadBusGroupOptions } from './admin.shared.js';
+import { loadFamilyOptions, loadBusGroupOptions, esc, getAvatarColor, cloneSelectOptions } from './admin.shared.js';
 import { createDirectory } from './admin.directory.js';
 
 let currentProfile;
@@ -37,6 +37,8 @@ export async function initStudentsSection(profile) {
         campus_id,
         family_id,
         active,
+        withdrawn_at,
+        withdrawal_reason,
         families!inner(carline_tag_number, family_name),
         employees!left(id, first_name, last_name),
         bus_groups(id, name),
@@ -134,24 +136,6 @@ async function loadCampusOptions() {
    HELPERS
 ================================ */
 
-function esc(str) {
-  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function getAvatarColor(name) {
-  const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
-}
-
-function cloneSelectOptions(sourceId, target, selectedValue) {
-  target.innerHTML = '';
-  document.querySelectorAll(`${sourceId} option`).forEach(opt =>
-    target.appendChild(opt.cloneNode(true))
-  );
-  target.value = selectedValue ?? '';
-}
 
 /* ===============================
    RENDER ROW
@@ -226,6 +210,21 @@ function openEditStudentDrawer(r) {
   document.getElementById('estuNumber').value = r.student_number ?? '';
   document.getElementById('estuActive').checked = !!r.active;
 
+  // Withdrawal state
+  const isWithdrawn = !r.active && !!r.withdrawn_at;
+  const withdrawnSection = document.getElementById('estuWithdrawnSection');
+  if (withdrawnSection) {
+    withdrawnSection.hidden = !isWithdrawn;
+    if (isWithdrawn) {
+      const d = new Date(r.withdrawn_at + 'T00:00:00');
+      document.getElementById('estuWithdrawnDate').textContent =
+        `Withdrawn on ${d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`;
+      document.getElementById('estuWithdrawnReason').textContent = r.withdrawal_reason ?? '';
+    }
+  }
+  document.getElementById('estuWithdrawBtn').style.display  = isWithdrawn ? 'none' : '';
+  document.getElementById('estuReenrollBtn').style.display  = isWithdrawn ? ''     : 'none';
+
   // Populate selects from the add-drawer source selects
   cloneSelectOptions('#studentFamily',   document.getElementById('estuFamily'),   r.family_id);
   cloneSelectOptions('#studentHomeroom', document.getElementById('estuHomeroom'), r.homeroom_teacher_id);
@@ -235,6 +234,8 @@ function openEditStudentDrawer(r) {
   const saveBtn = document.getElementById('estuSaveBtn');
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
+
+  loadDrawerGuardians(r.family_id);
 
   window.openDrawer?.('editStudentDrawer');
 }
@@ -251,7 +252,8 @@ async function saveEditStudent() {
     first_name:          first,
     last_name:           last,
     family_id:           family,
-    grade_level:         document.getElementById('estuGrade').value.trim() || null,
+    grade_level:         document.getElementById('estuGrade').value || null,
+    student_number:      document.getElementById('estuNumber').value.trim() || null,
     homeroom_teacher_id: document.getElementById('estuHomeroom').value || null,
     bus_group_id:        document.getElementById('estuBus').value || null,
     campus_id:           document.getElementById('estuCampus').value || null,
@@ -272,22 +274,81 @@ async function saveEditStudent() {
   studentsDirectory.load();
 }
 
-function confirmDeleteStudent() {
+function openWithdrawModal() {
   if (!editingStudentId) return;
   const name = `${document.getElementById('estuFirst').value} ${document.getElementById('estuLast').value}`;
-  document.getElementById('deleteStudentMsg').textContent =
-    `Are you sure you want to delete ${name}? This cannot be undone.`;
-  document.getElementById('deleteStudentModal').hidden = false;
+  document.getElementById('withdrawStudentMsg').textContent = `Enter withdrawal details for ${name}.`;
+  document.getElementById('withdrawDate').value   = new Date().toISOString().slice(0, 10);
+  document.getElementById('withdrawReason').value = '';
+  document.getElementById('withdrawStudentModal').hidden = false;
 }
 
-async function executeDeleteStudent() {
+async function executeWithdrawStudent() {
   if (!editingStudentId) return;
-  const { error } = await supabase.from('students').delete().eq('id', editingStudentId);
-  document.getElementById('deleteStudentModal').hidden = true;
-  if (error) { alert('Failed to delete: ' + error.message); return; }
+  const date   = document.getElementById('withdrawDate').value;
+  const reason = document.getElementById('withdrawReason').value.trim();
+  if (!date) { alert('Please enter a withdrawal date.'); return; }
+
+  const { error } = await supabase.from('students').update({
+    active:            false,
+    withdrawn_at:      date,
+    withdrawal_reason: reason || null,
+  }).eq('id', editingStudentId);
+
+  document.getElementById('withdrawStudentModal').hidden = true;
+  if (error) { alert('Failed to withdraw student: ' + error.message); return; }
   window.closeDrawer?.('editStudentDrawer');
   editingStudentId = null;
   studentsDirectory.load();
+}
+
+function openReenrollModal() {
+  if (!editingStudentId) return;
+  const name = `${document.getElementById('estuFirst').value} ${document.getElementById('estuLast').value}`;
+  document.getElementById('reenrollStudentMsg').textContent =
+    `Re-enroll ${name}? This will mark them as active and clear their withdrawal record.`;
+  document.getElementById('reenrollStudentModal').hidden = false;
+}
+
+async function executeReenrollStudent() {
+  if (!editingStudentId) return;
+  const { error } = await supabase.from('students').update({
+    active:            true,
+    withdrawn_at:      null,
+    withdrawal_reason: null,
+  }).eq('id', editingStudentId);
+
+  document.getElementById('reenrollStudentModal').hidden = true;
+  if (error) { alert('Failed to re-enroll student: ' + error.message); return; }
+  window.closeDrawer?.('editStudentDrawer');
+  editingStudentId = null;
+  studentsDirectory.load();
+}
+
+async function loadDrawerGuardians(familyId) {
+  const list = document.getElementById('estuGuardiansList');
+  if (!list) return;
+  if (!familyId) {
+    list.innerHTML = '<span style="font-size:13px;color:var(--text-muted);">No family linked.</span>';
+    return;
+  }
+  list.innerHTML = '<span style="font-size:13px;color:var(--text-muted);">Loading…</span>';
+  const { data } = await supabase
+    .from('guardians')
+    .select('first_name, last_name, phone, relationship')
+    .eq('family_id', familyId)
+    .order('last_name');
+  if (!data?.length) {
+    list.innerHTML = '<span style="font-size:13px;color:var(--text-muted);">No guardians on file.</span>';
+    return;
+  }
+  list.innerHTML = data.map(g => `
+    <div class="guardian-chip">
+      <span class="guardian-chip-name">${esc(g.first_name)} ${esc(g.last_name)}</span>
+      ${g.relationship ? `<span class="guardian-chip-rel">${esc(g.relationship)}</span>` : ''}
+      ${g.phone ? `<a class="guardian-chip-phone" href="tel:${esc(g.phone)}">${esc(g.phone)}</a>` : ''}
+    </div>
+  `).join('');
 }
 
 /* ===============================
@@ -327,11 +388,22 @@ function wireStudentEvents() {
   document.getElementById('estuSaveBtn')?.addEventListener('click',   saveEditStudent);
   document.getElementById('estuCancelBtn')?.addEventListener('click', () => window.closeDrawer?.('editStudentDrawer'));
   document.getElementById('estuCloseBtn')?.addEventListener('click',  () => window.closeDrawer?.('editStudentDrawer'));
-  document.getElementById('estuDeleteBtn')?.addEventListener('click', confirmDeleteStudent);
+  document.getElementById('estuWithdrawBtn')?.addEventListener('click', openWithdrawModal);
+  document.getElementById('estuReenrollBtn')?.addEventListener('click', openReenrollModal);
 
-  // Delete modal
-  document.getElementById('deleteStudentCancel')?.addEventListener('click',  () => { document.getElementById('deleteStudentModal').hidden = true; });
-  document.getElementById('deleteStudentConfirm')?.addEventListener('click', executeDeleteStudent);
+  // Withdraw modal
+  document.getElementById('withdrawStudentCancel')?.addEventListener('click',  () => { document.getElementById('withdrawStudentModal').hidden = true; });
+  document.getElementById('withdrawStudentConfirm')?.addEventListener('click', executeWithdrawStudent);
+
+  // Re-enroll modal
+  document.getElementById('reenrollStudentCancel')?.addEventListener('click',  () => { document.getElementById('reenrollStudentModal').hidden = true; });
+  document.getElementById('reenrollStudentConfirm')?.addEventListener('click', executeReenrollStudent);
+
+  // Guardian nav
+  document.getElementById('estuGuardiansLink')?.addEventListener('click', () => {
+    window.closeDrawer?.('editStudentDrawer');
+    window.location.hash = '#guardians';
+  });
 }
 
 /* ===============================
@@ -344,7 +416,7 @@ async function createStudent() {
     family_id:           document.getElementById('studentFamily').value,
     first_name:          document.getElementById('studentFirst').value.trim(),
     last_name:           document.getElementById('studentLast').value.trim(),
-    grade_level:         document.getElementById('studentGrade').value.trim() || null,
+    grade_level:         document.getElementById('studentGrade').value || null,
     homeroom_teacher_id: document.getElementById('studentHomeroom').value || null,
     bus_group_id:        document.getElementById('studentBusGroup').value || null,
     campus_id:           document.getElementById('studentCampus')?.value || null,

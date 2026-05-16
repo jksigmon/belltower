@@ -1,6 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
+import { esc, getAvatarColor } from './admin.shared.js';
 
 let currentProfile;
 let initialized = false;
@@ -42,21 +43,6 @@ export async function initFamiliesSection(profile) {
   }
 
   familiesDirectory.load();
-}
-
-/* ===============================
-   HELPERS
-================================ */
-
-function esc(str) {
-  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
-function getAvatarColor(name) {
-  const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
 }
 
 /* ===============================

@@ -381,12 +381,29 @@ async function showBoard(sessionId) {
 }
 
 async function loadBoardData(sessionId) {
-  const { data: session } = await supabase
-    .from('placement_sessions')
-    .select('id, label, academic_year, incoming_grade, target_grade, status')
-    .eq('id', sessionId)
-    .single();
+  // Batch 1: all queries that only need sessionId or school_id
+  const [
+    { data: session },
+    { data: sessionTeachers },
+    { data: assignments },
+    { data: flags }
+  ] = await Promise.all([
+    supabase.from('placement_sessions')
+      .select('id, label, academic_year, incoming_grade, target_grade, status')
+      .eq('id', sessionId).single(),
+    supabase.from('placement_session_teachers')
+      .select('teacher_id, sort_order')
+      .eq('session_id', sessionId).order('sort_order'),
+    supabase.from('placement_assignments')
+      .select('student_id, teacher_id, sort_order')
+      .eq('session_id', sessionId).order('sort_order'),
+    supabase.from('placement_flags')
+      .select('id, label, color, sort_order')
+      .eq('school_id', _profile.school_id).order('sort_order'),
+  ]);
+
   _session = session;
+  _flags   = flags || [];
 
   const titleEl = document.getElementById('placementBoardTitle');
   const metaEl  = document.getElementById('placementBoardMeta');
@@ -403,35 +420,8 @@ async function loadBoardData(sessionId) {
   const autoBtn = document.getElementById('autoPlacementBtn');
   if (autoBtn) autoBtn.disabled = isCommitted;
 
-  // Teachers on this session
-  const { data: sessionTeachers } = await supabase
-    .from('placement_session_teachers')
-    .select('teacher_id, sort_order')
-    .eq('session_id', sessionId)
-    .order('sort_order');
-
-  if (sessionTeachers && sessionTeachers.length > 0) {
-    const teacherIds = sessionTeachers.map(r => r.teacher_id);
-    const { data: empData } = await supabase
-      .from('employees')
-      .select('id, first_name, last_name')
-      .in('id', teacherIds);
-
-    const empMap = Object.fromEntries((empData || []).map(e => [e.id, e]));
-    _teachers = sessionTeachers
-      .map(r => empMap[r.teacher_id])
-      .filter(Boolean);
-  } else {
-    _teachers = [];
-  }
-
-  // Assignments + student info
-  const { data: assignments } = await supabase
-    .from('placement_assignments')
-    .select('student_id, teacher_id, sort_order')
-    .eq('session_id', sessionId)
-    .order('sort_order');
-
+  // Derive IDs from batch 1 results
+  const teacherIds = (sessionTeachers || []).map(r => r.teacher_id);
   _assignments = {};
   const studentIds = [];
   (assignments || []).forEach(a => {
@@ -439,39 +429,34 @@ async function loadBoardData(sessionId) {
     studentIds.push(a.student_id);
   });
 
-  if (studentIds.length > 0) {
-    const { data: stuData } = await supabase
-      .from('students')
-      .select('id, first_name, last_name, student_number')
-      .in('id', studentIds);
-    _students = stuData || [];
-    // Sort by last name
-    _students.sort((a, b) => a.last_name.localeCompare(b.last_name));
+  // Batch 2: queries that depend on batch 1 IDs (all run in parallel)
+  const [empResult, stuResult, sFlagsResult] = await Promise.all([
+    teacherIds.length
+      ? supabase.from('employees').select('id, first_name, last_name').in('id', teacherIds)
+      : Promise.resolve({ data: [] }),
+    studentIds.length
+      ? supabase.from('students').select('id, first_name, last_name, student_number').in('id', studentIds)
+      : Promise.resolve({ data: [] }),
+    studentIds.length
+      ? supabase.from('student_placement_flags').select('student_id, flag_id').in('student_id', studentIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  if (teacherIds.length) {
+    const empMap = Object.fromEntries((empResult.data || []).map(e => [e.id, e]));
+    _teachers = (sessionTeachers || []).map(r => empMap[r.teacher_id]).filter(Boolean);
   } else {
-    _students = [];
+    _teachers = [];
   }
 
-  // Flags
-  const { data: flags } = await supabase
-    .from('placement_flags')
-    .select('id, label, color, sort_order')
-    .eq('school_id', _profile.school_id)
-    .order('sort_order');
-  _flags = flags || [];
+  _students = stuResult.data || [];
+  _students.sort((a, b) => a.last_name.localeCompare(b.last_name));
 
-  // Student flags
   _studentFlags = {};
   _students.forEach(s => { _studentFlags[s.id] = new Set(); });
-
-  if (studentIds.length > 0) {
-    const { data: sFlags } = await supabase
-      .from('student_placement_flags')
-      .select('student_id, flag_id')
-      .in('student_id', studentIds);
-    (sFlags || []).forEach(sf => {
-      if (_studentFlags[sf.student_id]) _studentFlags[sf.student_id].add(sf.flag_id);
-    });
-  }
+  (sFlagsResult.data || []).forEach(sf => {
+    if (_studentFlags[sf.student_id]) _studentFlags[sf.student_id].add(sf.flag_id);
+  });
 }
 
 /* ── Render board ── */

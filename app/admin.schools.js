@@ -1,5 +1,6 @@
 
 import { supabase } from './admin.supabase.js';
+import { esc } from './admin.shared.js';
 
 let currentProfile;
 let initialized = false;
@@ -83,10 +84,6 @@ function renderSchoolRow(school) {
   `;
   tr.addEventListener('click', () => openEditSchoolDrawer(school));
   return tr;
-}
-
-function esc(str) {
-  return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 /* ===============================

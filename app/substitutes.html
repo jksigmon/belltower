@@ -711,7 +711,7 @@ if (
   !profile.is_superadmin &&
   profile.can_manage_substitutes !== true
 ) {
-  window.location.href = '/unauthorized.html';
+  window.location.href = '/admin.html';
 }
 
 // ✅ MODULE GATE
@@ -724,7 +724,7 @@ if (!profile.is_superadmin) {
     .maybeSingle();
 
   if (subModule?.enabled === false) {
-    window.location.href = '/unauthorized.html';
+    window.location.href = '/admin.html';
   }
 }
 

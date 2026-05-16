@@ -5,7 +5,6 @@
 :root {
   --app-bg: #f8fafc;              /* slate-50 */
   --surface: #ffffff;
-  --border: #e5e7eb;              /* gray-200 *
   --border: #e5e7eb;              /* gray-200 */
 
   --text-primary: #0f172a;        /* slate-900 */
@@ -3636,6 +3635,48 @@ a.stat, a.dash-stat-link {
   letter-spacing: 0.02em;
 }
 
+/* Route type badge (AM / PM / AM/PM) */
+.route-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+.route-type-AM   { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.route-type-PM   { background: #faf5ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+.route-type-AMPM { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+
+/* Bus route students list (edit drawer) */
+.bus-students-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.bus-student-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  background: var(--surface-alt, #f9fafb);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.bus-student-name { font-weight: 500; }
+.bus-student-grade {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
 /* ── Carpool member row (edit drawer) ── */
 .carpool-member-row {
   display: flex;
@@ -4346,3 +4387,331 @@ body.placement-fs .wrap {
   color: var(--text-primary);
 }
 
+/* ── Staff bulk action bar ── */
+.bulk-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+.bulk-action-bar[hidden] { display: none !important; }
+.bulk-count {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d4ed8;
+  flex: 1;
+}
+.staff-cell-check {
+  width: 32px;
+  text-align: center;
+  vertical-align: middle;
+}
+.staff-cell-check input[type="checkbox"] { cursor: pointer; }
+
+/* ── Staff drawer – PTO & licensure info chips ── */
+.staff-info-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.staff-info-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: var(--app-bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 12px;
+}
+.staff-info-chip-label { font-weight: 500; color: var(--text-secondary); }
+.staff-info-chip-value { color: var(--text-primary); font-weight: 600; }
+.staff-info-chip-sub   { color: var(--text-muted); font-size: 11px; }
+.staff-lic-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+.lic-ok       { background: #dcfce7; color: #15803d; }
+.lic-expiring { background: #fef9c3; color: #854d0e; }
+.lic-expired  { background: #fee2e2; color: #dc2626; }
+
+/* ── Student drawer – withdrawal & guardians ── */
+.withdrawal-info-block {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #92400e;
+  margin-top: 8px;
+}
+.withdrawal-info-label {
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 4px;
+  color: #b45309;
+}
+.withdrawal-info-date { font-weight: 500; }
+.withdrawal-info-reason { margin-top: 3px; color: #78350f; }
+
+.drawer-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0 12px;
+}
+
+.drawer-field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.drawer-field-header label { margin: 0; }
+
+.drawer-nav-link {
+  font-size: 12px;
+  color: var(--primary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+}
+.drawer-nav-link:hover { text-decoration: underline; }
+
+.guardian-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--app-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.guardian-chip:last-child { margin-bottom: 0; }
+.guardian-chip-name { font-weight: 500; color: var(--text-primary); flex: 1; }
+.guardian-chip-rel {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--border);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+.guardian-chip-phone {
+  font-size: 12px;
+  color: var(--primary);
+  text-decoration: none;
+}
+.guardian-chip-phone:hover { text-decoration: underline; }
+
+/* ================================================================
+   MOBILE — @media (max-width: 767px)
+   Moved from admin.html inline <style> block
+   ================================================================ */
+@media (max-width: 767px) {
+
+  /* ── Shared card table reset ── */
+  #staffTable,
+  #studentsTable,
+  #familiesTable,
+  #guardiansTable,
+  #busTable,
+  #carpoolsTable {
+    min-width: 0 !important;
+    width: 100% !important;
+    border-collapse: separate;
+    border-spacing: 0 10px;
+  }
+
+  #staffTable thead,
+  #studentsTable thead,
+  #familiesTable thead,
+  #guardiansTable thead,
+  #busTable thead,
+  #carpoolsTable thead {
+    display: none;
+  }
+
+  #staffTable tbody tr,
+  #studentsTable tbody tr,
+  #familiesTable tbody tr,
+  #guardiansTable tbody tr,
+  #busTable tbody tr,
+  #carpoolsTable tbody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 12px 14px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  #staffTable tbody tr td,
+  #studentsTable tbody tr td,
+  #familiesTable tbody tr td,
+  #guardiansTable tbody tr td,
+  #busTable tbody tr td,
+  #carpoolsTable tbody tr td {
+    display: block;
+    padding: 3px 0;
+    border: none !important;
+    font-size: 13px;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  #staffTable td .form-input,
+  #studentsTable td .form-input,
+  #familiesTable td .form-input,
+  #guardiansTable td .form-input,
+  #busTable td .form-input,
+  #carpoolsTable td .form-input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  #staffTable tbody tr td::before,
+  #studentsTable tbody tr td::before,
+  #familiesTable tbody tr td::before,
+  #guardiansTable tbody tr td::before,
+  #busTable tbody tr td::before,
+  #carpoolsTable tbody tr td::before {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+
+  #staffTable tbody tr td:nth-child(8)::before,
+  #studentsTable tbody tr td:nth-child(8)::before,
+  #guardiansTable tbody tr td:nth-child(6)::before {
+    content: none;
+  }
+
+  #staffTable,
+  #staffTable tbody,
+  #studentsTable,
+  #studentsTable tbody,
+  #familiesTable,
+  #familiesTable tbody,
+  #guardiansTable,
+  #guardiansTable tbody,
+  #busTable,
+  #busTable tbody,
+  #carpoolsTable,
+  #carpoolsTable tbody {
+    display: block !important;
+    width: 100% !important;
+  }
+  #staffTable,
+  #studentsTable,
+  #familiesTable,
+  #guardiansTable,
+  #busTable { margin-top: 10px; }
+
+  /* ── Staff: Check(1) Name(2) Email(3) Position(4) Supervisor(5) Campus(6) Contract(7) Chevron(8) ── */
+  #staffTable tbody tr {
+    grid-template-areas:
+      "name     name"
+      "email    email"
+      "position contract"
+      "campus   supervisor";
+  }
+  #staffTable tbody tr td:nth-child(1) { display: none; }
+  #staffTable tbody tr td:nth-child(2) { grid-area: name; }
+  #staffTable tbody tr td:nth-child(3) { grid-area: email;      font-size: 12px; word-break: break-all; }
+  #staffTable tbody tr td:nth-child(4) { grid-area: position; }
+  #staffTable tbody tr td:nth-child(5) { grid-area: supervisor; font-size: 12px; color: #6b7280; text-align: right; }
+  #staffTable tbody tr td:nth-child(6) { grid-area: campus;     font-size: 12px; color: #6b7280; }
+  #staffTable tbody tr td:nth-child(7) { grid-area: contract;   text-align: right; }
+  #staffTable tbody tr td:nth-child(8) { display: none; }
+  #staffTable tbody tr td:nth-child(2)::before { content: ""; }
+  #staffTable tbody tr td:nth-child(3)::before { content: "Email"; }
+  #staffTable tbody tr td:nth-child(4)::before { content: "Position"; }
+  #staffTable tbody tr td:nth-child(5)::before { content: "Supervisor"; }
+  #staffTable tbody tr td:nth-child(6)::before { content: "Campus"; }
+  #staffTable tbody tr td:nth-child(7)::before { content: "Contract"; }
+
+  /* ── Students: Name(1) #(2) Family(3) Grade(4) Homeroom(5) Bus(6) Campus(7) Chevron(8) ── */
+  #studentsTable tbody tr {
+    grid-template-areas:
+      "name     stunum"
+      "family   grade"
+      "homeroom bus"
+      "campus   campus";
+  }
+  #studentsTable tbody tr td:nth-child(1) { grid-area: name; }
+  #studentsTable tbody tr td:nth-child(2) { grid-area: stunum;   text-align: right; font-size: 12px; color: #6b7280; }
+  #studentsTable tbody tr td:nth-child(3) { grid-area: family; }
+  #studentsTable tbody tr td:nth-child(4) { grid-area: grade;    text-align: right; }
+  #studentsTable tbody tr td:nth-child(5) { grid-area: homeroom; font-size: 12px; }
+  #studentsTable tbody tr td:nth-child(6) { grid-area: bus;      text-align: right; font-size: 12px; }
+  #studentsTable tbody tr td:nth-child(7) { grid-area: campus;   font-size: 12px; color: #6b7280; }
+  #studentsTable tbody tr td:nth-child(8) { display: none; }
+  #studentsTable tbody tr td:nth-child(1)::before { content: ""; }
+  #studentsTable tbody tr td:nth-child(2)::before { content: "Student #"; }
+  #studentsTable tbody tr td:nth-child(3)::before { content: "Family"; }
+  #studentsTable tbody tr td:nth-child(4)::before { content: "Grade"; }
+  #studentsTable tbody tr td:nth-child(5)::before { content: "Homeroom"; }
+  #studentsTable tbody tr td:nth-child(6)::before { content: "Bus Group"; }
+  #studentsTable tbody tr td:nth-child(7)::before { content: "Campus"; }
+
+  #studentsTable tbody tr td:nth-child(2) .student-number {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 13px;
+    color: #6b7280;
+    width: 100%;
+    text-align: right;
+  }
+
+  /* ── Families ── */
+  #familiesTable tbody tr { grid-template-areas: "name"; grid-template-columns: 1fr; }
+  #familiesTable tbody tr td:nth-child(1) { grid-area: name; }
+  #familiesTable tbody tr td:nth-child(2) { display: none; }
+  #familiesTable tbody tr td:nth-child(1)::before { content: ""; }
+
+  /* ── Bus Groups ── */
+  #busTable tbody tr { grid-template-areas: "name"; grid-template-columns: 1fr; }
+  #busTable tbody tr td:nth-child(1) { grid-area: name; }
+  #busTable tbody tr td:nth-child(2) { display: none; }
+  #busTable tbody tr td:nth-child(1)::before { content: ""; }
+
+  /* ── Carpools ── */
+  #carpoolsTable tbody tr { grid-template-areas: "name"; grid-template-columns: 1fr; }
+  #carpoolsTable tbody tr td:nth-child(1) { grid-area: name; }
+  #carpoolsTable tbody tr td:nth-child(2) { display: none; }
+  #carpoolsTable tbody tr td:nth-child(1)::before { content: ""; }
+
+  /* ── Guardians: Name(1) Family(2) Email(3) Phone(4) Chevron(5) ── */
+  #guardiansTable tbody tr {
+    grid-template-areas:
+      "name   name"
+      "family family"
+      "email  phone";
+  }
+  #guardiansTable tbody tr td:nth-child(1) { grid-area: name; }
+  #guardiansTable tbody tr td:nth-child(2) { grid-area: family; font-size: 12px; color: #6b7280; }
+  #guardiansTable tbody tr td:nth-child(3) { grid-area: email;  font-size: 12px; word-break: break-all; }
+  #guardiansTable tbody tr td:nth-child(4) { grid-area: phone;  text-align: right; font-size: 12px; }
+  #guardiansTable tbody tr td:nth-child(5) { display: none; }
+  #guardiansTable tbody tr td:nth-child(1)::before { content: ""; }
+  #guardiansTable tbody tr td:nth-child(2)::before { content: "Family"; }
+  #guardiansTable tbody tr td:nth-child(3)::before { content: "Email"; }
+  #guardiansTable tbody tr td:nth-child(4)::before { content: "Phone"; }
+
+}
+.guardian-chip-phone:hover { text-decoration: underline; }

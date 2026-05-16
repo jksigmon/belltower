@@ -1,5 +1,6 @@
 
 import { supabase } from './admin.supabase.js';
+import { esc } from './admin.shared.js';
 
 let profile = null;
 let initialized = false;
@@ -198,14 +199,3 @@ function wireEvents() {
   });
 }
 
-/* ===============================
-   UTIL
-================================ */
-
-function esc(str) {
-  return String(str ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

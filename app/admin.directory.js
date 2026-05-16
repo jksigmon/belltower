@@ -90,7 +90,7 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
     const tbody = document.querySelector(tbodySelector);
     if (!tbody) return;
 
-    tbody.innerHTML = Array.from({ length: 8 }, () =>
+    tbody.innerHTML = Array.from({ length: pageSize }, () =>
       `<tr>${Array.from({ length: columnCount }, () =>
         '<td><div class="skeleton skeleton-row"></div></td>'
       ).join('')}</tr>`
@@ -178,6 +178,17 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
     return [1, '…', current - 1, current, current + 1, '…', total];
   }
 
+  function loadXLSX() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+      s.onload = () => resolve(window.XLSX);
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
   async function exportXlsx({ all = false, filename }) {
     const { data, error } = await buildQuery({
       paged: false,
@@ -194,6 +205,8 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
       alert('No rows to export');
       return;
     }
+
+    const XLSX = await loadXLSX();
 
     const rows = data.map(r =>
       typeof config.exportRow === 'function' ? config.exportRow(r) : flattenRow(r)

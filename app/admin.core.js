@@ -92,75 +92,26 @@ if (fade) {
   });
 }
   /* ✅ Lazy‑load feature modules */
+  const routes = {
+    '#staff':       () => import('./admin.staff.js').then(m => m.initStaffSection(currentProfile)),
+    '#students':    () => import('./admin.students.js').then(m => m.initStudentsSection(currentProfile)),
+    '#families':    () => import('./admin.families.js').then(m => m.initFamiliesSection(currentProfile)),
+    '#guardians':   () => import('./admin.guardians.js').then(m => m.initGuardiansSection(currentProfile)),
+    '#bus':         () => import('./admin.busgroups.js').then(m => m.initBusGroupsSection(currentProfile)),
+    '#carpools':    () => import('./admin.carpools.js').then(m => m.initCarpoolsSection(currentProfile)),
+    '#access':      async () => {
+      await import('./admin.access.js').then(m => m.initAccessSection(currentProfile, currentModules));
+      await import('./admin.access-requests.js').then(m => m.initAccessRequests(currentProfile));
+    },
+    '#bulk-upload': () => import('./admin.bulk.js').then(m => m.initBulkSection()),
+    '#exports':     () => import('./admin.exports.js').then(m => m.initExportsSection(currentProfile)),
+    '#campuses':    () => import('./admin.campuses.js').then(m => m.initCampusesSection(currentProfile)),
+    '#schools':     () => import('./admin.schools.js').then(m => m.initSchoolsSection(currentProfile)),
+    '#placement':   () => import('./admin.placement.js').then(m => m.initPlacementSection(currentProfile)),
+    '#promotion':   () => import('./admin.promotion.js').then(m => m.initPromotionSection(currentProfile)),
+  };
 
-  if (target === '#staff') {
-    const staff = await import('./admin.staff.js');
-    await staff.initStaffSection(currentProfile);
-  }
-
-  if (target === '#students') {
-    const students = await import('./admin.students.js');
-	console.log('students module:', students);
-    await students.initStudentsSection(currentProfile);
-  }
-  
-	if (target === '#families') {
-	  const families = await import('./admin.families.js');
-	  await families.initFamiliesSection(currentProfile);
-	}
-
-if (target === '#guardians') {
-  const guardians = await import('./admin.guardians.js');
-  await guardians.initGuardiansSection(currentProfile);
-}
-
-if (target === '#bus') {
-  const busGroups = await import('./admin.busgroups.js');
-  await busGroups.initBusGroupsSection(currentProfile);
-}
-
-if (target === '#carpools') {
-  const carpools = await import('./admin.carpools.js');
-  await carpools.initCarpoolsSection(currentProfile);
-}
-
-if (target === '#access') {
-  const access = await import('./admin.access.js');
-  await access.initAccessSection(currentProfile, currentModules);
-  const accessReqs = await import('./admin.access-requests.js');
-  await accessReqs.initAccessRequests(currentProfile);
-}
-
-if (target === '#bulk-upload') {
-  const bulk = await import('./admin.bulk.js');
-  await bulk.initBulkSection();
-}
-
-if (target === '#exports') {
-  const exportsModule = await import('./admin.exports.js');
-  await exportsModule.initExportsSection(currentProfile);
-}
-
-if (target === '#campuses') {
-  const cam = await import('./admin.campuses.js');
-  await cam.initCampusesSection(currentProfile);
-}
-
-if (target === '#schools') {
-  const schools = await import('./admin.schools.js');
-  await schools.initSchoolsSection(currentProfile);
-}
-
-if (target === '#placement') {
-  const placement = await import('./admin.placement.js');
-  await placement.initPlacementSection(currentProfile);
-}
-
-if (target === '#promotion') {
-  const promotion = await import('./admin.promotion.js');
-  await promotion.initPromotionSection(currentProfile);
-}
-
+  if (routes[target]) await routes[target]();
 }
 
 /* ===============================

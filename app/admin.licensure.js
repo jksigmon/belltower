@@ -1,5 +1,6 @@
 import { supabase } from './admin.supabase.js';
 import { initUserMenu } from './user-menu.js';
+import { debounce } from './admin.shared.js';
 
 /* ─────────────────────────────────────────────────────
    STATE
@@ -695,11 +696,6 @@ function diffObjects(oldObj, newObj) {
     if (oldVal !== newVal) changes[k] = { old: oldObj[k], new: newObj[k] };
   });
   return changes;
-}
-
-function debounce(fn, delay = 250) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
 }
 
 /* ─────────────────────────────────────────────────────
