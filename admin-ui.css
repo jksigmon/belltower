@@ -338,6 +338,53 @@ nav a[data-module] {
   user-select: none;
 }
 
+/* Collapsible nav section toggles */
+.nav-section-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #9ca3af;
+  padding: 12px 14px 4px;
+  margin-top: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.nav-section-toggle:hover {
+  color: #6b7280;
+}
+
+.nav-chevron {
+  width: 13px !important;
+  height: 13px !important;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  stroke-width: 2.5;
+}
+
+.nav-section-toggle.collapsed .nav-chevron {
+  transform: rotate(-90deg);
+}
+
+/* Collapsible group container */
+.nav-group {
+  overflow: hidden;
+  max-height: 600px;
+  transition: max-height 0.25s ease;
+}
+
+.nav-group.collapsed {
+  max-height: 0;
+}
+
 
 nav a:hover {
   background: #ffffff;
@@ -3761,6 +3808,17 @@ a.stat, a.dash-stat-link {
    Class Placement Module
    ===================================================== */
 
+/* Clean select styling — removes native OS arrow, adds consistent chevron */
+#placement select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: calc(100% - 10px) center;
+  padding-right: 32px;
+  cursor: pointer;
+}
+
 /* Session list */
 .placement-header {
   display: flex;
@@ -3819,8 +3877,89 @@ a.stat, a.dash-stat-link {
 /* Create form */
 .placement-form-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: 180px 1fr 1fr;
   gap: 16px;
+  align-items: end;
+}
+
+@media (max-width: 700px) {
+  .placement-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Scoped form-group / form-label for placement — not globally defined */
+#placement .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#placement .form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+#placement .form-label .muted {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  font-size: 12px;
+}
+
+#placement .form-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 32px 0 10px;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: #fff;
+  color: var(--text-primary);
+}
+
+#placement input.form-input {
+  padding-right: 10px;
+}
+
+#placement .form-input:focus {
+  outline: none;
+  border-color: #5b9bff;
+  box-shadow: 0 0 0 2px rgba(91,155,255,0.15);
+}
+
+.placement-teachers-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.placement-teachers-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.placement-teachers-header-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Match primary + outline button heights in the create form action row */
+#placementCreateFormView .btn-primary,
+#placementCreateFormView .btn-outline {
+  height: 38px;
+  padding: 0 18px;
+  font-size: 14px;
 }
 
 .placement-teacher-grid {
@@ -3867,9 +4006,121 @@ a.stat, a.dash-stat-link {
   color: var(--text-muted);
 }
 
-/* Board panel — override overflow-x:hidden so board can scroll */
+/* Board panel — allow horizontal scroll in normal mode */
 .placement-board-panel {
-  overflow-x: visible !important;
+  overflow-x: auto !important;
+}
+
+/* ── Fullscreen body state: hide header + nav ── */
+body.placement-fs header,
+body.placement-fs #navOverlay,
+body.placement-fs #adminNav {
+  display: none !important;
+}
+
+body.placement-fs .wrap {
+  grid-template-columns: 1fr;
+}
+
+/* ── Fullscreen board view ── */
+#placementBoardView.placement-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex !important;
+  flex-direction: column;
+  background: var(--app-bg);
+  padding: 0;
+  overflow: hidden;
+}
+
+#placementBoardView.placement-fullscreen .placement-board-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden !important;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+}
+
+#placementBoardView.placement-fullscreen .placement-board-topbar {
+  flex-shrink: 0;
+  padding: 12px 20px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+}
+
+#placementBoardView.placement-fullscreen .placement-board-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  margin: 0;
+  padding: 12px 16px 16px;
+  background: #dde3ed;
+}
+
+#placementBoardView.placement-fullscreen + p.muted {
+  display: none;
+}
+
+/* Fullscreen: board and columns fill the viewport width */
+#placementBoardView.placement-fullscreen .placement-board {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  align-items: stretch;
+  overflow: hidden;
+  gap: 10px;
+}
+
+#placementBoardView.placement-fullscreen .placement-col {
+  flex: 1;
+  width: auto;
+  min-width: 130px;
+}
+
+#placementBoardView.placement-fullscreen .placement-col-body {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Larger text and cards for projector / whiteboard readability */
+#placementBoardView.placement-fullscreen .placement-col-header {
+  padding: 12px 14px;
+}
+
+#placementBoardView.placement-fullscreen .placement-col-name {
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#placementBoardView.placement-fullscreen .placement-col-count {
+  font-size: 13px;
+  min-width: 26px;
+  height: 26px;
+}
+
+#placementBoardView.placement-fullscreen .placement-card {
+  padding: 10px 12px 8px;
+}
+
+#placementBoardView.placement-fullscreen .placement-card-name {
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+#placementBoardView.placement-fullscreen .placement-flag-dot {
+  width: 11px;
+  height: 11px;
 }
 
 .placement-board-topbar {

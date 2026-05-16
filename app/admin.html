@@ -302,28 +302,40 @@
       <a href="#dashboard" class="active"><i data-lucide="layout-dashboard"></i> Dashboard</a>
       <a href="/staff.html?from=admin#pto"><i data-lucide="user"></i> My Portal</a>
 
-      <div class="nav-section">Operations</div>
-      <a href="/pto.html?from=admin" data-cap-group="pto" data-module="pto"><i data-lucide="calendar"></i> PTO Management</a>
-      <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes"><i data-lucide="repeat-2"></i> Substitutes</a>
-      <a href="/carline.html" data-cap-group="carline" data-module="carline"><i data-lucide="car"></i> Carline</a>
-      <a href="/app/licensure.html" data-cap="can_manage_licensure" data-module="licensure"><i data-lucide="badge-check"></i> Licensure</a>
+      <button class="nav-section-toggle" data-group="operations">
+        Operations <i data-lucide="chevron-down" class="nav-chevron"></i>
+      </button>
+      <div class="nav-group" id="navGroup-operations">
+        <a href="/pto.html?from=admin" data-cap-group="pto" data-module="pto"><i data-lucide="calendar"></i> PTO Management</a>
+        <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes"><i data-lucide="repeat-2"></i> Substitutes</a>
+        <a href="/carline.html" data-cap-group="carline" data-module="carline"><i data-lucide="car"></i> Carline</a>
+        <a href="/app/licensure.html" data-cap="can_manage_licensure" data-module="licensure"><i data-lucide="badge-check"></i> Licensure</a>
+      </div>
 
-      <div class="nav-section">Directory</div>
-      <a href="#staff" data-cap="can_manage_staff" data-module="staff"><i data-lucide="users"></i> Staff</a>
-      <a href="#students" data-cap="can_manage_students" data-module="students"><i data-lucide="graduation-cap"></i> Students</a>
-      <a href="#families" data-cap="can_manage_families" data-module="families"><i data-lucide="home"></i> Families</a>
-      <a href="#guardians" data-cap="can_manage_guardians" data-module="guardians"><i data-lucide="user-check"></i> Guardians</a>
-      <a href="#campuses" data-cap="can_manage_campuses"><i data-lucide="building-2"></i> Campuses</a>
-      <a href="#bus" data-cap="can_manage_bus_groups" data-module="bus_groups"><i data-lucide="bus"></i> Bus Groups</a>
-      <a href="#carpools" data-cap="can_manage_carpools" data-module="carline"><i data-lucide="users-round"></i> Carpools</a>
+      <button class="nav-section-toggle" data-group="directory">
+        Directory <i data-lucide="chevron-down" class="nav-chevron"></i>
+      </button>
+      <div class="nav-group" id="navGroup-directory">
+        <a href="#staff" data-cap="can_manage_staff" data-module="staff"><i data-lucide="users"></i> Staff</a>
+        <a href="#students" data-cap="can_manage_students" data-module="students"><i data-lucide="graduation-cap"></i> Students</a>
+        <a href="#families" data-cap="can_manage_families" data-module="families"><i data-lucide="home"></i> Families</a>
+        <a href="#guardians" data-cap="can_manage_guardians" data-module="guardians"><i data-lucide="user-check"></i> Guardians</a>
+        <a href="#campuses" data-cap="can_manage_campuses"><i data-lucide="building-2"></i> Campuses</a>
+        <a href="#bus" data-cap="can_manage_bus_groups" data-module="bus_groups"><i data-lucide="bus"></i> Bus Groups</a>
+        <a href="#carpools" data-cap="can_manage_carpools" data-module="carline"><i data-lucide="users-round"></i> Carpools</a>
+      </div>
 
-      <div class="nav-section">Settings</div>
-      <a href="#schools" id="navSchools" style="display:none;"><i data-lucide="building-2"></i> Schools</a>
-      <a href="#placement" data-cap="can_manage_students"><i data-lucide="layout-grid"></i> Class Placement</a>
-      <a href="#promotion" data-cap="can_manage_students"><i data-lucide="graduation-cap"></i> Year-End Promotion</a>
-      <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access <span class="badge-count" id="accessRequestBadge"></span></a>
-      <a href="#bulk-upload" data-cap="can_bulk_upload"><i data-lucide="upload"></i> Bulk Upload</a>
-      <a href="#exports" data-cap="can_export_data"><i data-lucide="download"></i> Exports</a>
+      <button class="nav-section-toggle" data-group="settings">
+        Settings <i data-lucide="chevron-down" class="nav-chevron"></i>
+      </button>
+      <div class="nav-group" id="navGroup-settings">
+        <a href="#schools" id="navSchools" style="display:none;"><i data-lucide="building-2"></i> Schools</a>
+        <a href="#placement" data-cap="can_manage_students"><i data-lucide="layout-grid"></i> Class Placement</a>
+        <a href="#promotion" data-cap="can_manage_students"><i data-lucide="graduation-cap"></i> Year-End Promotion</a>
+        <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access <span class="badge-count" id="accessRequestBadge"></span></a>
+        <a href="#bulk-upload" data-cap="can_bulk_upload"><i data-lucide="upload"></i> Bulk Upload</a>
+        <a href="#exports" data-cap="can_export_data"><i data-lucide="download"></i> Exports</a>
+      </div>
     </nav>
     <main>
       <div id="pending" class="notice" style="display:none;">Your account is <strong>pending</strong>. An administrator must approve your domain or activate your profile.</div>
@@ -1149,7 +1161,7 @@
             <h3 style="margin:0 0 4px;">Class Placement</h3>
             <p class="muted" style="font-size:13px;margin:0;">Draft and commit student class assignments for the upcoming year.</p>
           </div>
-          <button class="btn btn-primary" id="newPlacementSessionBtn">
+          <button class="btn btn-primary btn-sm" id="newPlacementSessionBtn">
             <i data-lucide="plus"></i> New Session
           </button>
         </div>
@@ -1195,19 +1207,19 @@
             <input type="text" id="placementLabel" class="form-input" placeholder="e.g. 2nd Grade → 3rd Grade">
           </div>
         </div>
-        <div class="form-group" style="margin-top:20px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;">
-            <div>
-              <label class="form-label" style="margin:0;">Teachers on Board</label>
-              <p class="muted" style="font-size:12px;margin:2px 0 0;">Select which teachers will appear as columns on the placement board.</p>
+        <div style="margin-top:24px;">
+          <div class="placement-teachers-header">
+            <div class="placement-teachers-header-left">
+              <label class="form-label">Teachers on Board</label>
+              <p class="muted" style="font-size:12px;margin:0;">Select which teachers will appear as columns on the placement board.</p>
             </div>
-            <div style="display:flex;gap:8px;flex-shrink:0;align-items:center;">
+            <div class="placement-teachers-header-controls">
               <div id="placementCampusFilterWrap" hidden>
-                <select id="placementCampusFilter" class="form-input" style="min-width:160px;font-size:13px;">
+                <select id="placementCampusFilter" class="form-input" style="width:160px;">
                   <option value="">All Campuses</option>
                 </select>
               </div>
-              <select id="placementStaffSort" class="form-input" style="min-width:140px;font-size:13px;">
+              <select id="placementStaffSort" class="form-input" style="width:150px;">
                 <option value="last_name">Sort: Last Name</option>
                 <option value="first_name">Sort: First Name</option>
                 <option value="position">Sort: Position</option>
@@ -1238,7 +1250,13 @@
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
             <span id="placementSaveStatus" class="muted" style="font-size:12px;"></span>
-            <button class="btn btn-primary" id="commitPlacementBtn">Commit Placement</button>
+            <button class="btn btn-outline btn-sm" id="autoPlacementBtn" title="Distribute students evenly across teachers">
+              <i data-lucide="shuffle" style="width:15px;height:15px;"></i> Auto-Place
+            </button>
+            <button class="btn btn-outline btn-sm" id="togglePlacementFullscreen" title="Expand board">
+              <i data-lucide="expand" style="width:15px;height:15px;"></i>
+            </button>
+            <button class="btn btn-primary btn-sm" id="commitPlacementBtn">Commit Placement</button>
           </div>
         </div>
         <div class="placement-board-wrap">

@@ -53,6 +53,7 @@ document.getElementById('dashboardSchool').textContent =
   }
 
   gateNavigation();
+  initNavCollapse();
 
   // Show nav immediately — badge and dashboard stats fill in below
   document.getElementById('adminNav')?.classList.remove('hidden');
@@ -231,6 +232,34 @@ function gateNavigation() {
 }
 
 
+
+/* ===============================
+   NAV COLLAPSE
+================================ */
+function initNavCollapse() {
+  // Operations = expanded by default; Directory + Settings = collapsed by default
+  const defaults = { operations: false, directory: true, settings: true };
+
+  Object.keys(defaults).forEach(group => {
+    const btn   = document.querySelector(`.nav-section-toggle[data-group="${group}"]`);
+    const panel = document.getElementById(`navGroup-${group}`);
+    if (!btn || !panel) return;
+
+    const saved = localStorage.getItem(`nav-collapsed-${group}`);
+    const isCollapsed = saved !== null ? saved === 'true' : defaults[group];
+
+    if (isCollapsed) {
+      panel.classList.add('collapsed');
+      btn.classList.add('collapsed');
+    }
+
+    btn.addEventListener('click', () => {
+      const nowCollapsed = panel.classList.toggle('collapsed');
+      btn.classList.toggle('collapsed', nowCollapsed);
+      localStorage.setItem(`nav-collapsed-${group}`, String(nowCollapsed));
+    });
+  });
+}
 
 async function loadDashboardStats() {
   const schoolId = effectiveSchoolId;

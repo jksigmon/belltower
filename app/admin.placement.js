@@ -70,9 +70,16 @@ function wireGlobalEvents() {
   document.getElementById('submitCreatePlacementBtn')
     ?.addEventListener('click', submitCreateForm);
   document.getElementById('backToSessionListBtn')
-    ?.addEventListener('click', () => showSessionList());
+    ?.addEventListener('click', () => { exitFullscreen(); showSessionList(); });
   document.getElementById('commitPlacementBtn')
     ?.addEventListener('click', confirmCommit);
+  document.getElementById('autoPlacementBtn')
+    ?.addEventListener('click', autoPlaceStudents);
+  document.getElementById('togglePlacementFullscreen')
+    ?.addEventListener('click', toggleFullscreen);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') exitFullscreen();
+  });
 }
 
 /* ── Session list ── */
@@ -388,10 +395,13 @@ async function loadBoardData(sessionId) {
   if (metaEl && session) {
     metaEl.textContent = `${session.academic_year.replace('-', '–')} · ${gradeLabel(session.incoming_grade)} → ${gradeLabel(session.target_grade)}`;
   }
+  const isCommitted = session?.status === 'committed';
   if (commitBtn) {
-    commitBtn.disabled = session?.status === 'committed';
-    commitBtn.textContent = session?.status === 'committed' ? 'Committed ✓' : 'Commit Placement';
+    commitBtn.disabled = isCommitted;
+    commitBtn.textContent = isCommitted ? 'Committed ✓' : 'Commit Placement';
   }
+  const autoBtn = document.getElementById('autoPlacementBtn');
+  if (autoBtn) autoBtn.disabled = isCommitted;
 
   // Teachers on this session
   const { data: sessionTeachers } = await supabase
@@ -716,6 +726,90 @@ async function saveAssignments() {
 function updateSaveStatus(msg) {
   const el = document.getElementById('placementSaveStatus');
   if (el) el.textContent = msg;
+}
+
+/* ── Auto-place ── */
+function autoPlaceStudents() {
+  if (_session?.status === 'committed') return;
+  if (_teachers.length === 0) {
+    alert('No teachers on this board to place students into.');
+    return;
+  }
+
+  const unplaced = _students.filter(s => _assignments[s.id] == null);
+  let studentsToPlace;
+
+  if (unplaced.length === 0) {
+    const per = Math.ceil(_students.length / _teachers.length);
+    const ok = confirm(
+      `All ${_students.length} students are already placed.\n\n` +
+      `Redistribute everyone evenly across ${_teachers.length} teacher${_teachers.length !== 1 ? 's' : ''} (~${per} per teacher)?\n\n` +
+      `Current placements will be cleared.`
+    );
+    if (!ok) return;
+    _students.forEach(s => { _assignments[s.id] = null; });
+    studentsToPlace = [..._students];
+  } else {
+    const per = Math.ceil(unplaced.length / _teachers.length);
+    const ok = confirm(
+      `Distribute ${unplaced.length} unplaced student${unplaced.length !== 1 ? 's' : ''} evenly across ${_teachers.length} teacher${_teachers.length !== 1 ? 's' : ''} (~${per} per teacher)?`
+    );
+    if (!ok) return;
+    studentsToPlace = unplaced;
+  }
+
+  // Round-robin across teachers, preserving alphabetical sort within each column
+  studentsToPlace.forEach((s, i) => {
+    _assignments[s.id] = _teachers[i % _teachers.length].id;
+  });
+
+  renderBoard();
+  scheduleSave();
+}
+
+/* ── Fullscreen ── */
+function toggleFullscreen() {
+  const view = document.getElementById('placementBoardView');
+  if (!view) return;
+
+  if (view.classList.contains('placement-fullscreen')) {
+    exitFullscreen();
+  } else {
+    // Reparent to body to escape ancestor transform containing blocks
+    view._fsParent = view.parentElement;
+    view._fsAnchor = view.nextSibling;
+    document.body.appendChild(view);
+    view.classList.add('placement-fullscreen');
+    document.body.classList.add('placement-fs');
+    setFullscreenIcon(true);
+  }
+}
+
+function exitFullscreen() {
+  const view = document.getElementById('placementBoardView');
+  if (!view?.classList.contains('placement-fullscreen')) return;
+
+  view.classList.remove('placement-fullscreen');
+  document.body.classList.remove('placement-fs');
+
+  // Restore to original position in DOM
+  if (view._fsParent) {
+    view._fsParent.insertBefore(view, view._fsAnchor ?? null);
+    delete view._fsParent;
+    delete view._fsAnchor;
+  }
+
+  setFullscreenIcon(false);
+}
+
+function setFullscreenIcon(isFs) {
+  const btn = document.getElementById('togglePlacementFullscreen');
+  if (!btn) return;
+  btn.title = isFs ? 'Exit fullscreen' : 'Expand board';
+  btn.innerHTML = isFs
+    ? '<i data-lucide="shrink" style="width:15px;height:15px;"></i>'
+    : '<i data-lucide="expand" style="width:15px;height:15px;"></i>';
+  if (window.lucide) lucide.createIcons({ nodes: Array.from(btn.querySelectorAll('[data-lucide]')) });
 }
 
 /* ── Commit ── */
