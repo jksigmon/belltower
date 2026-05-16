@@ -79,6 +79,8 @@ async function setActive(hash) {
   if (!section) return;
   section.classList.add('active');
 
+  document.querySelector('.wrap > main')?.scrollTo({ top: 0, behavior: 'instant' });
+
 
 if (target === '#dashboard') {
   await loadDashboardStats();

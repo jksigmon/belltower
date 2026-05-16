@@ -1,3 +1,4 @@
+
 import { supabase } from './admin.supabase.js';
 
 /* ─── Grade progression ─────────────────────────────────────── */
@@ -32,17 +33,75 @@ let _students = [];
 let _actionMap = {};   // studentId → 'promote' | 'retain' | 'graduate'
 let _initialized = false;
 
+/* ─── Draft persistence ─────────────────────────────────────── */
+function draftKey() {
+  const campusId = document.getElementById('promotionCampus')?.value || 'all';
+  return `promo_draft_${_profile.school_id}_${campusId}`;
+}
+
+function saveDraft() {
+  const year = document.getElementById('promotionAcademicYear')?.value ?? '';
+  const campusId = document.getElementById('promotionCampus')?.value || '';
+  const draft = { savedAt: new Date().toISOString(), year, campusId, students: _students, actionMap: _actionMap };
+  try { localStorage.setItem(draftKey(), JSON.stringify(draft)); } catch (_) {}
+}
+
+function loadDraftFromStorage() {
+  try {
+    const raw = localStorage.getItem(draftKey());
+    return raw ? JSON.parse(raw) : null;
+  } catch (_) { return null; }
+}
+
+function clearDraft() {
+  try { localStorage.removeItem(draftKey()); } catch (_) {}
+}
+
+function checkAndShowDraftBanner() {
+  const banner = document.getElementById('promoDraftBanner');
+  if (!banner) return;
+  const draft = loadDraftFromStorage();
+  if (draft?.students?.length) {
+    document.getElementById('promoDraftDate').textContent =
+      new Date(draft.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const sel = document.getElementById('promotionCampus');
+    const opt = sel?.options[sel.selectedIndex];
+    document.getElementById('promoDraftCampusLabel').textContent =
+      opt?.value ? opt.text : 'All Campuses';
+    banner.hidden = false;
+  } else {
+    banner.hidden = true;
+  }
+}
+
+function restoreDraft() {
+  const draft = loadDraftFromStorage();
+  if (!draft) return;
+  _students  = draft.students;
+  _actionMap = draft.actionMap;
+  const yearSel = document.getElementById('promotionAcademicYear');
+  if (yearSel && draft.year) yearSel.value = draft.year;
+  const label = document.getElementById('promoYearLabel');
+  if (label) label.textContent = (draft.year ?? '').replace('-', '–');
+  document.getElementById('promoDraftBanner').hidden = true;
+  renderPreview();
+  document.getElementById('promotionInitial').hidden = true;
+  document.getElementById('promotionPreview').hidden = false;
+}
+
 /* ─── Entry point ───────────────────────────────────────────── */
 export async function initPromotionSection(profile) {
   _profile = profile;
 
   populateYearSelect();
+  await populateCampusSelect();
 
   if (!_initialized) {
     _initialized = true;
     wireEvents();
   }
 
+  checkAndShowDraftBanner();
   await loadPromotionLog();
 }
 
@@ -60,6 +119,24 @@ function populateYearSelect() {
   }
 }
 
+/* ─── Campus select ─────────────────────────────────────────── */
+async function populateCampusSelect() {
+  const sel = document.getElementById('promotionCampus');
+  if (!sel) return;
+  const { data } = await supabase
+    .from('campuses')
+    .select('id, name')
+    .eq('school_id', _profile.school_id)
+    .order('name');
+  sel.innerHTML = '<option value="">All Campuses</option>';
+  (data ?? []).forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.name;
+    sel.appendChild(opt);
+  });
+}
+
 /* ─── Event wiring ──────────────────────────────────────────── */
 function wireEvents() {
   document.getElementById('loadPromotionPreviewBtn')
@@ -67,6 +144,27 @@ function wireEvents() {
 
   document.getElementById('runPromotionBtn')
     ?.addEventListener('click', confirmAndRun);
+
+  document.getElementById('promotionCampus')
+    ?.addEventListener('change', () => {
+      // If preview is showing, hide it — campus change invalidates the current load
+      if (!document.getElementById('promotionPreview')?.hidden) {
+        document.getElementById('promotionPreview').hidden = true;
+        document.getElementById('promotionInitial').hidden = false;
+        _students = [];
+        _actionMap = {};
+      }
+      checkAndShowDraftBanner();
+    });
+
+  document.getElementById('promoDraftRestore')
+    ?.addEventListener('click', restoreDraft);
+
+  document.getElementById('promoDraftDiscard')
+    ?.addEventListener('click', () => {
+      clearDraft();
+      document.getElementById('promoDraftBanner').hidden = true;
+    });
 }
 
 /* ─── Load preview ──────────────────────────────────────────── */
@@ -75,12 +173,17 @@ async function loadPromotionPreview() {
   btn.disabled = true;
   btn.textContent = 'Loading…';
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('students')
     .select('id, first_name, last_name, grade_level, student_number')
     .eq('school_id', _profile.school_id)
     .eq('active', true)
     .order('last_name');
+
+  const campusId = document.getElementById('promotionCampus')?.value;
+  if (campusId) query = query.eq('campus_id', campusId);
+
+  const { data, error } = await query;
 
   btn.disabled = false;
   btn.textContent = 'Load Preview';
@@ -94,6 +197,7 @@ async function loadPromotionPreview() {
   _actionMap = {};
 
   _students.forEach(s => {
+    if (!s.grade_level) return; // null-grade students get no default action — they'll be skipped
     _actionMap[s.id] = isTerminalGrade(s.grade_level) ? 'graduate' : 'promote';
   });
 
@@ -101,6 +205,8 @@ async function loadPromotionPreview() {
   const year = document.getElementById('promotionAcademicYear')?.value ?? '';
   const label = document.getElementById('promoYearLabel');
   if (label) label.textContent = year.replace('-', '–');
+
+  saveDraft();
 
   renderPreview();
   document.getElementById('promotionInitial').hidden = true;
@@ -110,6 +216,13 @@ async function loadPromotionPreview() {
 /* ─── Render preview ────────────────────────────────────────── */
 function renderPreview() {
   updateSummaryChips();
+
+  // Null-grade warning
+  const nullStudents = _students.filter(s => !s.grade_level);
+  const nullWarn  = document.getElementById('promotionNullWarning');
+  const nullCount = document.getElementById('promotionNullCount');
+  if (nullWarn)  nullWarn.hidden  = nullStudents.length === 0;
+  if (nullCount) nullCount.textContent = nullStudents.length;
 
   const container = document.getElementById('promotionGradeGroups');
   container.innerHTML = '';
@@ -138,19 +251,21 @@ function renderPreview() {
 }
 
 function buildGradeGroup(grade, students) {
-  const terminal = isTerminalGrade(grade);
-  const next = nextGrade(grade);
+  const isUnknown = grade === 'Unknown';
+  const terminal  = !isUnknown && isTerminalGrade(grade);
+  const next      = isUnknown ? null : nextGrade(grade);
 
   const wrap = document.createElement('div');
   wrap.className = 'promo-grade-group';
 
-  // Header
   const header = document.createElement('div');
   header.className = 'promo-grade-header';
   header.innerHTML = `
-    <span class="grade-badge">${grade}</span>
-    <span class="promo-grade-name">${gradeLabel(grade)}</span>
+    <span class="grade-badge${isUnknown ? ' grade-badge-warn' : ''}">${isUnknown ? '?' : grade}</span>
+    <span class="promo-grade-name">${gradeLabel(grade === 'Unknown' ? null : grade)}</span>
+    ${isUnknown ? '<span class="promo-skip-badge">Will be skipped</span>' : ''}
     <span class="promo-grade-count muted">${students.length} student${students.length !== 1 ? 's' : ''}</span>
+    ${!isUnknown ? `
     <div class="promo-bulk-actions">
       ${terminal
         ? `<button class="promo-bulk-btn" data-bulk-action="graduate">All Graduate</button>
@@ -158,22 +273,25 @@ function buildGradeGroup(grade, students) {
         : `<button class="promo-bulk-btn" data-bulk-action="promote">All Promote</button>
            <button class="promo-bulk-btn" data-bulk-action="retain">All Retain</button>`
       }
-    </div>
+    </div>` : ''}
   `;
 
-  // Bulk action buttons
-  header.querySelectorAll('.promo-bulk-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const action = btn.dataset.bulkAction;
-      students.forEach(s => { _actionMap[s.id] = action; });
-      tbody.querySelectorAll('tr').forEach(tr => {
-        refreshRowSegment(tr, tr.dataset.studentId, terminal, next);
-      });
-      updateSummaryChips();
-    });
-  });
+  const tbody = document.createElement('tbody');
 
-  // Table
+  if (!isUnknown) {
+    header.querySelectorAll('.promo-bulk-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.dataset.bulkAction;
+        students.forEach(s => { _actionMap[s.id] = action; });
+        tbody.querySelectorAll('tr').forEach(tr => {
+          refreshRowSegment(tr, tr.dataset.studentId, terminal, next);
+        });
+        updateSummaryChips();
+        saveDraft();
+      });
+    });
+  }
+
   const table = document.createElement('table');
   table.className = 'promo-table';
   table.innerHTML = `
@@ -181,14 +299,13 @@ function buildGradeGroup(grade, students) {
       <tr>
         <th>Name</th>
         <th>Student #</th>
-        <th>Action</th>
+        <th>${isUnknown ? 'Status' : 'Action'}</th>
       </tr>
     </thead>
   `;
-  const tbody = document.createElement('tbody');
 
   students.forEach(s => {
-    const tr = buildStudentRow(s, terminal, next);
+    const tr = buildStudentRow(s, terminal, next, isUnknown);
     tbody.appendChild(tr);
   });
 
@@ -198,9 +315,10 @@ function buildGradeGroup(grade, students) {
   return wrap;
 }
 
-function buildStudentRow(s, terminal, next) {
+function buildStudentRow(s, terminal, next, isUnknown) {
   const tr = document.createElement('tr');
   tr.dataset.studentId = s.id;
+  if (isUnknown) tr.classList.add('promo-row-warn');
 
   const nameTd = document.createElement('td');
   nameTd.textContent = `${s.last_name}, ${s.first_name}`;
@@ -210,7 +328,11 @@ function buildStudentRow(s, terminal, next) {
   numTd.textContent = s.student_number ?? '—';
 
   const actionTd = document.createElement('td');
-  actionTd.appendChild(buildSegment(s.id, terminal, next));
+  if (isUnknown) {
+    actionTd.innerHTML = '<span class="promo-skip-label">No grade assigned — will be skipped</span>';
+  } else {
+    actionTd.appendChild(buildSegment(s.id, terminal, next));
+  }
 
   tr.appendChild(nameTd);
   tr.appendChild(numTd);
@@ -245,6 +367,7 @@ function buildSegment(studentId, terminal, next) {
         b.classList.toggle('active', b.dataset.segAction === action)
       );
       updateSummaryChips();
+      saveDraft();
     });
 
     wrap.appendChild(btn);
@@ -287,12 +410,15 @@ async function confirmAndRun() {
     else if (a === 'graduate') graduating++;
   });
 
+  const nullCount = _students.filter(s => !s.grade_level).length;
+
   const confirmed = confirm(
     `Run Year-End Promotion for ${year.replace('-', '–')}?\n\n` +
     `  • ${promoting} students promoted to next grade\n` +
     `  • ${retaining} students retained in current grade\n` +
-    `  • ${graduating} students graduated (marked inactive)\n\n` +
-    `This will update all student records immediately.`
+    `  • ${graduating} students graduated (marked inactive)\n` +
+    (nullCount ? `  • ${nullCount} student(s) SKIPPED — no grade level assigned\n` : '') +
+    `\nThis will update all student records immediately.`
   );
   if (!confirmed) return;
 
@@ -307,18 +433,19 @@ async function runPromotion(year) {
   const graduationYear = parseInt(year.split('-')[1]);
   const errors = [];
 
-  // Snapshot for audit log
+  // Snapshot for audit log (include null-grade students with action 'skipped')
   const snapshot = _students.map(s => ({
     id: s.id,
     grade_level: s.grade_level,
-    action: _actionMap[s.id],
+    action: s.grade_level ? (_actionMap[s.id] ?? 'skipped') : 'skipped',
   }));
 
-  const toPromote  = _students.filter(s => _actionMap[s.id] === 'promote');
-  const toRetain   = _students.filter(s => _actionMap[s.id] === 'retain');
-  const toGraduate = _students.filter(s => _actionMap[s.id] === 'graduate');
+  // Explicitly exclude null-grade students from all action lists
+  const toPromote  = _students.filter(s => s.grade_level && _actionMap[s.id] === 'promote');
+  const toRetain   = _students.filter(s => s.grade_level && _actionMap[s.id] === 'retain');
+  const toGraduate = _students.filter(s => s.grade_level && _actionMap[s.id] === 'graduate');
 
-  // Promote — batch by next grade value (different students may be in different grades)
+  // Promote — batch by next grade value
   const promoteByNextGrade = {};
   toPromote.forEach(s => {
     const ng = nextGrade(s.grade_level);
@@ -335,7 +462,7 @@ async function runPromotion(year) {
     if (error) errors.push(error);
   }
 
-  // Retain — just set retained flag
+  // Retain
   if (toRetain.length) {
     const { error } = await supabase
       .from('students')
@@ -344,7 +471,7 @@ async function runPromotion(year) {
     if (error) errors.push(error);
   }
 
-  // Graduate — mark inactive with graduation year
+  // Graduate
   if (toGraduate.length) {
     const { error } = await supabase
       .from('students')
@@ -371,6 +498,8 @@ async function runPromotion(year) {
     graduated_count: toGraduate.length,
     snapshot,
   });
+
+  clearDraft();
 
   // Reset to initial state
   _students = [];

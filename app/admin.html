@@ -1093,19 +1093,34 @@
           <p class="muted" style="margin:4px 0 0; font-size:13px;">Promote, retain, or graduate all active students before the new school year begins.</p>
         </div>
         <div class="promo-header-actions">
+          <select id="promotionCampus" class="form-input" style="width:160px;"></select>
           <select id="promotionAcademicYear" class="form-input" style="width:140px;"></select>
           <button id="loadPromotionPreviewBtn" class="btn btn-primary">Load Preview</button>
+        </div>
+      </div>
+
+      <!-- Draft restore banner -->
+      <div id="promoDraftBanner" hidden class="promo-draft-banner">
+        <span>Unsaved draft from <strong id="promoDraftDate"></strong> &mdash; <span id="promoDraftCampusLabel"></span></span>
+        <div style="display:flex;gap:8px;">
+          <button id="promoDraftRestore" class="btn btn-sm btn-primary">Restore</button>
+          <button id="promoDraftDiscard" class="btn btn-sm">Discard</button>
         </div>
       </div>
 
       <!-- Empty / initial state -->
       <div id="promotionInitial" class="promo-empty-state">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
-        <p>Select the upcoming school year above and click <strong>Load Preview</strong> to review all students before promoting.</p>
+        <p>Select a campus and upcoming school year above, then click <strong>Load Preview</strong> to review all students before promoting.</p>
       </div>
 
       <!-- Preview (shown after load) -->
       <div id="promotionPreview" hidden>
+
+        <!-- Null grade warning -->
+        <div id="promotionNullWarning" hidden class="promo-null-warning">
+          <strong>Warning:</strong> <span id="promotionNullCount">0</span> student(s) have no grade level assigned and will be skipped. Assign their grade before running promotion.
+        </div>
 
         <!-- Summary chips -->
         <div class="promo-summary-row">
