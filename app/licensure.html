@@ -144,6 +144,47 @@
       border-radius: 4px;
       padding: 1px 5px;
     }
+
+    /* ── File attachment ── */
+    .lic-file-current {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+    }
+    .lic-file-current a { color: #15803d; font-weight: 500; text-decoration: none; }
+    .lic-file-current a:hover { text-decoration: underline; }
+    .lic-file-current svg { flex-shrink: 0; color: #16a34a; }
+
+    .lic-file-choose-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .lic-file-history { margin-top: 8px; }
+    .lic-file-history-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+    .lic-file-old-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      color: #9ca3af;
+      padding: 3px 0;
+    }
+    .lic-file-old-row a { color: #9ca3af; }
+    .lic-file-old-row a:hover { color: #6b7280; }
   </style>
 </head>
 
@@ -516,6 +557,18 @@
     <div class="drawer-field">
       <label>Notes</label>
       <textarea id="licNotes" class="form-input" rows="3" style="resize:vertical;"></textarea>
+    </div>
+
+    <!-- File attachment (edit only: current file + history shown; add: upload only) -->
+    <div class="drawer-field">
+      <label>License Document</label>
+      <div id="licCurrentFile" class="lic-file-current" hidden></div>
+      <div class="lic-file-choose-row">
+        <input type="file" id="licFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+        <button type="button" class="btn btn-sm" id="licFileChooseBtn">Choose File</button>
+        <span id="licFileNameLabel" class="muted" style="font-size:0.82rem;">No file chosen</span>
+      </div>
+      <div id="licFileHistory" class="lic-file-history" hidden></div>
     </div>
 
   </div>

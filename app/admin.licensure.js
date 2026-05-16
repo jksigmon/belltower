@@ -356,6 +356,9 @@ function openEditModal(id) {
     cb.checked = roles.includes(cb.value);
   });
 
+  resetFileSection();
+  loadLicenseFiles(id);
+
   window.openDrawer?.('licenseDrawer');
 }
 
@@ -378,6 +381,7 @@ function resetForm() {
   if (fpExp)   fpExp.clear();
   toggleProvisionalRow(false);
   document.querySelectorAll('.role-checks input[type=checkbox]').forEach(cb => { cb.checked = false; });
+  resetFileSection();
 }
 
 /* ─────────────────────────────────────────────────────
@@ -426,24 +430,37 @@ async function saveLicense() {
     notes:               document.getElementById('licNotes').value.trim() || null,
   };
 
-  let error, data;
+  let licenseId;
 
   if (isEdit) {
     const old = allLicenses.find(l => l.id === editingId);
     const changes = diffObjects(old, payload);
-    ({ error } = await supabase.from('staff_licenses').update(payload).eq('id', editingId));
-    if (!error && Object.keys(changes).length) {
+    const { error } = await supabase.from('staff_licenses').update(payload).eq('id', editingId);
+    if (error) { console.error(error); alert('Failed to save license.'); return; }
+
+    // When expiration_date changes (renewal), clear the alert log so the new
+    // expiration cycle sends fresh threshold alerts.
+    if (old?.expiration_date !== payload.expiration_date) {
+      await supabase.from('license_alert_log').delete().eq('license_id', editingId);
+    }
+
+    if (Object.keys(changes).length) {
       await writeHistory(editingId, schoolId, 'updated', changes);
     }
+    licenseId = editingId;
   } else {
     payload.created_by = currentProfile.user_id;
-    ({ data, error } = await supabase.from('staff_licenses').insert(payload).select().single());
-    if (!error && data) {
-      await writeHistory(data.id, schoolId, 'created', null);
-    }
+    const { data, error } = await supabase.from('staff_licenses').insert(payload).select().single();
+    if (error) { console.error(error); alert('Failed to save license.'); return; }
+    await writeHistory(data.id, schoolId, 'created', null);
+    licenseId = data.id;
   }
 
-  if (error) { console.error(error); alert('Failed to save license.'); return; }
+  // Upload file if one was selected
+  const fileInput = document.getElementById('licFileInput');
+  if (fileInput?.files?.length) {
+    await uploadLicenseFile(licenseId, fileInput.files[0]);
+  }
 
   window.closeDrawer?.('licenseDrawer');
   await loadLicenses();
@@ -466,6 +483,105 @@ async function writeHistory(licenseId, schoolId, changeType, fieldChanges) {
     change_type:   changeType,
     field_changes: fieldChanges,
   });
+}
+
+/* ─────────────────────────────────────────────────────
+   FILE ATTACHMENTS
+───────────────────────────────────────────────────── */
+
+function resetFileSection() {
+  const fileInput = document.getElementById('licFileInput');
+  if (fileInput) fileInput.value = '';
+  const label = document.getElementById('licFileNameLabel');
+  if (label) label.textContent = 'No file chosen';
+  const current = document.getElementById('licCurrentFile');
+  if (current) { current.hidden = true; current.innerHTML = ''; }
+  const history = document.getElementById('licFileHistory');
+  if (history) { history.hidden = true; history.innerHTML = ''; }
+}
+
+async function uploadLicenseFile(licenseId, file) {
+  const ts       = Date.now();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path     = `${currentProfile.school_id}/${licenseId}/${ts}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('license-files')
+    .upload(path, file, { upsert: false });
+
+  if (uploadError) {
+    console.error('File upload failed', uploadError);
+    alert('File upload failed: ' + uploadError.message);
+    return;
+  }
+
+  // Mark any existing files as no longer current
+  await supabase
+    .from('staff_license_files')
+    .update({ is_current: false })
+    .eq('license_id', licenseId);
+
+  // Record the new file
+  await supabase.from('staff_license_files').insert({
+    license_id:  licenseId,
+    school_id:   currentProfile.school_id,
+    file_path:   path,
+    file_name:   file.name,
+    uploaded_by: currentProfile.user_id,
+    is_current:  true,
+  });
+}
+
+async function loadLicenseFiles(licenseId) {
+  const { data: files, error } = await supabase
+    .from('staff_license_files')
+    .select('id, file_name, file_path, uploaded_at, is_current')
+    .eq('license_id', licenseId)
+    .order('uploaded_at', { ascending: false });
+
+  if (error || !files?.length) return;
+  await renderFileSection(files);
+}
+
+async function renderFileSection(files) {
+  const current = files.find(f => f.is_current);
+  const history = files.filter(f => !f.is_current);
+
+  const currentDiv = document.getElementById('licCurrentFile');
+  const historyDiv = document.getElementById('licFileHistory');
+
+  if (current && currentDiv) {
+    const { data: signed } = await supabase.storage
+      .from('license-files')
+      .createSignedUrl(current.file_path, 3600);
+
+    currentDiv.hidden = false;
+    currentDiv.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <a href="${esc(signed?.signedUrl ?? '#')}" target="_blank" rel="noopener">${esc(current.file_name)}</a>
+      <span class="muted" style="font-size:11px;margin-left:auto;">Current</span>
+    `;
+  }
+
+  if (history.length && historyDiv) {
+    // Generate signed URLs for history files in parallel
+    const signedHistoryUrls = await Promise.all(
+      history.map(f => supabase.storage.from('license-files').createSignedUrl(f.file_path, 3600))
+    );
+
+    historyDiv.hidden = false;
+    historyDiv.innerHTML =
+      '<div class="lic-file-history-label">Previous versions</div>' +
+      history.map((f, i) => {
+        const url = signedHistoryUrls[i]?.data?.signedUrl ?? '#';
+        return `
+          <div class="lic-file-old-row">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <a href="${esc(url)}" target="_blank" rel="noopener">${esc(f.file_name)}</a>
+            <span style="margin-left:auto;">${formatDate(f.uploaded_at.slice(0, 10))}</span>
+          </div>`;
+      }).join('');
+  }
 }
 
 /* ─────────────────────────────────────────────────────
@@ -597,6 +713,16 @@ function wireEvents() {
   // Provisional toggle
   document.getElementById('licProvisional')?.addEventListener('change', e => {
     toggleProvisionalRow(e.target.checked);
+  });
+
+  // File choose button
+  document.getElementById('licFileChooseBtn')?.addEventListener('click', () => {
+    document.getElementById('licFileInput')?.click();
+  });
+  document.getElementById('licFileInput')?.addEventListener('change', e => {
+    const file = e.target.files?.[0];
+    const label = document.getElementById('licFileNameLabel');
+    if (label) label.textContent = file ? file.name : 'No file chosen';
   });
 
   // Filters — debounced reload

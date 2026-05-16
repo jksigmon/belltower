@@ -9,21 +9,19 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const FROM_ADDRESS = "Belltower Compliance <compliance@belltower.school>";
+const FROM_ADDRESS = "Belltower <notifications@belltower.school>";
 
 /* ─────────────────────────────────────────────────────
    ENTRY POINT
-   Can be triggered by:
-   - Supabase scheduled function (cron)
-   - Manual POST to /functions/v1/send_license_alerts
-     with optional body: { school_id: "..." } to run for one school
+   Triggered by:
+   - Supabase cron (daily at 8am ET)
+   - Manual POST with optional body: { school_id: "..." }
 ───────────────────────────────────────────────────── */
 serve(async (req) => {
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const targetSchoolId: string | null = body.school_id ?? null;
 
-    // Load all schools with licensure module enabled
     let schoolQuery = supabase
       .from("school_modules")
       .select("school_id")
@@ -61,41 +59,32 @@ serve(async (req) => {
 ───────────────────────────────────────────────────── */
 async function processSchool(schoolId: string, today: Date) {
   const todayStr = today.toISOString().slice(0, 10);
+  const day90    = offsetDate(today, 90);
 
-  // Thresholds: days remaining → alert_type
-  const thresholds = [
-    { days: 7,  type: "7_day"   },
-    { days: 30, type: "30_day"  },
-    { days: 60, type: "60_day"  },
-    { days: 90, type: "90_day"  },
-  ];
-
-  // Load active licenses with upcoming expirations (not already expired, not muted)
-  const windowDate = offsetDate(today, 91);
+  // Load licenses expiring within 90 days OR already expired, not muted, not revoked/suspended
   const { data: licenses, error: licErr } = await supabase
     .from("staff_licenses")
-    .select(`
-      id, employee_id, license_type, license_area, grade_authorization,
-      expiration_date, status, alert_muted, license_number
-    `)
+    .select(`id, employee_id, license_type, license_area, expiration_date, status, alert_muted, license_number`)
     .eq("school_id", schoolId)
     .eq("alert_muted", false)
-    .lte("expiration_date", windowDate)
-    .gte("expiration_date", todayStr)
-    .neq("status", "revoked");
+    .lte("expiration_date", day90)        // within 90-day window OR already expired
+    .neq("status", "revoked")
+    .neq("status", "suspended");
 
   if (licErr) { console.error(licErr); return { error: licErr.message }; }
   if (!licenses?.length) return { alertsSent: 0 };
 
-  // Load already-sent alerts today (to avoid duplicates)
-  const { data: sentToday } = await supabase
+  // Load ALL previously sent alert log entries for this school.
+  // We check all-time (not just today) so each threshold fires only once per
+  // expiration cycle. Alert log entries are cleared on the JS side when
+  // expiration_date changes (license renewal).
+  const { data: sentAlerts } = await supabase
     .from("license_alert_log")
     .select("license_id, alert_type")
-    .eq("school_id", schoolId)
-    .gte("sent_at", todayStr);
+    .eq("school_id", schoolId);
 
   const alreadySent = new Set(
-    (sentToday ?? []).map((r: { license_id: string; alert_type: string }) =>
+    (sentAlerts ?? []).map((r: { license_id: string; alert_type: string }) =>
       `${r.license_id}::${r.alert_type}`
     )
   );
@@ -110,10 +99,10 @@ async function processSchool(schoolId: string, today: Date) {
   const empMap: Record<string, Employee> = {};
   (employees ?? []).forEach((e: Employee) => { empMap[e.id] = e; });
 
-  // Load admin emails (can_manage_licensure)
+  // Load licensure admin emails (for digest)
   const { data: admins } = await supabase
     .from("profiles")
-    .select("email, display_name")
+    .select("email")
     .eq("school_id", schoolId)
     .eq("can_manage_licensure", true)
     .eq("status", "active");
@@ -124,53 +113,52 @@ async function processSchool(schoolId: string, today: Date) {
   const adminDigestItems: DigestItem[] = [];
 
   for (const lic of licenses as License[]) {
-    const daysLeft = daysBetween(todayStr, lic.expiration_date);
+    const daysLeft  = daysBetween(todayStr, lic.expiration_date);
+    const alertType = getAlertType(daysLeft);
+    if (!alertType) continue;
+
     const emp = empMap[lic.employee_id];
     if (!emp?.email) continue;
 
-    // Determine which threshold this license hits (smallest applicable)
-    for (const { days, type } of thresholds) {
-      if (daysLeft > days) continue;
+    const key = `${lic.id}::${alertType}`;
+    if (alreadySent.has(key)) continue; // already sent this threshold for this license
 
-      const key = `${lic.id}::${type}`;
-      if (alreadySent.has(key)) continue;
+    const subject = daysLeft < 0
+      ? `License Expired — Renewal Required`
+      : `License Expiring in ${daysLeft} Day${daysLeft === 1 ? "" : "s"} — Action Required`;
 
-      // Send to employee
-      await sendEmail({
-        to: emp.email,
-        subject: `License Expiring in ${daysLeft} Day${daysLeft === 1 ? "" : "s"} — Action Required`,
-        html: staffAlertEmail({
-          name: emp.first_name,
-          licenseType: lic.license_type,
-          licenseArea: lic.license_area,
-          expDate: formatDate(lic.expiration_date),
-          daysLeft,
-        }),
-      });
-
-      // Log the alert
-      await supabase.from("license_alert_log").insert({
-        school_id:   schoolId,
-        license_id:  lic.id,
-        employee_id: lic.employee_id,
-        alert_type:  type,
-      });
-
-      adminDigestItems.push({
-        name:    `${emp.first_name} ${emp.last_name}`,
-        type:    lic.license_type,
-        area:    lic.license_area,
-        expDate: lic.expiration_date,
+    await sendEmail({
+      to: emp.email,
+      subject,
+      html: staffAlertEmail({
+        name:        emp.first_name,
+        licenseType: lic.license_type,
+        licenseArea: lic.license_area,
+        expDate:     formatDate(lic.expiration_date),
         daysLeft,
-      });
+      }),
+    });
 
-      alreadySent.add(key);
-      alertsSent++;
-      break; // only fire the most urgent threshold per license
-    }
+    await supabase.from("license_alert_log").insert({
+      school_id:   schoolId,
+      license_id:  lic.id,
+      employee_id: lic.employee_id,
+      alert_type:  alertType,
+    });
+
+    adminDigestItems.push({
+      name:    `${emp.first_name} ${emp.last_name}`,
+      type:    lic.license_type,
+      area:    lic.license_area,
+      expDate: lic.expiration_date,
+      daysLeft,
+    });
+
+    alreadySent.add(key);
+    alertsSent++;
   }
 
-  // Send admin digest if there's anything to report
+  // Send admin digest if anything went out
   if (adminDigestItems.length && adminEmails.length) {
     await sendEmail({
       to: adminEmails,
@@ -180,6 +168,19 @@ async function processSchool(schoolId: string, today: Date) {
   }
 
   return { alertsSent };
+}
+
+/* ─────────────────────────────────────────────────────
+   ALERT TYPE RESOLUTION
+   Returns the single alert_type for today's days-remaining value.
+   Each license fires exactly one threshold per expiration cycle.
+───────────────────────────────────────────────────── */
+function getAlertType(daysLeft: number): string | null {
+  if (daysLeft < 0)   return "expired";
+  if (daysLeft <= 30) return "expiring_30";
+  if (daysLeft <= 60) return "expiring_60";
+  if (daysLeft <= 90) return "expiring_90";
+  return null; // more than 90 days out — no alert yet
 }
 
 /* ─────────────────────────────────────────────────────
@@ -193,17 +194,9 @@ async function sendEmail({ to, subject, html }: { to: string | string[]; subject
       Authorization: `Bearer ${RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      from: FROM_ADDRESS,
-      to: toArr,
-      subject,
-      html,
-    }),
+    body: JSON.stringify({ from: FROM_ADDRESS, to: toArr, subject, html }),
   });
-  if (!res.ok) {
-    const err = await res.text();
-    console.error("Resend error:", err);
-  }
+  if (!res.ok) console.error("Resend error:", await res.text());
 }
 
 /* ─────────────────────────────────────────────────────
@@ -213,19 +206,26 @@ function staffAlertEmail({ name, licenseType, licenseArea, expDate, daysLeft }: 
   name: string; licenseType: string; licenseArea: string | null;
   expDate: string; daysLeft: number;
 }) {
-  const urgencyColor = daysLeft <= 7 ? "#dc2626" : daysLeft <= 30 ? "#ea580c" : "#f59e0b";
-  const areaLine = licenseArea ? ` (${licenseArea})` : "";
+  const urgencyColor = daysLeft < 0 ? "#dc2626" : daysLeft <= 30 ? "#ea580c" : "#f59e0b";
+  const areaLine     = licenseArea ? ` (${licenseArea})` : "";
+  const urgencyLabel = daysLeft < 0
+    ? `${Math.abs(daysLeft)} day${Math.abs(daysLeft) === 1 ? "" : "s"} overdue`
+    : `${daysLeft} day${daysLeft === 1 ? "" : "s"} remaining`;
+
   return `
     <div style="font-family:system-ui,sans-serif;max-width:540px;margin:0 auto;">
       <div style="background:#0b2d4f;padding:20px 24px;border-radius:10px 10px 0 0;">
         <p style="color:#f59e0b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;margin:0 0 4px;">Belltower</p>
-        <p style="color:#fff;font-size:18px;font-weight:700;margin:0;">License Expiration Notice</p>
+        <p style="color:#fff;font-size:18px;font-weight:700;margin:0;">${daysLeft < 0 ? "License Expired" : "License Expiration Notice"}</p>
       </div>
       <div style="background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;padding:24px;">
         <p>Hi ${name},</p>
-        <p>Your <strong>${licenseType}${areaLine}</strong> license expires on <strong>${expDate}</strong>.</p>
+        <p>${daysLeft < 0
+          ? `Your <strong>${licenseType}${areaLine}</strong> license expired on <strong>${expDate}</strong> and requires immediate renewal.`
+          : `Your <strong>${licenseType}${areaLine}</strong> license expires on <strong>${expDate}</strong>.`
+        }</p>
         <div style="background:#fef9c3;border-left:4px solid ${urgencyColor};padding:12px 16px;border-radius:6px;margin:16px 0;">
-          <strong style="color:${urgencyColor};">${daysLeft} day${daysLeft === 1 ? "" : "s"} remaining</strong>
+          <strong style="color:${urgencyColor};">${urgencyLabel}</strong>
         </div>
         <p>Please contact your administrator or visit the <a href="https://nclicensure.ncpublicschools.gov" style="color:#0b2d4f;">NC DPI Licensure portal</a> to begin your renewal.</p>
         <p style="color:#9ca3af;font-size:12px;margin-top:24px;">This is an automated message from Belltower. Contact your school administrator with questions.</p>
@@ -239,7 +239,9 @@ function adminDigestEmail(items: DigestItem[]) {
       <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${i.name}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${i.type}${i.area ? " — " + i.area : ""}</td>
       <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;">${formatDate(i.expDate)}</td>
-      <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:${i.daysLeft <= 30 ? "#dc2626" : "#ea580c"};font-weight:600;">${i.daysLeft}d</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:${i.daysLeft < 0 ? "#dc2626" : i.daysLeft <= 30 ? "#ea580c" : "#f59e0b"};font-weight:600;">
+        ${i.daysLeft < 0 ? Math.abs(i.daysLeft) + "d overdue" : i.daysLeft + "d left"}
+      </td>
     </tr>`).join("");
 
   return `
@@ -249,14 +251,14 @@ function adminDigestEmail(items: DigestItem[]) {
         <p style="color:#fff;font-size:18px;font-weight:700;margin:0;">Licensure Compliance Digest</p>
       </div>
       <div style="background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;padding:24px;">
-        <p>The following staff licenses are expiring soon and require attention:</p>
+        <p>The following staff licenses require attention:</p>
         <table style="width:100%;border-collapse:collapse;font-size:14px;">
           <thead>
             <tr style="background:#f9fafb;">
               <th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;">Staff</th>
               <th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;">License</th>
               <th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;">Expires</th>
-              <th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;">Days Left</th>
+              <th style="padding:8px 12px;text-align:left;font-size:11px;text-transform:uppercase;color:#6b7280;">Status</th>
             </tr>
           </thead>
           <tbody>${rows}</tbody>
@@ -296,7 +298,6 @@ interface License {
   employee_id: string;
   license_type: string;
   license_area: string | null;
-  grade_authorization: string | null;
   expiration_date: string;
   status: string;
   alert_muted: boolean;
