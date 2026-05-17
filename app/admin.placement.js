@@ -45,6 +45,13 @@ let _formEmployees = [];  // all employees for create form
 /* ── Entry point ── */
 export async function initPlacementSection(profile) {
   _profile = profile;
+
+  if (!profile.is_superadmin && !profile.can_manage_placement) {
+    document.getElementById('placementSessionListView').innerHTML =
+      '<p class="muted" style="padding:1rem;">You do not have permission to manage class placement.</p>';
+    return;
+  }
+
   if (!_initialized) {
     _initialized = true;
     wireGlobalEvents();

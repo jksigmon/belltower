@@ -206,10 +206,11 @@ function openEditStudentDrawer(r) {
     ? `Grade ${r.grade_level}`
     : (r.families?.family_name ?? '');
 
-  document.getElementById('estuFirst').value    = r.first_name ?? '';
-  document.getElementById('estuLast').value     = r.last_name ?? '';
-  document.getElementById('estuGrade').value    = r.grade_level ?? '';
-  document.getElementById('estuNumber').value   = r.student_number ?? '';
+  document.getElementById('estuFirst').value      = r.first_name ?? '';
+  document.getElementById('estuLast').value       = r.last_name ?? '';
+  document.getElementById('estuGrade').value      = r.grade_level ?? '';
+  document.getElementById('estuNumber').value     = r.student_number ?? '';
+  document.getElementById('estuBirthdate').value  = r.birthdate ?? '';
   document.getElementById('estuRetained').checked = !!r.is_retained;
   document.getElementById('estuActive').checked   = !!r.active;
 
@@ -260,6 +261,7 @@ async function saveEditStudent() {
     homeroom_teacher_id: document.getElementById('estuHomeroom').value || null,
     bus_group_id:        document.getElementById('estuBus').value || null,
     campus_id:           document.getElementById('estuCampus').value || null,
+    birthdate:           document.getElementById('estuBirthdate').value || null,
     is_retained:         document.getElementById('estuRetained').checked,
     active:              document.getElementById('estuActive').checked,
   };
@@ -425,6 +427,7 @@ async function createStudent() {
     bus_group_id:        document.getElementById('studentBusGroup').value || null,
     campus_id:           document.getElementById('studentCampus')?.value || null,
     student_number:      document.getElementById('studentNumber').value.trim() || null,
+    birthdate:           document.getElementById('studentBirthdate').value || null,
     active:              true
   };
 

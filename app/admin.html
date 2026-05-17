@@ -97,8 +97,8 @@
       </button>
       <div class="nav-group" id="navGroup-settings">
         <a href="#schools" id="navSchools" style="display:none;"><i data-lucide="building-2"></i> Schools</a>
-        <a href="#placement" data-cap="can_manage_students"><i data-lucide="layout-grid"></i> Class Placement</a>
-        <a href="#promotion" data-cap="can_manage_students"><i data-lucide="graduation-cap"></i> Year-End Promotion</a>
+        <a href="#placement" data-cap="can_manage_placement"><i data-lucide="layout-grid"></i> Class Placement</a>
+        <a href="#promotion" data-cap="can_manage_placement"><i data-lucide="graduation-cap"></i> Year-End Promotion</a>
         <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access <span class="badge-count" id="accessRequestBadge"></span></a>
         <a href="#bulk-upload" data-cap="can_bulk_upload"><i data-lucide="upload"></i> Bulk Upload</a>
         <a href="#exports" data-cap="can_export_data"><i data-lucide="download"></i> Exports</a>
@@ -149,26 +149,32 @@
     <div class="dash-section-title">Needs Attention</div>
     <div class="stat-grid">
       <a href="/app/pto.html#pending" class="stat stat-alert" id="dashPtoPending" style="display:none;" data-accent="red">
+        <i data-lucide="calendar-clock" class="stat-icon"></i>
         <strong id="statPtoPending">–</strong>
         <span>Pending PTO</span>
       </a>
       <a href="/app/pto.html#cancellations" class="stat stat-alert" id="dashPtoCancels" style="display:none;" data-accent="orange">
+        <i data-lucide="calendar-x" class="stat-icon"></i>
         <strong id="statPtoCancels">–</strong>
         <span>PTO Cancellations</span>
       </a>
       <a href="/app/pto.html#pending" class="stat stat-info" id="dashStaffOut" style="display:none;" data-accent="blue">
+        <i data-lucide="user-minus" class="stat-icon"></i>
         <strong id="statStaffOut">–</strong>
         <span>Staff Out Today</span>
       </a>
       <a href="/app/substitutes.html" class="stat stat-alert" id="dashSubUnassigned" style="display:none;" data-accent="red">
+        <i data-lucide="alert-triangle" class="stat-icon"></i>
         <strong id="statSubUnassigned">–</strong>
         <span>Unassigned Coverage</span>
       </a>
       <a href="/app/substitutes.html" class="stat stat-info" id="dashSubToday" style="display:none;" data-accent="blue">
+        <i data-lucide="user-check" class="stat-icon"></i>
         <strong id="statSubToday">–</strong>
         <span>Sub Assignments Today</span>
       </a>
       <a href="/app/licensure.html" class="stat stat-alert" id="dashLicExpiring" style="display:none;" data-accent="amber">
+        <i data-lucide="shield-alert" class="stat-icon"></i>
         <strong id="statLicExpiring">–</strong>
         <span>Licenses Expiring (30d)</span>
       </a>
@@ -180,6 +186,7 @@
     <div class="dash-section-title">Status</div>
     <div class="stat-grid">
       <a href="/app/carline-input.html" class="stat" id="dashCarline" style="display:none;">
+        <i data-lucide="car" class="stat-icon"></i>
         <strong id="statCarlineStatus">–</strong>
         <span id="statCarlineTime" class="stat-sub"></span>
         <span id="statCarlineDismissed" class="stat-sub"></span>
@@ -187,6 +194,7 @@
         <span style="margin-top:6px;">Carline Today</span>
       </a>
       <div class="stat" id="dashActiveStaff" style="display:none;" data-accent="blue">
+        <i data-lucide="users" class="stat-icon"></i>
         <strong id="statActiveStaff">–</strong>
         <span id="statActiveStaffSub"></span>
         <span>Staff</span>
@@ -199,18 +207,22 @@
     <div class="dash-section-title">Directory</div>
     <div class="stat-grid">
       <a href="#students" class="stat dash-stat-link" data-accent="blue">
+        <i data-lucide="graduation-cap" class="stat-icon"></i>
         <strong id="statStudents">–</strong>
         <span>Students</span>
       </a>
       <a href="#staff" class="stat dash-stat-link" data-accent="blue">
+        <i data-lucide="users" class="stat-icon"></i>
         <strong id="statStaff">–</strong>
         <span id="statStaffLabel">Staff</span>
       </a>
       <a href="#families" class="stat dash-stat-link" data-accent="blue">
+        <i data-lucide="home" class="stat-icon"></i>
         <strong id="statFamilies">–</strong>
         <span>Families</span>
       </a>
       <a href="#bus" class="stat dash-stat-link" data-accent="blue">
+        <i data-lucide="bus" class="stat-icon"></i>
         <strong id="statBusGroups">–</strong>
         <span>Bus Groups</span>
       </a>
@@ -222,14 +234,21 @@
     <div class="dash-section-title">Data Health</div>
     <div class="stat-grid">
       <a href="#students" class="stat stat-warn" id="dashNoFamily" style="display:none;" data-accent="amber">
+        <i data-lucide="user-x" class="stat-icon"></i>
         <strong id="statNoFamily">–</strong>
         <span>Students Without Family</span>
       </a>
       <a href="#staff" class="stat stat-warn" id="dashNoSupervisor" style="display:none;" data-accent="amber">
+        <i data-lucide="user-x" class="stat-icon"></i>
         <strong id="statNoSupervisor">–</strong>
         <span>Staff Without Supervisor</span>
       </a>
     </div>
+  </div>
+
+  <div class="dash-section" id="dashBirthdays" style="display:none;">
+    <div class="dash-section-title">Upcoming Birthdays</div>
+    <div id="dashBirthdayList" class="staff-dash-list"></div>
   </div>
 
   </div><!-- /dashGrid -->
@@ -392,6 +411,7 @@
         <label data-module="carline"><input type="checkbox" data-field="can_manage_carline"> Manage carline (start/close)</label>
 		<label data-module="staff"><input type="checkbox" data-field="can_manage_staff"> Manage staff</label>
 		<label data-module="students"><input type="checkbox" data-field="can_manage_students"> Manage students</label>
+		<label data-module="students"><input type="checkbox" data-field="can_manage_placement"> Class placement &amp; promotion</label>
 		<label data-module="families"><input type="checkbox" data-field="can_manage_families"> Manage families</label>
 		<label data-module="guardians"><input type="checkbox" data-field="can_manage_guardians"> Manage guardians</label>
 		<label data-module="bus_groups"><input type="checkbox" data-field="can_manage_bus_groups"> Manage bus groups</label>
@@ -1416,6 +1436,10 @@
         </select>
       </div>
     </div>
+    <div class="drawer-field">
+      <label>Date of Birth</label>
+      <input id="studentBirthdate" type="date" class="form-input" />
+    </div>
   </div>
   <div class="drawer-footer">
     <button class="btn" onclick="closeDrawer('studentDrawer')">Cancel</button>
@@ -1491,6 +1515,10 @@
         <label>Campus</label>
         <select id="estuCampus" class="form-input"></select>
       </div>
+    </div>
+    <div class="drawer-field">
+      <label>Date of Birth</label>
+      <input id="estuBirthdate" type="date" class="form-input" />
     </div>
     <div class="drawer-field">
       <label class="staff-active-label">

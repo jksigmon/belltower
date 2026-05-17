@@ -498,6 +498,11 @@
         <div id="staffDashLicenseList" class="staff-dash-list"></div>
       </div>
 
+      <div class="dash-section" id="staffDashBirthdays" style="display:none;">
+        <div class="dash-section-title">Upcoming Birthdays</div>
+        <div id="staffDashBirthdayList" class="staff-dash-list"></div>
+      </div>
+
     </div>
   </section>
 
@@ -966,6 +971,14 @@ async function loadStaffDashboard() {
       .order('expiration_date');
   }
 
+  if (p.employee_id) {
+    queries.homeroomBirthdays = supabase.from('students')
+      .select('first_name, last_name, birthdate')
+      .eq('homeroom_teacher_id', p.employee_id)
+      .eq('active', true)
+      .not('birthdate', 'is', null);
+  }
+
   const keys    = Object.keys(queries);
   const results = await Promise.all(keys.map(k => queries[k]));
   const r       = Object.fromEntries(keys.map((k, i) => [k, results[i]]));
@@ -1055,6 +1068,37 @@ async function loadStaffDashboard() {
         '</div>';
     }).join('');
     document.getElementById('staffDashLicenses').style.display = '';
+  }
+
+  // Homeroom upcoming birthdays (7 days)
+  if (r.homeroomBirthdays?.data?.length) {
+    var todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
+    var upcoming = [];
+    r.homeroomBirthdays.data.forEach(function (s) {
+      var parts = s.birthdate.split('-').map(Number);
+      var bYear = parts[0], bMonth = parts[1], bDay = parts[2];
+      var bday = new Date(todayDate.getFullYear(), bMonth - 1, bDay);
+      if (bday < todayDate) bday = new Date(todayDate.getFullYear() + 1, bMonth - 1, bDay);
+      var daysLeft = Math.round((bday - todayDate) / 86400000);
+      if (daysLeft <= 7) {
+        upcoming.push({ name: s.first_name + ' ' + s.last_name, age: bday.getFullYear() - bYear, daysLeft: daysLeft, bday: bday });
+      }
+    });
+    upcoming.sort(function (a, b) { return a.daysLeft - b.daysLeft; });
+
+    if (upcoming.length > 0) {
+      var list = document.getElementById('staffDashBirthdayList');
+      var fmtBday = function (d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
+      list.innerHTML = upcoming.map(function (s) {
+        var when = s.daysLeft === 0 ? 'Today!' : s.daysLeft === 1 ? 'Tomorrow' : 'in ' + s.daysLeft + ' days';
+        return '<div class="staff-dash-request-row">' +
+          '<span class="staff-dash-req-type">' + s.name + '</span>' +
+          '<span class="staff-dash-req-dates">Turning ' + s.age + ' — ' + fmtBday(s.bday) + '</span>' +
+          '<span class="staff-dash-req-badge" style="background:#fef9c3;color:#713f12;">' + when + '</span>' +
+          '</div>';
+      }).join('');
+      document.getElementById('staffDashBirthdays').style.display = '';
+    }
   }
 
 }

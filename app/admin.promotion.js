@@ -93,6 +93,12 @@ function restoreDraft() {
 export async function initPromotionSection(profile) {
   _profile = profile;
 
+  if (!profile.is_superadmin && !profile.can_manage_placement) {
+    document.getElementById('promotionPreview').innerHTML =
+      '<p class="muted" style="padding:1rem;">You do not have permission to manage grade promotion.</p>';
+    return;
+  }
+
   populateYearSelect();
   await populateCampusSelect();
 

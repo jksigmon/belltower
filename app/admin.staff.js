@@ -476,7 +476,7 @@ function wireStaticEvents() {
   // Licensure nav link
   document.getElementById('esLicensureLink')?.addEventListener('click', () => {
     window.closeDrawer?.('editStaffDrawer');
-    window.location.hash = '#licensure';
+    window.location.href = `/app/licensure.html?employee=${editingEmpId}`;
   });
 }
 

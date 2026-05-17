@@ -46,7 +46,14 @@ async function init() {
   wireEvents();
   initDatePickers();
 
-  await setView('compliance');
+  const empParam = new URLSearchParams(window.location.search).get('employee');
+  if (empParam && employeeLookup[empParam]) {
+    const searchEl = document.getElementById('licSearch');
+    if (searchEl) searchEl.value = employeeLookup[empParam];
+    await setView('licenses');
+  } else {
+    await setView('compliance');
+  }
 }
 
 /* ─────────────────────────────────────────────────────
