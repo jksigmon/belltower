@@ -38,6 +38,7 @@ export async function initStudentsSection(profile) {
         family_id,
         active,
         is_retained,
+        birthdate,
         withdrawn_at,
         withdrawal_reason,
         families!inner(carline_tag_number, family_name),
@@ -341,7 +342,7 @@ async function loadDrawerGuardians(familyId) {
   list.innerHTML = '<span style="font-size:13px;color:var(--text-muted);">Loading…</span>';
   const { data } = await supabase
     .from('guardians')
-    .select('first_name, last_name, phone, relationship')
+    .select('first_name, last_name, phone')
     .eq('family_id', familyId)
     .order('last_name');
   if (!data?.length) {
@@ -351,7 +352,6 @@ async function loadDrawerGuardians(familyId) {
   list.innerHTML = data.map(g => `
     <div class="guardian-chip">
       <span class="guardian-chip-name">${esc(g.first_name)} ${esc(g.last_name)}</span>
-      ${g.relationship ? `<span class="guardian-chip-rel">${esc(g.relationship)}</span>` : ''}
       ${g.phone ? `<a class="guardian-chip-phone" href="tel:${esc(g.phone)}">${esc(g.phone)}</a>` : ''}
     </div>
   `).join('');

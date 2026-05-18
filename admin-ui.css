@@ -3348,13 +3348,75 @@ a.stat, a.dash-stat-link {
   }
 
   .admin-logo {
-    height: 42px;
-    transform: scale(2.1);
+    height: 36px;
+    transform: scale(1.72);  /* ~62px visual — stays within 72px header */
   }
 
   .header-left {
     min-width: unset;
     gap: 8px;
+  }
+
+  /* --- Welcome banner: auto-height and compact on mobile --- */
+  .dash-banner {
+    height: auto;
+    padding: 14px 20px;
+  }
+
+  .dash-banner-inner {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .dash-banner-name {
+    font-size: 1.1rem;
+  }
+
+  .dash-banner-school > div:last-child {
+    font-size: 0.8rem;
+  }
+
+  /* Date string is too long for mobile — hide it */
+  .dash-banner-date {
+    display: none;
+  }
+
+  /* --- School switcher: collapse to icon-only button on mobile --- */
+  .school-switcher-wrap {
+    position: relative;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    padding: 0;
+    gap: 0;
+    border-radius: 8px;
+    overflow: visible;
+  }
+
+  .school-switcher-wrap svg {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0.9;
+    pointer-events: none;
+    z-index: 1;
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Invisible full-size overlay — tap triggers native school picker */
+  #schoolSwitcher {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    font-size: 16px; /* prevent iOS auto-zoom on focus */
+    cursor: pointer;
+    z-index: 2;
+    max-width: unset;
   }
 
   .back-to-admin {
