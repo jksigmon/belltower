@@ -1,5 +1,6 @@
 // admin.access.js
 import { supabase } from './admin.supabase.js';
+import { esc } from './admin.shared.js';
 
 let currentProfile;
 let currentModules = {};
@@ -30,7 +31,8 @@ const ACCESS_ROLE_PRESETS = {
     can_view_carline: false,
     can_bulk_upload: false,
     can_export_data: false,
-    can_manage_licensure: false
+    can_manage_licensure: false,
+    can_manage_compliance: false
   },
   office: {
     can_login: true,
@@ -52,7 +54,8 @@ const ACCESS_ROLE_PRESETS = {
     can_view_carline: true,
     can_bulk_upload: false,
     can_export_data: true,
-    can_manage_licensure: false
+    can_manage_licensure: false,
+    can_manage_compliance: false
   },
   admin: {
     can_login: true,
@@ -75,7 +78,8 @@ const ACCESS_ROLE_PRESETS = {
     can_view_carline: true,
     can_bulk_upload: true,
     can_export_data: true,
-    can_manage_licensure: true
+    can_manage_licensure: true,
+    can_manage_compliance: true
   }
 };
 
@@ -155,7 +159,18 @@ async function loadAccessProfile(profileId) {
 
   const { data: p, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select(`
+      id, user_id, school_id, employee_id,
+      display_name, email, status, is_superadmin,
+      can_login, can_access_admin, can_manage_access,
+      can_view_pto_calendar, can_review_pto, can_approve_pto,
+      is_fallback_approver, can_adjust_pto, can_generate_pto_reports,
+      can_view_carline, can_manage_carline,
+      can_manage_staff, can_manage_students, can_manage_placement,
+      can_manage_families, can_manage_guardians, can_manage_bus_groups,
+      can_manage_carpools, can_manage_substitutes, can_manage_campuses,
+      can_bulk_upload, can_export_data, can_manage_licensure, can_manage_compliance
+    `)
     .eq('id', profileId)
     .single();
 
@@ -165,7 +180,7 @@ async function loadAccessProfile(profileId) {
   }
 
   document.getElementById('accessUserMeta').innerHTML = `
-    <strong>${p.display_name ?? '—'}</strong><br>${p.email}
+    <strong>${esc(p.display_name ?? '—')}</strong><br>${esc(p.email)}
   `;
 
   if (!p.user_id) {
@@ -219,7 +234,8 @@ async function toggleAccessPermission(cb) {
   const { error } = await supabase
     .from('profiles')
     .update({ [field]: cb.checked })
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .eq('school_id', currentProfile.school_id);
 
   if (error) {
     console.error('Permission update failed', error);
@@ -312,8 +328,8 @@ async function loadPendingUsers() {
   data.forEach(p => {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${p.display_name ?? '—'}</td>
-      <td>${p.email}</td>
+      <td>${esc(p.display_name ?? '—')}</td>
+      <td>${esc(p.email)}</td>
       <td><button class="btn btn-primary">Activate</button></td>
     `;
 
