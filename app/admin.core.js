@@ -318,6 +318,12 @@ async function loadDashboardStats() {
       .not('birthdate', 'is', null);
   }
 
+  queries.staffBirthdays = supabase.from('employees')
+    .select('first_name, last_name, birthdate')
+    .eq('school_id', schoolId)
+    .eq('active', true)
+    .not('birthdate', 'is', null);
+
   const canSeeHealth = p.is_superadmin || p.can_access_admin || p.can_manage_access;
   if (canSeeHealth) {
     queries.noFamily     = supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).is('family_id', null);
@@ -460,33 +466,46 @@ async function loadDashboardStats() {
   }
 
   // ── Upcoming Birthdays ────────────────────────────────────────────
-  if (r.studentBirthdays?.data?.length) {
+  {
     const todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
-    const upcoming = [];
-    r.studentBirthdays.data.forEach(s => {
-      const [bYear, bMonth, bDay] = s.birthdate.split('-').map(Number);
-      let bday = new Date(todayDate.getFullYear(), bMonth - 1, bDay);
-      if (bday < todayDate) bday = new Date(todayDate.getFullYear() + 1, bMonth - 1, bDay);
-      const daysLeft = Math.round((bday - todayDate) / 86400000);
-      if (daysLeft <= 7) {
-        const age = bday.getFullYear() - bYear;
-        upcoming.push({ name: `${s.first_name} ${s.last_name}`, age, daysLeft, bday });
-      }
-    });
-    upcoming.sort((a, b) => a.daysLeft - b.daysLeft);
+    const fmtBday = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const allBdays = [];
 
-    if (upcoming.length > 0) {
+    const collectBdays = (rows, type) => {
+      (rows || []).forEach(s => {
+        if (!s.birthdate) return;
+        const [bYear, bMonth, bDay] = s.birthdate.split('-').map(Number);
+        let bday = new Date(todayDate.getFullYear(), bMonth - 1, bDay);
+        if (bday < todayDate) bday = new Date(todayDate.getFullYear() + 1, bMonth - 1, bDay);
+        const daysLeft = Math.round((bday - todayDate) / 86400000);
+        if (daysLeft <= 7) {
+          allBdays.push({ name: `${s.first_name} ${s.last_name}`, age: bday.getFullYear() - bYear, daysLeft, bday, type });
+        }
+      });
+    };
+
+    collectBdays(r.studentBirthdays?.data, 'student');
+    collectBdays(r.staffBirthdays?.data, 'staff');
+    allBdays.sort((a, b) => a.daysLeft - b.daysLeft);
+
+    if (allBdays.length > 0) {
       const list = document.getElementById('dashBirthdayList');
-      const fmtBday = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const ul = document.createElement('ul');
       ul.style.cssText = 'list-style:none;margin:0;padding:0;';
-      upcoming.forEach(s => {
-        const when = s.daysLeft === 0 ? 'Today!' : s.daysLeft === 1 ? 'Tomorrow' : `in ${s.daysLeft} days`;
+      allBdays.forEach(s => {
+        const isToday = s.daysLeft === 0;
+        const when = isToday ? 'Today!' : s.daysLeft === 1 ? 'Tomorrow' : `In ${s.daysLeft} days`;
+        const secondary  = s.type === 'student' ? `Turning ${s.age} — ${fmtBday(s.bday)}` : fmtBday(s.bday);
+        const badgeBg    = s.type === 'staff' ? '#dbeafe' : '#fef9c3';
+        const badgeColor = s.type === 'staff' ? '#1e40af' : '#713f12';
+        const prefix     = s.type === 'staff' ? 'Staff · ' : '';
         const li = document.createElement('li');
         li.className = 'staff-dash-request-row';
-        li.innerHTML = `<span class="staff-dash-req-type">${esc(s.name)}</span>
-          <span class="staff-dash-req-dates">Turning ${s.age} — ${fmtBday(s.bday)}</span>
-          <span class="staff-dash-req-badge" style="background:#fef9c3;color:#713f12;">${esc(when)}</span>`;
+        li.innerHTML = `
+          <span class="staff-dash-req-type">${esc(s.name)}</span>
+          <span class="staff-dash-req-dates">${secondary}</span>
+          <span class="staff-dash-req-badge${isToday ? ' bday-today' : ''}" style="background:${badgeBg};color:${badgeColor};">${prefix}${when}</span>
+        `;
         ul.appendChild(li);
       });
       list.innerHTML = '';

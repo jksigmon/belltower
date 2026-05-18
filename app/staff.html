@@ -1296,7 +1296,7 @@ async function loadStaffDashboard() {
         return '<div class="staff-dash-request-row">' +
           '<span class="staff-dash-req-type">' + item.name + '</span>' +
           '<span class="staff-dash-req-dates">' + secondary + '</span>' +
-          '<span class="staff-dash-req-badge" style="background:' + badgeBg + ';color:' + badgeColor + ';">' + prefix + when + '</span>' +
+          '<span class="staff-dash-req-badge' + (item.daysLeft === 0 ? ' bday-today' : '') + '" style="background:' + badgeBg + ';color:' + badgeColor + ';">' + prefix + when + '</span>' +
           '</div>';
       }).join('');
       document.getElementById('staffDashBirthdays').style.display = '';

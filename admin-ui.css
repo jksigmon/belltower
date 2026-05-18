@@ -2776,6 +2776,40 @@ nav a[data-cap-group] {
 [data-accent="amber"]  { border-top: 3px solid #f59e0b; }
 [data-accent="green"]  { border-top: 3px solid #16a34a; }
 
+/* ── Birthday section — festive styling ──────────────────────── */
+#dashBirthdays,
+#staffDashBirthdays {
+  background: linear-gradient(135deg, #fffbeb 0%, #fdf4ff 55%, #eff6ff 100%);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 14px;
+  padding: 16px 20px;
+}
+
+#dashBirthdays .dash-section-title::before,
+#staffDashBirthdays .dash-section-title::before {
+  content: '🎂  ';
+}
+
+#dashBirthdays .staff-dash-request-row,
+#staffDashBirthdays .staff-dash-request-row {
+  background: rgba(255, 255, 255, 0.72);
+  border-left: 3px solid #f59e0b;
+}
+
+@keyframes bday-pulse {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.1); }
+}
+
+.bday-today {
+  animation: bday-pulse 1.5s ease-in-out infinite;
+  background: #fef08a !important;
+  color: #854d0e !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3);
+}
+
+/* ── End birthday styling ─────────────────────────────────────── */
+
 .dash-welcome { margin-bottom: 4px; }
 .dash-welcome h1 { margin-bottom: 2px; }
 
