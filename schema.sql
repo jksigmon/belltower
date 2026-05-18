@@ -784,7 +784,8 @@ CREATE TABLE public.carline_events (
     closed_at timestamp with time zone,
     closed_by_user_id uuid,
     created_by_profile_id uuid,
-    closed_by_profile_id uuid
+    closed_by_profile_id uuid,
+    all_call_at timestamp with time zone
 );
 
 
@@ -2630,7 +2631,7 @@ CREATE POLICY carline_events_delete_admin ON public.carline_events FOR DELETE US
 
 CREATE POLICY carline_events_insert_admin ON public.carline_events FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text) OR (p.can_manage_carline = true))))));
 
 
 --
@@ -2648,7 +2649,7 @@ CREATE POLICY carline_events_read_same_school ON public.carline_events FOR SELEC
 
 CREATE POLICY carline_events_update_admin ON public.carline_events FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text) OR (p.can_manage_carline = true))))));
 
 
 --
