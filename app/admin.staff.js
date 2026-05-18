@@ -41,7 +41,8 @@ export async function initStaffSection(profile) {
         active,
         supervisor_id,
         campus_id,
-        employment_months
+        employment_months,
+        birthdate
       `,
 
       searchFields: [
@@ -225,12 +226,13 @@ function openEditStaffDrawer(emp) {
   document.getElementById('esTitle').textContent    = `${emp.first_name} ${emp.last_name}`;
   document.getElementById('esSubtitle').textContent = emp.position ?? '';
 
-  document.getElementById('esFirst').value   = emp.first_name ?? '';
-  document.getElementById('esLast').value    = emp.last_name ?? '';
-  document.getElementById('esEmail').value   = emp.email ?? '';
+  document.getElementById('esFirst').value    = emp.first_name ?? '';
+  document.getElementById('esLast').value     = emp.last_name ?? '';
+  document.getElementById('esEmail').value    = emp.email ?? '';
   document.getElementById('esPosition').value = emp.position ?? '';
-  document.getElementById('esMonths').value  = emp.employment_months ?? '';
-  document.getElementById('esActive').checked = !!emp.active;
+  document.getElementById('esMonths').value   = emp.employment_months ?? '';
+  document.getElementById('esBirthdate').value = emp.birthdate ?? '';
+  document.getElementById('esActive').checked  = !!emp.active;
 
   // Supervisor dropdown
   const supSel = document.getElementById('esSupervisor');
@@ -267,6 +269,7 @@ async function saveEditStaff() {
     supervisor_id:     document.getElementById('esSupervisor').value || null,
     campus_id:         document.getElementById('esCampus').value || null,
     employment_months: empMonthsVal ? parseInt(empMonthsVal) : null,
+    birthdate:         document.getElementById('esBirthdate').value || null,
     active:            document.getElementById('esActive').checked,
   };
 
@@ -529,6 +532,7 @@ async function createStaff() {
   const campusId     = document.getElementById('staffCampusAdd')?.value || null;
   const empMonthsRaw = document.getElementById('staffEmploymentMonths')?.value;
   const employmentMonths = empMonthsRaw ? parseInt(empMonthsRaw) : null;
+  const birthdate = document.getElementById('staffBirthdate')?.value || null;
 
   if (!first || !last) { alert('First and last name required'); return; }
 
@@ -541,6 +545,7 @@ async function createStaff() {
     supervisor_id:     supervisorId,
     campus_id:         campusId,
     employment_months: employmentMonths,
+    birthdate,
     active:            true
   });
 
@@ -552,6 +557,7 @@ async function createStaff() {
   const sup = document.getElementById('staffSupervisor'); if (sup) sup.value = '';
   const cam = document.getElementById('staffCampusAdd');  if (cam) cam.value = '';
   const mos = document.getElementById('staffEmploymentMonths'); if (mos) mos.value = '';
+  const bdt = document.getElementById('staffBirthdate');  if (bdt) bdt.value = '';
 
   window.closeDrawer?.('staffDrawer');
   staffDirectory.load();

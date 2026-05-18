@@ -904,7 +904,8 @@ CREATE TABLE public.employees (
     pto_allotment_month integer DEFAULT 1,
     supervisor_id uuid,
     profile_id uuid,
-    employment_months smallint
+    employment_months smallint,
+    birthdate date
 );
 
 

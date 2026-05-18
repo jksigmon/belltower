@@ -145,7 +145,7 @@
     </div>
   </div>
 
-  <!-- Needs Attention (JS-gated) -->
+  <!-- Needs Attention (JS-gated) — birthdays follow immediately below -->
   <div class="dash-section" id="dashAttention" style="display:none;">
     <div class="dash-section-title">Needs Attention</div>
     <div class="stat-grid">
@@ -190,6 +190,11 @@
         <span>Agreements Expiring (30d)</span>
       </a>
     </div>
+  </div>
+
+  <div class="dash-section" id="dashBirthdays" style="display:none;">
+    <div class="dash-section-title">Upcoming Birthdays</div>
+    <div id="dashBirthdayList" class="staff-dash-list"></div>
   </div>
 
   <!-- Status (JS-gated) -->
@@ -255,11 +260,6 @@
         <span>Staff Without Supervisor</span>
       </a>
     </div>
-  </div>
-
-  <div class="dash-section" id="dashBirthdays" style="display:none;">
-    <div class="dash-section-title">Upcoming Birthdays</div>
-    <div id="dashBirthdayList" class="staff-dash-list"></div>
   </div>
 
   </div><!-- /dashGrid -->
@@ -1278,6 +1278,10 @@
         </select>
       </div>
     </div>
+    <div class="drawer-field">
+      <label>Birthday</label>
+      <input id="staffBirthdate" class="form-input" type="date" />
+    </div>
   </div>
   <div class="drawer-footer">
     <button class="btn" onclick="closeDrawer('staffDrawer')">Cancel</button>
@@ -1336,6 +1340,10 @@
           <option value="12">12-Month</option>
         </select>
       </div>
+    </div>
+    <div class="drawer-field">
+      <label>Birthday</label>
+      <input id="esBirthdate" class="form-input" type="date" />
     </div>
     <div class="drawer-field">
       <label class="staff-active-label">
