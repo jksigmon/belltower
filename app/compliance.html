@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compliance</title>
+  <link rel="stylesheet" href="/admin-ui.css" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+
+  <style>
+    /* ── Tabs ── */
+    .compliance-tabs {
+      display: flex;
+      gap: 4px;
+      border-bottom: 2px solid var(--border, #e5e7eb);
+      margin-bottom: 20px;
+    }
+    .compliance-tab {
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary, #6b7280);
+      cursor: pointer;
+      border: none;
+      background: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      border-radius: 4px 4px 0 0;
+      font-family: inherit;
+      transition: color 0.12s;
+    }
+    .compliance-tab:hover { color: var(--text-primary, #111827); }
+    .compliance-tab.active {
+      color: var(--primary, #2563eb);
+      border-bottom-color: var(--primary, #2563eb);
+    }
+    .compliance-panel { display: none; }
+    .compliance-panel.active { display: block; }
+
+    /* ── BG Check status pills ── */
+    .bg-status-pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .bg-status-pending   { background: #eff6ff; color: #1d4ed8; }
+    .bg-status-submitted { background: #fef3c7; color: #92400e; }
+    .bg-status-cleared   { background: #dcfce7; color: #15803d; }
+    .bg-status-expired   { background: #fee2e2; color: #991b1b; }
+    .bg-status-cancelled { background: #f1f5f9; color: #64748b; }
+
+    /* ── BG Drawer detail fields ── */
+    .bg-detail-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
+    .bg-detail-label { font-size: 11px; font-weight: 700; color: var(--text-muted, #9ca3af); text-transform: uppercase; letter-spacing: 0.06em; }
+    .bg-detail-value { font-size: 14px; color: var(--text-primary, #111827); }
+
+    /* ── Template cards ── */
+    .template-card {
+      background: #fff;
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 10px;
+      padding: 16px 18px;
+      margin-bottom: 12px;
+    }
+    .template-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+    .template-card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .link-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      border-top: 1px solid var(--border, #e5e7eb);
+      flex-wrap: wrap;
+    }
+
+    /* ── Badges ── */
+    .badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; white-space:nowrap; }
+    .badge-active   { background:#dcfce7; color:#15803d; }
+    .badge-suspended{ background:#f1f5f9; color:#475569; }
+    .badge-expired  { background:#fee2e2; color:#991b1b; }
+    .badge-revoked  { background:#fce7f3; color:#9d174d; }
+
+    /* ── Shared input style for filter bars ── */
+    .admin-input {
+      height: 34px;
+      padding: 0 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      background: #fff;
+      color: #0f172a;
+      font-family: inherit;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .admin-input:focus {
+      outline: none;
+      border-color: #0b2d4f;
+      box-shadow: 0 0 0 3px rgba(11, 45, 79, 0.08);
+    }
+    select.admin-input {
+      padding-right: 28px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+
+    /* ── Extend drawer-field to cover textarea ── */
+    .drawer-field textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      background: #fff;
+      color: #0f172a;
+      font-family: inherit;
+      resize: vertical;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .drawer-field textarea:focus {
+      outline: none;
+      border-color: #0b2d4f;
+      box-shadow: 0 0 0 3px rgba(11, 45, 79, 0.08);
+    }
+  </style>
+</head>
+
+<body class="admin-page">
+<header>
+  <div class="header-left">
+    <button id="hamburgerBtn" class="hamburger-btn" aria-label="Open navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="/admin.html" class="btn btn-admin back-to-admin" aria-label="Admin home">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </a>
+  </div>
+
+  <div class="page-header">
+    <img src="/images/belltower-logo.png" alt="Belltower" class="admin-logo" />
+    <div class="page-subtitle" id="pageSubtitle">Compliance</div>
+  </div>
+
+  <div class="header-actions">
+    <div class="user-menu" id="userMenu">
+      <button class="user-avatar" id="userAvatar" aria-label="Account menu" aria-expanded="false">
+        <span id="userInitials"></span>
+      </button>
+      <div class="user-dropdown" id="userDropdown" hidden>
+        <div class="user-dropdown-header">
+          <div class="user-dropdown-name" id="userDropdownName"></div>
+        </div>
+        <a href="/help.html" class="user-dropdown-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Help
+        </a>
+        <div class="user-dropdown-divider"></div>
+        <button class="user-dropdown-item signout" id="signOut">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div id="navOverlay" class="nav-overlay"></div>
+<div class="wrap">
+  <nav id="sideNav" class="nav hidden">
+    <a href="/admin.html"><i data-lucide="home"></i> Dashboard</a>
+  </nav>
+
+  <main>
+
+    <div class="compliance-tabs" role="tablist">
+      <button class="compliance-tab active" data-tab="bgchecks"   role="tab" aria-selected="true">Background Checks</button>
+      <button class="compliance-tab"        data-tab="templates"  role="tab" aria-selected="false">Form Templates</button>
+      <button class="compliance-tab"        data-tab="agreements" role="tab" aria-selected="false">Agreements</button>
+      <button class="compliance-tab"        data-tab="settings"   role="tab" aria-selected="false">Settings</button>
+    </div>
+
+    <!-- ══ BACKGROUND CHECKS ══════════════════════════════════════════ -->
+    <div id="tab-bgchecks" class="compliance-panel active">
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+          <h3 style="margin:0;">Background Check Requests</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <input type="text" id="bgSearch" class="admin-input" placeholder="Search name or email…" style="width:200px;">
+            <select id="bgRequestorFilter" class="admin-input" style="min-width:150px;max-width:220px;width:auto;">
+              <option value="">All requestors</option>
+            </select>
+            <select id="bgStatusFilter" class="admin-input" style="min-width:140px;max-width:180px;width:auto;">
+              <option value="">All statuses</option>
+              <option value="pending">Pending</option>
+              <option value="submitted">Submitted</option>
+              <option value="cleared">Cleared</option>
+              <option value="expired">Expired</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Subject</th>
+                <th>Email</th>
+                <th>Requested by</th>
+                <th>Roles</th>
+                <th>Status</th>
+                <th>Cleared</th>
+                <th>Expires</th>
+                <th>Requested</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="bgCheckTableBody">
+              <tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ FORM TEMPLATES ════════════════════════════════════════════ -->
+    <div id="tab-templates" class="compliance-panel">
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+          <h3 style="margin:0;">Form Templates</h3>
+          <button class="btn btn-primary btn-sm" id="newTemplateBtn">+ New Template</button>
+        </div>
+        <p class="muted" style="font-size:13px;margin-bottom:16px;">
+          Each template is one form type (e.g. Confidentiality Agreement). Create shareable links to distribute — each link generates a unique, non-guessable URL.
+        </p>
+        <div id="templateListWrap">
+          <p class="muted" style="padding:20px 0;">Loading…</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ AGREEMENTS ════════════════════════════════════════════════ -->
+    <div id="tab-agreements" class="compliance-panel">
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+          <h3 style="margin:0;">Signed Agreements</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <input type="text" id="agreementSearch" class="admin-input" placeholder="Search by name or email…" style="width:220px;">
+            <select id="agreementTemplateFilter" class="admin-input" style="min-width:180px;max-width:280px;width:auto;">
+              <option value="">All forms</option>
+            </select>
+            <select id="agreementLinkFilter" class="admin-input" style="min-width:140px;max-width:200px;width:auto;">
+              <option value="">All records</option>
+              <option value="auto_linked">Auto-linked</option>
+              <option value="manual_linked">Manually linked</option>
+              <option value="unresolved">Unresolved</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Signer</th>
+                <th>Email</th>
+                <th>Form</th>
+                <th>Signed</th>
+                <th>Expires</th>
+                <th>Status</th>
+                <th>Guardian link</th>
+                <th>Data</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="agreementTableBody">
+              <tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SETTINGS ══════════════════════════════════════════════════ -->
+    <div id="tab-settings" class="compliance-panel">
+
+      <!-- School Logo -->
+      <div class="panel" style="margin-bottom:16px;">
+        <h3>School Logo</h3>
+        <p class="muted" style="margin-bottom:16px;font-size:13px;">
+          This logo appears at the top of your volunteer forms. Upload once — it applies to all forms.
+          Stored in Supabase Storage (PNG, JPG, WebP, or SVG).
+        </p>
+
+        <div style="margin-bottom:16px;">
+          <img id="logoPreview" src="" alt="School logo" style="display:none;max-height:80px;max-width:280px;border:1px solid var(--border);border-radius:8px;padding:8px;background:#fff;">
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <label class="btn btn-primary btn-sm" style="cursor:pointer;">
+            Upload logo
+            <input type="file" id="logoUploadInput" accept="image/png,image/jpeg,image/webp,image/svg+xml" style="display:none;">
+          </label>
+          <button id="logoRemoveBtn" class="btn btn-sm" style="display:none;color:var(--danger);">Remove</button>
+          <span id="logoUploadMsg" style="font-size:13px;color:var(--danger);"></span>
+        </div>
+
+        <p style="margin-top:24px;font-size:12px;color:var(--text-muted);">
+          Note: The <code>school-assets</code> bucket must exist as a <strong>public</strong> bucket in your Supabase Storage dashboard before uploading.
+        </p>
+      </div>
+
+      <!-- Report Access Grants -->
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <h3 style="margin:0;">Compliance Report Access</h3>
+          <button class="btn btn-primary btn-sm" id="newGrantBtn">+ Add Access</button>
+        </div>
+        <p class="muted" style="font-size:13px;margin-bottom:16px;">
+          Grant a staff member (e.g. a grade-level TA) access to view the compliance report for one or more teachers' homerooms.
+          Teachers can always view their own homeroom. Compliance managers see all homerooms by default.
+        </p>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Staff member</th>
+                <th>Can view homeroom of</th>
+                <th>Granted by</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="grantTableBody">
+              <tr><td colspan="4" class="muted" style="text-align:center;padding:24px 0;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- ══ BG CHECK DRAWER ══════════════════════════════════════════════ -->
+<div id="bgDrawerOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="bgDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="bgDrawerTitle" style="display:none;">
+  <div class="drawer-header">
+    <h2 class="drawer-title" id="bgDrawerTitle">Background Check</h2>
+    <button class="drawer-close" id="bgDrawerClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body" id="bgDrawerBody"></div>
+  <div class="drawer-footer">
+    <button class="btn" id="bgDrawerCancel">Cancel</button>
+    <button class="btn btn-primary" id="bgDrawerSave">Save Changes</button>
+  </div>
+</aside>
+
+<!-- ══ TEMPLATE DRAWER ══════════════════════════════════════════════ -->
+<div id="tplDrawerOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="tplDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="tplDrawerTitle" style="display:none;">
+  <div class="drawer-header">
+    <h2 class="drawer-title" id="tplDrawerTitle">New Template</h2>
+    <button class="drawer-close" id="tplDrawerClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div class="bg-detail-field">
+      <label class="bg-detail-label" for="tplTitle">Form title <span style="color:#dc2626;">*</span></label>
+      <input type="text" id="tplTitle" class="admin-input" placeholder="e.g. Volunteer Confidentiality Agreement">
+    </div>
+    <div class="bg-detail-field">
+      <label class="bg-detail-label" for="tplDescription">Description (optional)</label>
+      <input type="text" id="tplDescription" class="admin-input" placeholder="Short description shown above the form">
+    </div>
+    <div class="bg-detail-field" style="flex:1;">
+      <label class="bg-detail-label" for="tplBodyHtml">
+        Form body (HTML)
+        <span style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0;margin-left:6px;">Use &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;, &lt;h4&gt; etc.</span>
+      </label>
+      <textarea id="tplBodyHtml" class="admin-input" rows="14" style="font-family:monospace;font-size:12px;resize:vertical;" placeholder="<p>I agree to maintain confidentiality regarding...</p>"></textarea>
+    </div>
+    <div class="bg-detail-field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
+        <input type="checkbox" id="tplActive" checked> Active (forms can be submitted via links to this template)
+      </label>
+    </div>
+    <div id="tplDrawerMsg" style="font-size:13px;color:var(--danger);min-height:18px;"></div>
+    <div id="tplDeleteWrap" style="display:none;margin-top:8px;padding-top:16px;border-top:1px solid var(--border);">
+      <button id="tplDrawerDelete" class="btn" style="color:var(--danger);font-size:13px;">Deactivate template</button>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="tplDrawerCancel">Cancel</button>
+    <button class="btn btn-primary" id="tplDrawerSave">Save Template</button>
+  </div>
+</aside>
+
+<!-- ══ NEW LINK DRAWER ══════════════════════════════════════════════ -->
+<div id="linkDrawerOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="linkDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="linkDrawerTitle" style="display:none;">
+  <div class="drawer-header">
+    <h2 class="drawer-title" id="linkDrawerTitle">Create Form Link</h2>
+    <button class="drawer-close" id="linkDrawerClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <p class="muted" style="font-size:13px;margin-bottom:16px;">
+      A unique, non-guessable URL will be generated. Share via QR code or email.
+      The URL will be automatically copied to your clipboard when created.
+    </p>
+    <div class="drawer-field" style="margin-bottom:16px;">
+      <label for="linkLabel">Link label (optional)</label>
+      <input type="text" id="linkLabel" placeholder="e.g. 2025–2026 School Year">
+    </div>
+    <div class="drawer-field" style="margin-bottom:16px;">
+      <label for="linkExpiresAt">Expiry date (optional)</label>
+      <input type="date" id="linkExpiresAt">
+      <small>After this date the form will stop accepting new submissions. Leave blank for a link that never expires.</small>
+    </div>
+    <div id="linkDrawerMsg" style="font-size:13px;color:var(--danger);min-height:18px;"></div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="linkDrawerCancel">Cancel</button>
+    <button class="btn btn-primary" id="linkDrawerSave">Create Link</button>
+  </div>
+</aside>
+
+<!-- ══ MANUAL LINK DRAWER ════════════════════════════════════════════ -->
+<div id="linkGuardianOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="linkGuardianDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="linkGuardianTitle" style="display:none;">
+  <div class="drawer-header">
+    <h2 class="drawer-title" id="linkGuardianTitle">Link to Guardian</h2>
+    <button class="drawer-close" id="linkGuardianClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+
+    <!-- Agreement summary -->
+    <div id="linkGuardianAgreementInfo" style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px;"></div>
+
+    <!-- Submitted hints (shown if present) -->
+    <div id="linkGuardianHints" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px;"></div>
+
+    <!-- Guardian search -->
+    <div class="drawer-field" style="margin-bottom:14px;">
+      <label for="linkGuardianSearch">Search guardians</label>
+      <input type="text" id="linkGuardianSearch" placeholder="Type name or email…" autocomplete="off">
+    </div>
+    <div id="linkGuardianResults" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;"></div>
+
+    <div id="linkGuardianMsg" style="font-size:13px;color:var(--danger);min-height:18px;margin-top:12px;"></div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="linkGuardianCancel">Cancel</button>
+    <button class="btn btn-primary" id="linkGuardianSave" disabled>Save Link</button>
+  </div>
+</aside>
+
+<!-- ══ GRANT DRAWER ═══════════════════════════════════════════════════ -->
+<div id="grantDrawerOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="grantDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="grantDrawerTitle" style="display:none;">
+  <div class="drawer-header">
+    <h2 class="drawer-title" id="grantDrawerTitle">Add Report Access</h2>
+    <button class="drawer-close" id="grantDrawerClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <p class="muted" style="font-size:13px;margin-bottom:18px;">
+      Search for a staff member and select which teacher's homeroom they should have access to.
+    </p>
+    <div class="drawer-field" style="margin-bottom:16px;">
+      <label for="grantStaffSearch">Staff member</label>
+      <input type="text" id="grantStaffSearch" placeholder="Type name or email…" autocomplete="off">
+    </div>
+    <div id="grantStaffResults" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:18px;"></div>
+
+    <div class="drawer-field" style="margin-bottom:8px;">
+      <label for="grantTeacherSelect">Teacher's homeroom to share</label>
+      <select id="grantTeacherSelect">
+        <option value="">Loading teachers…</option>
+      </select>
+    </div>
+    <div id="grantDrawerMsg" style="font-size:13px;color:var(--danger);min-height:18px;margin-top:8px;"></div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="grantDrawerCancel">Cancel</button>
+    <button class="btn btn-primary" id="grantDrawerSave" disabled>Save Grant</button>
+  </div>
+</aside>
+
+<!-- ══ REVIEW SUBMITTED DATA DRAWER ══════════════════════════════════ -->
+<div id="reviewDataOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="reviewDataDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="reviewDataTitle" style="display:none;">
+  <div class="drawer-header">
+    <h2 class="drawer-title" id="reviewDataTitle">Review Submitted Data</h2>
+    <button class="drawer-close" id="reviewDataClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div id="reviewDataAgreementInfo" style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px;"></div>
+
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">
+      The signer provided the following additional information. "Apply" will update the guardian's phone number on file.
+      Relationship is shown for context only.
+    </p>
+
+    <div id="reviewDataFields"></div>
+
+    <div id="reviewDataMsg" style="font-size:13px;color:var(--danger);min-height:18px;margin-top:8px;"></div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="reviewDataDismiss">Dismiss without applying</button>
+    <button class="btn btn-primary" id="reviewDataApply">Apply to guardian record</button>
+  </div>
+</aside>
+
+<div id="toast" class="toast hidden"></div>
+<script type="module" src="/app/admin.compliance.js"></script>
+<script src="/app/nav-mobile.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>if (window.lucide) lucide.createIcons();</script>
+</body>
+</html>

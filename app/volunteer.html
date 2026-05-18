@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Volunteer Agreement</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      color: #111827;
+      line-height: 1.6;
+    }
+
+    .page-wrap {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+
+    /* ── School header ── */
+    .school-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      text-align: center;
+    }
+    .school-logo {
+      max-height: 72px;
+      max-width: 240px;
+      object-fit: contain;
+    }
+    .school-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    /* ── Form card ── */
+    .form-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 28px 32px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .form-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #111827;
+      margin: 0 0 6px;
+    }
+
+    .form-desc {
+      font-size: 14px;
+      color: #6b7280;
+      margin: 0 0 20px;
+    }
+
+    .form-divider {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 20px 0;
+    }
+
+    /* ── Form body (rendered from body_html) ── */
+    .form-body {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #374151;
+    }
+    .form-body h1,.form-body h2,.form-body h3,.form-body h4 {
+      color: #111827;
+      margin: 16px 0 8px;
+    }
+    .form-body p { margin: 0 0 12px; }
+    .form-body ul, .form-body ol { padding-left: 20px; margin: 0 0 12px; }
+    .form-body strong { color: #111827; }
+
+    /* ── Input fields ── */
+    .field-group {
+      margin-bottom: 16px;
+    }
+    .field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #6b7280;
+      margin-bottom: 6px;
+    }
+    .field-input {
+      display: block;
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #111827;
+      background: #fff;
+      font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      outline: none;
+    }
+    .field-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+
+    /* ── Signature modes ── */
+    .sig-mode-toggle {
+      display: flex;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+      width: fit-content;
+      margin-bottom: 14px;
+    }
+    .sig-mode-btn {
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.12s, color 0.12s;
+    }
+    .sig-mode-btn + .sig-mode-btn { border-left: 1.5px solid #e5e7eb; }
+    .sig-mode-btn.active {
+      background: #eff6ff;
+      color: #2563eb;
+    }
+
+    /* ── Draw pad ── */
+    #sigDrawWrap { display: block; }
+    #sigTypeWrap { display: none; }
+
+    .sig-canvas-wrap {
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+      overflow: hidden;
+      position: relative;
+    }
+    #sigCanvas {
+      display: block;
+      width: 100%;
+      height: 140px;
+      cursor: crosshair;
+      touch-action: none;
+    }
+    .sig-canvas-hint {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 13px;
+      color: #d1d5db;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+    .sig-clear-btn {
+      margin-top: 6px;
+      background: none;
+      border: none;
+      font-size: 12px;
+      color: #6b7280;
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+    }
+    .sig-clear-btn:hover { color: #111827; }
+
+    /* ── Typed signature preview ── */
+    .sig-type-input {
+      display: block;
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 20px;
+      font-family: 'Great Vibes', cursive;
+      font-weight: 400;
+      color: #1e293b;
+      background: #fff;
+      outline: none;
+      margin-bottom: 10px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .sig-type-input:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+    .sig-type-preview {
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      background: #fff;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      overflow: hidden;
+    }
+    #sigTypePreviewText {
+      font-family: 'Great Vibes', cursive;
+      font-weight: 400;
+      font-size: 46px;
+      color: #1e293b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    /* ── Submit ── */
+    .submit-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      margin-top: 20px;
+      transition: background 0.15s;
+    }
+    .submit-btn:hover:not(:disabled) { background: #1d4ed8; }
+    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .form-error {
+      font-size: 13px;
+      color: #dc2626;
+      margin-top: 12px;
+      min-height: 18px;
+    }
+
+    /* ── State screens ── */
+    .state-screen {
+      display: none;
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .state-screen.visible { display: block; }
+    .state-icon { font-size: 48px; margin-bottom: 16px; }
+    .state-title { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+    .state-body  { font-size: 15px; color: #6b7280; max-width: 400px; margin: 0 auto; }
+
+    /* ── Optional linking section ── */
+    .optional-section {
+      margin: 20px 0;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .optional-section summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      cursor: pointer;
+      user-select: none;
+      list-style: none;
+      background: #f8fafc;
+    }
+    .optional-section summary::-webkit-details-marker { display: none; }
+    .optional-section summary::after {
+      content: '＋';
+      font-size: 16px;
+      color: #9ca3af;
+      transition: transform 0.2s;
+    }
+    .optional-section[open] summary::after { content: '−'; }
+    .optional-section summary span.opt-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      background: #eff6ff;
+      color: #2563eb;
+      padding: 2px 7px;
+      border-radius: 999px;
+      margin-left: 8px;
+    }
+    .optional-body {
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .optional-body .field-group { margin-bottom: 0; }
+    .optional-body .field-group.full { grid-column: 1 / -1; }
+    @media (max-width: 480px) {
+      .optional-body { grid-template-columns: 1fr; }
+      .optional-body .field-group.full { grid-column: 1; }
+    }
+
+    @media (max-width: 480px) {
+      .form-card { padding: 20px 18px; }
+      .form-title { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <!-- ── Loading state ── -->
+  <div id="stateLoading" class="state-screen visible">
+    <div style="color:#9ca3af;font-size:15px;">Loading form…</div>
+  </div>
+
+  <!-- ── Error state ── -->
+  <div id="stateError" class="state-screen">
+    <div class="state-icon">⚠️</div>
+    <div class="state-title" id="stateErrorTitle">Form unavailable</div>
+    <div class="state-body" id="stateErrorBody">This form link may have expired or been deactivated. Please contact the school for a new link.</div>
+  </div>
+
+  <!-- ── Success state ── -->
+  <div id="stateSuccess" class="state-screen">
+    <div class="state-icon">✅</div>
+    <div class="state-title">Thank you!</div>
+    <div class="state-body" id="stateSuccessBody">Your signature has been recorded. You may close this page.</div>
+  </div>
+
+  <!-- ── Form ── -->
+  <div id="formWrap" style="display:none;">
+
+    <!-- School header -->
+    <div class="school-header" id="schoolHeader">
+      <img id="schoolLogo" class="school-logo" src="" alt="" style="display:none;">
+      <div class="school-name" id="schoolName"></div>
+    </div>
+
+    <div class="form-card">
+      <h1 class="form-title" id="formTitle"></h1>
+      <p class="form-desc" id="formDesc" style="display:none;"></p>
+      <hr class="form-divider">
+
+      <!-- Form body (rendered HTML) -->
+      <div class="form-body" id="formBody"></div>
+
+      <hr class="form-divider">
+
+      <!-- Signer info -->
+      <div class="field-group">
+        <label class="field-label" for="signerName">Full legal name <span style="color:#dc2626;">*</span></label>
+        <input type="text" id="signerName" class="field-input" placeholder="Enter your full legal name" autocomplete="name">
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="signerEmail">Email address <span style="color:#dc2626;">*</span></label>
+        <input type="email" id="signerEmail" class="field-input" placeholder="your@email.com" autocomplete="email">
+      </div>
+
+      <!-- Optional: help us connect to your student's record -->
+      <details class="optional-section" id="optionalSection">
+        <summary>Help us connect to your student's record <span class="opt-badge">Optional</span></summary>
+        <div class="optional-body">
+          <div class="field-group full">
+            <label class="field-label" for="studentNameHint">Student's full name</label>
+            <input type="text" id="studentNameHint" class="field-input" placeholder="e.g. Emma Smith" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="carlineTagHint">Car tag number</label>
+            <input type="text" id="carlineTagHint" class="field-input" placeholder="e.g. 1042" autocomplete="off">
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="submittedPhone">Phone number</label>
+            <input type="tel" id="submittedPhone" class="field-input" placeholder="(555) 000-0000" autocomplete="tel">
+          </div>
+          <div class="field-group full">
+            <label class="field-label" for="submittedRelationship">Your relationship to the student</label>
+            <select id="submittedRelationship" class="field-input" style="height:42px;">
+              <option value="">Prefer not to say</option>
+              <option value="parent">Parent</option>
+              <option value="grandparent">Grandparent</option>
+              <option value="legal_guardian">Legal Guardian</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+      </details>
+
+      <!-- Signature -->
+      <div class="field-group">
+        <label class="field-label">Signature <span style="color:#dc2626;">*</span></label>
+
+        <div class="sig-mode-toggle">
+          <button class="sig-mode-btn active" data-mode="draw">Draw</button>
+          <button class="sig-mode-btn" data-mode="type">Type</button>
+        </div>
+
+        <!-- Draw mode -->
+        <div id="sigDrawWrap">
+          <div class="sig-canvas-wrap">
+            <canvas id="sigCanvas"></canvas>
+            <span class="sig-canvas-hint" id="sigCanvasHint">Sign here</span>
+          </div>
+          <button class="sig-clear-btn" id="sigClearBtn">Clear signature</button>
+        </div>
+
+        <!-- Type mode -->
+        <div id="sigTypeWrap">
+          <input type="text" id="sigTypeInput" class="sig-type-input" placeholder="Type your full name…" autocomplete="off" spellcheck="false">
+          <div class="sig-type-preview">
+            <span id="sigTypePreviewText"></span>
+          </div>
+          <canvas id="sigTypeCanvas" style="display:none;"></canvas>
+        </div>
+      </div>
+
+      <div class="form-error" id="formError"></div>
+
+      <button class="submit-btn" id="submitBtn">Submit Signed Agreement</button>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script type="module" src="/app/volunteer.js"></script>
+</body>
+</html>

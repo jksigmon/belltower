@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js';
-import { initUserMenu } from './user-menu.js';
-import { debounce } from './admin.shared.js';
+import { initPage } from './admin.auth.js';
+import { debounce, esc } from './admin.shared.js';
 
 /* ─────────────────────────────────────────────────────
    STATE
@@ -23,22 +23,10 @@ let fpExp   = null;
    INIT
 ───────────────────────────────────────────────────── */
 async function init() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.user) { window.location.href = '/login.html'; return; }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', session.user.id)
-    .single();
-
-  if (!profile || (!profile.is_superadmin && !profile.can_manage_licensure)) {
-    window.location.href = '/admin.html';
-    return;
-  }
+  const profile = await initPage({ requiredCap: 'can_manage_licensure' });
+  if (!profile) return;
 
   currentProfile = profile;
-  initUserMenu(profile.display_name ?? profile.email);
 
   await Promise.all([loadCampuses(), loadEmployees()]);
   populateCampusSelects();
@@ -150,8 +138,8 @@ async function loadAlertList(day90, today) {
     const row = document.createElement('div');
     row.className = `alert-row ${urgency}`;
     row.innerHTML = `
-      <span class="alert-name">${employeeLookup[lic.employee_id] ?? '—'}</span>
-      <span class="alert-type">${lic.license_type}${lic.license_area ? ' · ' + lic.license_area : ''}</span>
+      <span class="alert-name">${esc(employeeLookup[lic.employee_id] ?? '—')}</span>
+      <span class="alert-type">${esc(lic.license_type)}${lic.license_area ? ' · ' + esc(lic.license_area) : ''}</span>
       <span class="alert-expiry">${formatDate(lic.expiration_date)}</span>
       <span class="alert-days ${urgency || 'caution'}">${daysLabel}</span>
       ${lic.alert_muted ? '<span class="muted-badge">Muted</span>' : ''}
@@ -173,7 +161,15 @@ async function loadLicenses() {
 
   let query = supabase
     .from('staff_licenses')
-    .select('*')
+    .select(`
+      id, employee_id, campus_id,
+      license_number, state, license_type, license_class, category,
+      license_area, grade_authorization,
+      issue_date, expiration_date,
+      status, is_provisional, provisional_type,
+      renewal_status, verified, alert_muted,
+      notes, role_applicability
+    `)
     .eq('school_id', currentProfile.school_id)
     .order('expiration_date', { ascending: true });
 
@@ -188,7 +184,12 @@ async function loadLicenses() {
   }
 
   const { data, error } = await query;
-  if (error) { console.error(error); return; }
+  if (error) {
+    const tbody = document.getElementById('licenseTableBody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="11" class="lic-empty" style="color:#dc2626;">Failed to load licenses. Please try again.</td></tr>`;
+    console.error(error);
+    return;
+  }
 
   let rows = data || [];
 
@@ -220,11 +221,11 @@ function renderLicenseTable(rows) {
     const daysLeft = lic.expiration_date ? daysBetween(today, lic.expiration_date) : null;
 
     tr.innerHTML = `
-      <td>${employeeLookup[lic.employee_id] ?? '—'}</td>
-      <td>${lic.license_number ?? '—'}</td>
-      <td>${lic.license_type}${lic.license_class ? ` <small style="color:#6b7280;">(${lic.license_class})</small>` : ''}</td>
-      <td>${lic.license_area ?? '—'}</td>
-      <td>${lic.grade_authorization ?? '—'}</td>
+      <td>${esc(employeeLookup[lic.employee_id] ?? '—')}</td>
+      <td>${esc(lic.license_number ?? '—')}</td>
+      <td>${esc(lic.license_type)}${lic.license_class ? ` <small style="color:#6b7280;">(${esc(lic.license_class)})</small>` : ''}</td>
+      <td>${esc(lic.license_area ?? '—')}</td>
+      <td>${esc(lic.grade_authorization ?? '—')}</td>
       <td>${formatDate(lic.expiration_date)}${daysLeft !== null ? `<br><small style="color:${daysLeft < 0 ? '#dc2626' : daysLeft <= 30 ? '#dc2626' : daysLeft <= 60 ? '#ea580c' : '#9ca3af'}">${daysLeft < 0 ? Math.abs(daysLeft) + 'd overdue' : daysLeft + 'd'}</small>` : ''}</td>
       <td>${statusBadge(lic.status)}</td>
       <td>${lic.is_provisional ? '<span class="badge badge-provisional">Yes</span>' : '—'}</td>
@@ -263,7 +264,12 @@ async function loadAuditLog() {
     .order('changed_at', { ascending: false })
     .limit(200);
 
-  if (error) { console.error(error); return; }
+  if (error) {
+    const tbody = document.getElementById('auditTableBody');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="lic-empty" style="color:#dc2626;">Failed to load audit log. Please try again.</td></tr>`;
+    console.error(error);
+    return;
+  }
 
   let rows = data || [];
 
@@ -299,16 +305,16 @@ async function loadAuditLog() {
     const changerProfile = changerLookup[r.changed_by] ?? '—';
     const details = r.field_changes
       ? Object.entries(r.field_changes)
-          .map(([k, v]) => `${k}: ${v.old ?? '—'} → ${v.new ?? '—'}`)
+          .map(([k, v]) => `${esc(k)}: ${esc(v.old ?? '—')} → ${esc(v.new ?? '—')}`)
           .join(', ')
       : '—';
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${formatDateTime(r.changed_at)}</td>
-      <td>${employeeLookup[employeeId] ?? '—'}</td>
-      <td><span class="badge badge-${changeTypeBadge(r.change_type)}">${r.change_type}</span></td>
-      <td>${changerProfile}</td>
+      <td>${esc(employeeLookup[employeeId] ?? '—')}</td>
+      <td><span class="badge badge-${changeTypeBadge(r.change_type)}">${esc(r.change_type)}</span></td>
+      <td>${esc(changerProfile)}</td>
       <td>${details}</td>
     `;
     tbody.appendChild(tr);
@@ -652,8 +658,7 @@ function populateCampusSelects() {
   ['licCampus', 'licCampusFilter'].forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;
-    const isFilter = id === 'licCampusFilter';
-    sel.innerHTML = isFilter ? '<option value="">All campuses</option>' : '<option value="">All campuses</option>';
+    sel.innerHTML = '<option value="">All campuses</option>';
     entries.forEach(([cid, name]) => {
       const opt = document.createElement('option');
       opt.value = cid;
@@ -754,16 +759,6 @@ function wireEvents() {
 function setText(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = val;
-}
-
-function showModal(id) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = 'flex';
-}
-
-function hideModal(id) {
-  const el = document.getElementById(id);
-  if (el) el.style.display = 'none';
 }
 
 function toggleProvisionalRow(show) {

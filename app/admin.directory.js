@@ -13,7 +13,8 @@ export function createDirectory(config) {
     columnCount = 6,
     tbodySelector,
     paginationContainer,
-    renderRow
+    renderRow,
+    onBeforeLoad
   } = config;
 
   const state = {
@@ -86,6 +87,7 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
   }
 
   async function load() {
+    if (typeof onBeforeLoad === 'function') onBeforeLoad();
     const loadId = ++state.loadSeq;
     const tbody = document.querySelector(tbodySelector);
     if (!tbody) return;

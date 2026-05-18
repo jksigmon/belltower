@@ -1,30 +1,5 @@
 import { supabase } from './admin.supabase.js';
-
-const GRADE_ORDER = ['PK', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-
-function gradeLabel(g) {
-  if (!g) return 'Unknown';
-  if (g === 'PK') return 'Pre-K';
-  if (g === 'K') return 'Kindergarten';
-  const n = parseInt(g);
-  if (!isNaN(n)) {
-    const v = n % 100;
-    const suffix = (v >= 11 && v <= 13) ? 'th' : (['th','st','nd','rd'][v % 10] || 'th');
-    return `${n}${suffix} Grade`;
-  }
-  return `Grade ${g}`;
-}
-
-function nextGrade(g) {
-  const idx = GRADE_ORDER.indexOf(g);
-  if (idx < 0 || idx >= GRADE_ORDER.length - 1) return null;
-  return GRADE_ORDER[idx + 1];
-}
-
-function escHtml(str) {
-  if (!str) return '';
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
+import { esc, GRADE_ORDER, nextGrade, gradeLabel } from './admin.shared.js';
 
 /* ── State ── */
 let _profile = null;
@@ -138,9 +113,9 @@ async function renderSessionList() {
     const committed = s.status === 'committed';
     row.innerHTML = `
       <div class="placement-session-info">
-        <div class="placement-session-label">${escHtml(s.label)}</div>
+        <div class="placement-session-label">${esc(s.label)}</div>
         <div class="muted" style="font-size:12px;margin-top:2px;">
-          ${escHtml(s.academic_year.replace('-', '–'))} &middot; ${gradeLabel(s.incoming_grade)} &rarr; ${gradeLabel(s.target_grade)}
+          ${esc(s.academic_year.replace('-', '–'))} &middot; ${gradeLabel(s.incoming_grade)} &rarr; ${gradeLabel(s.target_grade)}
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
@@ -150,7 +125,7 @@ async function renderSessionList() {
             ? 'Committed ' + new Date(s.committed_at).toLocaleDateString()
             : 'Created ' + new Date(s.created_at).toLocaleDateString()}
         </span>
-        ${!committed ? `<button class="btn btn-sm btn-outline delete-session-btn" data-id="${s.id}" data-label="${escHtml(s.label)}" style="color:#dc2626;border-color:#fca5a5;" title="Delete draft">
+        ${!committed ? `<button class="btn btn-sm btn-outline delete-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" style="color:#dc2626;border-color:#fca5a5;" title="Delete draft">
           <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
         </button>` : ''}
         <button class="btn btn-sm btn-outline open-session-btn" data-id="${s.id}">
@@ -300,10 +275,10 @@ function renderEmployeeCheckboxes(campusId) {
     const label = document.createElement('label');
     label.className = 'placement-teacher-check';
     label.innerHTML = `
-      <input type="checkbox" value="${emp.id}" data-name="${escHtml(emp.first_name + ' ' + emp.last_name)}"${checked.has(emp.id) ? ' checked' : ''}>
+      <input type="checkbox" value="${emp.id}" data-name="${esc(emp.first_name + ' ' + emp.last_name)}"${checked.has(emp.id) ? ' checked' : ''}>
       <div class="placement-teacher-check-info">
-        <span class="placement-teacher-check-name">${escHtml(emp.last_name)}, ${escHtml(emp.first_name)}</span>
-        ${emp.position ? `<span class="placement-teacher-check-type">${escHtml(emp.position)}</span>` : ''}
+        <span class="placement-teacher-check-name">${esc(emp.last_name)}, ${esc(emp.first_name)}</span>
+        ${emp.position ? `<span class="placement-teacher-check-type">${esc(emp.position)}</span>` : ''}
       </div>
     `;
     container.appendChild(label);
@@ -357,9 +332,16 @@ async function submitCreateForm() {
     return;
   }
 
-  await supabase.from('placement_session_teachers').insert(
+  const { error: teachersErr } = await supabase.from('placement_session_teachers').insert(
     checked.map(t => ({ session_id: session.id, teacher_id: t.id, sort_order: t.sort_order }))
   );
+  if (teachersErr) {
+    console.error('Failed to attach teachers to session:', teachersErr);
+    alert('Session created but teachers could not be attached. Please try again.');
+    btn.disabled = false;
+    btn.textContent = 'Create Session';
+    return;
+  }
 
   // Pre-populate assignments with all active students in the incoming grade (all unplaced)
   const { data: gradeStudents } = await supabase
@@ -370,7 +352,7 @@ async function submitCreateForm() {
     .eq('grade_level', incoming);
 
   if (gradeStudents && gradeStudents.length > 0) {
-    await supabase.from('placement_assignments').insert(
+    const { error: assignErr } = await supabase.from('placement_assignments').insert(
       gradeStudents.map((s, i) => ({
         session_id: session.id,
         student_id: s.id,
@@ -378,6 +360,7 @@ async function submitCreateForm() {
         sort_order: i,
       }))
     );
+    if (assignErr) console.error('Failed to pre-populate student assignments:', assignErr);
   }
 
   btn.disabled = false;
@@ -503,7 +486,7 @@ function buildColumn(teacherId, name) {
 
   col.innerHTML = `
     <div class="placement-col-header ${isUnplaced ? 'col-unplaced' : 'col-teacher'}">
-      <span class="placement-col-name">${escHtml(name)}</span>
+      <span class="placement-col-name">${esc(name)}</span>
       <span class="placement-col-count">${colStudents.length}</span>
     </div>
     <div class="placement-col-body" data-teacher-id="${teacherId ?? ''}"></div>
@@ -537,7 +520,7 @@ function buildCard(student) {
   card.draggable = true;
 
   card.innerHTML = `
-    <div class="placement-card-name">${escHtml(student.last_name)}, ${escHtml(student.first_name)}</div>
+    <div class="placement-card-name">${esc(student.last_name)}, ${esc(student.first_name)}</div>
     <div class="placement-card-footer">
       <div class="placement-flag-dots" data-dots-for="${student.id}"></div>
       <button class="placement-flag-btn" data-flag-for="${student.id}" title="Edit flags" tabindex="-1">
@@ -635,7 +618,7 @@ function openFlagPopover(studentId, card) {
     _flags.forEach(f => {
       const btn = document.createElement('button');
       btn.className = 'placement-flag-toggle' + (active.has(f.id) ? ' active' : '');
-      btn.innerHTML = `<span class="placement-flag-dot" style="background:${f.color};width:10px;height:10px;display:inline-block;border-radius:50%;flex-shrink:0;"></span>${escHtml(f.label)}`;
+      btn.innerHTML = `<span class="placement-flag-dot" style="background:${f.color};width:10px;height:10px;display:inline-block;border-radius:50%;flex-shrink:0;"></span>${esc(f.label)}`;
       btn.addEventListener('click', async e => {
         e.stopPropagation();
         await toggleFlag(studentId, f.id);
@@ -725,7 +708,8 @@ async function saveAssignments() {
 
   if (error) {
     console.error('Placement auto-save error:', error);
-    updateSaveStatus('Save failed');
+    updateSaveStatus('⚠ Save failed — changes may be lost');
+    // Leave the error visible until the next successful save or page reload
   } else {
     changed.forEach(s => { _savedAssignments[s.id] = _assignments[s.id]; });
     updateSaveStatus('Saved ✓');
@@ -791,11 +775,17 @@ async function runUndoCommit() {
 
   const errors = [];
   for (const [tid, sids] of Object.entries(byPrev)) {
-    const { error } = await supabase.from('students').update({ homeroom_teacher_id: tid }).in('id', sids);
+    const { error } = await supabase.from('students')
+      .update({ homeroom_teacher_id: tid })
+      .eq('school_id', _profile.school_id)
+      .in('id', sids);
     if (error) errors.push(error);
   }
   if (nullStudents.length) {
-    const { error } = await supabase.from('students').update({ homeroom_teacher_id: null }).in('id', nullStudents);
+    const { error } = await supabase.from('students')
+      .update({ homeroom_teacher_id: null })
+      .eq('school_id', _profile.school_id)
+      .in('id', nullStudents);
     if (error) errors.push(error);
   }
 
@@ -938,6 +928,7 @@ async function runCommit() {
   const { data: currentHomerooms } = await supabase
     .from('students')
     .select('id, homeroom_teacher_id')
+    .eq('school_id', _profile.school_id)
     .in('id', placedStudentIds);
 
   if (currentHomerooms?.length) {
@@ -963,6 +954,7 @@ async function runCommit() {
     const { error } = await supabase
       .from('students')
       .update({ homeroom_teacher_id: tid })
+      .eq('school_id', _profile.school_id)
       .in('id', sids);
     if (error) errors.push(error);
   }
@@ -1043,7 +1035,7 @@ function renderFlagEditorList() {
       const { error } = await supabase.from('placement_flags').update({ color: newColor }).eq('id', f.id);
       if (!error) {
         f.color = newColor;
-        document.querySelectorAll(`.placement-flag-dot[title="${escHtml(f.label)}"]`)
+        document.querySelectorAll(`.placement-flag-dot[title="${esc(f.label)}"]`)
           .forEach(d => { d.style.background = newColor; });
       }
     });

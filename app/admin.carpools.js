@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
-import { esc } from './admin.shared.js';
+import { esc, getAvatarColor, debounce } from './admin.shared.js';
 
 let currentProfile;
 let initialized    = false;
@@ -46,12 +46,6 @@ export async function initCarpoolsSection(profile) {
    HELPERS
 ================================ */
 
-function avatarColor(seed) {
-  const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = seed.charCodeAt(i) + ((h << 5) - h);
-  return colors[Math.abs(h) % colors.length];
-}
 
 async function loadAllFamilies() {
   const { data, error } = await supabase
@@ -86,7 +80,7 @@ function populateInheritDropdown() {
 function renderCarpoolRow(cp) {
   const members     = cp.carline_tags || [];
   const count       = members.length;
-  const color       = avatarColor(cp.tag_number ?? '');
+  const color       = getAvatarColor(cp.tag_number ?? '');
   const inactive    = cp.active ? '' : '<span class="staff-inactive-badge">Inactive</span>';
   const familyNames = members.map(ct => ct.families?.family_name ?? '?').join(', ');
   const displayName = cp.label || `Carpool #${cp.tag_number}`;
@@ -121,7 +115,7 @@ function openEditDrawer(cp) {
   editingId      = cp.id;
   editingMembers = (cp.carline_tags || []).map(ct => ct.family_id);
 
-  const color  = avatarColor(cp.tag_number ?? '');
+  const color  = getAvatarColor(cp.tag_number ?? '');
   const avatar = document.getElementById('ecpAvatar');
   avatar.textContent      = '#';
   avatar.style.background = color;
@@ -156,7 +150,7 @@ function renderMemberList(tags) {
     const f     = ct.families;
     const name  = f?.family_name ?? '(Unnamed)';
     const tag   = f?.carline_tag_number;
-    const color = avatarColor(name);
+    const color = getAvatarColor(name);
 
     const row = document.createElement('div');
     row.className = 'carpool-member-row';
@@ -328,11 +322,8 @@ function wireCarpoolEvents() {
   const sortSelect  = document.getElementById('carpoolSort');
 
   if (searchInput) {
-    let t;
-    searchInput.addEventListener('input', e => {
-      clearTimeout(t);
-      t = setTimeout(() => carpoolsDir.setSearch(e.target.value.trim()), 300);
-    });
+    searchInput.addEventListener('input', debounce(e =>
+      carpoolsDir.setSearch(e.target.value.trim()), 300));
   }
   if (sortSelect) {
     sortSelect.addEventListener('change', e => {

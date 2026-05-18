@@ -119,3 +119,31 @@ export function cloneSelectOptions(sourceId, target, selectedValue) {
   );
   target.value = selectedValue ?? '';
 }
+
+/* ===============================
+   GRADE UTILITIES
+================================ */
+export const GRADE_ORDER = ['PK', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+
+export function nextGrade(grade) {
+  const idx = GRADE_ORDER.indexOf(grade);
+  if (idx < 0 || idx >= GRADE_ORDER.length - 1) return null;
+  return GRADE_ORDER[idx + 1];
+}
+
+export function isTerminalGrade(grade) {
+  return grade === '12';
+}
+
+export function gradeLabel(grade) {
+  if (!grade) return 'Unknown';
+  if (grade === 'PK') return 'Pre-K';
+  if (grade === 'K') return 'Kindergarten';
+  const n = parseInt(grade);
+  if (!isNaN(n)) {
+    const v = n % 100;
+    const suffix = (v >= 11 && v <= 13) ? 'th' : (['th', 'st', 'nd', 'rd'][v % 10] || 'th');
+    return `${n}${suffix} Grade`;
+  }
+  return `Grade ${grade}`;
+}

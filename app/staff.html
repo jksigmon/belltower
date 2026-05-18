@@ -51,6 +51,7 @@
 
 /* Inputs, selects, textareas inside pto-field */
 .pto-field input[type="text"],
+.pto-field input[type="email"],
 .pto-field select,
 .pto-field textarea {
   display: block;
@@ -67,6 +68,7 @@
   font-family: inherit;
 }
 .pto-field input[type="text"],
+.pto-field input[type="email"],
 .pto-field select {
   height: 40px;
 }
@@ -78,6 +80,7 @@
   line-height: 1.5;
 }
 .pto-field input[type="text"]:focus,
+.pto-field input[type="email"]:focus,
 .pto-field select:focus,
 .pto-field textarea:focus {
   border-color: var(--primary, #2563eb);
@@ -394,6 +397,60 @@
   }
 }
 
+/* ── BG Check role cards ── */
+.bg-role-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 8px;
+}
+@media (max-width: 600px) {
+  .bg-role-grid { grid-template-columns: 1fr; }
+}
+.bg-role-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+.bg-role-card:hover {
+  border-color: #93c5fd;
+  background: #f8faff;
+}
+.bg-role-check {
+  margin-top: 2px;
+  accent-color: var(--primary, #2563eb);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.bg-role-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.3;
+}
+.bg-role-desc {
+  font-size: 11px;
+  color: #9ca3af;
+  margin-top: 3px;
+  line-height: 1.4;
+}
+.bg-role-card:has(.bg-role-check:checked) {
+  border-color: var(--primary, #2563eb);
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+}
+.bg-role-card:has(.bg-role-check:checked) .bg-role-name {
+  color: var(--primary, #2563eb);
+}
+
   </style>
  </head>
 
@@ -453,6 +510,8 @@
   <a href="#pto"        data-module="pto"><i data-lucide="calendar"></i> PTO</a>
   <a href="/carline.html" data-module="carline"><i data-lucide="car"></i> Carline</a>
   <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
+  <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
+  <a href="#compliance-report" data-module="compliance"><i data-lucide="clipboard-list"></i> Compliance Report</a>
   <a href="#access-request"><i data-lucide="key"></i> Request Access</a>
 </nav>
 
@@ -678,6 +737,130 @@
       </div>
     </section>
 
+    <!-- ── Background Check Requests ───────────────── -->
+    <section id="bg-checks" style="display:none;">
+
+      <div class="panel panel-action">
+        <h3>Request Background Check</h3>
+        <p class="muted" style="margin-bottom:18px;">Submit a request for a background check on a volunteer, parent helper, or field trip chaperone.</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+          <div class="pto-field">
+            <span class="pto-field-label">First name <span style="color:#dc2626;">*</span></span>
+            <input type="text" id="bgFirstName" placeholder="First name" autocomplete="given-name">
+          </div>
+          <div class="pto-field">
+            <span class="pto-field-label">Last name <span style="color:#dc2626;">*</span></span>
+            <input type="text" id="bgLastName" placeholder="Last name" autocomplete="family-name">
+          </div>
+        </div>
+
+        <div class="pto-field" style="margin-bottom:14px;">
+          <span class="pto-field-label">Email address</span>
+          <input type="email" id="bgEmail" placeholder="Optional — used to detect existing records" autocomplete="off">
+          <span id="bgDedupWarning" style="display:none;font-size:12px;color:#b45309;margin-top:6px;padding:6px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;"></span>
+        </div>
+
+        <div class="pto-field" style="margin-bottom:14px;">
+          <span class="pto-field-label">Volunteer role(s) <span style="color:#dc2626;">*</span></span>
+          <div class="bg-role-grid">
+            <label class="bg-role-card">
+              <input type="checkbox" name="bgRole" value="Lunch Parent" class="bg-role-check">
+              <div>
+                <div class="bg-role-name">Lunch Parent</div>
+                <div class="bg-role-desc">BG check + Confidentiality Agreement</div>
+              </div>
+            </label>
+            <label class="bg-role-card">
+              <input type="checkbox" name="bgRole" value="Field Trip Chaperone" class="bg-role-check">
+              <div>
+                <div class="bg-role-name">Field Trip Chaperone</div>
+                <div class="bg-role-desc">BG check + Confidentiality + Chaperone Guidelines</div>
+              </div>
+            </label>
+            <label class="bg-role-card">
+              <input type="checkbox" name="bgRole" value="Field Trip Driver" class="bg-role-check">
+              <div>
+                <div class="bg-role-name">Field Trip Driver</div>
+                <div class="bg-role-desc">All above + MVR + DL &amp; insurance on file</div>
+              </div>
+            </label>
+            <label class="bg-role-card">
+              <input type="checkbox" name="bgRole" value="Coaching/Athletics" class="bg-role-check">
+              <div>
+                <div class="bg-role-name">Coaching / Athletics</div>
+                <div class="bg-role-desc">BG check required</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="pto-field" style="margin-bottom:18px;">
+          <span class="pto-field-label">Notes (optional)</span>
+          <textarea id="bgNotes" placeholder="e.g. specific event, additional context…" rows="2" style="resize:vertical;"></textarea>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;">
+          <span id="bgSubmitMsg" style="font-size:13px;color:#dc2626;flex:1;"></span>
+          <button id="bgSubmitBtn" class="btn btn-primary">Submit Request</button>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:12px;">
+        <h4>My Requests</h4>
+        <div id="myBgRequests">
+          <p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ── Compliance Report ────────────────────── -->
+    <section id="compliance-report" style="display:none;">
+
+      <div class="panel panel-action">
+        <h3>Compliance Report</h3>
+        <p class="muted" style="margin-bottom:18px;">View form compliance status for students in your homeroom. Select the form types to check, then generate the report.</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;" id="compReportFilters">
+          <div class="pto-field">
+            <span class="pto-field-label">Homeroom / Teacher</span>
+            <select id="compReportTeacher">
+              <option value="">Loading…</option>
+            </select>
+          </div>
+          <div class="pto-field">
+            <span class="pto-field-label">Form types</span>
+            <select id="compReportTemplate">
+              <option value="">All active forms</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <button id="compReportGenerate" class="btn btn-primary">Generate Report</button>
+          <button id="compReportExport" class="btn" style="display:none;">Export CSV</button>
+          <span id="compReportMsg" style="font-size:13px;color:#dc2626;"></span>
+        </div>
+      </div>
+
+      <div id="compReportResultWrap" style="margin-top:12px;display:none;">
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+            <h4 style="margin:0;" id="compReportResultTitle">Results</h4>
+            <div id="compReportSummary" style="font-size:13px;color:var(--text-muted);"></div>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table" id="compReportTable">
+              <thead id="compReportThead"></thead>
+              <tbody id="compReportTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
     <!-- ── Request Access ─────────────────────────── -->
     <section id="access-request" style="display:none;">
 
@@ -713,6 +896,7 @@
 <script type="module">
 import { supabase } from '/app/admin.supabase.js';
 import { initUserMenu } from '/app/user-menu.js';
+import { requireAuth } from '/app/admin.auth.js';
 
 // Prevent browser from restoring a stale scroll position on load
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -1115,19 +1299,14 @@ function hasAdminAccess(profile) {
 }
 
 async function initStaff() {
-  const sessionResult = await supabase.auth.getSession();
-  if (!sessionResult.data || !sessionResult.data.session) {
-    window.location.href = '/login.html';
-    return;
-  }
-
-  const user = sessionResult.data.session.user;
+  const session = await requireAuth();
+  if (!session) return;
 
   // Profile + school name + modules + employee campus in one round-trip
   const profileResult = await supabase
     .from('profiles')
     .select('*, schools!profiles_school_id_fkey(id, name, school_modules(module, enabled)), employees!employee_id(campus_id, campuses(workday_hours, pto_increment_minutes, day_start_time, day_end_time))')
-    .eq('user_id', user.id)
+    .eq('user_id', session.user.id)
     .single();
 
   currentProfile = profileResult.data;
@@ -1208,7 +1387,9 @@ function setActive(hash) {
   if (hash === '#dashboard')       subtitle.textContent = '';
   if (hash === '#pto')             subtitle.textContent = 'PTO & Leave';
   if (hash === '#licensure')       subtitle.textContent = 'My Licenses';
-  if (hash === '#access-request')  subtitle.textContent = 'Request Access';
+  if (hash === '#bg-checks')          subtitle.textContent = 'Background Checks';
+  if (hash === '#compliance-report')  subtitle.textContent = 'Compliance Report';
+  if (hash === '#access-request')     subtitle.textContent = 'Request Access';
 
   document.querySelectorAll('nav a').forEach(function (a) {
     a.classList.toggle('active', a.getAttribute('href') === hash);
@@ -1225,8 +1406,10 @@ function setActive(hash) {
     ptoSectionLoaded = true;
     loadPtoSection();
   }
-  if (hash === '#licensure')      loadMyLicenses();
-  if (hash === '#access-request') { buildAccessRequestOptions(); loadMyAccessRequests(); }
+  if (hash === '#licensure')           loadMyLicenses();
+  if (hash === '#bg-checks')           loadMyBgRequests();
+  if (hash === '#compliance-report')   initComplianceReport();
+  if (hash === '#access-request')      { buildAccessRequestOptions(); loadMyAccessRequests(); }
 }
 
 async function loadMyLicenses() {
@@ -2085,6 +2268,355 @@ function wireSubCoverageUI() {
 
   // initialize
   update();
+}
+
+/* ── Background Check Requests ── */
+
+let bgDedupTimer = null;
+
+document.getElementById('bgEmail')?.addEventListener('input', () => {
+  clearTimeout(bgDedupTimer);
+  const email = document.getElementById('bgEmail').value.trim();
+  const warningEl = document.getElementById('bgDedupWarning');
+  if (!email) { warningEl.style.display = 'none'; return; }
+  bgDedupTimer = setTimeout(() => checkBgDedup(email), 600);
+});
+
+async function checkBgDedup(email) {
+  const warningEl = document.getElementById('bgDedupWarning');
+  const lastName  = document.getElementById('bgLastName')?.value.trim();
+  if (!email || !currentProfile) return;
+
+  const { data } = await supabase
+    .from('compliance_bg_check_requests')
+    .select('id, subject_first_name, subject_last_name, status, cleared_at, expires_at')
+    .eq('school_id', currentProfile.school_id)
+    .eq('subject_email', email.toLowerCase())
+    .in('status', ['cleared', 'submitted', 'pending'])
+    .limit(1);
+
+  if (!data?.length) { warningEl.style.display = 'none'; return; }
+
+  const existing = data[0];
+  const name = `${existing.subject_first_name} ${existing.subject_last_name}`;
+  const today = new Date().toISOString().slice(0, 10);
+  const isCleared = existing.status === 'cleared' && (!existing.expires_at || existing.expires_at >= today);
+
+  if (isCleared) {
+    warningEl.textContent = `⚠ A cleared background check already exists for ${name} at this email address.`;
+  } else {
+    warningEl.textContent = `⚠ An existing request for ${name} at this email is already ${existing.status}.`;
+  }
+  warningEl.style.display = 'block';
+
+  // Soft name mismatch warning
+  if (lastName && existing.subject_last_name.toLowerCase() !== lastName.toLowerCase()) {
+    warningEl.textContent += ' (Note: last name differs from existing record — this may be a different person.)';
+  }
+}
+
+async function loadMyBgRequests() {
+  const container = document.getElementById('myBgRequests');
+  if (!container || !currentProfile) return;
+
+  const { data, error } = await supabase
+    .from('compliance_bg_check_requests')
+    .select('id, subject_first_name, subject_last_name, subject_email, reason, volunteer_roles, status, requested_at, cleared_at, expires_at, admin_note')
+    .eq('requestor_id', currentProfile.id)
+    .order('requested_at', { ascending: false });
+
+  if (error) {
+    container.innerHTML = '<p class="muted" style="text-align:center;padding:20px 0;">Failed to load requests.</p>';
+    return;
+  }
+
+  if (!data?.length) {
+    container.innerHTML = '<p class="muted" style="text-align:center;padding:20px 0;">No requests yet.</p>';
+    return;
+  }
+
+  const statusColor = {
+    pending:   ['#eff6ff', '#1d4ed8'],
+    submitted: ['#fef3c7', '#92400e'],
+    cleared:   ['#dcfce7', '#15803d'],
+    expired:   ['#fee2e2', '#991b1b'],
+    cancelled: ['#f1f5f9', '#64748b'],
+  };
+
+  container.innerHTML = data.map(req => {
+    const [bg, color] = statusColor[req.status] ?? ['#f1f5f9', '#374151'];
+    const name = `${escHtml(req.subject_first_name)} ${escHtml(req.subject_last_name)}`;
+    const date = new Date(req.requested_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const noteHTML = req.admin_note
+      ? `<div style="margin-top:6px;padding:6px 10px;background:#f8fafc;border-left:3px solid #cbd5e1;border-radius:4px;font-size:12px;color:#374151;"><strong>Note:</strong> ${escHtml(req.admin_note)}</div>`
+      : '';
+    const cancelBtn = req.status === 'pending'
+      ? `<button class="bg-cancel-btn" data-id="${req.id}" style="margin-top:6px;background:none;border:1px solid #fca5a5;border-radius:6px;color:#dc2626;font-size:12px;font-weight:600;padding:3px 10px;cursor:pointer;">Withdraw</button>`
+      : '';
+    return `
+      <div style="padding:12px 0;border-bottom:1px solid #f1f5f9;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px;">
+          <span style="font-size:13px;font-weight:600;">${name}</span>
+          ${req.subject_email ? `<span style="font-size:12px;color:#6b7280;">${escHtml(req.subject_email)}</span>` : ''}
+          <span style="background:${bg};color:${color};padding:2px 10px;border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;">${req.status}</span>
+          <span class="muted" style="margin-left:auto;font-size:12px;">${date}</span>
+        </div>
+        ${req.volunteer_roles?.length ? `<div style="margin-top:4px;">${req.volunteer_roles.map(r => `<span style="background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:11px;font-weight:700;padding:2px 8px;margin-right:3px;">${escHtml(r)}</span>`).join('')}</div>` : ''}
+        ${req.reason ? `<div style="font-size:12px;color:#6b7280;margin-top:2px;">${escHtml(req.reason)}</div>` : ''}
+        ${noteHTML}
+        ${cancelBtn}
+      </div>`;
+  }).join('');
+
+  container.querySelectorAll('.bg-cancel-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Withdraw this background check request?')) return;
+      btn.disabled = true;
+      const { error } = await supabase
+        .from('compliance_bg_check_requests')
+        .update({ status: 'cancelled' })
+        .eq('id', btn.dataset.id);
+      if (error) { alert('Failed to withdraw request.'); btn.disabled = false; return; }
+      showToast('Request withdrawn');
+      loadMyBgRequests();
+    });
+  });
+}
+
+document.getElementById('bgSubmitBtn')?.addEventListener('click', async () => {
+  const firstName = document.getElementById('bgFirstName')?.value.trim();
+  const lastName  = document.getElementById('bgLastName')?.value.trim();
+  const email     = document.getElementById('bgEmail')?.value.trim().toLowerCase() || null;
+  const roles     = [...document.querySelectorAll('input[name="bgRole"]:checked')].map(cb => cb.value);
+  const notes     = document.getElementById('bgNotes')?.value.trim() || null;
+  const msgEl     = document.getElementById('bgSubmitMsg');
+
+  if (!firstName || !lastName) {
+    msgEl.textContent = 'First and last name are required.';
+    return;
+  }
+  if (!roles.length) {
+    msgEl.textContent = 'Please select at least one volunteer role.';
+    return;
+  }
+  msgEl.textContent = '';
+
+  const btn = document.getElementById('bgSubmitBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Submitting…';
+
+  const { error } = await supabase.from('compliance_bg_check_requests').insert({
+    school_id:          currentProfile.school_id,
+    requestor_id:       currentProfile.id,
+    subject_first_name: firstName,
+    subject_last_name:  lastName,
+    subject_email:      email,
+    volunteer_roles:    roles,
+    reason:             notes,
+    status: 'pending'
+  });
+
+  btn.disabled    = false;
+  btn.textContent = 'Submit Request';
+
+  if (error) {
+    msgEl.textContent = 'Failed to submit. Please try again.';
+    console.error(error);
+    return;
+  }
+
+  document.getElementById('bgFirstName').value = '';
+  document.getElementById('bgLastName').value  = '';
+  document.getElementById('bgEmail').value     = '';
+  document.querySelectorAll('input[name="bgRole"]').forEach(cb => { cb.checked = false; });
+  document.getElementById('bgNotes').value     = '';
+  document.getElementById('bgDedupWarning').style.display = 'none';
+
+  showToast('Background check request submitted');
+  loadMyBgRequests();
+});
+
+/* ── Compliance Report ── */
+
+let compReportData = null;
+let compReportInitialized = false;
+
+async function initComplianceReport() {
+  if (compReportInitialized) return;
+  compReportInitialized = true;
+
+  // Fetch allowed teachers + active templates (no filters = discovery call)
+  const { data: init, error: initErr } = await supabase.functions.invoke('compliance_report', {
+    body: {},
+  });
+
+  if (initErr || init?.error) {
+    document.getElementById('compReportMsg').textContent =
+      init?.error ?? initErr?.message ?? 'Error loading report setup.';
+    return;
+  }
+  const teachers   = init.teachers   ?? [];
+  const templates  = init.templates  ?? [];
+
+  // Populate teacher select
+  const teacherSel = document.getElementById('compReportTeacher');
+  teacherSel.innerHTML = '<option value="">All homerooms</option>';
+  teachers.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = `${t.last_name}, ${t.first_name}`;
+    teacherSel.appendChild(opt);
+  });
+
+  // Populate template select
+  const tmplSel = document.getElementById('compReportTemplate');
+  tmplSel.innerHTML = '<option value="">All active forms</option>';
+  templates.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.title;
+    tmplSel.appendChild(opt);
+  });
+
+  document.getElementById('compReportGenerate').addEventListener('click', runComplianceReport);
+  document.getElementById('compReportExport').addEventListener('click',   exportComplianceReportCsv);
+}
+
+async function runComplianceReport() {
+  const teacherId  = document.getElementById('compReportTeacher')?.value;
+  const templateId = document.getElementById('compReportTemplate')?.value;
+  const msgEl      = document.getElementById('compReportMsg');
+  const generateBtn = document.getElementById('compReportGenerate');
+
+  msgEl.textContent = '';
+  generateBtn.disabled    = true;
+  generateBtn.textContent = 'Loading…';
+
+  const body = {};
+  if (teacherId)  body.teacher_employee_ids = [teacherId];
+  if (templateId) body.template_ids         = [templateId];
+
+  const { data, error } = await supabase.functions.invoke('compliance_report', { body });
+
+  generateBtn.disabled    = false;
+  generateBtn.textContent = 'Generate Report';
+
+  if (error || data?.error) {
+    msgEl.textContent = data?.error ?? error?.message ?? 'Failed to generate report.';
+    return;
+  }
+
+  compReportData = data;
+  renderComplianceReport(compReportData);
+}
+
+function renderComplianceReport(data) {
+  const { templates, rows } = data;
+  const wrap = document.getElementById('compReportResultWrap');
+  const thead = document.getElementById('compReportThead');
+  const tbody = document.getElementById('compReportTbody');
+  const summary = document.getElementById('compReportSummary');
+  const exportBtn = document.getElementById('compReportExport');
+
+  wrap.style.display = '';
+  exportBtn.style.display = '';
+
+  if (!rows?.length) {
+    thead.innerHTML = '';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px 0;color:#9ca3af;">No students found for the selected criteria.</td></tr>';
+    summary.textContent = '';
+    return;
+  }
+
+  // Summary
+  const total   = rows.length;
+  const missing = rows.filter(r => Object.values(r.compliance).some(c => c.status !== 'signed')).length;
+  summary.textContent = `${total} students · ${missing} missing at least one form`;
+
+  // Headers
+  const extraCols = templates?.length ? templates.map(t => `<th>${escHtml(t.title)}</th>`).join('') : '<th>Status</th>';
+  thead.innerHTML = `<tr><th>Student</th><th>Grade</th><th>Teacher</th>${extraCols}<th>Restrictions</th></tr>`;
+
+  // Rows
+  tbody.innerHTML = '';
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    const statusCells = templates?.length
+      ? templates.map(t => {
+          const c = row.compliance?.[t.id] ?? { status: 'missing' };
+          const dot = c.status === 'signed'
+            ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#16a34a;margin-right:5px;"></span>'
+            : c.status === 'expired'
+              ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#dc2626;margin-right:5px;"></span>'
+              : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#d1d5db;margin-right:5px;"></span>';
+          const label = c.status === 'signed' ? 'Signed' : c.status === 'expired' ? 'Expired' : 'Missing';
+          const sub   = c.signed_at ? `<div style="font-size:11px;color:#9ca3af;">${new Date(c.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>` : '';
+          return `<td>${dot}${label}${sub}</td>`;
+        }).join('')
+      : '<td>—</td>';
+
+    const restrictCell = (() => {
+      if (!row.restrictions?.length) return '<td><span class="muted">—</span></td>';
+      const badges = row.restrictions.map(r => {
+        const parts = [];
+        if (!r.can_chaperone) parts.push('No chaperone');
+        if (!r.can_drive)     parts.push('No driving');
+        return parts.map(p => `<span style="background:#fee2e2;color:#991b1b;border-radius:999px;font-size:11px;font-weight:700;padding:2px 7px;display:inline-block;margin:1px;" title="${escHtml(r.guardian_name)}">${p}</span>`).join('');
+      }).join('');
+      return `<td style="white-space:normal;">${badges}</td>`;
+    })();
+
+    tr.innerHTML = `
+      <td><strong>${escHtml(row.student_name)}</strong></td>
+      <td>${escHtml(row.grade_level ?? '—')}</td>
+      <td>${escHtml(row.teacher_name)}</td>
+      ${statusCells}
+      ${restrictCell}
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function exportComplianceReportCsv() {
+  if (!compReportData?.rows?.length) return;
+
+  const { templates, rows } = compReportData;
+  const headers = ['Student', 'Grade', 'Teacher', ...( templates?.map(t => t.title) ?? ['Status'] ), 'Restrictions'];
+
+  const csvRows = [headers.join(',')];
+  rows.forEach(row => {
+    const statusCols = templates?.length
+      ? templates.map(t => {
+          const c = row.compliance?.[t.id] ?? { status: 'missing' };
+          return JSON.stringify(c.status === 'signed' ? 'Signed' : c.status === 'expired' ? 'Expired' : 'Missing');
+        })
+      : ['—'];
+
+    const restrictStr = row.restrictions?.length
+      ? row.restrictions.map(r => {
+          const parts = [];
+          if (!r.can_chaperone) parts.push(`${r.guardian_name}: No chaperone`);
+          if (!r.can_drive)     parts.push(`${r.guardian_name}: No driving`);
+          return parts.join('; ');
+        }).filter(Boolean).join(' | ')
+      : '';
+
+    csvRows.push([
+      JSON.stringify(row.student_name),
+      JSON.stringify(row.grade_level ?? ''),
+      JSON.stringify(row.teacher_name),
+      ...statusCols,
+      JSON.stringify(restrictStr),
+    ].join(','));
+  });
+
+  const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `compliance_report_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 /* ── Access Requests ── */

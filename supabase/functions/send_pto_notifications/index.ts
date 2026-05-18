@@ -247,36 +247,11 @@ if (event === "UPDATE" && old_status === "PENDING") {
       if (claimErr) {
         console.error("Sub coverage notify claim failed", claimErr);
       } else if (claimed) {
-        // Load substitute managers for this school
-        const { data: subManagers, error: subErr } = await supabase
-          .from("profiles")
-          .select("email")
-          .eq("school_id", employee.school_id)
-          .eq("can_manage_substitutes", true)
-          .not("email", "is", null);
-
-        if (subErr) {
-          console.error("Failed to load substitute managers", subErr);
-        } else if ((subManagers ?? []).length > 0) {
-          for (const mgr of subManagers!) {
-            await sendEmail({
-              to: mgr.email,
-              subject: "Substitute/Coverage Needed (PTO Approved)",
-              html: renderPtoEmail({
-                title: "Substitute/Coverage Needed",
-                intro: `✅ PTO was approved and substitute/coverage is needed for ${employee.first_name} ${employee.last_name}.`,
-                request,
-                employee,
-                footer:
-                  "This request was marked as needing substitute/coverage. Please arrange coverage."
-              })
-            });
-          }
+        const subManagers = await loadSubstituteManagers(employee.school_id);
+        if (subManagers.length > 0) {
+          await sendSubCoverageNeeded(request, employee, subManagers);
         } else {
-          console.warn(
-            "No substitute managers found for school:",
-            employee.school_id
-          );
+          console.warn("No substitute managers found for school:", employee.school_id);
         }
       }
     }
@@ -308,29 +283,9 @@ if (event === "UPDATE" && old_status === "CANCEL_REQUESTED" && new_status === "C
   const isFutureStart = start > today;
 
   if (isFutureStart && request.needs_sub_coverage === true) {
-    const { data: subManagers, error: subErr } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("school_id", employee.school_id)
-      .eq("can_manage_substitutes", true)
-      .not("email", "is", null);
-
-    if (subErr) {
-      console.error("Failed to load substitute managers (cancel)", subErr);
-    } else if ((subManagers ?? []).length > 0) {
-      for (const mgr of subManagers!) {
-        await sendEmail({
-          to: mgr.email,
-          subject: "Coverage No Longer Needed (PTO Cancelled)",
-          html: renderPtoEmail({
-            title: "Coverage No Longer Needed",
-            intro: `⚠️ This previously approved PTO was cancelled. Coverage is no longer needed for ${employee.first_name} ${employee.last_name}.`,
-            request,
-            employee,
-            footer: "If you already arranged coverage, please cancel/unassign the substitute."
-          })
-        });
-      }
+    const subManagers = await loadSubstituteManagers(employee.school_id);
+    if (subManagers.length > 0) {
+      await sendSubCoverageNoLongerNeeded(request, employee, subManagers);
     } else {
       console.warn("No substitute managers found for school (cancel):", employee.school_id);
     }
@@ -469,6 +424,22 @@ async function sendSubCoverageNeeded(request: any, employee: any, managers: any[
         request,
         employee,
         footer: "Please arrange coverage. This request was marked as needing substitute/coverage."
+      })
+    });
+  }
+}
+
+async function sendSubCoverageNoLongerNeeded(request: any, employee: any, managers: any[]) {
+  for (const mgr of managers) {
+    await sendEmail({
+      to: mgr.email,
+      subject: "Coverage No Longer Needed (PTO Cancelled)",
+      html: renderPtoEmail({
+        title: "Coverage No Longer Needed",
+        intro: `⚠️ This previously approved PTO was cancelled. Coverage is no longer needed for ${employee.first_name} ${employee.last_name}.`,
+        request,
+        employee,
+        footer: "If you already arranged coverage, please cancel/unassign the substitute."
       })
     });
   }

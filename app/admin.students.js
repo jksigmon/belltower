@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js';
-import { loadFamilyOptions, loadBusGroupOptions, esc, getAvatarColor, cloneSelectOptions } from './admin.shared.js';
+import { loadFamilyOptions, loadBusGroupOptions, esc, getAvatarColor, cloneSelectOptions, debounce } from './admin.shared.js';
 import { createDirectory } from './admin.directory.js';
 
 let currentProfile;
@@ -371,11 +371,8 @@ function wireStudentEvents() {
   const campusFilter   = document.getElementById('studentCampusFilter');
 
   if (searchInput) {
-    let t;
-    searchInput.addEventListener('input', e => {
-      clearTimeout(t);
-      t = setTimeout(() => studentsDirectory.setSearch(e.target.value.trim()), 300);
-    });
+    searchInput.addEventListener('input', debounce(e =>
+      studentsDirectory.setSearch(e.target.value.trim()), 300));
   }
   if (sortSelect) {
     sortSelect.addEventListener('change', e => {

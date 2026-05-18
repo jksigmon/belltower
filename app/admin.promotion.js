@@ -1,42 +1,17 @@
 
 import { supabase } from './admin.supabase.js';
-
-/* ─── Grade progression ─────────────────────────────────────── */
-const GRADE_ORDER = ['PK', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-
-function nextGrade(grade) {
-  const idx = GRADE_ORDER.indexOf(grade);
-  if (idx < 0 || idx >= GRADE_ORDER.length - 1) return null;
-  return GRADE_ORDER[idx + 1];
-}
-
-function isTerminalGrade(grade) {
-  return grade === '12';
-}
-
-function gradeLabel(grade) {
-  if (!grade) return 'Unknown';
-  if (grade === 'PK') return 'Pre-K';
-  if (grade === 'K') return 'Kindergarten';
-  const n = parseInt(grade);
-  if (!isNaN(n)) {
-    const v = n % 100;
-    const suffix = (v >= 11 && v <= 13) ? 'th' : (['th','st','nd','rd'][v % 10] || 'th');
-    return `${n}${suffix} Grade`;
-  }
-  return `Grade ${grade}`;
-}
+import { GRADE_ORDER, nextGrade, gradeLabel, isTerminalGrade } from './admin.shared.js';
 
 /* ─── Module state ──────────────────────────────────────────── */
 let _profile = null;
 let _students = [];
 let _actionMap = {};   // studentId → 'promote' | 'retain' | 'graduate'
 let _initialized = false;
+let _draftCampusId = 'all';  // captured at preview-load time; avoids re-reading DOM
 
 /* ─── Draft persistence ─────────────────────────────────────── */
 function draftKey() {
-  const campusId = document.getElementById('promotionCampus')?.value || 'all';
-  return `promo_draft_${_profile.school_id}_${campusId}`;
+  return `promo_draft_${_profile.school_id}_${_draftCampusId}`;
 }
 
 function saveDraft() {
@@ -60,11 +35,18 @@ function clearDraft() {
 function checkAndShowDraftBanner() {
   const banner = document.getElementById('promoDraftBanner');
   if (!banner) return;
-  const draft = loadDraftFromStorage();
+  // Use the currently-selected campus to look up a draft, not _draftCampusId,
+  // because this runs on campus-change before a new preview is loaded.
+  const sel = document.getElementById('promotionCampus');
+  const campusId = sel?.value || 'all';
+  let draft = null;
+  try {
+    const raw = localStorage.getItem(`promo_draft_${_profile.school_id}_${campusId}`);
+    draft = raw ? JSON.parse(raw) : null;
+  } catch (_) {}
   if (draft?.students?.length) {
     document.getElementById('promoDraftDate').textContent =
       new Date(draft.savedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-    const sel = document.getElementById('promotionCampus');
     const opt = sel?.options[sel.selectedIndex];
     document.getElementById('promoDraftCampusLabel').textContent =
       opt?.value ? opt.text : 'All Campuses';
@@ -75,6 +57,8 @@ function checkAndShowDraftBanner() {
 }
 
 function restoreDraft() {
+  // Sync _draftCampusId from DOM so draftKey() finds the right draft
+  _draftCampusId = document.getElementById('promotionCampus')?.value || 'all';
   const draft = loadDraftFromStorage();
   if (!draft) return;
   _students  = draft.students;
@@ -187,6 +171,7 @@ async function loadPromotionPreview() {
     .order('last_name');
 
   const campusId = document.getElementById('promotionCampus')?.value;
+  _draftCampusId = campusId || 'all';  // stable for all draft ops until next preview load
   if (campusId) query = query.eq('campus_id', campusId);
 
   const { data, error } = await query;
@@ -464,6 +449,7 @@ async function runPromotion(year) {
     const { error } = await supabase
       .from('students')
       .update({ grade_level: ng, retained: false })
+      .eq('school_id', _profile.school_id)
       .in('id', ids);
     if (error) errors.push(error);
   }
@@ -473,6 +459,7 @@ async function runPromotion(year) {
     const { error } = await supabase
       .from('students')
       .update({ retained: true })
+      .eq('school_id', _profile.school_id)
       .in('id', toRetain.map(s => s.id));
     if (error) errors.push(error);
   }
@@ -482,6 +469,7 @@ async function runPromotion(year) {
     const { error } = await supabase
       .from('students')
       .update({ active: false, graduation_year: graduationYear, retained: false })
+      .eq('school_id', _profile.school_id)
       .in('id', toGraduate.map(s => s.id));
     if (error) errors.push(error);
   }
@@ -495,7 +483,7 @@ async function runPromotion(year) {
   }
 
   // Write audit log
-  await supabase.from('student_promotion_log').insert({
+  const { error: logErr } = await supabase.from('student_promotion_log').insert({
     school_id:       _profile.school_id,
     academic_year:   year,
     run_by:          _profile.user_id,
@@ -504,6 +492,7 @@ async function runPromotion(year) {
     graduated_count: toGraduate.length,
     snapshot,
   });
+  if (logErr) console.error('Failed to write promotion audit log:', logErr);
 
   clearDraft();
 

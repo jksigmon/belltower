@@ -75,12 +75,9 @@ export async function initStaffSection(profile) {
       columnCount: 8,
       tbodySelector: '#staffTable tbody',
       paginationContainer: '#staffPagination',
-      renderRow: renderStaffRow
+      renderRow: renderStaffRow,
+      onBeforeLoad: clearStaffSelection
     });
-
-    // Clear selection whenever the directory reloads (filter/search/page change)
-    const _origLoad = staffDirectory.load.bind(staffDirectory);
-    staffDirectory.load = (...args) => { clearStaffSelection(); return _origLoad(...args); };
   }
 
   if (!initialized) {

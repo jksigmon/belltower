@@ -1,5 +1,6 @@
 import { supabase } from '/app/admin.supabase.js';
 import { initUserMenu } from '/app/user-menu.js';
+import { requireAuth } from '/app/admin.auth.js';
 
 /* =============================================
    STATE
@@ -24,13 +25,10 @@ const selectedPendingIds = new Set();
 let _denyCallback = null;
 
 /* =============================================
-   AUTH
+   AUTH + PROFILE
 ============================================= */
-const { data: sessionData } = await supabase.auth.getSession();
-if (!sessionData?.session) {
-  window.location.href = '/login.html';
-  throw new Error('No session');
-}
+const _session = await requireAuth();
+if (!_session) throw new Error('No session');
 
 const signOutBtn = document.getElementById('signOut');
 if (signOutBtn) {
@@ -44,13 +42,11 @@ if (signOutBtn) {
   });
 }
 
-/* =============================================
-   PROFILE + MODULE CHECK
-============================================= */
+// Custom select: needs school_modules join for tab visibility gating
 const { data: currentProfile, error: profErr } = await supabase
   .from('profiles')
   .select('*, schools!profiles_school_id_fkey(school_modules(module, enabled))')
-  .eq('user_id', sessionData.session.user.id)
+  .eq('user_id', _session.user.id)
   .single();
 
 if (profErr || !currentProfile) {

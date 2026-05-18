@@ -26,7 +26,7 @@ export async function initCampusesSection(profile) {
 async function loadCampuses() {
   const { data, error } = await supabase
     .from('campuses')
-    .select('*')
+    .select('id, name, day_start_time, day_end_time, workday_hours, pto_increment_minutes')
     .eq('school_id', currentProfile.school_id)
     .order('name');
 

@@ -1,5 +1,6 @@
 import { supabase } from './admin.supabase.js';
 import { initUserMenu } from './user-menu.js';
+import { esc } from './admin.shared.js';
 
 let currentProfile = null;
 let currentModules = {}; // { pto: true, substitutes: false, ... }
@@ -288,6 +289,14 @@ async function loadDashboardStats() {
       .neq('status', 'revoked').order('expiration_date').limit(8);
   }
 
+  if (moduleEnabled('compliance') && p.can_manage_compliance) {
+    queries.bgPending = supabase.from('compliance_bg_check_requests').select('id', { count: 'exact', head: true })
+      .eq('school_id', schoolId).in('status', ['pending', 'submitted']);
+    queries.agreementsExpiring = supabase.from('compliance_agreements').select('id', { count: 'exact', head: true })
+      .eq('school_id', schoolId).is('voided_at', null)
+      .lte('expires_at', in30Str).gte('expires_at', today);
+  }
+
   if (moduleEnabled('carline') && (p.can_view_carline || p.is_superadmin)) {
     queries.carline = supabase.from('carline_events')
       .select('id, status, closed_at, carline_calls(status)')
@@ -351,9 +360,12 @@ async function loadDashboardStats() {
     actions.forEach(({ label, icon, href, variant }) => {
       const a = document.createElement('a');
       a.className = `dash-action-btn dash-action-btn--${variant}`;
-      a.innerHTML = `<i data-lucide="${icon}"></i>${label}`;
       a.href = href;
       if (!href.startsWith('#')) a.target = '_blank';
+      const iconEl = document.createElement('i');
+      iconEl.dataset.lucide = icon;
+      a.appendChild(iconEl);
+      a.appendChild(document.createTextNode(label));
       row.appendChild(a);
     });
     if (window.lucide) lucide.createIcons({ el: row });
@@ -379,6 +391,18 @@ async function loadDashboardStats() {
     show('dashAttention');
   }
 
+  if (r.bgPending !== undefined) {
+    set('statBgPending', r.bgPending.count ?? 0);
+    show('dashBgPending');
+    show('dashAttention');
+  }
+
+  if (r.agreementsExpiring !== undefined) {
+    set('statAgreementsExpiring', r.agreementsExpiring.count ?? 0);
+    show('dashAgreementsExpiring');
+    show('dashAttention');
+  }
+
   if (r.carline !== undefined) {
     const events = r.carline.data || [];
     if (events.length > 0) {
@@ -396,7 +420,7 @@ async function loadDashboardStats() {
 
       if (statusEl) {
         statusEl.textContent = isOpen ? 'Open' : 'Closed';
-        statusEl.style.color = isOpen ? '#16a34a' : '#64748b';
+        statusEl.className = isOpen ? 'status-success' : 'status-muted';
       }
       if (timeEl) {
         if (isOpen) {
@@ -411,7 +435,7 @@ async function loadDashboardStats() {
       }
       if (issuesEl) {
         issuesEl.textContent = issues > 0 ? `${issues} recall${issues !== 1 ? 's' : ''}` : '0 recalls';
-        issuesEl.style.color = issues > 0 ? '#dc2626' : '';
+        issuesEl.className = issues > 0 ? 'status-danger' : '';
       }
       if (cardEl) {
         cardEl.className = 'stat' + (issues > 0 && !isOpen ? ' stat-warn' : '');
@@ -454,20 +478,25 @@ async function loadDashboardStats() {
     if (upcoming.length > 0) {
       const list = document.getElementById('dashBirthdayList');
       const fmtBday = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      list.innerHTML = upcoming.map(s => {
+      const ul = document.createElement('ul');
+      ul.style.cssText = 'list-style:none;margin:0;padding:0;';
+      upcoming.forEach(s => {
         const when = s.daysLeft === 0 ? 'Today!' : s.daysLeft === 1 ? 'Tomorrow' : `in ${s.daysLeft} days`;
-        return `<div class="staff-dash-request-row">
-          <span class="staff-dash-req-type">${s.name}</span>
+        const li = document.createElement('li');
+        li.className = 'staff-dash-request-row';
+        li.innerHTML = `<span class="staff-dash-req-type">${esc(s.name)}</span>
           <span class="staff-dash-req-dates">Turning ${s.age} — ${fmtBday(s.bday)}</span>
-          <span class="staff-dash-req-badge" style="background:#fef9c3;color:#713f12;">${when}</span>
-        </div>`;
-      }).join('');
+          <span class="staff-dash-req-badge" style="background:#fef9c3;color:#713f12;">${esc(when)}</span>`;
+        ul.appendChild(li);
+      });
+      list.innerHTML = '';
+      list.appendChild(ul);
       show('dashBirthdays');
     }
   }
 
   // ── Today's Alerts panel ──────────────────────────────────────────
-  const canSeeAlerts = p.is_superadmin || p.can_approve_pto || p.can_manage_substitutes || p.can_manage_licensure || p.can_manage_access;
+  const canSeeAlerts = p.is_superadmin || p.can_approve_pto || p.can_manage_substitutes || p.can_manage_licensure || p.can_manage_compliance || p.can_manage_access;
   if (canSeeAlerts) {
     const fmtDate = d => {
       if (d === today) return 'today';

@@ -669,48 +669,20 @@
 
 <script type="module">
 import { supabase } from '/app/admin.supabase.js';
-import { initUserMenu } from '/app/user-menu.js';
+import { initPage } from '/app/admin.auth.js';
 
 let currentProfile;
 let calendar;
 
-// -------------------- AUTH --------------------
-const { data: sessionData } = await supabase.auth.getSession();
-if (!sessionData?.session) {
-  window.location.href = '/login.html';
-  throw new Error('No session');
-}
+// -------------------- AUTH + PROFILE --------------------
+const profile = await initPage({ requiredCap: 'can_manage_substitutes' });
+if (!profile) throw new Error('Auth failed');
+currentProfile = profile;
 
 document.getElementById('signOut')?.addEventListener('click', async () => {
   await supabase.auth.signOut();
   window.location.href = '/login.html';
 });
-
-// -------------------- PROFILE --------------------
-
-const { data: profile, error: profErr } = await supabase
-  .from('profiles')
-  .select('*')
-  .eq('user_id', sessionData.session.user.id)
-  .single();
-
-if (profErr || !profile) {
-  console.error('Profile load failed', profErr);
-  alert('Failed to load your profile.');
-  throw profErr;
-}
-
-currentProfile = profile;
-initUserMenu(profile.display_name ?? profile.email);
-
-
-// ✅ CAPABILITY GATE
-if (
-  !profile.is_superadmin &&
-  profile.can_manage_substitutes !== true
-) {
-  window.location.href = '/admin.html';
-}
 
 // ✅ MODULE GATE
 if (!profile.is_superadmin) {

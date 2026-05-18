@@ -77,6 +77,7 @@
         <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes"><i data-lucide="repeat-2"></i> Substitutes</a>
         <a href="/carline.html" data-cap-group="carline" data-module="carline"><i data-lucide="car"></i> Carline</a>
         <a href="/app/licensure.html" data-cap="can_manage_licensure" data-module="licensure"><i data-lucide="badge-check"></i> Licensure</a>
+        <a href="/app/compliance.html" data-cap="can_manage_compliance" data-module="compliance"><i data-lucide="shield-check"></i> Compliance</a>
       </div>
 
       <button class="nav-section-toggle" data-group="directory">
@@ -177,6 +178,16 @@
         <i data-lucide="shield-alert" class="stat-icon"></i>
         <strong id="statLicExpiring">–</strong>
         <span>Licenses Expiring (30d)</span>
+      </a>
+      <a href="/app/compliance.html#bgchecks" class="stat stat-alert" id="dashBgPending" style="display:none;" data-accent="red">
+        <i data-lucide="user-check" class="stat-icon"></i>
+        <strong id="statBgPending">–</strong>
+        <span>Pending BG Checks</span>
+      </a>
+      <a href="/app/compliance.html#agreements" class="stat stat-alert" id="dashAgreementsExpiring" style="display:none;" data-accent="amber">
+        <i data-lucide="file-warning" class="stat-icon"></i>
+        <strong id="statAgreementsExpiring">–</strong>
+        <span>Agreements Expiring (30d)</span>
       </a>
     </div>
   </div>
@@ -421,6 +432,7 @@
 		<label><input type="checkbox" data-field="can_bulk_upload"> Bulk upload</label>
 		<label><input type="checkbox" data-field="can_export_data"> Export data</label>
 		<label data-module="licensure"><input type="checkbox" data-field="can_manage_licensure"> Manage licensure</label>
+		<label data-module="compliance"><input type="checkbox" data-field="can_manage_compliance"> Manage compliance</label>
 </div>
       </div>
 
@@ -1354,9 +1366,9 @@
 </div>
 
 <!-- Delete staff confirmation -->
-<div id="deleteStaffModal" class="confirm-modal-overlay" hidden>
+<div id="deleteStaffModal" class="confirm-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteStaffModalTitle" hidden>
   <div class="confirm-modal-dialog">
-    <h3 class="confirm-modal-title">Delete Staff Member?</h3>
+    <h3 class="confirm-modal-title" id="deleteStaffModalTitle">Delete Staff Member?</h3>
     <p class="confirm-modal-body" id="deleteStaffMsg"></p>
     <div class="confirm-modal-actions">
       <button id="deleteStaffCancel" class="btn">Cancel</button>
@@ -1559,9 +1571,9 @@
 </div>
 
 <!-- Withdraw student modal -->
-<div id="withdrawStudentModal" class="confirm-modal-overlay" hidden>
+<div id="withdrawStudentModal" class="confirm-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="withdrawStudentModalTitle" hidden>
   <div class="confirm-modal-dialog">
-    <h3 class="confirm-modal-title">Withdraw Student</h3>
+    <h3 class="confirm-modal-title" id="withdrawStudentModalTitle">Withdraw Student</h3>
     <p class="confirm-modal-body" id="withdrawStudentMsg"></p>
     <div class="drawer-field" style="margin-top:12px;">
       <label>Withdrawal Date <span class="required">*</span></label>
@@ -1670,9 +1682,9 @@
 </div>
 
 <!-- Delete family confirmation -->
-<div id="deleteFamilyModal" class="confirm-modal-overlay" hidden>
+<div id="deleteFamilyModal" class="confirm-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteFamilyModalTitle" hidden>
   <div class="confirm-modal-dialog">
-    <h3 class="confirm-modal-title">Delete Family?</h3>
+    <h3 class="confirm-modal-title" id="deleteFamilyModalTitle">Delete Family?</h3>
     <p class="confirm-modal-body" id="deleteFamilyMsg"></p>
     <div class="confirm-modal-actions">
       <button id="deleteFamilyCancel" class="btn">Cancel</button>
@@ -2201,14 +2213,41 @@
      DRAWER SCRIPTS
      ============================================= -->
 <script>
+  const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+  function trapFocus(drawer, e) {
+    const focusable = Array.from(drawer.querySelectorAll(FOCUSABLE));
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last)  { e.preventDefault(); first.focus(); }
+    }
+  }
+
   function openDrawer(id) {
-    document.getElementById(id)?.classList.add('open');
+    const drawer = document.getElementById(id);
+    if (!drawer) return;
+    drawer.classList.add('open');
     document.getElementById('drawerOverlay')?.classList.add('open');
     document.body.style.overflow = 'hidden';
+    // Move focus to first focusable element inside the drawer
+    const first = drawer.querySelector(FOCUSABLE);
+    if (first) setTimeout(() => first.focus(), 50);
+    drawer._trapHandler = e => { if (e.key === 'Tab') trapFocus(drawer, e); };
+    drawer.addEventListener('keydown', drawer._trapHandler);
   }
 
   function closeDrawer(id) {
-    document.getElementById(id)?.classList.remove('open');
+    const drawer = document.getElementById(id);
+    if (!drawer) return;
+    drawer.classList.remove('open');
+    if (drawer._trapHandler) {
+      drawer.removeEventListener('keydown', drawer._trapHandler);
+      delete drawer._trapHandler;
+    }
     const anyOpen = document.querySelectorAll('.drawer.open').length > 0;
     if (!anyOpen) {
       document.getElementById('drawerOverlay')?.classList.remove('open');
@@ -2217,7 +2256,13 @@
   }
 
   function closeAllDrawers() {
-    document.querySelectorAll('.drawer.open').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.drawer.open').forEach(d => {
+      d.classList.remove('open');
+      if (d._trapHandler) {
+        d.removeEventListener('keydown', d._trapHandler);
+        delete d._trapHandler;
+      }
+    });
     document.getElementById('drawerOverlay')?.classList.remove('open');
     document.body.style.overflow = '';
   }

@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
-import { esc, getAvatarColor } from './admin.shared.js';
+import { esc, getAvatarColor, debounce } from './admin.shared.js';
 
 let currentProfile;
 let initialized = false;
@@ -240,11 +240,8 @@ function wireFamilyEvents() {
   const sortSelect  = document.getElementById('familySort');
 
   if (searchInput) {
-    let t;
-    searchInput.addEventListener('input', e => {
-      clearTimeout(t);
-      t = setTimeout(() => familiesDirectory.setSearch(e.target.value.trim()), 300);
-    });
+    searchInput.addEventListener('input', debounce(e =>
+      familiesDirectory.setSearch(e.target.value.trim()), 300));
   }
   if (sortSelect) {
     sortSelect.addEventListener('change', e => {

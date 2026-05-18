@@ -60,6 +60,10 @@ or queries. Never bypass RLS without explicit discussion.
 | `pto_calendar_ics` | Generate ICS calendar file for PTO events |
 | `pto_decision_handler` | Handle PTO approval/denial decisions |
 | `send_pto_notifications` | Send email notifications to employees and PTO approvers via Resend |
+| `compliance_form_lookup` | Validate a form token and return template content for the volunteer form |
+| `compliance_form_submit` | Accept a signed agreement (signature image + signer info), auto-link to guardian |
+| `compliance_form_pdf` | Generate a signed agreement PDF for download |
+| `compliance_report` | Return per-student compliance status matrix; respects teacher/TA/manager scoping |
 
 ## Email Notifications
 Handled by the `send_pto_notifications` edge function using **Resend**. Notifications are sent to:

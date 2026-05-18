@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js';
-import { loadFamilyOptions, esc, getAvatarColor, cloneSelectOptions } from './admin.shared.js';
+import { loadFamilyOptions, esc, getAvatarColor, cloneSelectOptions, debounce } from './admin.shared.js';
 import { createDirectory } from './admin.directory.js';
 
 let currentProfile;
@@ -246,11 +246,8 @@ function wireGuardianEvents() {
   const sortSelect  = document.getElementById('guardianSort');
 
   if (searchInput) {
-    let t;
-    searchInput.addEventListener('input', e => {
-      clearTimeout(t);
-      t = setTimeout(() => guardiansDirectory.setSearch(e.target.value.trim()), 300);
-    });
+    searchInput.addEventListener('input', debounce(e =>
+      guardiansDirectory.setSearch(e.target.value.trim()), 300));
   }
   if (sortSelect) {
     sortSelect.addEventListener('change', e => {
