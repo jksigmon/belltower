@@ -97,13 +97,16 @@ function wireGlobalEvents() {
       renderBoard();
     });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') exitFullscreen();
     if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
       if (document.getElementById('placementBoardView')?.hidden === false) {
         e.preventDefault();
         undoLastMove();
       }
     }
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement) exitFullscreen();
   });
 }
 
@@ -143,36 +146,49 @@ async function renderSessionList() {
   container.innerHTML = '';
   data.forEach(s => {
     const row = document.createElement('div');
-    row.className = 'placement-session-row';
     const committed = s.status === 'committed';
     const archived  = !!s.archived_at;
-    if (archived) row.style.opacity = '0.6';
+    row.className = 'placement-session-card' +
+      (committed ? ' placement-session-card--committed' : '') +
+      (archived  ? ' placement-session-card--archived'  : '');
+
+    const dateLabel = committed && s.committed_at
+      ? 'Committed ' + new Date(s.committed_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' })
+      : 'Created '   + new Date(s.created_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' });
+
     row.innerHTML = `
-      <div class="placement-session-info">
-        <div class="placement-session-label">${esc(s.label)}${archived ? ' <span class="badge badge-neutral" style="font-size:10px;vertical-align:middle;">Archived</span>' : ''}</div>
-        <div class="muted" style="font-size:12px;margin-top:2px;">
-          ${esc(s.academic_year.replace('-', '–'))} &middot; ${gradeLabel(s.incoming_grade)} &rarr; ${gradeLabel(s.target_grade)}
+      <div class="placement-session-card-accent"></div>
+      <div class="placement-session-card-body">
+        <div class="placement-session-card-left">
+          <div class="placement-session-label">${esc(s.label)}</div>
+          <div class="placement-session-meta">
+            <span class="placement-year-chip">${esc(s.academic_year.replace('-','–'))}</span>
+            <span class="placement-grade-chip placement-grade-chip--from">${gradeLabel(s.incoming_grade)}</span>
+            <span class="placement-grade-arrow">→</span>
+            <span class="placement-grade-chip placement-grade-chip--to">${gradeLabel(s.target_grade)}</span>
+            ${archived ? '<span class="placement-grade-chip" style="background:#f1f5f9;color:#64748b;">Archived</span>' : ''}
+          </div>
         </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
-        <span class="placement-status-badge ${committed ? 'badge-committed' : 'badge-draft'}">${committed ? 'Committed' : 'Draft'}</span>
-        <span class="muted" style="font-size:12px;">
-          ${committed && s.committed_at
-            ? 'Committed ' + new Date(s.committed_at).toLocaleDateString()
-            : 'Created ' + new Date(s.created_at).toLocaleDateString()}
-        </span>
-        <button class="btn btn-sm btn-outline clone-session-btn" data-idx="${data.indexOf(s)}" title="Clone to a new year">
-          <i data-lucide="copy" style="width:14px;height:14px;"></i>
-        </button>
-        <button class="btn btn-sm btn-outline archive-session-btn" data-id="${s.id}" data-archived="${archived}" title="${archived ? 'Unarchive' : 'Archive'} session">
-          <i data-lucide="${archived ? 'archive-restore' : 'archive'}" style="width:14px;height:14px;"></i>
-        </button>
-        ${!committed && !archived ? `<button class="btn btn-sm btn-outline delete-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" style="color:#dc2626;border-color:#fca5a5;" title="Delete draft">
-          <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
-        </button>` : ''}
-        ${!archived ? `<button class="btn btn-sm btn-outline open-session-btn" data-id="${s.id}">
-          ${committed ? 'View' : 'Open Board'} <i data-lucide="arrow-right" style="width:14px;height:14px;"></i>
-        </button>` : ''}
+        <div class="placement-session-card-right">
+          <div class="placement-session-card-status">
+            <span class="placement-status-badge ${committed ? 'badge-committed' : 'badge-draft'}">${committed ? 'Committed' : 'Draft'}</span>
+            <span class="placement-session-date">${dateLabel}</span>
+          </div>
+          <div class="placement-session-card-actions">
+            <button class="psc-icon-btn clone-session-btn" data-idx="${data.indexOf(s)}" title="Clone to a new year">
+              <i data-lucide="copy" style="width:14px;height:14px;"></i>
+            </button>
+            <button class="psc-icon-btn archive-session-btn" data-id="${s.id}" data-archived="${archived}" title="${archived ? 'Unarchive' : 'Archive'} session">
+              <i data-lucide="${archived ? 'archive-restore' : 'archive'}" style="width:14px;height:14px;"></i>
+            </button>
+            ${!committed && !archived ? `<button class="psc-icon-btn psc-icon-btn--danger delete-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" title="Delete draft">
+              <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+            </button>` : ''}
+            ${!archived ? `<button class="btn btn-sm ${committed ? 'btn-outline' : 'btn-primary'} open-session-btn" data-id="${s.id}" style="gap:6px;">
+              ${committed ? 'View' : 'Open Board'} <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
+            </button>` : ''}
+          </div>
+        </div>
       </div>
     `;
     container.appendChild(row);
@@ -678,9 +694,14 @@ function buildColumn(teacherId, name) {
     ? `<span class="col-drag-handle" title="Drag to reorder"><i data-lucide="grip-vertical" style="width:12px;height:12px;opacity:0.4;"></i></span>`
     : '';
 
+  const avatarHtml = !isUnplaced
+    ? `<span class="teacher-avatar" style="background:${teacherAvatarColor(name)};">${getInitials(name)}</span>`
+    : '';
+
   col.innerHTML = `
     <div class="placement-col-header ${isUnplaced ? 'col-unplaced' : 'col-teacher'}">
       ${dragHandle}
+      ${avatarHtml}
       <span class="placement-col-name">${esc(name)}</span>
       <span class="placement-col-count ${countClass}">${countDisplay}</span>
     </div>
@@ -809,14 +830,28 @@ function refreshFlagDots(cardEl, studentId) {
   if (!dotsEl) return;
   dotsEl.innerHTML = '';
   const active = _studentFlags[studentId] || new Set();
+  let firstColor = null;
   _flags.forEach(f => {
-    if (!active.has(f.id)) return;
+    if (!active.has(f.id) || f.archived_at) return;
+    if (!firstColor) firstColor = f.color;
     const dot = document.createElement('span');
     dot.className = 'placement-flag-dot';
     dot.style.background = f.color;
     dot.title = f.label;
     dotsEl.appendChild(dot);
   });
+  cardEl.style.setProperty('--card-accent', firstColor ?? 'transparent');
+}
+
+function teacherAvatarColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  return `hsl(${((Math.abs(h) % 360) + 360) % 360},48%,40%)`;
+}
+
+function getInitials(fullName) {
+  const p = fullName.trim().split(/\s+/);
+  return p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : fullName.slice(0, 2).toUpperCase();
 }
 
 /* ── Selection (click-to-move, multi-select) ── */
@@ -1268,20 +1303,27 @@ function autoPlaceStudents() {
 
 /* ── Fullscreen ── */
 function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen?.().then(() => {
+      _enterPlacementFullscreen();
+    }).catch(() => {
+      // Browser denied — fall back to CSS-only expand
+      _enterPlacementFullscreen();
+    });
+  } else {
+    document.exitFullscreen?.();
+  }
+}
+
+function _enterPlacementFullscreen() {
   const view = document.getElementById('placementBoardView');
   if (!view) return;
-
-  if (view.classList.contains('placement-fullscreen')) {
-    exitFullscreen();
-  } else {
-    // Reparent to body to escape ancestor transform containing blocks
-    view._fsParent = view.parentElement;
-    view._fsAnchor = view.nextSibling;
-    document.body.appendChild(view);
-    view.classList.add('placement-fullscreen');
-    document.body.classList.add('placement-fs');
-    setFullscreenIcon(true);
-  }
+  view._fsParent = view.parentElement;
+  view._fsAnchor = view.nextSibling;
+  document.body.appendChild(view);
+  view.classList.add('placement-fullscreen');
+  document.body.classList.add('placement-fs');
+  setFullscreenIcon(true);
 }
 
 function exitFullscreen() {
@@ -1291,7 +1333,6 @@ function exitFullscreen() {
   view.classList.remove('placement-fullscreen');
   document.body.classList.remove('placement-fs');
 
-  // Restore to original position in DOM
   if (view._fsParent) {
     view._fsParent.insertBefore(view, view._fsAnchor ?? null);
     delete view._fsParent;
