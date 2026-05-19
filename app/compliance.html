@@ -12,35 +12,6 @@
   <link rel="icon" href="/icons/favicon.ico">
 
   <style>
-    /* ── Tabs ── */
-    .compliance-tabs {
-      display: flex;
-      gap: 4px;
-      border-bottom: 2px solid var(--border, #e5e7eb);
-      margin-bottom: 20px;
-    }
-    .compliance-tab {
-      padding: 10px 20px;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-secondary, #6b7280);
-      cursor: pointer;
-      border: none;
-      background: none;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -2px;
-      border-radius: 4px 4px 0 0;
-      font-family: inherit;
-      transition: color 0.12s;
-    }
-    .compliance-tab:hover { color: var(--text-primary, #111827); }
-    .compliance-tab.active {
-      color: var(--primary, #2563eb);
-      border-bottom-color: var(--primary, #2563eb);
-    }
-    .compliance-panel { display: none; }
-    .compliance-panel.active { display: block; }
-
     /* ── BG Check status pills ── */
     .bg-status-pill {
       display: inline-block;
@@ -188,19 +159,16 @@
 <div class="wrap">
   <nav id="sideNav" class="nav hidden">
     <a href="/admin.html"><i data-lucide="home"></i> Dashboard</a>
+    <a href="#bg-checks"><i data-lucide="shield-check"></i> Background Checks</a>
+    <a href="#templates"><i data-lucide="file-text"></i> Form Templates</a>
+    <a href="#agreements"><i data-lucide="file-check"></i> Agreements</a>
+    <a href="#settings"><i data-lucide="settings"></i> Settings</a>
   </nav>
 
   <main>
 
-    <div class="compliance-tabs" role="tablist">
-      <button class="compliance-tab active" data-tab="bgchecks"   role="tab" aria-selected="true">Background Checks</button>
-      <button class="compliance-tab"        data-tab="templates"  role="tab" aria-selected="false">Form Templates</button>
-      <button class="compliance-tab"        data-tab="agreements" role="tab" aria-selected="false">Agreements</button>
-      <button class="compliance-tab"        data-tab="settings"   role="tab" aria-selected="false">Settings</button>
-    </div>
-
     <!-- ══ BACKGROUND CHECKS ══════════════════════════════════════════ -->
-    <div id="tab-bgchecks" class="compliance-panel active">
+    <section id="bg-checks" style="display:none;">
       <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
           <h3 style="margin:0;">Background Check Requests</h3>
@@ -240,10 +208,10 @@
           </table>
         </div>
       </div>
-    </div>
+    </section>
 
     <!-- ══ FORM TEMPLATES ════════════════════════════════════════════ -->
-    <div id="tab-templates" class="compliance-panel">
+    <section id="templates" style="display:none;">
       <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
           <h3 style="margin:0;">Form Templates</h3>
@@ -256,10 +224,10 @@
           <p class="muted" style="padding:20px 0;">Loading…</p>
         </div>
       </div>
-    </div>
+    </section>
 
     <!-- ══ AGREEMENTS ════════════════════════════════════════════════ -->
-    <div id="tab-agreements" class="compliance-panel">
+    <section id="agreements" style="display:none;">
       <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
           <h3 style="margin:0;">Signed Agreements</h3>
@@ -297,10 +265,10 @@
           </table>
         </div>
       </div>
-    </div>
+    </section>
 
     <!-- ══ SETTINGS ══════════════════════════════════════════════════ -->
-    <div id="tab-settings" class="compliance-panel">
+    <section id="settings" style="display:none;">
 
       <!-- School Logo -->
       <div class="panel" style="margin-bottom:16px;">
@@ -352,7 +320,7 @@
         </div>
       </div>
 
-    </div>
+    </section>
 
   </main>
 </div>

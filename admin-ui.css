@@ -241,6 +241,16 @@ background: rgba(255, 255, 255, 0.12);
   font-size: 13px;
   font-weight: 500;
   color: #374151;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.module-check-grid input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  accent-color: #2563eb;
   cursor: pointer;
 }
 

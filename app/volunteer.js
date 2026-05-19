@@ -161,7 +161,7 @@ function getSignatureDataUrl() {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.font         = '400 68px "Great Vibes"';
+  ctx.font         = '700 68px "Dancing Script"';
   ctx.fillStyle    = '#1e293b';
   ctx.textBaseline = 'middle';
   ctx.textAlign    = 'left';
@@ -170,7 +170,7 @@ function getSignatureDataUrl() {
   let fontSize = 68;
   while (ctx.measureText(text).width > canvas.width - 32 && fontSize > 18) {
     fontSize -= 2;
-    ctx.font = `400 ${fontSize}px "Great Vibes"`;
+    ctx.font = `700 ${fontSize}px "Dancing Script"`;
   }
 
   ctx.fillText(text, 16, canvas.height / 2);

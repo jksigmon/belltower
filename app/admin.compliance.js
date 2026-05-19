@@ -13,7 +13,6 @@ async function init() {
   if (!profile) return;
   currentProfile = profile;
 
-  wireTabs();
   wireDrawers();
   wireFilters();
   wireSettings();
@@ -23,45 +22,49 @@ async function init() {
     window.location.href = '/login.html';
   });
 
-  const hash = window.location.hash.replace('#', '') || 'bgchecks';
-  activateTab(hash);
+  document.getElementById('sideNav')?.classList.remove('hidden');
+  window.addEventListener('hashchange', () => setActive(location.hash || '#bg-checks'));
+
+  setActive(location.hash || '#bg-checks');
 }
 
-// ── Tab routing ───────────────────────────────────────────────────────
-function wireTabs() {
-  document.querySelectorAll('.compliance-tab').forEach(btn => {
-    btn.addEventListener('click', () => activateTab(btn.dataset.tab));
-  });
-  window.addEventListener('hashchange', () => {
-    const hash = window.location.hash.replace('#', '');
-    if (hash) activateTab(hash);
-  });
-}
+// ── Nav routing ───────────────────────────────────────────────────────
+function setActive(hash) {
+  const VALID = ['#bg-checks', '#templates', '#agreements', '#settings'];
+  const target = VALID.includes(hash) ? hash : '#bg-checks';
 
-function activateTab(tab) {
-  const validTabs = ['bgchecks', 'templates', 'agreements', 'settings'];
-  const target = validTabs.includes(tab) ? tab : 'bgchecks';
+  history.replaceState(null, '', target);
 
-  document.querySelectorAll('.compliance-tab').forEach(btn => {
-    const active = btn.dataset.tab === target;
-    btn.classList.toggle('active', active);
-    btn.setAttribute('aria-selected', String(active));
-  });
-  document.querySelectorAll('.compliance-panel').forEach(panel => {
-    panel.classList.toggle('active', panel.id === `tab-${target}`);
+  const subtitleMap = {
+    '#bg-checks':  'Background Checks',
+    '#templates':  'Form Templates',
+    '#agreements': 'Agreements',
+    '#settings':   'Settings',
+  };
+  const subtitle = document.getElementById('pageSubtitle');
+  if (subtitle) subtitle.textContent = subtitleMap[target] ?? 'Compliance';
+
+  document.querySelectorAll('#sideNav a').forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === target);
   });
 
-  history.replaceState(null, '', `#${target}`);
+  document.querySelectorAll('main section').forEach(s => {
+    s.style.display = 'none';
+  });
 
-  if (target === 'bgchecks')  {
+  const section = document.querySelector(target);
+  if (section) section.style.display = 'block';
+
+  const key = target.slice(1);
+  if (key === 'bg-checks') {
     bgCheckCache = [];
     const rSel = document.getElementById('bgRequestorFilter');
     if (rSel) { rSel.dataset.populated = ''; rSel.querySelectorAll('option:not([value=""])').forEach(o => o.remove()); }
     loadBgChecks();
   }
-  if (target === 'templates') loadTemplates();
-  if (target === 'agreements') loadAgreements();
-  if (target === 'settings')  { loadSettings(); loadGrants(); }
+  if (key === 'templates')  loadTemplates();
+  if (key === 'agreements') { resetAgreementCache(); loadAgreements(); }
+  if (key === 'settings')   { loadSettings(); loadGrants(); }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -545,8 +548,8 @@ async function toggleTemplateLinks(templateId) {
         .update({ active: newActive })
         .eq('id', btn.dataset.lid);
       if (error) { alert(error.message); return; }
+      wrap.style.display = 'none'; // force closed so next call reopens with fresh data
       await toggleTemplateLinks(templateId);
-      await toggleTemplateLinks(templateId); // re-render open
     });
   });
 }
@@ -604,37 +607,54 @@ async function createLink() {
 // AGREEMENTS
 // ═══════════════════════════════════════════════════════════════════════
 let agreementCache = [];
+let agreementSearchTimer = null;
+let lastAgreementTemplateFilter = null;
+let lastAgreementLinkFilter = null;
+
+function resetAgreementCache() {
+  agreementCache = [];
+  lastAgreementTemplateFilter = null;
+  lastAgreementLinkFilter = null;
+}
 
 async function loadAgreements() {
   const tbody = document.getElementById('agreementTableBody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>';
 
   const searchVal   = document.getElementById('agreementSearch')?.value.trim().toLowerCase();
-  const templateVal = document.getElementById('agreementTemplateFilter')?.value;
-  const linkVal     = document.getElementById('agreementLinkFilter')?.value;
+  const templateVal = document.getElementById('agreementTemplateFilter')?.value ?? '';
+  const linkVal     = document.getElementById('agreementLinkFilter')?.value ?? '';
 
-  let query = supabase
-    .from('compliance_agreements')
-    .select(`
-      id, signer_name, signer_email, signature_type, signed_at, expires_at, voided_at, content_hash,
-      guardian_id, family_id, link_status, student_name_hint, carline_tag_hint, submitted_phone, submitted_relationship,
-      submitted_data_reviewed,
-      compliance_form_templates!inner ( id, title )
-    `)
-    .eq('school_id', currentProfile.school_id)
-    .order('signed_at', { ascending: false });
+  // Only hit the DB when server-side filters changed or cache is empty
+  const filtersChanged = templateVal !== lastAgreementTemplateFilter || linkVal !== lastAgreementLinkFilter;
 
-  if (templateVal) query = query.eq('template_id', templateVal);
-  if (linkVal)     query = query.eq('link_status', linkVal);
+  if (!agreementCache.length || filtersChanged) {
+    tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>';
 
-  const { data, error } = await query;
-  if (error) {
-    tbody.innerHTML = `<tr><td colspan="8" class="status-danger" style="text-align:center;padding:32px 0;">Failed: ${esc(error.message)}</td></tr>`;
-    return;
+    let query = supabase
+      .from('compliance_agreements')
+      .select(`
+        id, signer_name, signer_email, signature_type, signed_at, expires_at, voided_at, content_hash,
+        guardian_id, family_id, link_status, student_name_hint, carline_tag_hint, submitted_phone, submitted_relationship,
+        submitted_data_reviewed,
+        compliance_form_templates!inner ( id, title )
+      `)
+      .eq('school_id', currentProfile.school_id)
+      .order('signed_at', { ascending: false });
+
+    if (templateVal) query = query.eq('template_id', templateVal);
+    if (linkVal)     query = query.eq('link_status', linkVal);
+
+    const { data, error } = await query;
+    if (error) {
+      tbody.innerHTML = `<tr><td colspan="8" class="status-danger" style="text-align:center;padding:32px 0;">Failed: ${esc(error.message)}</td></tr>`;
+      return;
+    }
+
+    agreementCache = data ?? [];
+    lastAgreementTemplateFilter = templateVal;
+    lastAgreementLinkFilter = linkVal;
   }
-
-  agreementCache = data ?? [];
 
   const filtered = searchVal
     ? agreementCache.filter(a =>
@@ -772,6 +792,7 @@ async function voidAgreement(agreementId) {
 
   if (error) { alert(`Failed: ${error.message}`); return; }
   showToast('Agreement voided');
+  resetAgreementCache();
   await loadAgreements();
 }
 
@@ -918,6 +939,7 @@ async function saveLinkGuardian() {
 
   closeDrawer('linkGuardian');
   showToast('Guardian linked successfully');
+  resetAgreementCache();
   await loadAgreements();
 }
 
@@ -1026,9 +1048,12 @@ function wireDrawers() {
   document.getElementById('linkDrawerSave')?.addEventListener('click',    createLink);
   document.getElementById('linkGuardianSave')?.addEventListener('click',  saveLinkGuardian);
   document.getElementById('newTemplateBtn')?.addEventListener('click',    () => openTemplateDrawer(null));
-  document.getElementById('agreementSearch')?.addEventListener('input',   loadAgreements);
-  document.getElementById('agreementTemplateFilter')?.addEventListener('change', loadAgreements);
-  document.getElementById('agreementLinkFilter')?.addEventListener('change', loadAgreements);
+  document.getElementById('agreementSearch')?.addEventListener('input',   () => {
+    clearTimeout(agreementSearchTimer);
+    agreementSearchTimer = setTimeout(loadAgreements, 280);
+  });
+  document.getElementById('agreementTemplateFilter')?.addEventListener('change', () => { resetAgreementCache(); loadAgreements(); });
+  document.getElementById('agreementLinkFilter')?.addEventListener('change',   () => { resetAgreementCache(); loadAgreements(); });
   document.getElementById('linkGuardianSearch')?.addEventListener('input', onGuardianSearchInput);
 
   // Phase B: grants
@@ -1357,6 +1382,7 @@ async function applySubmittedData() {
 
   closeDrawer('reviewData');
   showToast('Guardian record updated');
+  resetAgreementCache();
   await loadAgreements();
 }
 
@@ -1373,6 +1399,7 @@ async function dismissSubmittedData() {
 
   closeDrawer('reviewData');
   showToast('Marked as reviewed');
+  resetAgreementCache();
   await loadAgreements();
 }
 

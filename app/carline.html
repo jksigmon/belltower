@@ -60,6 +60,12 @@
     <div class="cl-bar-spacer"></div>
   </div>
 
+  <!-- Bus arrival bar -->
+  <div id="busArrivalBar" hidden>
+    <span class="cl-bar-label">Buses arrived:</span>
+    <div id="busArrivalPills" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"></div>
+  </div>
+
   <!-- Mobile tab bar (visible on small screens when event is active) -->
   <div id="displayTabBar" hidden>
     <button class="cl-tab-btn waiting active" data-tab="waiting">
@@ -220,6 +226,8 @@ import { supabase } from '/app/admin.supabase.js';
 let profile       = null;
 let currentEvent  = null;
 let allStudents   = [];
+let allBusGroups  = [];
+let busArrivals   = [];
 let allCampuses   = [];
 let familyTagMap  = new Map(); // family_id → tag_number
 let callStatus    = new Map(); // student_id → status string
@@ -259,9 +267,12 @@ async function boot() {
     weekday: 'short', month: 'short', day: 'numeric'
   });
 
-  await Promise.all([ loadStudents(), loadFamilyTags(), loadTeacherNames(), loadCampuses() ]);
+  await Promise.all([ loadStudents(), loadFamilyTags(), loadTeacherNames(), loadCampuses(), loadBusGroups() ]);
   await ensureCarlineEvent();
-  if (currentEvent) await loadExistingCalls();
+  if (currentEvent) {
+    await loadExistingCalls();
+    await loadBusArrivals();
+  }
 
   detectTeacherClass();
   wireEvents();
@@ -320,6 +331,47 @@ async function loadCampuses() {
     .eq('school_id', profile.school_id)
     .order('name');
   allCampuses = data || [];
+}
+
+async function loadBusGroups() {
+  const { data } = await supabase
+    .from('bus_groups')
+    .select('id, name, route_number')
+    .eq('school_id', profile.school_id)
+    .order('name');
+  allBusGroups = data || [];
+}
+
+async function loadBusArrivals() {
+  if (!currentEvent) return;
+  const { data } = await supabase
+    .from('carline_bus_arrivals')
+    .select('bus_group_id, called_at')
+    .eq('carline_event_id', currentEvent.id)
+    .order('called_at');
+  busArrivals = data || [];
+  renderBusArrivalBar();
+}
+
+function renderBusArrivalBar() {
+  const bar   = document.getElementById('busArrivalBar');
+  const pills = document.getElementById('busArrivalPills');
+  const seen  = new Set();
+  const unique = busArrivals.filter(a => {
+    if (seen.has(a.bus_group_id)) return false;
+    seen.add(a.bus_group_id); return true;
+  });
+  document.documentElement.style.setProperty('--cl-bus-bar-h', unique.length ? '40px' : '0px');
+  if (!unique.length) { bar.hidden = true; return; }
+  bar.hidden = false;
+  pills.innerHTML = '';
+  unique.forEach(a => {
+    const group = allBusGroups.find(g => g.id === a.bus_group_id);
+    const pill  = document.createElement('span');
+    pill.className   = 'cl-bus-arrival-pill';
+    pill.textContent = group ? group.name : 'Bus';
+    pills.appendChild(pill);
+  });
 }
 
 async function loadExistingCalls() {
@@ -720,6 +772,25 @@ function setupRealtime() {
         updateAllCallBanner(true);
       }
     })
+    .on('broadcast', { event: 'bus_arrival' }, ({ payload }) => {
+      if (!payload?.bus_group_id) return;
+      const already = busArrivals.some(a => a.bus_group_id === payload.bus_group_id);
+      busArrivals.push({ bus_group_id: payload.bus_group_id, called_at: new Date().toISOString() });
+      renderBusArrivalBar();
+      if (!already) playBusSound();
+    })
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'carline_bus_arrivals',
+      filter: `carline_event_id=eq.${currentEvent.id}`,
+    }, row => {
+      if (!row.new?.bus_group_id) return;
+      const already = busArrivals.some(a => a.bus_group_id === row.new.bus_group_id);
+      busArrivals.push({ bus_group_id: row.new.bus_group_id, called_at: row.new.called_at });
+      renderBusArrivalBar();
+      if (!already) playBusSound();
+    })
     .subscribe();
 }
 
@@ -780,6 +851,7 @@ async function onEventStarted(ev) {
   currentEvent = ev;
   updateEventUI();
   await loadExistingCalls();
+  await loadBusArrivals();
   setupRealtime();
   startCallsPoller();
   renderColumns();
@@ -854,6 +926,13 @@ function playAllCallSound() {
     tone(ctx, 880,    0.16, 0.10, 0.35, 'square');
     tone(ctx, 880,    0.32, 0.10, 0.35, 'square');
     tone(ctx, 1046.5, 0.50, 0.40, 0.35, 'sine');
+  } catch(e) {}
+}
+function playBusSound() {
+  try {
+    const ctx = getCtx();
+    tone(ctx, 330, 0,    0.25, 0.35, 'sine');
+    tone(ctx, 440, 0.22, 0.35, 0.35, 'sine');
   } catch(e) {}
 }
 

@@ -196,6 +196,7 @@ let profile      = null;
 let currentEvent = null;
 let allStudents  = [];
 let allBusGroups = [];
+let calledBusIds = new Set();   // bus_group_ids called this event
 let allCampuses  = [];
 let activeCampusId = null;    // null = no campus filter (school-wide)
 let familyTagMap  = new Map(); // family_id → tag_number  (individual family tags)
@@ -252,7 +253,10 @@ async function boot() {
   }
   await ensureCarlineEvent();
   console.log('[boot] 7 - event:', currentEvent?.id ?? 'none');
-  if (currentEvent) await loadExistingCalls();
+  if (currentEvent) {
+    await loadExistingCalls();
+    await loadBusArrivals();
+  }
 
   console.log('[boot] 8 - wiring UI');
   buildKeypad();
@@ -332,6 +336,16 @@ async function loadExistingCalls() {
   callStatus.clear();
   (data || []).forEach(c => callStatus.set(c.student_id, c.status));
   updateBusButtonStates();
+}
+
+async function loadBusArrivals() {
+  if (!currentEvent) return;
+  const { data } = await supabase
+    .from('carline_bus_arrivals')
+    .select('bus_group_id')
+    .eq('carline_event_id', currentEvent.id);
+  calledBusIds.clear();
+  (data || []).forEach(r => calledBusIds.add(r.bus_group_id));
 }
 
 // ─── Campus picker ────────────────────────────────────────────────────
@@ -485,6 +499,17 @@ function setupRealtime() {
       callStatus.set(r.student_id, r.status);
       updateBusButtonStates();
     })
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'carline_bus_arrivals',
+      filter: `carline_event_id=eq.${currentEvent.id}`,
+    }, row => {
+      if (row.new?.bus_group_id) {
+        calledBusIds.add(row.new.bus_group_id);
+        updateBusButtonStates();
+      }
+    })
     .subscribe();
 }
 
@@ -581,11 +606,39 @@ async function callBusGroup(busGroupId) {
   if (!currentEvent || currentEvent.status === 'CLOSED') {
     showToast('Dismissal is not open'); return;
   }
+  const group    = allBusGroups.find(b => b.id === busGroupId);
   const students = allStudents.filter(s => s.bus_group_id === busGroupId);
-  if (!students.length) { showToast('No students in this bus group'); return; }
+  const now      = new Date().toISOString();
 
-  const group = allBusGroups.find(b => b.id === busGroupId);
-  await callStudents(students, [], group?.name ?? 'Bus', 'BUS');
+  const { error } = await supabase
+    .from('carline_bus_arrivals')
+    .insert({
+      school_id:            profile.school_id,
+      carline_event_id:     currentEvent.id,
+      bus_group_id:         busGroupId,
+      called_at:            now,
+      called_by_profile_id: profile.id,
+    });
+
+  if (error) { showToast('Bus call failed'); return; }
+
+  calledBusIds.add(busGroupId);
+
+  // Broadcast instantly to the display page (mirrors all_call pattern)
+  const bc = supabase.channel(`carline-display-${currentEvent.id}`);
+  bc.subscribe(status => {
+    if (status !== 'SUBSCRIBED') return;
+    bc.send({ type: 'broadcast', event: 'bus_arrival', payload: { bus_group_id: busGroupId } });
+    setTimeout(() => supabase.removeChannel(bc), 1500);
+  });
+
+  if (students.length) {
+    await callStudents(students, [], group?.name ?? 'Bus', 'BUS');
+  } else {
+    showToast(`🚌 ${group?.name ?? 'Bus'} called`);
+    pushRecent(group?.name ?? busGroupId, [], 'BUS', false);
+    updateBusButtonStates();
+  }
 }
 
 async function undoLast() {
@@ -757,15 +810,16 @@ function renderBusGrid() {
     return;
   }
   allBusGroups.forEach(g => {
-    const total  = allStudents.filter(s => s.bus_group_id === g.id).length;
-    const called = allStudents.filter(s => s.bus_group_id === g.id && callStatus.get(s.id) === 'CALLED').length;
+    const total    = allStudents.filter(s => s.bus_group_id === g.id).length;
+    const called   = allStudents.filter(s => s.bus_group_id === g.id && callStatus.get(s.id) === 'CALLED').length;
+    const isCalled = calledBusIds.has(g.id);
     const btn = document.createElement('button');
-    btn.className = 'inp-bus-btn' + (called === total && total > 0 ? ' called' : '');
+    btn.className = 'inp-bus-btn' + (isCalled ? ' called' : '');
     btn.dataset.busId = g.id;
     btn.innerHTML = `
       <div class="inp-bus-btn-name">🚌 ${esc(g.name)}</div>
       ${g.route_number ? `<div class="inp-bus-btn-meta">Route ${esc(g.route_number)}</div>` : ''}
-      <div class="inp-bus-btn-meta">${called}/${total} called</div>
+      <div class="inp-bus-btn-meta">${total > 0 ? `${called}/${total} called` : 'No assigned students'}</div>
     `;
     btn.addEventListener('click', () => callBusGroup(g.id));
     grid.appendChild(btn);
@@ -774,14 +828,15 @@ function renderBusGrid() {
 
 function updateBusButtonStates() {
   allBusGroups.forEach(g => {
-    const total  = allStudents.filter(s => s.bus_group_id === g.id).length;
-    const called = allStudents.filter(s => s.bus_group_id === g.id && callStatus.get(s.id) === 'CALLED').length;
+    const total    = allStudents.filter(s => s.bus_group_id === g.id).length;
+    const called   = allStudents.filter(s => s.bus_group_id === g.id && callStatus.get(s.id) === 'CALLED').length;
+    const isCalled = calledBusIds.has(g.id);
     const btn = document.querySelector(`.inp-bus-btn[data-bus-id="${g.id}"]`);
     if (!btn) return;
-    btn.classList.toggle('called', called === total && total > 0);
+    btn.classList.toggle('called', isCalled);
     const meta = btn.querySelectorAll('.inp-bus-btn-meta');
-    const countEl = [...meta].find(el => el.textContent.includes('/'));
-    if (countEl) countEl.textContent = `${called}/${total} called`;
+    const countEl = [...meta].find(el => el.textContent.includes('/') || el.textContent.includes('No assigned'));
+    if (countEl) countEl.textContent = total > 0 ? `${called}/${total} called` : 'No assigned students';
   });
 }
 
@@ -809,9 +864,12 @@ function renderRecentList() {
     const li = document.createElement('li');
     li.className = 'inp-recent-item' + (r.isRecall ? ' recalled' : '');
     const label = r.type === 'BUS' ? '🚌 Bus' : r.isRecall ? '🔔 Recall' : '🚗 Call';
+    const namesDisplay = r.names.length
+      ? r.names.map(esc).join(', ')
+      : (r.type === 'BUS' ? '<em style="opacity:0.6;">no assigned students</em>' : '');
     li.innerHTML = `
       <span class="inp-recent-tag">${esc(String(r.tag))}</span>
-      <span class="inp-recent-names">${r.names.map(esc).join(', ')}</span>
+      <span class="inp-recent-names">${namesDisplay}</span>
       <span class="inp-recent-type">${label}</span>
       <span class="inp-recent-time">${r.time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>
     `;

@@ -7,9 +7,10 @@ let initialized = false;
 
 const MODULES = [
   { key: 'pto',         label: 'PTO Management' },
-  { key: 'carline',     label: 'Carline Dismissal' },
   { key: 'substitutes', label: 'Substitute Assignment' },
+  { key: 'carline',     label: 'Carline Dismissal' },
   { key: 'licensure',   label: 'Licensure Tracking' },
+  { key: 'compliance',  label: 'Volunteer Compliance' },
 ];
 
 /* ===============================
