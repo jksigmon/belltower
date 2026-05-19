@@ -6,6 +6,59 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 let currentProfile = null;
 
 const VOLUNTEER_BASE = `${window.location.origin}/volunteer.html?form=`;
+const PAGE_SIZE = 25;
+
+// ── Shared pagination renderer ────────────────────────────────────────
+function renderPagination(containerId, currentPage, totalItems, onPageChange) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+
+  const totalPages = Math.ceil(totalItems / PAGE_SIZE);
+  const from = Math.min((currentPage - 1) * PAGE_SIZE + 1, totalItems);
+  const to   = Math.min(currentPage * PAGE_SIZE, totalItems);
+
+  const info = document.createElement('span');
+  info.className = 'pagination-info';
+  info.textContent = totalItems === 0
+    ? 'No results'
+    : totalPages <= 1
+      ? `${totalItems} record${totalItems !== 1 ? 's' : ''}`
+      : `${from}–${to} of ${totalItems}`;
+  container.appendChild(info);
+  container.style.display = '';
+
+  if (totalPages <= 1) return;
+
+  const controls = document.createElement('div');
+  controls.className = 'pagination-controls';
+
+  function makeBtn(label, targetPage, disabled) {
+    const btn = document.createElement('button');
+    btn.innerHTML = label;
+    btn.className = 'pagination-btn' + (targetPage === currentPage ? ' pagination-active' : '');
+    btn.disabled = disabled;
+    if (!disabled && targetPage !== currentPage) btn.onclick = () => onPageChange(targetPage);
+    return btn;
+  }
+
+  controls.appendChild(makeBtn('&#8249;', currentPage - 1, currentPage === 1));
+
+  const delta = 2;
+  let pages = new Set([1, totalPages]);
+  for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) pages.add(i);
+  pages = [...pages].sort((a, b) => a - b);
+
+  let prev = 0;
+  pages.forEach(p => {
+    if (p - prev > 1) { const e = document.createElement('span'); e.className = 'pagination-ellipsis'; e.textContent = '…'; controls.appendChild(e); }
+    controls.appendChild(makeBtn(p, p, false));
+    prev = p;
+  });
+
+  controls.appendChild(makeBtn('&#8250;', currentPage + 1, currentPage === totalPages));
+  container.appendChild(controls);
+}
 
 // ── Init ──────────────────────────────────────────────────────────────
 async function init() {
@@ -71,6 +124,7 @@ function setActive(hash) {
 // BACKGROUND CHECKS
 // ═══════════════════════════════════════════════════════════════════════
 let bgCheckCache = [];
+let bgPage = 1;
 
 async function loadBgChecks() {
   const tbody = document.getElementById('bgCheckTableBody');
@@ -79,8 +133,8 @@ async function loadBgChecks() {
   const searchVal    = document.getElementById('bgSearch')?.value.trim().toLowerCase();
   const statusVal    = document.getElementById('bgStatusFilter')?.value;
   const requestorVal = document.getElementById('bgRequestorFilter')?.value;
+  const showArchived = document.getElementById('bgShowArchived')?.checked ?? false;
 
-  // Only fetch from DB on first load (cache is empty); re-filter from cache on subsequent calls
   if (!bgCheckCache.length) {
     tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>';
 
@@ -89,7 +143,7 @@ async function loadBgChecks() {
       .select(`
         id, school_id, requestor_id, subject_first_name, subject_last_name, subject_email,
         reason, volunteer_roles, status, requested_at, submitted_at, cleared_at, expires_at,
-        mvr_cleared_at, mvr_expires_at, notes, admin_note,
+        mvr_cleared_at, mvr_expires_at, notes, admin_note, archived_at,
         requestor:profiles!requestor_id(display_name, email)
       `)
       .eq('school_id', currentProfile.school_id)
@@ -101,13 +155,16 @@ async function loadBgChecks() {
     }
 
     bgCheckCache = data ?? [];
-    populateRequestorFilter(bgCheckCache);
+    populateRequestorFilter(bgCheckCache.filter(r => !r.archived_at));
+    renderBgStats();
+    renderExpiryAlerts();
   }
 
-  // Apply all filters client-side
   const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '<span class="muted">—</span>';
 
   const filtered = bgCheckCache.filter(row => {
+    if (!showArchived && row.archived_at) return false;
+    if (showArchived && !row.archived_at) return false;
     const name  = `${row.subject_first_name} ${row.subject_last_name}`.toLowerCase();
     const email = (row.subject_email ?? '').toLowerCase();
     if (searchVal && !name.includes(searchVal) && !email.includes(searchVal)) return false;
@@ -117,15 +174,19 @@ async function loadBgChecks() {
   });
 
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">No requests match the current filters.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">${showArchived ? 'No archived records.' : 'No requests match the current filters.'}</td></tr>`;
+    document.getElementById('bgPagination').style.display = 'none';
     return;
   }
 
+  const pageItems = filtered.slice((bgPage - 1) * PAGE_SIZE, bgPage * PAGE_SIZE);
+
   tbody.innerHTML = '';
-  filtered.forEach(row => {
+  pageItems.forEach(row => {
     const tr = document.createElement('tr');
+    if (row.archived_at) tr.style.opacity = '0.5';
     tr.innerHTML = `
-      <td><strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong></td>
+      <td><strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>${row.archived_at ? ' <span class="bg-status-pill" style="background:#f1f5f9;color:#64748b;">Archived</span>' : ''}</td>
       <td>${row.subject_email ? esc(row.subject_email) : '<span class="muted">—</span>'}</td>
       <td>${esc(row.requestor?.display_name ?? row.requestor?.email ?? '—')}</td>
       <td style="max-width:180px;white-space:normal;">${
@@ -142,6 +203,8 @@ async function loadBgChecks() {
     tr.querySelector('button[data-id]').addEventListener('click', () => openBgDrawer(row.id));
     tbody.appendChild(tr);
   });
+
+  renderPagination('bgPagination', bgPage, filtered.length, p => { bgPage = p; loadBgChecks(); });
 }
 
 function populateRequestorFilter(rows) {
@@ -168,14 +231,114 @@ function populateRequestorFilter(rows) {
   sel.dataset.populated = 'true';
 }
 
+function renderBgStats() {
+  if (!bgCheckCache.length) return;
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d30   = new Date(today); d30.setDate(d30.getDate() + 30);
+  const d60   = new Date(today); d60.setDate(d60.getDate() + 60);
+
+  let active = 0, exp30 = 0, exp60 = 0, expired = 0;
+
+  bgCheckCache.forEach(row => {
+    const expDate = row.expires_at ? new Date(row.expires_at + 'T12:00:00') : null;
+
+    if (row.status === 'expired' || (expDate && expDate < today)) {
+      expired++;
+    } else if (row.status === 'cleared') {
+      active++;
+      if (expDate) {
+        if (expDate <= d30)      exp30++;
+        else if (expDate <= d60) exp60++;
+      }
+    }
+  });
+
+  const el = id => document.getElementById(id);
+  el('bgStatActive').textContent  = active;
+  el('bgStatExp30').textContent   = exp30;
+  el('bgStatExp60').textContent   = exp60;
+  el('bgStatExpired').textContent = expired;
+  el('bgExpiryStats').style.display = 'flex';
+
+  el('bgStatExp30Card').className  = 'bg-stat-card' + (exp30  > 0 ? ' bg-stat-warn'   : '');
+  el('bgStatExp60Card').className  = 'bg-stat-card' + (exp60  > 0 ? ' bg-stat-warn'   : '');
+  el('bgStatExpiredCard').className = 'bg-stat-card' + (expired > 0 ? ' bg-stat-danger' : '');
+}
+
+function renderExpiryAlerts() {
+  const wrap = document.getElementById('bgExpiryAlertWrap');
+  const list = document.getElementById('bgExpiryAlertList');
+  if (!wrap || !list) return;
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d90   = new Date(today); d90.setDate(d90.getDate() + 90);
+
+  const alerts = bgCheckCache
+    .filter(row => {
+      const expDate = row.expires_at ? new Date(row.expires_at + 'T12:00:00') : null;
+      if (row.status === 'expired') return true;
+      return row.status === 'cleared' && expDate && expDate <= d90;
+    })
+    .sort((a, b) => (a.expires_at ?? '9999').localeCompare(b.expires_at ?? '9999'));
+
+  if (!alerts.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+
+  list.innerHTML = '';
+  alerts.forEach(row => {
+    const expDate  = row.expires_at ? new Date(row.expires_at + 'T12:00:00') : null;
+    const daysLeft = expDate ? Math.ceil((expDate - today) / 86_400_000) : null;
+
+    let chipClass, chipText;
+    if (daysLeft === null)      { chipClass = ''; chipText = 'No expiry set'; }
+    else if (daysLeft < 0)      { chipClass = 'bg-expiry-expired'; chipText = `Expired ${Math.abs(daysLeft)}d ago`; }
+    else if (daysLeft === 0)    { chipClass = 'bg-expiry-expired'; chipText = 'Expires today'; }
+    else if (daysLeft <= 30)    { chipClass = 'bg-expiry-urgent';  chipText = `${daysLeft}d left`; }
+    else if (daysLeft <= 60)    { chipClass = 'bg-expiry-warn';    chipText = `${daysLeft}d left`; }
+    else                        { chipClass = 'bg-expiry-soon';    chipText = `${daysLeft}d left`; }
+
+    const roleStr = row.volunteer_roles?.length
+      ? row.volunteer_roles.join(', ')
+      : (row.reason ?? '');
+
+    const expStr = expDate
+      ? expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : '';
+
+    const div = document.createElement('div');
+    div.className = 'bg-expiry-row';
+    div.innerHTML = `
+      <div class="bg-expiry-name">
+        <strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>
+        ${roleStr ? `<span class="bg-expiry-roles">${esc(roleStr)}</span>` : ''}
+      </div>
+      <div class="bg-expiry-meta">
+        ${expStr ? `<span class="muted" style="font-size:12px;">${esc(expStr)}</span>` : ''}
+        <span class="bg-expiry-chip ${chipClass}">${esc(chipText)}</span>
+      </div>
+      <button class="btn btn-sm" style="flex-shrink:0;" data-id="${esc(row.id)}">Review</button>
+    `;
+    div.querySelector('button[data-id]').addEventListener('click', () => openBgDrawer(row.id));
+    list.appendChild(div);
+  });
+}
+
 function wireFilters() {
-  document.getElementById('bgStatusFilter')?.addEventListener('change', renderBgChecks);
-  document.getElementById('bgRequestorFilter')?.addEventListener('change', renderBgChecks);
-  document.getElementById('bgSearch')?.addEventListener('input', renderBgChecks);
+  const resetBg = () => { bgPage = 1; loadBgChecks(); };
+  document.getElementById('bgStatusFilter')?.addEventListener('change', resetBg);
+  document.getElementById('bgRequestorFilter')?.addEventListener('change', resetBg);
+  document.getElementById('bgSearch')?.addEventListener('input', resetBg);
+  document.getElementById('bgShowArchived')?.addEventListener('change', () => { bgPage = 1; bgCheckCache = []; loadBgChecks(); });
+
+  const resetAgr = () => { agrPage = 1; resetAgreementCache(); loadAgreements(); };
+  document.getElementById('agreementSearch')?.addEventListener('input', resetAgr);
+  document.getElementById('agreementTemplateFilter')?.addEventListener('change', resetAgr);
+  document.getElementById('agreementLinkFilter')?.addEventListener('change', resetAgr);
+  document.getElementById('agrShowArchived')?.addEventListener('change', resetAgr);
 }
 
 function renderBgChecks() {
-  // Re-run loadBgChecks without clearing cache (cache already populated)
   loadBgChecks();
 }
 
@@ -246,6 +409,13 @@ function openBgDrawer(id) {
     <div id="bgGuardianSection" style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);font-size:13px;"></div>
   `;
 
+  const archiveBtn = document.getElementById('bgDrawerArchive');
+  if (archiveBtn) {
+    archiveBtn.textContent = row.archived_at ? 'Unarchive this record' : 'Archive this record';
+    archiveBtn.dataset.recordId = row.id;
+    archiveBtn.dataset.archive  = row.archived_at ? '0' : '1';
+  }
+
   openDrawer('bg');
   if (row.subject_email) loadBgGuardianSection(row.subject_email);
 }
@@ -296,6 +466,39 @@ async function saveBgCheck() {
   showToast('Background check updated');
   bgCheckCache = [];
   await loadBgChecks();
+}
+
+function onBgArchiveClick() {
+  const btn     = document.getElementById('bgDrawerArchive');
+  const id      = btn?.dataset.recordId;
+  const archive = btn?.dataset.archive === '1';
+  if (id) archiveBgCheck(id, archive);
+}
+
+async function archiveBgCheck(id, archive) {
+  const { error } = await supabase
+    .from('compliance_bg_check_requests')
+    .update({ archived_at: archive ? new Date().toISOString() : null })
+    .eq('id', id)
+    .eq('school_id', currentProfile.school_id);
+  if (error) { alert('Failed: ' + error.message); return; }
+  closeDrawer('bg');
+  showToast(archive ? 'Record archived' : 'Record unarchived');
+  bgCheckCache = [];
+  bgPage = 1;
+  await loadBgChecks();
+}
+
+async function archiveAgreement(id, archive) {
+  const { error } = await supabase
+    .from('compliance_agreements')
+    .update({ archived_at: archive ? new Date().toISOString() : null })
+    .eq('id', id)
+    .eq('school_id', currentProfile.school_id);
+  if (error) { alert('Failed: ' + error.message); return; }
+  showToast(archive ? 'Agreement archived' : 'Agreement unarchived');
+  resetAgreementCache();
+  await loadAgreements();
 }
 
 async function loadBgGuardianSection(email) {
@@ -358,7 +561,7 @@ async function loadTemplates() {
 
   const { data, error } = await supabase
     .from('compliance_form_templates')
-    .select('id, title, description, body_html, active, content_hash, created_at')
+    .select('id, title, description, body_html, active, required_for_chaperones, content_hash, created_at')
     .eq('school_id', currentProfile.school_id)
     .order('created_at', { ascending: false });
 
@@ -384,6 +587,7 @@ async function loadTemplates() {
       <div class="template-card-header">
         <strong>${esc(t.title)}</strong>
         <span class="badge ${t.active ? 'badge-active' : 'badge-suspended'}">${t.active ? 'Active' : 'Inactive'}</span>
+        ${t.required_for_chaperones ? `<span class="badge" style="background:#eff6ff;color:#1d4ed8;">Field trips</span>` : ''}
       </div>
       ${t.description ? `<p class="muted" style="font-size:13px;margin:4px 0 0;">${esc(t.description)}</p>` : ''}
       <div class="template-card-actions">
@@ -410,7 +614,8 @@ function openTemplateDrawer(id) {
   document.getElementById('tplTitle').value       = t?.title ?? '';
   document.getElementById('tplDescription').value = t?.description ?? '';
   document.getElementById('tplBodyHtml').value    = t?.body_html ?? '';
-  document.getElementById('tplActive').checked    = t ? t.active : true;
+  document.getElementById('tplActive').checked                  = t ? t.active : true;
+  document.getElementById('tplRequiredForChaperones').checked   = t?.required_for_chaperones ?? false;
   document.getElementById('tplDrawerMsg').textContent = '';
 
   if (id) {
@@ -439,7 +644,8 @@ async function saveTemplate() {
   const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(bodyHtml));
   const contentHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-  const payload = { title, description, body_html: bodyHtml, active, content_hash: contentHash };
+  const requiredForChaperones = document.getElementById('tplRequiredForChaperones').checked;
+  const payload = { title, description, body_html: bodyHtml, active, required_for_chaperones: requiredForChaperones, content_hash: contentHash };
 
   let error;
   if (activeTemplateId) {
@@ -607,12 +813,14 @@ async function createLink() {
 // AGREEMENTS
 // ═══════════════════════════════════════════════════════════════════════
 let agreementCache = [];
+let agrPage = 1;
 let agreementSearchTimer = null;
 let lastAgreementTemplateFilter = null;
 let lastAgreementLinkFilter = null;
 
 function resetAgreementCache() {
   agreementCache = [];
+  agrPage = 1;
   lastAgreementTemplateFilter = null;
   lastAgreementLinkFilter = null;
 }
@@ -621,9 +829,10 @@ async function loadAgreements() {
   const tbody = document.getElementById('agreementTableBody');
   if (!tbody) return;
 
-  const searchVal   = document.getElementById('agreementSearch')?.value.trim().toLowerCase();
-  const templateVal = document.getElementById('agreementTemplateFilter')?.value ?? '';
-  const linkVal     = document.getElementById('agreementLinkFilter')?.value ?? '';
+  const searchVal    = document.getElementById('agreementSearch')?.value.trim().toLowerCase();
+  const templateVal  = document.getElementById('agreementTemplateFilter')?.value ?? '';
+  const linkVal      = document.getElementById('agreementLinkFilter')?.value ?? '';
+  const showArchived = document.getElementById('agrShowArchived')?.checked ?? false;
 
   // Only hit the DB when server-side filters changed or cache is empty
   const filtersChanged = templateVal !== lastAgreementTemplateFilter || linkVal !== lastAgreementLinkFilter;
@@ -636,7 +845,7 @@ async function loadAgreements() {
       .select(`
         id, signer_name, signer_email, signature_type, signed_at, expires_at, voided_at, content_hash,
         guardian_id, family_id, link_status, student_name_hint, carline_tag_hint, submitted_phone, submitted_relationship,
-        submitted_data_reviewed,
+        submitted_data_reviewed, archived_at,
         compliance_form_templates!inner ( id, title )
       `)
       .eq('school_id', currentProfile.school_id)
@@ -647,7 +856,7 @@ async function loadAgreements() {
 
     const { data, error } = await query;
     if (error) {
-      tbody.innerHTML = `<tr><td colspan="8" class="status-danger" style="text-align:center;padding:32px 0;">Failed: ${esc(error.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="status-danger" style="text-align:center;padding:32px 0;">Failed: ${esc(error.message)}</td></tr>`;
       return;
     }
 
@@ -656,21 +865,25 @@ async function loadAgreements() {
     lastAgreementLinkFilter = linkVal;
   }
 
-  const filtered = searchVal
-    ? agreementCache.filter(a =>
-        a.signer_name.toLowerCase().includes(searchVal) ||
-        a.signer_email.toLowerCase().includes(searchVal))
-    : agreementCache;
+  const filtered = agreementCache.filter(row => {
+    if (!showArchived && row.archived_at) return false;
+    if (showArchived && !row.archived_at) return false;
+    if (searchVal && !row.signer_name.toLowerCase().includes(searchVal) && !row.signer_email.toLowerCase().includes(searchVal)) return false;
+    return true;
+  });
 
   if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">No agreements found.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">${showArchived ? 'No archived agreements.' : 'No agreements found.'}</td></tr>`;
+    document.getElementById('agrPagination').style.display = 'none';
     return;
   }
 
-  populateTemplateFilter(agreementCache);
+  populateTemplateFilter(agreementCache.filter(r => !r.archived_at));
+
+  const pageItems = filtered.slice((agrPage - 1) * PAGE_SIZE, agrPage * PAGE_SIZE);
 
   tbody.innerHTML = '';
-  filtered.forEach(row => {
+  pageItems.forEach(row => {
     const template  = row.compliance_form_templates;
     const today     = new Date().toISOString().slice(0, 10);
     const isVoided  = !!row.voided_at;
@@ -689,6 +902,7 @@ async function loadAgreements() {
         : '<span class="badge" style="background:#fef3c7;color:#92400e;">Unresolved</span>';
 
     const tr = document.createElement('tr');
+    if (row.archived_at) tr.style.opacity = '0.5';
     const fmtAgrDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '<span class="muted">—</span>';
     const hasUnreviewedData = (row.submitted_phone || row.submitted_relationship) && !row.submitted_data_reviewed;
     const dataBadge = hasUnreviewedData
@@ -698,7 +912,7 @@ async function loadAgreements() {
         : '<span class="muted">—</span>';
 
     tr.innerHTML = `
-      <td>${esc(row.signer_name)}</td>
+      <td>${esc(row.signer_name)}${row.archived_at ? ' <span class="bg-status-pill" style="background:#f1f5f9;color:#64748b;">Archived</span>' : ''}</td>
       <td>${esc(row.signer_email)}</td>
       <td>${esc(template?.title ?? '—')}</td>
       <td>${fmtAgrDate(row.signed_at)}</td>
@@ -708,20 +922,24 @@ async function loadAgreements() {
       <td data-action="${hasUnreviewedData ? 'review-data' : ''}" data-id="${esc(row.id)}" style="cursor:${hasUnreviewedData ? 'pointer' : 'default'}">${dataBadge}</td>
       <td style="white-space:nowrap;">
         <button class="btn btn-sm" data-action="pdf" data-id="${esc(row.id)}">PDF</button>
-        ${row.link_status === 'unresolved' ? `<button class="btn btn-sm" data-action="link-guardian" data-id="${esc(row.id)}" style="margin-left:4px;">Link</button>` : ''}
-        ${!isVoided ? `<button class="btn btn-sm" data-action="void" data-id="${esc(row.id)}" style="margin-left:4px;color:var(--danger);">Void</button>` : ''}
+        ${row.link_status === 'unresolved' && !row.archived_at ? `<button class="btn btn-sm" data-action="link-guardian" data-id="${esc(row.id)}" style="margin-left:4px;">Link</button>` : ''}
+        ${!isVoided && !row.archived_at ? `<button class="btn btn-sm" data-action="void" data-id="${esc(row.id)}" style="margin-left:4px;color:var(--danger);">Void</button>` : ''}
+        <button class="btn btn-sm" data-action="archive" data-id="${esc(row.id)}" style="margin-left:4px;color:var(--text-muted,#9ca3af);font-size:11px;">${row.archived_at ? 'Unarchive' : 'Archive'}</button>
       </td>
     `;
 
     tr.querySelector('[data-action="pdf"]').addEventListener('click', () => downloadAgreementPdf(row.id));
     tr.querySelector('[data-action="link-guardian"]')?.addEventListener('click', () => openLinkGuardianDrawer(row.id));
     tr.querySelector('[data-action="void"]')?.addEventListener('click', () => voidAgreement(row.id));
+    tr.querySelector('[data-action="archive"]').addEventListener('click', () => archiveAgreement(row.id, !row.archived_at));
     if (hasUnreviewedData) {
       tr.querySelector('[data-action="review-data"]')?.addEventListener('click', () => openReviewDataDrawer(row.id));
     }
 
     tbody.appendChild(tr);
   });
+
+  renderPagination('agrPagination', agrPage, filtered.length, p => { agrPage = p; loadAgreements(); });
 }
 
 function populateTemplateFilter(agreements) {
@@ -1043,17 +1261,12 @@ function wireDrawers() {
   });
 
   document.getElementById('bgDrawerSave')?.addEventListener('click',      saveBgCheck);
+  document.getElementById('bgDrawerArchive')?.addEventListener('click',   onBgArchiveClick);
   document.getElementById('tplDrawerSave')?.addEventListener('click',     saveTemplate);
   document.getElementById('tplDrawerDelete')?.addEventListener('click',   deleteTemplate);
   document.getElementById('linkDrawerSave')?.addEventListener('click',    createLink);
   document.getElementById('linkGuardianSave')?.addEventListener('click',  saveLinkGuardian);
   document.getElementById('newTemplateBtn')?.addEventListener('click',    () => openTemplateDrawer(null));
-  document.getElementById('agreementSearch')?.addEventListener('input',   () => {
-    clearTimeout(agreementSearchTimer);
-    agreementSearchTimer = setTimeout(loadAgreements, 280);
-  });
-  document.getElementById('agreementTemplateFilter')?.addEventListener('change', () => { resetAgreementCache(); loadAgreements(); });
-  document.getElementById('agreementLinkFilter')?.addEventListener('change',   () => { resetAgreementCache(); loadAgreements(); });
   document.getElementById('linkGuardianSearch')?.addEventListener('input', onGuardianSearchInput);
 
   // Phase B: grants

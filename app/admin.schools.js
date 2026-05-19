@@ -11,6 +11,7 @@ const MODULES = [
   { key: 'carline',     label: 'Carline Dismissal' },
   { key: 'licensure',   label: 'Licensure Tracking' },
   { key: 'compliance',  label: 'Volunteer Compliance' },
+  { key: 'field_trips', label: 'Field Trip Planning' },
 ];
 
 /* ===============================

@@ -22,8 +22,9 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-const FROM_ADDRESS = "Belltower PTO <pto@belltower.school>";
-const REPLY_TO = "no-reply@belltower.school";
+// Fallback sender used only if the school has not configured its own email.
+const DEFAULT_FROM = "Belltower PTO <pto@belltower.school>";
+const DEFAULT_REPLY_TO = "no-reply@belltower.school";
 
 
 function formatDate(dateStr: string) {
@@ -169,6 +170,16 @@ const { data: request, error } = await supabase
 
     const employee = request.employees;
 
+    // Load school config for sender email
+    const { data: school } = await supabase
+      .from("schools")
+      .select("pto_from_email, pto_reply_to")
+      .eq("id", employee.school_id)
+      .single();
+
+    const FROM_ADDRESS = school?.pto_from_email || DEFAULT_FROM;
+    const REPLY_TO     = school?.pto_reply_to   || DEFAULT_REPLY_TO;
+
  
 // ----------------------------------------------------
 // Resolve approvers
@@ -220,14 +231,16 @@ if (approvers.length === 0) {
 // ----------------------------------------------------
 // Notifications
 // ----------------------------------------------------
+const emailCfg = { from: FROM_ADDRESS, replyTo: REPLY_TO };
+
 if (event === "INSERT" && new_status === "PENDING") {
-  await sendEmployeeSubmission(request, employee);
-  await sendApproverRequest(request, employee, approvers);
+  await sendEmployeeSubmission(request, employee, emailCfg);
+  await sendApproverRequest(request, employee, approvers, emailCfg);
 }
 
 if (event === "UPDATE" && old_status === "PENDING") {
   if (new_status === "APPROVED") {
-    await sendEmployeeDecision(request, employee, "approved");
+    await sendEmployeeDecision(request, employee, "approved", emailCfg);
 
     // ✅ Notify substitute managers ONLY if coverage is needed AND only once
     if (request.needs_sub_coverage === true) {
@@ -249,7 +262,7 @@ if (event === "UPDATE" && old_status === "PENDING") {
       } else if (claimed) {
         const subManagers = await loadSubstituteManagers(employee.school_id);
         if (subManagers.length > 0) {
-          await sendSubCoverageNeeded(request, employee, subManagers);
+          await sendSubCoverageNeeded(request, employee, subManagers, emailCfg);
         } else {
           console.warn("No substitute managers found for school:", employee.school_id);
         }
@@ -258,7 +271,7 @@ if (event === "UPDATE" && old_status === "PENDING") {
   }
 
   if (new_status === "DENIED") {
-    await sendEmployeeDecision(request, employee, "denied");
+    await sendEmployeeDecision(request, employee, "denied", emailCfg);
   }
 }
 
@@ -267,11 +280,11 @@ if (
   old_status === "APPROVED" &&
   (new_status === "CANCEL_REQUESTED" || new_status === "RESCIND_REQUESTED")
 ) {
-  await sendCancellationRequest(request, employee, approvers);
+  await sendCancellationRequest(request, employee, approvers, emailCfg);
 }
 
 if (event === "UPDATE" && old_status === "CANCEL_REQUESTED" && new_status === "CANCELLED") {
-  await sendEmployeeCancellation(request, employee);
+  await sendEmployeeCancellation(request, employee, emailCfg);
 
   // ✅ Guard: Only notify substitute managers for FUTURE cancels.
   // Past dates should go through RESCIND_REQUESTED flow instead.
@@ -285,7 +298,7 @@ if (event === "UPDATE" && old_status === "CANCEL_REQUESTED" && new_status === "C
   if (isFutureStart && request.needs_sub_coverage === true) {
     const subManagers = await loadSubstituteManagers(employee.school_id);
     if (subManagers.length > 0) {
-      await sendSubCoverageNoLongerNeeded(request, employee, subManagers);
+      await sendSubCoverageNoLongerNeeded(request, employee, subManagers, emailCfg);
     } else {
       console.warn("No substitute managers found for school (cancel):", employee.school_id);
     }
@@ -331,7 +344,7 @@ async function createApprovalToken(payload: {
    EMAIL HELPERS
 ------------------------------------------------------------------ */
 
-async function sendEmployeeSubmission(request: any, employee: any) {
+async function sendEmployeeSubmission(request: any, employee: any, cfg: any) {
   await sendEmail({
     to: employee.email,
     subject: "PTO Request Submitted",
@@ -341,11 +354,12 @@ async function sendEmployeeSubmission(request: any, employee: any) {
       request,
       employee,
       footer: "You’ll be notified once your request is reviewed."
-    })
+    }),
+    cfg,
   });
 }
 
-async function sendApproverRequest(request: any, employee: any, approvers: any[]) {
+async function sendApproverRequest(request: any, employee: any, approvers: any[], cfg: any) {
   for (const approver of approvers) {
     const expiresAt = Date.now() + 1000 * 60 * 60 * 24;
 
@@ -379,13 +393,14 @@ async function sendApproverRequest(request: any, employee: any, approvers: any[]
         showActions: true,
         approveUrl,
         denyUrl
-      })
+      }),
+      cfg,
     });
   }
 }
 
 
-async function sendEmployeeDecision(request: any, employee: any, decision: string) {
+async function sendEmployeeDecision(request: any, employee: any, decision: string, cfg: any) {
   await sendEmail({
     to: employee.email,
     subject: `PTO Request ${decision.toUpperCase()}`,
@@ -394,7 +409,8 @@ async function sendEmployeeDecision(request: any, employee: any, decision: strin
       intro: `✅ Your PTO request has been <strong>${decision}</strong>.`,
       request,
       employee
-    })
+    }),
+    cfg,
   });
 }
 
@@ -413,7 +429,7 @@ async function loadSubstituteManagers(schoolId: string) {
   return data || [];
 }
 
-async function sendSubCoverageNeeded(request: any, employee: any, managers: any[]) {
+async function sendSubCoverageNeeded(request: any, employee: any, managers: any[], cfg: any) {
   for (const mgr of managers) {
     await sendEmail({
       to: mgr.email,
@@ -424,12 +440,13 @@ async function sendSubCoverageNeeded(request: any, employee: any, managers: any[
         request,
         employee,
         footer: "Please arrange coverage. This request was marked as needing substitute/coverage."
-      })
+      }),
+      cfg,
     });
   }
 }
 
-async function sendSubCoverageNoLongerNeeded(request: any, employee: any, managers: any[]) {
+async function sendSubCoverageNoLongerNeeded(request: any, employee: any, managers: any[], cfg: any) {
   for (const mgr of managers) {
     await sendEmail({
       to: mgr.email,
@@ -440,7 +457,8 @@ async function sendSubCoverageNoLongerNeeded(request: any, employee: any, manage
         request,
         employee,
         footer: "If you already arranged coverage, please cancel/unassign the substitute."
-      })
+      }),
+      cfg,
     });
   }
 }
@@ -449,7 +467,8 @@ async function sendSubCoverageNoLongerNeeded(request: any, employee: any, manage
 async function sendCancellationRequest(
   request: any,
   employee: any,
-  approvers: any[]
+  approvers: any[],
+  cfg: any
 ) {
   const isRescind = request.status === "RESCIND_REQUESTED";
 
@@ -493,14 +512,15 @@ async function sendCancellationRequest(
         approveUrl,
         denyUrl,
         footer: "Please approve or deny this request. These links expire in 24 hours."
-      })
+      }),
+      cfg,
     });
   }
 }
 
 
 
-async function sendEmployeeCancellation(request: any, employee: any) {
+async function sendEmployeeCancellation(request: any, employee: any, cfg: any) {
   await sendEmail({
     to: employee.email,
     subject: "PTO Cancellation Confirmed",
@@ -510,7 +530,8 @@ async function sendEmployeeCancellation(request: any, employee: any) {
       request,
       employee,
       footer: "If you have questions, please contact your administrator."
-    })
+    }),
+    cfg,
   });
 }
 
@@ -518,11 +539,13 @@ async function sendEmployeeCancellation(request: any, employee: any) {
 async function sendEmail({
   to,
   subject,
-  html
+  html,
+  cfg,
 }: {
   to: string;
   subject: string;
   html: string;
+  cfg: { from: string; replyTo: string };
 }) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -531,8 +554,8 @@ async function sendEmail({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: FROM_ADDRESS,
-      reply_to: REPLY_TO,
+      from:     cfg?.from     ?? DEFAULT_FROM,
+      reply_to: cfg?.replyTo  ?? DEFAULT_REPLY_TO,
       to,
       subject,
       html

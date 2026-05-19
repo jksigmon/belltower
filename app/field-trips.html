@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Field Trips</title>
+  <link rel="stylesheet" href="/admin-ui.css" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+
+  <style>
+    /* ── Trip status badges ── */
+    .trip-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .trip-badge-active    { background: #dcfce7; color: #15803d; }
+    .trip-badge-cancelled { background: #f1f5f9; color: #64748b; }
+    .trip-badge-past      { background: #f0f9ff; color: #0369a1; }
+
+    /* ── Compliance chips ── */
+    .comp-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .comp-cleared  { background: #dcfce7; color: #15803d; }
+    .comp-action   { background: #fef3c7; color: #92400e; }
+    .comp-blocked  { background: #fee2e2; color: #991b1b; }
+    .comp-unknown  { background: #f1f5f9; color: #64748b; }
+
+    /* ── Trip detail header card ── */
+    .trip-hdr-card {
+      background: #fff;
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .trip-hdr-main { flex: 1; min-width: 200px; }
+    .trip-hdr-name { font-size: 20px; font-weight: 800; color: #0b2d4f; margin-bottom: 4px; }
+    .trip-hdr-dest { font-size: 14px; color: var(--text-muted, #6b7280); margin-bottom: 8px; }
+    .trip-hdr-meta { display: flex; flex-wrap: wrap; gap: 14px; }
+    .trip-hdr-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      color: #374151;
+    }
+    .trip-hdr-actions { display: flex; gap: 8px; align-items: flex-start; flex-shrink: 0; }
+
+    /* ── Tabs ── */
+    .ft-tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border, #e5e7eb); margin-bottom: 20px; }
+    .ft-tab {
+      padding: 9px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted, #6b7280);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .ft-tab.active { color: #0b2d4f; border-bottom-color: #0b2d4f; }
+    .ft-tab:hover:not(.active) { color: #374151; }
+
+    /* ── Chaperone table ── */
+    .chap-row td { vertical-align: middle; }
+    .chap-name strong { display: block; font-size: 14px; }
+    .chap-name span   { font-size: 12px; color: var(--text-muted, #6b7280); }
+    .chap-students    { font-size: 12px; color: var(--text-muted, #6b7280); }
+
+    /* ── Student attendance row ── */
+    .student-attending-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    .student-attending-toggle input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    /* ── Shared input style ── */
+    .admin-input {
+      height: 34px;
+      padding: 0 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      background: #fff;
+      color: #0f172a;
+      font-family: inherit;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .admin-input:focus {
+      outline: none;
+      border-color: #0b2d4f;
+      box-shadow: 0 0 0 3px rgba(11, 45, 79, 0.08);
+    }
+    select.admin-input {
+      padding-right: 28px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+
+    /* ── Typeahead dropdown ── */
+    .ft-typeahead-wrap { position: relative; }
+    .ft-typeahead-results {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: #fff;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+      z-index: 200;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .ft-typeahead-item {
+      padding: 9px 14px;
+      cursor: pointer;
+      font-size: 14px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .ft-typeahead-item:last-child { border-bottom: none; }
+    .ft-typeahead-item:hover { background: #f8fafc; }
+    .ft-typeahead-item strong { display: block; }
+    .ft-typeahead-item span   { font-size: 12px; color: var(--text-muted, #6b7280); }
+    .ft-typeahead-empty { padding: 12px 14px; font-size: 13px; color: var(--text-muted, #6b7280); }
+
+    /* ── Drawer overrides ── */
+    .drawer-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .drawer-label { font-size: 12px; font-weight: 700; color: var(--text-muted, #9ca3af); text-transform: uppercase; letter-spacing: 0.05em; }
+    .drawer-field input, .drawer-field select, .drawer-field textarea {
+      padding: 8px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      background: #fff;
+      color: #0f172a;
+      font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .drawer-field input:focus, .drawer-field select:focus, .drawer-field textarea:focus {
+      outline: none;
+      border-color: #0b2d4f;
+      box-shadow: 0 0 0 3px rgba(11, 45, 79, 0.08);
+    }
+    .drawer-field textarea { resize: vertical; }
+    .drawer-row { display: flex; gap: 12px; }
+    .drawer-row .drawer-field { flex: 1; }
+
+    /* ── Stat summary strip ── */
+    .ft-stat-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .ft-stat-card {
+      background: #fff;
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 10px;
+      padding: 12px 16px;
+      flex: 1;
+      min-width: 90px;
+    }
+    .ft-stat-val   { font-size: 22px; font-weight: 800; color: #0b2d4f; line-height: 1; }
+    .ft-stat-label { font-size: 11px; color: var(--text-muted,#9ca3af); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
+    .ft-stat-warn .ft-stat-val  { color: #d97706; }
+    .ft-stat-alert .ft-stat-val { color: #dc2626; }
+
+    /* ── Grade level pills ── */
+    .grade-pill {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: #eff6ff;
+      color: #1d4ed8;
+      margin: 1px;
+    }
+
+    /* ── Export bar ── */
+    .ft-export-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+
+<body class="admin-page">
+<header>
+  <div class="header-left">
+    <button id="hamburgerBtn" class="hamburger-btn" aria-label="Open navigation">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="/admin.html" class="btn btn-admin back-to-admin" aria-label="Admin home">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </a>
+  </div>
+
+  <div class="page-header">
+    <img src="/images/belltower-logo.png" alt="Belltower" class="admin-logo" />
+    <div class="page-subtitle" id="pageSubtitle">Field Trips</div>
+  </div>
+
+  <div class="header-actions">
+    <div class="user-menu" id="userMenu">
+      <button class="user-avatar" id="userAvatar" aria-label="Account menu" aria-expanded="false">
+        <span id="userInitials"></span>
+      </button>
+      <div class="user-dropdown" id="userDropdown" hidden>
+        <div class="user-dropdown-header">
+          <div class="user-dropdown-name" id="userDropdownName"></div>
+        </div>
+        <a href="/help.html" class="user-dropdown-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Help
+        </a>
+        <div class="user-dropdown-divider"></div>
+        <button class="user-dropdown-item signout" id="signOut">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div id="navOverlay" class="nav-overlay"></div>
+<div class="wrap">
+  <nav id="sideNav" class="nav hidden">
+    <a href="/admin.html"><i data-lucide="home"></i> Dashboard</a>
+    <a href="#trips" id="navTrips"><i data-lucide="map"></i> Trips</a>
+  </nav>
+
+  <main>
+
+    <!-- ══ TRIPS ═══════════════════════════════════════════════════════ -->
+    <section id="trips" style="display:none;">
+
+      <!-- List view -->
+      <div id="ftListView">
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+            <h3 style="margin:0;">Field Trips</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input type="text" id="ftSearch" class="admin-input" placeholder="Search trips..." style="width:180px;">
+              <select id="ftStatusFilter" class="admin-input" style="width:130px;">
+                <option value="">All statuses</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="past">Past</option>
+                <option value="active">Active</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <button class="btn btn-primary" id="newTripBtn" style="height:34px;font-size:13px;white-space:nowrap;">+ New Trip</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Trip</th>
+                  <th>Date</th>
+                  <th>Destination</th>
+                  <th>Grades</th>
+                  <th>Chaperones</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="ftTableBody">
+                <tr><td colspan="7" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail view (hidden until a trip is selected) -->
+      <div id="ftDetailView" style="display:none;">
+
+        <!-- Back + trip header -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <button class="btn btn-sm" id="ftBackBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+            All Trips
+          </button>
+        </div>
+
+        <div class="trip-hdr-card">
+          <div class="trip-hdr-main">
+            <div class="trip-hdr-name" id="ftDetailName"></div>
+            <div class="trip-hdr-dest" id="ftDetailDest"></div>
+            <div class="trip-hdr-meta" id="ftDetailMeta"></div>
+          </div>
+          <div class="trip-hdr-actions">
+            <span id="ftDetailBadge"></span>
+            <button class="btn btn-sm" id="ftEditBtn">Edit Trip</button>
+            <button class="btn btn-sm btn-danger" id="ftCancelBtn" style="display:none;">Cancel Trip</button>
+          </div>
+        </div>
+
+        <!-- Compliance summary strip -->
+        <div class="ft-stat-row" id="ftCompStats" style="display:none;">
+          <div class="ft-stat-card">
+            <div class="ft-stat-val" id="ftStatTotal">0</div>
+            <div class="ft-stat-label">Chaperones</div>
+          </div>
+          <div class="ft-stat-card">
+            <div class="ft-stat-val" id="ftStatCleared">0</div>
+            <div class="ft-stat-label">Cleared</div>
+          </div>
+          <div class="ft-stat-card ft-stat-warn" id="ftStatActionCard">
+            <div class="ft-stat-val" id="ftStatAction">0</div>
+            <div class="ft-stat-label">Action needed</div>
+          </div>
+          <div class="ft-stat-card ft-stat-alert" id="ftStatBlockedCard">
+            <div class="ft-stat-val" id="ftStatBlocked">0</div>
+            <div class="ft-stat-label">Blocked</div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="ft-tabs">
+          <button class="ft-tab active" data-tab="chaperones">Chaperones</button>
+          <button class="ft-tab" data-tab="students">Students</button>
+        </div>
+
+        <!-- Chaperones tab -->
+        <div id="ftTabChaperones">
+          <div class="ft-export-bar">
+            <button class="btn btn-sm" id="ftAddChaperoneBtn">+ Add Chaperone</button>
+            <button class="btn btn-sm" id="ftExportCsvBtn">Export CSV</button>
+          </div>
+          <div class="panel" style="padding:0;overflow:hidden;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Students (from family)</th>
+                  <th>Background Check</th>
+                  <th id="thMvr" style="display:none;">MVR</th>
+                  <th id="thForms" style="display:none;">Forms</th>
+                  <th>Driver</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="ftChapTableBody">
+                <tr><td colspan="6" class="muted" style="text-align:center;padding:32px 0;">No chaperones added yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Students tab -->
+        <div id="ftTabStudents" style="display:none;">
+          <div class="panel" style="padding:0;overflow:hidden;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Grade</th>
+                  <th>Homeroom</th>
+                  <th>Attending</th>
+                </tr>
+              </thead>
+              <tbody id="ftStudTableBody">
+                <tr><td colspan="4" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ══ TRIP CREATE/EDIT DRAWER ════════════════════════════════════════ -->
+<div id="ftTripDrawerOverlay" class="drawer-overlay"></div>
+<aside id="ftTripDrawer" class="drawer">
+  <div class="drawer-header">
+    <span id="ftDrawerTitle">New Trip</span>
+    <button class="drawer-close" id="ftTripDrawerClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <input type="hidden" id="ftDrawerTripId">
+
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftDrawerName">Trip name *</label>
+      <input type="text" id="ftDrawerName" placeholder="e.g. 3rd Grade Nature Museum Trip">
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftDrawerDest">Destination</label>
+      <input type="text" id="ftDrawerDest" placeholder="e.g. City Nature Museum">
+    </div>
+
+    <div class="drawer-row">
+      <div class="drawer-field">
+        <label class="drawer-label" for="ftDrawerDate">Start date *</label>
+        <input type="date" id="ftDrawerDate">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-label" for="ftDrawerEndDate">End date</label>
+        <input type="date" id="ftDrawerEndDate">
+        <small style="font-size:11px;color:#9ca3af;">Leave blank for single-day</small>
+      </div>
+    </div>
+
+    <div class="drawer-row">
+      <div class="drawer-field">
+        <label class="drawer-label" for="ftDrawerDepart">Depart time</label>
+        <input type="time" id="ftDrawerDepart">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-label" for="ftDrawerReturn">Return time</label>
+        <input type="time" id="ftDrawerReturn">
+      </div>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label">Grade levels</label>
+      <div id="ftDrawerGrades" style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;"></div>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftDrawerMaxChap">Max chaperones</label>
+      <input type="number" id="ftDrawerMaxChap" min="1" max="99" placeholder="Leave blank for unlimited">
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="ftDrawerDrivers" style="width:16px;height:16px;">
+        Drivers needed (require MVR clearance for drivers)
+      </label>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftDrawerNotes">Notes</label>
+      <textarea id="ftDrawerNotes" rows="3" placeholder="Optional internal notes..."></textarea>
+    </div>
+
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="ftCancelTripDrawerBtn">Cancel</button>
+    <button class="btn btn-primary" id="ftSaveTripBtn">Save Trip</button>
+  </div>
+</aside>
+
+<!-- ══ ADD CHAPERONE DRAWER ═══════════════════════════════════════════ -->
+<div id="ftChapDrawerOverlay" class="drawer-overlay"></div>
+<aside id="ftChapDrawer" class="drawer">
+  <div class="drawer-header">
+    <span>Add Chaperone</span>
+    <button class="drawer-close" id="ftChapDrawerClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftChapSearch">Search guardians</label>
+      <div class="ft-typeahead-wrap">
+        <input type="text" id="ftChapSearch" class="admin-input" placeholder="Name or email..." style="width:100%;">
+        <div id="ftChapResults" class="ft-typeahead-results" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div id="ftChapSelected" style="display:none;margin-bottom:16px;">
+      <div class="panel" style="padding:12px 16px;border-radius:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <strong id="ftChapSelectedName"></strong>
+            <div style="font-size:12px;color:var(--text-muted,#6b7280);" id="ftChapSelectedEmail"></div>
+          </div>
+          <button class="btn btn-sm" id="ftChapClearBtn" style="font-size:11px;">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="ftChapIsDriver" style="width:16px;height:16px;">
+        Driving (will check MVR clearance)
+      </label>
+    </div>
+
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="ftCancelChapBtn">Cancel</button>
+    <button class="btn btn-primary" id="ftSaveChapBtn" disabled>Add Chaperone</button>
+  </div>
+</aside>
+
+<script type="module" src="/app/admin.field-trips.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>if (window.lucide) lucide.createIcons();</script>
+</body>
+</html>

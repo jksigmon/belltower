@@ -1,9 +1,10 @@
 
 import { supabase } from './admin.supabase.js';
-import { loadFamilyOptions, loadBusGroupOptions, esc, getAvatarColor, cloneSelectOptions, debounce } from './admin.shared.js';
+import { loadFamilyOptions, loadBusGroupOptions, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER } from './admin.shared.js';
 import { createDirectory } from './admin.directory.js';
 
 let currentProfile;
+let schoolConfig = null;
 let initialized = false;
 let studentsDirectory;
 let editingStudentId = null;
@@ -14,11 +15,21 @@ let editingStudentId = null;
 
 export async function initStudentsSection(profile) {
   currentProfile = profile;
+  if (!schoolConfig) schoolConfig = await loadSchoolConfig(profile.school_id);
+
+  const usesHomerooms = schoolConfig?.uses_homerooms !== false;
+
+  // Hide homeroom UI elements for schools that don't use them
+  if (!usesHomerooms) {
+    document.getElementById('studentHomeroomFilter')?.closest('label, div')?.style.setProperty('display', 'none');
+    document.getElementById('studentHomeroom')?.closest('.drawer-field, .form-field, div')?.style.setProperty('display', 'none');
+    document.getElementById('estuHomeroom')?.closest('.drawer-field, .form-field, div')?.style.setProperty('display', 'none');
+  }
 
   await Promise.all([
     loadFamilyOptions(['#studentFamily'], currentProfile.school_id),
     loadBusGroupOptions('#studentBusGroup', currentProfile.school_id),
-    loadHomeroomOptions(),
+    usesHomerooms ? loadHomeroomOptions() : Promise.resolve(),
     loadCampusOptions()
   ]);
 
@@ -77,11 +88,32 @@ export async function initStudentsSection(profile) {
   }
 
   if (!initialized) {
+    populateGradeSelects();
     wireStudentEvents();
     initialized = true;
   }
 
   studentsDirectory.load();
+}
+
+/* ===============================
+   GRADE SELECT POPULATION
+================================ */
+
+function populateGradeSelects() {
+  const grades = schoolConfig?.grade_levels ?? GRADE_ORDER;
+  ['studentGradeFilter', 'studentGrade', 'estuGrade'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const placeholder = id === 'studentGradeFilter' ? 'All grades' : 'Select grade';
+    sel.innerHTML = `<option value="">${placeholder}</option>`;
+    grades.forEach(g => {
+      const opt = document.createElement('option');
+      opt.value = g;
+      opt.textContent = g;
+      sel.appendChild(opt);
+    });
+  });
 }
 
 /* ===============================

@@ -7,6 +7,42 @@ import { supabase } from './admin.supabase.js';
 ================================ */
 const familyCache = {};
 const busGroupCache = {};
+const schoolConfigCache = {};
+
+/* ===============================
+   SCHOOL CONFIG
+================================ */
+
+/**
+ * Loads and caches per-school configuration (grades, feature flags, etc.).
+ * Returns an object with:
+ *   grade_levels: string[]       — ordered grade list for this school
+ *   terminal_grade: string       — last grade before graduation
+ *   uses_homerooms: boolean
+ *   require_mvr_for_drivers: boolean
+ *   modules: { [module]: boolean } — enabled state per module key
+ */
+export async function loadSchoolConfig(schoolId) {
+  if (schoolConfigCache[schoolId]) return schoolConfigCache[schoolId];
+
+  const [schoolRes, modulesRes] = await Promise.all([
+    supabase
+      .from('schools')
+      .select('grade_levels, terminal_grade, uses_homerooms, require_mvr_for_drivers')
+      .eq('id', schoolId)
+      .single(),
+    supabase
+      .from('school_modules')
+      .select('module, enabled')
+      .eq('school_id', schoolId),
+  ]);
+
+  const modules = {};
+  (modulesRes.data ?? []).forEach(m => { modules[m.module] = m.enabled; });
+
+  schoolConfigCache[schoolId] = { ...(schoolRes.data ?? {}), modules };
+  return schoolConfigCache[schoolId];
+}
 
 /* ===============================
    FAMILY OPTIONS (Students, Guardians)
@@ -37,8 +73,9 @@ export async function loadFamilyOptions(selectors = [], schoolId) {
     familyCache[schoolId].forEach(f => {
       const opt = document.createElement('option');
       opt.value = f.id;
-      opt.textContent =
-        `${f.carline_tag_number} – ${f.family_name ?? '(no name)'}`;
+      opt.textContent = f.carline_tag_number
+        ? `${f.carline_tag_number} – ${f.family_name ?? '(no name)'}`
+        : (f.family_name ?? '(no name)');
       select.appendChild(opt);
     });
   });
@@ -125,13 +162,24 @@ export function cloneSelectOptions(sourceId, target, selectedValue) {
 ================================ */
 export const GRADE_ORDER = ['PK', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 
-export function nextGrade(grade) {
-  const idx = GRADE_ORDER.indexOf(grade);
-  if (idx < 0 || idx >= GRADE_ORDER.length - 1) return null;
-  return GRADE_ORDER[idx + 1];
+/**
+ * Returns the next grade after `grade`, using the school's configured grade list.
+ * Pass schoolConfig (from loadSchoolConfig) for per-school grades; omit for K-12 default.
+ */
+export function nextGrade(grade, schoolConfig) {
+  const grades = schoolConfig?.grade_levels ?? GRADE_ORDER;
+  const idx = grades.indexOf(grade);
+  if (idx < 0 || idx >= grades.length - 1) return null;
+  return grades[idx + 1];
 }
 
-export function isTerminalGrade(grade) {
+/**
+ * Returns true if `grade` is the last grade in this school's sequence.
+ * Pass schoolConfig for per-school config; omit for K-12 default.
+ */
+export function isTerminalGrade(grade, schoolConfig) {
+  if (schoolConfig?.terminal_grade) return grade === schoolConfig.terminal_grade;
+  if (schoolConfig?.grade_levels?.length) return grade === schoolConfig.grade_levels[schoolConfig.grade_levels.length - 1];
   return grade === '12';
 }
 

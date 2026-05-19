@@ -1,9 +1,10 @@
 
 import { supabase } from './admin.supabase.js';
-import { GRADE_ORDER, nextGrade, gradeLabel, isTerminalGrade } from './admin.shared.js';
+import { GRADE_ORDER, nextGrade, gradeLabel, isTerminalGrade, loadSchoolConfig } from './admin.shared.js';
 
 /* ─── Module state ──────────────────────────────────────────── */
 let _profile = null;
+let _schoolConfig = null;
 let _students = [];
 let _actionMap = {};   // studentId → 'promote' | 'retain' | 'graduate'
 let _initialized = false;
@@ -82,6 +83,8 @@ export async function initPromotionSection(profile) {
       '<p class="muted" style="padding:1rem;">You do not have permission to manage grade promotion.</p>';
     return;
   }
+
+  if (!_schoolConfig) _schoolConfig = await loadSchoolConfig(profile.school_id);
 
   populateYearSelect();
   await populateCampusSelect();
@@ -189,7 +192,7 @@ async function loadPromotionPreview() {
 
   _students.forEach(s => {
     if (!s.grade_level) return; // null-grade students get no default action — they'll be skipped
-    _actionMap[s.id] = isTerminalGrade(s.grade_level) ? 'graduate' : 'promote';
+    _actionMap[s.id] = isTerminalGrade(s.grade_level, _schoolConfig) ? 'graduate' : 'promote';
   });
 
   // Update run button year label
@@ -227,9 +230,10 @@ function renderPreview() {
   });
 
   // Sort grades by defined order, unknowns last
+  const gradeOrder = _schoolConfig?.grade_levels ?? GRADE_ORDER;
   const sortedGrades = Object.keys(groups).sort((a, b) => {
-    const ai = GRADE_ORDER.indexOf(a);
-    const bi = GRADE_ORDER.indexOf(b);
+    const ai = gradeOrder.indexOf(a);
+    const bi = gradeOrder.indexOf(b);
     if (ai === -1 && bi === -1) return a.localeCompare(b);
     if (ai === -1) return 1;
     if (bi === -1) return -1;
@@ -243,8 +247,8 @@ function renderPreview() {
 
 function buildGradeGroup(grade, students) {
   const isUnknown = grade === 'Unknown';
-  const terminal  = !isUnknown && isTerminalGrade(grade);
-  const next      = isUnknown ? null : nextGrade(grade);
+  const terminal  = !isUnknown && isTerminalGrade(grade, _schoolConfig);
+  const next      = isUnknown ? null : nextGrade(grade, _schoolConfig);
 
   const wrap = document.createElement('div');
   wrap.className = 'promo-grade-group';
@@ -439,7 +443,7 @@ async function runPromotion(year) {
   // Promote — batch by next grade value
   const promoteByNextGrade = {};
   toPromote.forEach(s => {
-    const ng = nextGrade(s.grade_level);
+    const ng = nextGrade(s.grade_level, _schoolConfig);
     if (!ng) return;
     if (!promoteByNextGrade[ng]) promoteByNextGrade[ng] = [];
     promoteByNextGrade[ng].push(s.id);

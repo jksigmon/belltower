@@ -30,7 +30,6 @@
       alt="Belltower"
       class="admin-logo"
     />
-    <div class="page-subtitle">Administration</div>
   </div>
 
   <div class="header-actions">
@@ -78,6 +77,8 @@
         <a href="/carline.html" data-cap-group="carline" data-module="carline"><i data-lucide="car"></i> Carline</a>
         <a href="/app/licensure.html" data-cap="can_manage_licensure" data-module="licensure"><i data-lucide="badge-check"></i> Licensure</a>
         <a href="/app/compliance.html" data-cap="can_manage_compliance" data-module="compliance"><i data-lucide="shield-check"></i> Compliance</a>
+        <a href="/app/field-trips.html" data-cap="can_manage_field_trips" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
+        <a href="#placement" data-cap="can_manage_placement"><i data-lucide="layout-grid"></i> Class Placement</a>
       </div>
 
       <button class="nav-section-toggle" data-group="directory">
@@ -98,7 +99,6 @@
       </button>
       <div class="nav-group" id="navGroup-settings">
         <a href="#schools" id="navSchools" style="display:none;"><i data-lucide="building-2"></i> Schools</a>
-        <a href="#placement" data-cap="can_manage_placement"><i data-lucide="layout-grid"></i> Class Placement</a>
         <a href="#promotion" data-cap="can_manage_placement"><i data-lucide="graduation-cap"></i> Year-End Promotion</a>
         <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access <span class="badge-count" id="accessRequestBadge"></span></a>
         <a href="#bulk-upload" data-cap="can_bulk_upload"><i data-lucide="upload"></i> Bulk Upload</a>
@@ -617,22 +617,7 @@
     />
 
     <select id="studentGradeFilter">
-        <option value="">All grades</option>
-  <option value="PK">PK</option>
-  <option value="K">K</option>
-  <option value="1">1</option>
-  <option value="2">2</option>
-  <option value="3">3</option>
-  <option value="4">4</option>
-  <option value="5">5</option>
-  <option value="6">6</option>
-  <option value="7">7</option>
-  <option value="8">8</option>
-  <option value="9">9</option>
-  <option value="10">10</option>
-  <option value="11">11</option>
-  <option value="12">12</option>
-
+      <option value="">All grades</option>
     </select>
 
     <select id="studentHomeroomFilter">
@@ -979,9 +964,14 @@
             <h3 style="margin:0 0 4px;">Class Placement</h3>
             <p class="muted" style="font-size:13px;margin:0;">Draft and commit student class assignments for the upcoming year.</p>
           </div>
-          <button class="btn btn-primary btn-sm" id="newPlacementSessionBtn">
-            <i data-lucide="plus"></i> New Session
-          </button>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary);">
+              <input type="checkbox" id="showArchivedSessionsToggle"> Show archived
+            </label>
+            <button class="btn btn-primary btn-sm" id="newPlacementSessionBtn">
+              <i data-lucide="plus"></i> New Session
+            </button>
+          </div>
         </div>
         <div id="placementSessionList"></div>
       </div>
@@ -1005,24 +995,15 @@
             <label class="form-label">Incoming Grade <span class="muted" style="font-weight:400;">(students' current grade)</span></label>
             <select id="placementIncomingGrade" class="form-input">
               <option value="">— Select grade —</option>
-              <option value="PK">Pre-K</option>
-              <option value="K">Kindergarten</option>
-              <option value="1">1st Grade</option>
-              <option value="2">2nd Grade</option>
-              <option value="3">3rd Grade</option>
-              <option value="4">4th Grade</option>
-              <option value="5">5th Grade</option>
-              <option value="6">6th Grade</option>
-              <option value="7">7th Grade</option>
-              <option value="8">8th Grade</option>
-              <option value="9">9th Grade</option>
-              <option value="10">10th Grade</option>
-              <option value="11">11th Grade</option>
             </select>
           </div>
           <div class="form-group">
             <label class="form-label">Session Label <span class="muted" style="font-weight:400;">(optional)</span></label>
             <input type="text" id="placementLabel" class="form-input" placeholder="e.g. 2nd Grade → 3rd Grade">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Target Class Size <span class="muted" style="font-weight:400;">(optional)</span></label>
+            <input type="number" id="placementTargetSize" class="form-input" placeholder="e.g. 25" min="1" max="100">
           </div>
         </div>
         <div style="margin-top:24px;">
@@ -1067,12 +1048,26 @@
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
+            <input type="search" id="placementBoardSearch" class="form-input" placeholder="Search students…" style="width:170px;height:30px;font-size:13px;padding:0 8px;">
             <span id="placementSaveStatus" class="muted" style="font-size:12px;"></span>
+            <button class="btn btn-outline btn-sm" id="placementHistoryBtn" title="View placement history">
+              <i data-lucide="history" style="width:15px;height:15px;"></i>
+            </button>
             <button class="btn btn-outline btn-sm" id="manageFlagsBtn" title="Create and manage color flags">
               <i data-lucide="tag" style="width:15px;height:15px;"></i> Flags
             </button>
+            <span id="placementSelectionBadge" hidden style="font-size:12px;color:var(--primary);font-weight:600;white-space:nowrap;"></span>
+            <button class="btn btn-outline btn-sm" id="undoPlacementMoveBtn" title="Undo last move (Ctrl+Z)" disabled>
+              <i data-lucide="undo-2" style="width:15px;height:15px;"></i>
+            </button>
             <button class="btn btn-outline btn-sm" id="autoPlacementBtn" title="Distribute students evenly across teachers">
               <i data-lucide="shuffle" style="width:15px;height:15px;"></i> Auto-Place
+            </button>
+            <button class="btn btn-outline btn-sm" id="exportPlacementBtn" title="Export placement as CSV">
+              <i data-lucide="download" style="width:15px;height:15px;"></i> Export
+            </button>
+            <button class="btn btn-outline btn-sm" id="togglePlacementDensity" title="Toggle compact view">
+              <i data-lucide="rows-3" style="width:15px;height:15px;"></i>
             </button>
             <button class="btn btn-outline btn-sm" id="togglePlacementFullscreen" title="Expand board">
               <i data-lucide="expand" style="width:15px;height:15px;"></i>
@@ -1102,12 +1097,25 @@
         <div style="display:flex;align-items:center;gap:8px;">
           <button id="newFlagColorDot" class="flag-editor-color-dot" title="Pick a color"></button>
           <input id="newFlagLabel" class="form-input" style="flex:1;height:32px;" placeholder="Flag name…" />
-          <button id="addFlagBtn" class="btn btn-primary btn-sm">Add</button>
+          <button id="addFlagBtn" class="btn btn-primary">Add</button>
         </div>
         <div id="newFlagColorPickerEl" class="flag-color-picker" hidden></div>
       </div>
       <div class="confirm-modal-actions">
         <button id="closeFlagEditorBtn" class="btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Audit log panel -->
+  <div id="placementAuditPanel" class="placement-audit-overlay" hidden>
+    <div class="placement-audit-panel">
+      <div class="placement-audit-header">
+        <span style="font-weight:600;font-size:14px;">Placement History</span>
+        <button id="closeAuditLogBtn" class="btn btn-sm btn-outline">Close</button>
+      </div>
+      <div id="placementAuditBody" class="placement-audit-body">
+        <p class="muted" style="font-size:13px;padding:16px 0;">Loading…</p>
       </div>
     </div>
   </div>
@@ -1415,20 +1423,6 @@
         <label>Grade</label>
         <select id="studentGrade" class="form-input">
           <option value="">Select grade</option>
-          <option value="PK">PK</option>
-          <option value="K">K</option>
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5</option>
-          <option value="6">6</option>
-          <option value="7">7</option>
-          <option value="8">8</option>
-          <option value="9">9</option>
-          <option value="10">10</option>
-          <option value="11">11</option>
-          <option value="12">12</option>
         </select>
       </div>
       <div class="drawer-field">
@@ -1501,20 +1495,6 @@
         <label>Grade</label>
         <select id="estuGrade" class="form-input">
           <option value="">Select grade</option>
-          <option value="PK">PK</option>
-          <option value="K">K</option>
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-          <option value="5">5</option>
-          <option value="6">6</option>
-          <option value="7">7</option>
-          <option value="8">8</option>
-          <option value="9">9</option>
-          <option value="10">10</option>
-          <option value="11">11</option>
-          <option value="12">12</option>
         </select>
       </div>
       <div class="drawer-field">

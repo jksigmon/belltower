@@ -1,9 +1,10 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
-import { esc, getAvatarColor, debounce } from './admin.shared.js';
+import { esc, getAvatarColor, debounce, loadSchoolConfig } from './admin.shared.js';
 
 let currentProfile;
+let schoolConfig = null;
 let initialized = false;
 let familiesDirectory;
 let editingFamilyId = null;
@@ -14,6 +15,9 @@ let editingFamilyId = null;
 
 export async function initFamiliesSection(profile) {
   currentProfile = profile;
+  if (!schoolConfig) schoolConfig = await loadSchoolConfig(profile.school_id);
+
+  const hasCarline = schoolConfig?.modules?.carline !== false;
 
   if (!familiesDirectory) {
     familiesDirectory = createDirectory({
@@ -27,9 +31,11 @@ export async function initFamiliesSection(profile) {
         active
       `,
 
-      searchFields: ['carline_tag_number', 'family_name'],
+      searchFields: hasCarline ? ['carline_tag_number', 'family_name'] : ['family_name'],
 
-      defaultSort: { column: 'carline_tag_number', ascending: true },
+      defaultSort: hasCarline
+        ? { column: 'carline_tag_number', ascending: true }
+        : { column: 'family_name', ascending: true },
 
       tbodySelector: '#familiesTable tbody',
       paginationContainer: '#familiesPagination',
@@ -163,7 +169,8 @@ async function saveEditFamily() {
 
   const tag  = document.getElementById('efTag').value.trim();
   const name = document.getElementById('efName').value.trim();
-  if (!tag) { alert('Carline tag number is required.'); return; }
+  const hasCarline = schoolConfig?.modules?.carline !== false;
+  if (hasCarline && !tag) { alert('Carline tag number is required.'); return; }
 
   const updated = {
     carline_tag_number: tag,
@@ -211,7 +218,8 @@ async function createFamily() {
   const tag  = document.getElementById('familyTag')?.value.trim();
   const name = document.getElementById('familyName')?.value.trim();
 
-  if (!tag) { alert('Carline tag number is required.'); return; }
+  const hasCarline = schoolConfig?.modules?.carline !== false;
+  if (hasCarline && !tag) { alert('Carline tag number is required.'); return; }
 
   const { error } = await supabase.from('families').insert({
     school_id:          currentProfile.school_id,

@@ -602,11 +602,11 @@ async function loadDashboardStats() {
       allClear.style.display = '';
     } else {
       list.innerHTML = alerts.map(a =>
-        `<div class="dash-alert-item">` +
+        `<a href="${a.href}" class="dash-alert-item">` +
         `<span class="dash-alert-dot dash-alert-dot--${a.level}"></span>` +
         `<span class="dash-alert-text">${a.text}</span>` +
-        `<a href="${a.href}" class="dash-alert-link">View →</a>` +
-        `</div>`
+        `<span class="dash-alert-link">View →</span>` +
+        `</a>`
       ).join('');
     }
     show('dashAlertsSection');
