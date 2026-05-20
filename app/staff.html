@@ -451,6 +451,123 @@
   color: var(--primary, #2563eb);
 }
 
+/* ── Compliance Report ────────────────────────── */
+.comp-report-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.comp-report-filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 14px;
+  align-items: flex-end;
+}
+.comp-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.comp-filter-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.comp-filter-field select {
+  height: 38px;
+  padding: 0 32px 0 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
+  background: #fff;
+  box-sizing: border-box;
+  outline: none;
+  font-family: inherit;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.comp-filter-field select:focus {
+  border-color: var(--primary, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.10);
+}
+.comp-filter-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.comp-report-cta {
+  height: 38px;
+  font-size: 13.5px;
+  padding: 0 16px;
+}
+.comp-report-result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.comp-summary-chips {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.comp-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.comp-summary-chip--total   { background: #f1f5f9; color: #475569; }
+.comp-summary-chip--ok      { background: #f0fdf4; color: #166534; }
+.comp-summary-chip--missing { background: #fff7ed; color: #c2410c; }
+.comp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.comp-status-badge .comp-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.comp-status-badge--signed  { color: #16a34a; }
+.comp-status-badge--signed  .comp-dot { background: #16a34a; }
+.comp-status-badge--missing { color: #94a3b8; }
+.comp-status-badge--missing .comp-dot { background: #d1d5db; }
+.comp-status-badge--expired { color: #dc2626; }
+.comp-status-badge--expired .comp-dot { background: #dc2626; }
+.comp-signed-date {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 400;
+  margin-top: 1px;
+}
+@media (max-width: 640px) {
+  .comp-report-filter-row { grid-template-columns: 1fr; }
+  .comp-filter-actions { flex-wrap: wrap; }
+}
+
   </style>
  </head>
 
@@ -819,36 +936,45 @@
     <section id="compliance-report" style="display:none;">
 
       <div class="panel panel-action">
-        <h3>Compliance Report</h3>
-        <p class="muted" style="margin-bottom:18px;">View form compliance status for students in your homeroom. Select the form types to check, then generate the report.</p>
+        <div class="comp-report-panel-header">
+          <div>
+            <h3 style="margin:0 0 3px;">Compliance Report</h3>
+            <p class="muted" style="margin:0;font-size:13px;">View form compliance status for students in your homeroom. Select filters, then generate.</p>
+          </div>
+        </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;" id="compReportFilters">
-          <div class="pto-field">
-            <span class="pto-field-label">Homeroom / Teacher</span>
+        <div class="comp-report-filter-row" id="compReportFilters">
+          <div class="comp-filter-field">
+            <label class="comp-filter-label" for="compReportTeacher">Homeroom / Teacher</label>
             <select id="compReportTeacher">
-              <option value="">Loading…</option>
+              <option value="">All homerooms</option>
             </select>
           </div>
-          <div class="pto-field">
-            <span class="pto-field-label">Form types</span>
+          <div class="comp-filter-field">
+            <label class="comp-filter-label" for="compReportTemplate">Form Type</label>
             <select id="compReportTemplate">
               <option value="">All active forms</option>
             </select>
           </div>
-        </div>
-
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-          <button id="compReportGenerate" class="btn btn-primary">Generate Report</button>
-          <button id="compReportExport" class="btn" style="display:none;">Export CSV</button>
-          <span id="compReportMsg" style="font-size:13px;color:#dc2626;"></span>
+          <div class="comp-filter-actions">
+            <button id="compReportGenerate" class="btn btn-primary comp-report-cta">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Generate Report
+            </button>
+            <button id="compReportExport" class="btn comp-report-cta" style="display:none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
+            <span id="compReportMsg" style="font-size:13px;color:#dc2626;white-space:nowrap;"></span>
+          </div>
         </div>
       </div>
 
       <div id="compReportResultWrap" style="margin-top:12px;display:none;">
         <div class="panel">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+          <div class="comp-report-result-header">
             <h4 style="margin:0;" id="compReportResultTitle">Results</h4>
-            <div id="compReportSummary" style="font-size:13px;color:var(--text-muted);"></div>
+            <div id="compReportSummary" class="comp-summary-chips"></div>
           </div>
           <div class="table-wrap">
             <table class="admin-table" id="compReportTable">
@@ -2542,14 +2668,24 @@ function renderComplianceReport(data) {
   if (!rows?.length) {
     thead.innerHTML = '';
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px 0;color:#9ca3af;">No students found for the selected criteria.</td></tr>';
-    summary.textContent = '';
+    summary.innerHTML = '';
     return;
   }
 
-  // Summary
+  // Summary chips
   const total   = rows.length;
   const missing = rows.filter(r => Object.values(r.compliance).some(c => c.status !== 'signed')).length;
-  summary.textContent = `${total} students · ${missing} missing at least one form`;
+  const complete = total - missing;
+  summary.innerHTML = `
+    <span class="comp-summary-chip comp-summary-chip--total">${total} student${total !== 1 ? 's' : ''}</span>
+    ${complete > 0 ? `<span class="comp-summary-chip comp-summary-chip--ok">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      ${complete} complete
+    </span>` : ''}
+    ${missing > 0 ? `<span class="comp-summary-chip comp-summary-chip--missing">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      ${missing} missing
+    </span>` : ''}`;
 
   // Headers
   const extraCols = templates?.length ? templates.map(t => `<th>${escHtml(t.title)}</th>`).join('') : '<th>Status</th>';
@@ -2562,14 +2698,10 @@ function renderComplianceReport(data) {
     const statusCells = templates?.length
       ? templates.map(t => {
           const c = row.compliance?.[t.id] ?? { status: 'missing' };
-          const dot = c.status === 'signed'
-            ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#16a34a;margin-right:5px;"></span>'
-            : c.status === 'expired'
-              ? '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#dc2626;margin-right:5px;"></span>'
-              : '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#d1d5db;margin-right:5px;"></span>';
+          const cls   = c.status === 'signed' ? 'signed' : c.status === 'expired' ? 'expired' : 'missing';
           const label = c.status === 'signed' ? 'Signed' : c.status === 'expired' ? 'Expired' : 'Missing';
-          const sub   = c.signed_at ? `<div style="font-size:11px;color:#9ca3af;">${new Date(c.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>` : '';
-          return `<td>${dot}${label}${sub}</td>`;
+          const date  = c.signed_at ? `<span class="comp-signed-date">${new Date(c.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>` : '';
+          return `<td><span class="comp-status-badge comp-status-badge--${cls}"><span class="comp-dot"></span>${label}</span>${date}</td>`;
         }).join('')
       : '<td>—</td>';
 

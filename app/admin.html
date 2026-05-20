@@ -6,6 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>School Admin Portal</title>
   <link rel="stylesheet" href="admin-ui.css">
+  <link rel="preload" as="image" href="/images/belltower-logo.png">
+  <link rel="modulepreload" href="/app/admin.supabase.js">
+  <link rel="modulepreload" href="/app/admin.shared.js">
   <link rel="modulepreload" href="/app/admin.staff.js">
   <link rel="modulepreload" href="/app/admin.students.js">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
@@ -1025,6 +1028,11 @@
               </select>
             </div>
           </div>
+          <div style="margin:10px 0 8px;">
+            <input type="search" id="placementStaffSearch" class="form-input"
+              placeholder="Search by name or position… (e.g. 1st Grade)"
+              style="width:100%;height:34px;font-size:13px;">
+          </div>
           <div id="placementTeacherCheckboxes" class="placement-teacher-grid"></div>
         </div>
         <div style="display:flex;gap:10px;margin-top:24px;">
@@ -1072,6 +1080,9 @@
             <button class="btn btn-outline btn-sm" id="togglePlacementFullscreen" title="Expand board">
               <i data-lucide="expand" style="width:15px;height:15px;"></i>
             </button>
+            <button class="btn btn-outline btn-sm" id="addPlacementColumnBtn" title="Add a teacher or open-position column">
+              <i data-lucide="plus" style="width:15px;height:15px;"></i> Column
+            </button>
             <button class="btn btn-primary btn-sm" id="commitPlacementBtn">Commit Placement</button>
             <button class="btn btn-outline btn-sm" id="undoCommitPlacementBtn" hidden style="color:#dc2626;border-color:#fca5a5;">Undo Commit</button>
           </div>
@@ -1103,6 +1114,61 @@
       </div>
       <div class="confirm-modal-actions">
         <button id="closeFlagEditorBtn" class="btn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Column modal -->
+  <div id="addPlacementColumnModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:420px;width:100%;">
+      <h3 class="confirm-modal-title">Add Column</h3>
+      <div style="margin-bottom:16px;">
+        <label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;margin-bottom:8px;">
+          <input type="radio" name="addColType" id="addColTypeReal" value="real" checked style="margin-top:2px;flex-shrink:0;">
+          <div>
+            <div style="font-weight:500;font-size:13px;">Real Teacher</div>
+            <div class="muted" style="margin-top:2px;">Add an employee as a column on this board</div>
+          </div>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
+          <input type="radio" name="addColType" id="addColTypePlaceholder" value="placeholder" style="margin-top:2px;flex-shrink:0;">
+          <div>
+            <div style="font-weight:500;font-size:13px;">Open Position</div>
+            <div class="muted" style="margin-top:2px;">Plan with an unfilled slot — commit is blocked until resolved</div>
+          </div>
+        </label>
+      </div>
+      <div id="addColRealPanel" style="margin-bottom:20px;">
+        <label class="form-label" style="display:block;margin-bottom:6px;">Select Teacher</label>
+        <select id="addColTeacherSelect" class="form-input" style="width:100%;">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+      <div id="addColPlaceholderPanel" hidden style="margin-bottom:20px;">
+        <label class="form-label" style="display:block;margin-bottom:6px;">Column Label</label>
+        <input type="text" id="addColPlaceholderName" class="form-input" style="width:100%;" placeholder="e.g. Open Position — 2nd Grade">
+      </div>
+      <div class="confirm-modal-actions">
+        <button class="btn btn-primary" id="submitAddColumnBtn">Add Column</button>
+        <button class="btn" id="cancelAddColumnBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Assign Teacher modal (resolves a placeholder column) -->
+  <div id="assignTeacherModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:380px;width:100%;">
+      <h3 class="confirm-modal-title">Assign Teacher to Open Position</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;">Select the teacher for this slot. All students in this column will be re-assigned to the selected teacher and the placement becomes committable.</p>
+      <div style="margin-bottom:20px;">
+        <label class="form-label" style="display:block;margin-bottom:6px;">Teacher</label>
+        <select id="assignTeacherSelect" class="form-input" style="width:100%;">
+          <option value="">— Select teacher —</option>
+        </select>
+      </div>
+      <div class="confirm-modal-actions">
+        <button class="btn btn-primary" id="submitAssignTeacherBtn">Assign</button>
+        <button class="btn" id="cancelAssignTeacherBtn">Cancel</button>
       </div>
     </div>
   </div>
@@ -2303,7 +2369,7 @@
   const link = document.getElementById('bulkTemplateDownload');
   if (link && TEMPLATE_URL) link.href = TEMPLATE_URL;
 </script>
-<script src="/app/nav-mobile.js"></script>
+<script defer src="/app/nav-mobile.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
 <script>if (window.lucide) lucide.createIcons();</script>
  </body>

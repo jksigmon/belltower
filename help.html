@@ -468,6 +468,22 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>
       Licensure
     </a>
+    <a href="#section-placement" class="help-cat-card">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Class Placement
+    </a>
+    <a href="#section-promotion" class="help-cat-card">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+      Year-End Promotion
+    </a>
+    <a href="#section-compliance" class="help-cat-card">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Compliance
+    </a>
+    <a href="#section-field-trips" class="help-cat-card">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+      Field Trips
+    </a>
   </div>
 
   <!-- ══════════ GETTING STARTED ══════════ -->
@@ -955,6 +971,342 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
     </div>
   </div>
 
+  <!-- ══════════ CLASS PLACEMENT ══════════ -->
+  <div class="faq-section" id="section-placement">
+    <div class="faq-section-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Class Placement
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What is Class Placement and when should I use it?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Class Placement is a visual drag-and-drop board for assigning students to teachers for the upcoming school year before Year-End Promotion runs. You create a placement <em>session</em> for a specific grade transition (e.g., 2nd → 3rd grade), drag students across teacher columns to build balanced classes, then <strong>Commit</strong> to write the assignments back to student records as homeroom teachers.</p>
+        <p>Placement sessions are drafts until committed, so you can adjust freely without affecting live data.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I create a new placement session?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ol>
+          <li>Go to <strong>Class Placement</strong> in the Admin Panel (Operations section).</li>
+          <li>Click <strong>New Session</strong>.</li>
+          <li>Select the academic year and the <strong>incoming grade</strong> (the grade students are currently in, not the grade they're moving to).</li>
+          <li>Optionally enter a session label and a target class size.</li>
+          <li>Check the boxes for the teachers who will be receiving students.</li>
+          <li>Click <strong>Create Session</strong>. All active students in that grade are automatically loaded onto the board as Unplaced.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I move students between teachers on the board?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>There are two ways:</p>
+        <ul>
+          <li><strong>Drag and drop:</strong> Drag a student card from one column and drop it onto another teacher's column.</li>
+          <li><strong>Click to move:</strong> Click a student card to select it (it highlights blue). Then click any column to move the selected student there. Hold <strong>Ctrl/Cmd</strong> or <strong>Shift</strong> while clicking to select multiple students and move them all at once.</li>
+        </ul>
+        <p>Use <strong>Ctrl+Z</strong> (or the Undo button) to reverse your last move.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          The <strong>Auto-Place</strong> button distributes unplaced students evenly across all teacher columns as a starting point. You can still rearrange after.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What is an "Open Position" column and when should I use it?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>An <strong>Open Position</strong> column lets you plan class placement even when a teacher slot is unfilled — for example, if a 2nd-grade teacher is moving to a different role and you haven't hired their replacement yet. You can still distribute students across that column so you don't have to redo the whole board once the hire is made.</p>
+        <p>To add one, click <strong>+ Column</strong> in the board toolbar, select <strong>Open Position</strong>, and give the column a label (e.g. "Open Position — 2nd Grade"). The column appears with an amber header and an <strong>Assign Teacher</strong> prompt.</p>
+        <ul>
+          <li>Students can be moved into and out of placeholder columns just like real teacher columns.</li>
+          <li>The <strong>Commit Placement</strong> button is <em>blocked</em> as long as any students remain in a placeholder column — you must resolve all open positions first.</li>
+          <li>When the hire is made, click <strong>Assign Teacher</strong> on that column and select the new employee. All students in that column are immediately re-assigned to the real teacher and the commit block is lifted.</li>
+          <li>When cloning a session to a new year, Open Position columns are not carried over — only real teacher columns are copied.</li>
+        </ul>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          You can also add a new <strong>Real Teacher</strong> column mid-session via the same <strong>+ Column</strong> button, if a teacher joins after you've already started planning.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What are flags and how do I use them?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Flags are color-coded labels you can attach to individual students as placement notes — for example "Needs teacher with low student-teacher ratio," "Best friends — separate if possible," or "IEP." They appear as colored dots on each student card.</p>
+        <ul>
+          <li>Click <strong>Manage Flags</strong> to create, edit, or archive flag types for your school.</li>
+          <li>Click the <strong>tag icon</strong> on any student card to assign or remove flags for that student.</li>
+          <li>A student's first flag color shows as a colored accent bar on the left side of their card so you can spot flagged students at a glance.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What does "Commit Placement" do, and can I undo it?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Committing writes the placement assignments to student records — each placed student's <strong>homeroom teacher</strong> field is updated to the teacher they're placed with. This is a permanent action visible across the system.</p>
+        <p>You can undo a commit using the <strong>Undo Commit</strong> button on a committed session. This restores every student's previous homeroom teacher (the one before the commit) and reverts the session to Draft status so you can make adjustments.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Commit placement <em>before</em> running Year-End Promotion so students are moved with their new homeroom already set.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I re-use a session for next year?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Click the <strong>Clone</strong> icon on any session card. You'll be prompted for the new academic year; the same real teacher lineup carries over as a new Draft session with the current year's students loaded in. Note: <strong>Open Position</strong> placeholder columns are not cloned — only confirmed teacher columns are copied to the new session. Old sessions can be <strong>archived</strong> to keep the list tidy without deleting them.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I export the placement results?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>On an open board, click the <strong>Export CSV</strong> button in the board toolbar. The download includes each student's name, student number, incoming grade, and assigned teacher, sorted alphabetically by teacher then student last name.</p>
+        <p>Committed placements are also available from the Admin Panel under <strong>Exports</strong> as formatted rosters.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ YEAR-END PROMOTION ══════════ -->
+  <div class="faq-section" id="section-promotion">
+    <div class="faq-section-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+      Year-End Promotion
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What does Year-End Promotion do?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Year-End Promotion advances each student's grade level in Belltower at the end of the school year. It runs in three modes per student:</p>
+        <ul>
+          <li><strong>Promote:</strong> moves the student to the next grade (default for all non-terminal grades).</li>
+          <li><strong>Retain:</strong> keeps the student in their current grade for another year.</li>
+          <li><strong>Graduate:</strong> marks the student as inactive (default for students at the terminal grade).</li>
+        </ul>
+        <p>This is found in the Admin Panel under <strong>Year-End Promotion</strong> (Settings section).</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I run the promotion process?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ol>
+          <li>Go to <strong>Year-End Promotion</strong> in the Admin Panel.</li>
+          <li>Select the target academic year and (optionally) a campus.</li>
+          <li>Click <strong>Load Preview</strong>. Every active student loads in a table showing their current grade and default action.</li>
+          <li>Review and override any individual students — change Promote to Retain for held-back students, or vice versa.</li>
+          <li>When satisfied, click <strong>Run Promotion</strong> to apply the changes to all student records.</li>
+        </ol>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Run <strong>Class Placement</strong> and commit it before running promotion. That way students advance to the next grade already assigned to their new homeroom teacher.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        My preview disappeared when I left the page. Is my work lost?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>No — the promotion tool saves a <strong>draft</strong> automatically while you're working. If you leave and come back, a banner will offer to <strong>Restore Draft</strong> (reloads your previous preview with all overrides intact) or <strong>Discard</strong> to start fresh.</p>
+        <p>Drafts are saved per campus and per school. If you switch campuses, a separate draft is saved for each.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What happens to students with no grade level assigned?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Students with a blank grade level appear in the preview with no default action and are skipped when promotion runs. Review them manually in the Students directory and assign a grade level before running promotion if they should be included.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ COMPLIANCE ══════════ -->
+  <div class="faq-section" id="section-compliance">
+    <div class="faq-section-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Compliance
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What does the Compliance module cover?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>The Compliance module has two main areas:</p>
+        <ul>
+          <li><strong>Background Checks:</strong> track background check requests, statuses (pending, submitted, cleared), expiration dates, and optional motor vehicle record (MVR) checks for volunteer drivers.</li>
+          <li><strong>Volunteer Agreements:</strong> create digital agreement form templates (e.g., volunteer handbook, photo release), send shareable links to parents/guardians, and track who has signed.</li>
+        </ul>
+        <p>It lives at <strong>Compliance</strong> in the Admin Panel (Operations section).</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I submit and track a background check request?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ol>
+          <li>Go to <strong>Compliance → Background Checks</strong>.</li>
+          <li>Click <strong>New Request</strong> and enter the person's name, email, reason, and any volunteer roles they're being cleared for.</li>
+          <li>As the check progresses, open the record and update its status: <strong>Pending → Submitted → Cleared</strong>.</li>
+          <li>Enter the cleared date and expiration date when the results come back.</li>
+        </ol>
+        <p>The dashboard shows counts by status and flags any records approaching expiration so nothing falls through the cracks.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What are the background check status options?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ul>
+          <li><strong>Pending:</strong> the request has been created but not yet submitted to the check provider.</li>
+          <li><strong>Submitted:</strong> the request has been sent and is awaiting results.</li>
+          <li><strong>Cleared:</strong> the person has passed the background check and is approved to volunteer.</li>
+          <li><strong>Failed:</strong> the check returned a disqualifying result.</li>
+          <li><strong>Expired:</strong> the cleared date has passed the expiration window and a new check is needed.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do volunteer agreement forms work?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Under <strong>Compliance → Form Templates</strong>, you can create reusable agreement forms with your school name, logo, and agreement text. Each template generates a unique shareable link.</p>
+        <p>When a guardian or volunteer opens the link, they read the agreement, type their full name as a signature, and submit. Their signed record is captured and visible under <strong>Agreements</strong>, where you can see who has signed, download a PDF copy, or void an agreement if needed.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Agreements auto-link to a guardian's record when the email on file matches the signer's email, so compliance status updates automatically.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What is an MVR check and when is it required?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>An MVR (Motor Vehicle Record) check is an additional clearance for volunteers who will be driving students — for example, on field trips. Background check records include optional MVR cleared and expiration date fields separate from the standard background check dates.</p>
+        <p>If your school has the <strong>Require MVR for Drivers</strong> setting enabled, volunteers flagged as drivers who don't have a valid MVR on file will appear highlighted in the compliance dashboard.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ FIELD TRIPS ══════════ -->
+  <div class="faq-section" id="section-field-trips">
+    <div class="faq-section-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
+      Field Trips
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I create a new field trip?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ol>
+          <li>Go to <strong>Field Trips</strong> in the Admin Panel (Operations section).</li>
+          <li>Click <strong>New Trip</strong>.</li>
+          <li>Fill in the trip name, destination, dates, departure and return times, and the grade levels attending.</li>
+          <li>Optionally set the number of drivers needed and a maximum chaperone count.</li>
+          <li>Save — the trip appears in the list and you can open it to manage chaperones and students.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I add chaperones to a trip?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Open a trip and go to the <strong>Chaperones</strong> tab. Click <strong>Add Chaperone</strong> and search for a guardian by name or email. You can also add someone not already in the system by entering their details directly.</p>
+        <p>For each chaperone, you can record whether they're a designated driver, flag their compliance status (background check and/or signed volunteer agreement on file), and add notes.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Chaperone compliance is automatically cross-checked against the Compliance module. A chaperone whose background check has expired will be flagged in the list.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I see which students are going on a trip?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Open the trip and go to the <strong>Students</strong> tab. Students from the grade levels assigned to the trip are listed automatically. You can filter, mark individual students as attending or not attending, and export the roster for the day of the trip.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What do the trip status badges mean?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ul>
+          <li><strong>Upcoming:</strong> the trip date is in the future and the trip is not cancelled.</li>
+          <li><strong>Past:</strong> the trip date has passed.</li>
+          <li><strong>Cancelled:</strong> the trip was manually marked as cancelled. Cancelled trips are hidden from the default list but can be viewed with the status filter.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════════ CTA ══════════ -->
   <div class="help-cta">
     <h2>Still have a question?</h2>
@@ -1001,6 +1353,10 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
           <option value="Access & Permissions">Access &amp; Permissions</option>
           <option value="Substitute Management">Substitute Management</option>
           <option value="Licensure">Licensure</option>
+          <option value="Class Placement">Class Placement</option>
+          <option value="Year-End Promotion">Year-End Promotion</option>
+          <option value="Compliance">Compliance</option>
+          <option value="Field Trips">Field Trips</option>
           <option value="Other">Other</option>
         </select>
       </div>

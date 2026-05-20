@@ -127,10 +127,11 @@ nav a:hover { opacity: 1; }
 }
 
 .btn {
-  padding: 0.7rem 1.6rem;
-  border-radius: 10px;
-  font-size: 0.95rem;
-  font-weight: 600;
+  padding: 0.72rem 1.65rem;
+  border-radius: 999px;
+  font-size: 0.93rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
   border: none;
   text-decoration: none;
@@ -139,23 +140,52 @@ nav a:hover { opacity: 1; }
   gap: 0.45rem;
   transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
-.btn:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(0,0,0,0.35); }
 
-.btn-primary { background: linear-gradient(180deg,#2563eb,#1e40af); color:#fff; }
-.btn-accent  { background: linear-gradient(180deg,#fb923c,#ea580c); color:#fff; }
+.btn-primary {
+  background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(29,78,216,0.45), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(29,78,216,0.6), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+
+.btn-accent {
+  background: linear-gradient(180deg, #fb923c, #ea580c);
+  color: #fff;
+  box-shadow: 0 4px 18px rgba(234,88,12,0.45), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+.btn-accent:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(234,88,12,0.6), inset 0 1px 0 rgba(255,255,255,0.18);
+}
+
 .btn-outline {
   background: rgba(255,255,255,0.12);
   color: #fff;
   border: 1px solid rgba(255,255,255,0.28);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
 }
-.btn-outline:hover { background: rgba(255,255,255,0.2); }
+.btn-outline:hover {
+  transform: translateY(-2px);
+  background: rgba(255,255,255,0.2);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+}
 
 .hero-login {
   margin-top: 1.4rem;
   font-size: 0.88rem;
-  color: rgba(255,255,255,0.75);
+  color: rgba(255,255,255,0.7);
 }
-.hero-login a { color:#fff; font-weight:600; text-decoration:underline; }
+.hero-login a {
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  opacity: 0.9;
+  transition: opacity 0.2s;
+}
+.hero-login a:hover { opacity: 1; }
 
 /* ── Module strip ────────────────────────────────────────── */
 .modules-strip {

@@ -5,7 +5,6 @@
 -- ======================================================================
 
 -- ── 1. Audit log ─────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS public.placement_audit_log (
   id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id     uuid        NOT NULL REFERENCES public.placement_sessions(id) ON DELETE CASCADE,
   school_id      uuid        NOT NULL REFERENCES public.schools(id),

@@ -4394,9 +4394,10 @@ a.stat, a.dash-stat-link {
   color: var(--text-muted);
 }
 
-/* Board panel — allow horizontal scroll in normal mode */
+/* Board panel: overflow must be visible so the wrap (the real scroll container) isn't clipped */
 .placement-board-panel {
-  overflow-x: auto !important;
+  overflow-x: visible;
+  overflow-y: visible;
 }
 
 /* ── Fullscreen body state: hide header + nav ── */
@@ -4473,6 +4474,12 @@ body.placement-fs .wrap {
   min-width: 130px;
 }
 
+#placementBoardView.placement-fullscreen .placement-col--unplaced-empty {
+  flex: 0 0 44px;
+  width: 44px;
+  min-width: 44px;
+}
+
 #placementBoardView.placement-fullscreen .placement-col-body {
   flex: 1;
   overflow-y: auto;
@@ -4523,15 +4530,18 @@ body.placement-fs .wrap {
 .placement-board-wrap {
   overflow-x: auto;
   padding: 12px 12px 16px;
+  margin-left: -14px;   /* reclaim panel padding so columns get full panel width */
+  margin-right: -14px;
   background: #eef1f6;
   background-image: radial-gradient(circle, #c8d0db 1px, transparent 1px);
   background-size: 22px 22px;
   border-radius: 0 0 10px 10px;
 }
 
-.placement-board-wrap::-webkit-scrollbar { height: 4px; }
+.placement-board-wrap::-webkit-scrollbar { height: 6px; }
 .placement-board-wrap::-webkit-scrollbar-track { background: transparent; }
 .placement-board-wrap::-webkit-scrollbar-thumb { background: #b0bac7; border-radius: 4px; }
+.placement-board-wrap::-webkit-scrollbar-thumb:hover { background: #8896a5; }
 .placement-board-wrap::-webkit-scrollbar-thumb:hover { background: #8896a5; }
 
 .placement-board {
@@ -4549,11 +4559,41 @@ body.placement-fs .wrap {
   display: flex;
   flex-direction: column;
   gap: 0;
+  transition: width 0.3s ease, min-width 0.3s ease;
 }
 
 .placement-col {
   box-shadow: 0 2px 8px rgba(0,0,0,0.09), 0 1px 2px rgba(0,0,0,0.05);
   border-radius: 10px;
+}
+
+/* Collapsed unplaced column — shrinks when all students are placed */
+.placement-col--unplaced-empty {
+  width: 44px;
+  min-width: 44px;
+}
+
+.placement-col--unplaced-empty .placement-col-header {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 4px;
+  gap: 4px;
+}
+
+.placement-col--unplaced-empty .placement-col-name {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.placement-col--unplaced-empty .placement-col-count {
+  display: none;
+}
+
+.placement-col--unplaced-empty .placement-col-body {
+  min-height: 60px;
 }
 
 .placement-col-header {
@@ -4576,6 +4616,63 @@ body.placement-fs .wrap {
   background: white;
   border-top: 3px solid #2563eb;
   border-radius: 10px 10px 0 0;
+}
+
+.placement-col-header.col-placeholder {
+  background: #fffbeb;
+  border-top: 3px solid #f59e0b;
+  border-radius: 10px 10px 0 0;
+}
+
+.placement-placeholder-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #92400e;
+  background: #fde68a;
+  border-radius: 4px;
+  padding: 2px 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.placement-placeholder-assign-bar {
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placement-assign-teacher-btn {
+  font-size: 11px;
+  font-weight: 500;
+  color: #92400e;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.placement-assign-teacher-btn:hover { color: #78350f; }
+
+.placement-col--placeholder .placement-col-body {
+  background: #fefce8;
+}
+.placement-col--placeholder .placement-col-body.drag-over {
+  background: #fde68a;
+}
+.placement-col--placeholder .placement-col-body.click-target {
+  background: #fef9c3;
 }
 
 .placement-col-name {

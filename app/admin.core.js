@@ -315,14 +315,16 @@ async function loadDashboardStats() {
       .select('first_name, last_name, birthdate')
       .eq('school_id', schoolId)
       .eq('active', true)
-      .not('birthdate', 'is', null);
+      .not('birthdate', 'is', null)
+      .limit(500);
   }
 
   queries.staffBirthdays = supabase.from('employees')
     .select('first_name, last_name, birthdate')
     .eq('school_id', schoolId)
     .eq('active', true)
-    .not('birthdate', 'is', null);
+    .not('birthdate', 'is', null)
+    .limit(500);
 
   const canSeeHealth = p.is_superadmin || p.can_access_admin || p.can_manage_access;
   if (canSeeHealth) {
