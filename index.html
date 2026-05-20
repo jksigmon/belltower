@@ -84,15 +84,15 @@ nav a:hover { opacity: 1; }
 }
 
 .hero-glass {
-  background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
+  background: linear-gradient(180deg, rgba(11,45,79,0.72), rgba(11,45,79,0.58));
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.28);
+  border: 1px solid rgba(255,255,255,0.18);
   border-radius: 24px;
   padding: 3rem 3.5rem;
   max-width: 660px;
   margin: 0 auto;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.3);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12);
 }
 
 .hero-eyebrow {
@@ -489,7 +489,7 @@ footer {
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,.6);
+  background: rgba(0,0,0,0.45);
   display: none;
   align-items: center;
   justify-content: center;
@@ -499,56 +499,63 @@ footer {
 .modal.active { display: flex; }
 
 .modal-box {
-  background: rgba(11,45,79,0.92);
-  backdrop-filter: blur(14px);
-  border: 1px solid rgba(255,255,255,0.15);
+  background: #ffffff;
   border-radius: 18px;
   padding: 2rem;
   width: 100%;
   max-width: 440px;
-  color: var(--white);
+  color: #0f172a;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.2), 0 4px 12px rgba(0,0,0,0.08);
 }
 
-.modal-box h2 { font-size: 1.2rem; margin-bottom: 0.25rem; }
-.modal-box p  { font-size: 0.88rem; color: var(--muted); margin-bottom: 0.5rem; }
+.modal-box h2 { font-size: 1.25rem; font-weight: 700; color: #0f172a; margin-bottom: 0.2rem; }
+.modal-box p  { font-size: 0.88rem; color: #64748b; margin-bottom: 0.25rem; }
 
 .modal-box input,
 .modal-box textarea {
   width: 100%;
-  margin-top: 0.65rem;
-  padding: 0.65rem 0.8rem;
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.9rem;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(255,255,255,0.08);
-  color: #fff;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #0f172a;
   font-size: 0.93rem;
   font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+.modal-box input:focus,
+.modal-box textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+  background: #fff;
 }
 .modal-box input::placeholder,
-.modal-box textarea::placeholder { color: rgba(255,255,255,0.4); }
+.modal-box textarea::placeholder { color: #94a3b8; }
 
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  margin-top: 1.25rem;
+  margin-top: 1.5rem;
   padding-top: 1rem;
-  border-top: 1px solid rgba(255,255,255,0.12);
+  border-top: 1px solid #f1f5f9;
 }
 
 .modal-actions button {
   padding: 0.55rem 1.2rem;
-  border-radius: 9px;
+  border-radius: 999px;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   border: none;
   transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
-.cancel { background: rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.2) !important; }
-.cancel:hover { background: rgba(255,255,255,0.2); }
-.submit { background: linear-gradient(180deg,#fb923c,#ea580c); color:#fff; }
-.submit:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(234,88,12,0.5); }
+.cancel { background: #f1f5f9; color: #475569; }
+.cancel:hover { background: #e2e8f0; }
+.submit { background: linear-gradient(180deg,#fb923c,#ea580c); color:#fff; box-shadow: 0 4px 14px rgba(234,88,12,0.35); }
+.submit:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(234,88,12,0.5); }
 
 /* ── Reveal animation ────────────────────────────────────── */
 .reveal {
@@ -610,7 +617,7 @@ footer {
         <button class="btn btn-primary" onclick="openModal('Request a Demo')">
           Request a Demo
         </button>
-        <button class="btn btn-accent" onclick="openModal('Suggest a New Module')">
+        <button class="btn btn-accent" onclick="openModal('Suggest a Feature')">
           Suggest a Feature
         </button>
       </div>
@@ -831,7 +838,7 @@ footer {
     <p class="reveal">Request a live demo and we'll walk through how Belltower fits your school's workflow.</p>
     <div class="cta-actions reveal">
       <button class="btn btn-primary" onclick="openModal('Request a Demo')">Request a Demo</button>
-      <button class="btn btn-outline" onclick="openModal('Suggest a New Module')">Suggest a Feature</button>
+      <button class="btn btn-outline" onclick="openModal('Suggest a Feature')">Suggest a Feature</button>
     </div>
   </div>
 </section>

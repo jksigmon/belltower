@@ -1257,13 +1257,44 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <ol>
-          <li>Go to <strong>Field Trips</strong> in the Admin Panel (Operations section).</li>
-          <li>Click <strong>New Trip</strong>.</li>
-          <li>Fill in the trip name, destination, dates, departure and return times, and the grade levels attending.</li>
-          <li>Optionally set the number of drivers needed and a maximum chaperone count.</li>
-          <li>Save — the trip appears in the list and you can open it to manage chaperones and students.</li>
-        </ol>
+        <p>Field trips can be created from two places:</p>
+        <ul>
+          <li><strong>Staff portal:</strong> Go to <strong>Field Trips</strong> in the left navigation and click <strong>New Trip</strong>. This is the primary tool for teachers.</li>
+          <li><strong>Admin panel:</strong> Go to <strong>Field Trips</strong> under the Operations section.</li>
+        </ul>
+        <p>In either case, fill in the trip name, destination, dates, departure/return times, and the grade levels attending. You can also set a maximum chaperone count and flag that drivers are needed.</p>
+        <p>When you save a new trip, you are automatically added as a managing teacher. You can add other teachers during creation or at any time afterward.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What are managing teachers, and who can manage a trip?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Each trip has a list of <strong>managing teachers</strong> — the staff members responsible for that trip. Only people on this list (plus school admins) can view and edit the trip.</p>
+        <p><strong>To add a managing teacher:</strong> open the trip and use the <em>Add teacher/staff</em> search field in the Managing Teachers section. Type a name or email and select from the results. Any managing teacher on the trip can add or remove others.</p>
+        <p><strong>To remove a managing teacher:</strong> click the × on their chip in the Managing Teachers row.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          The <strong>Manage field trips</strong> permission in the admin access panel is different — it grants a school administrator visibility into <em>all</em> trips school-wide, not just ones they're listed on.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I share volunteer form links with parents?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>When you open a trip, a <strong>Chaperone Form Links</strong> panel appears above the tabs (if your school has active volunteer forms marked as required for chaperones). Each form shows a <strong>Copy Link</strong> button.</p>
+        <p>Copy and paste the link into an email or message to parents. When a parent clicks the link, they can complete and sign the form online — their response is automatically recorded in the Compliance module and cross-checked against their chaperone record.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          If no form links appear, contact an admin — they may need to activate a form link in the Compliance module.
+        </div>
       </div>
     </div>
 
@@ -1273,11 +1304,16 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>Open a trip and go to the <strong>Chaperones</strong> tab. Click <strong>Add Chaperone</strong> and search for a guardian by name or email. You can also add someone not already in the system by entering their details directly.</p>
-        <p>For each chaperone, you can record whether they're a designated driver, flag their compliance status (background check and/or signed volunteer agreement on file), and add notes.</p>
+        <p>Open a trip and go to the <strong>Chaperones</strong> tab. Click <strong>Add Chaperone</strong> and search for a guardian by name or email. Mark the chaperone as a driver if they will be transporting students.</p>
+        <p>Each chaperone row shows their compliance status automatically pulled from the Compliance module:</p>
+        <ul>
+          <li><strong>Cleared</strong> — valid background check on file, all required forms signed.</li>
+          <li><strong>Action needed</strong> — background check is pending/submitted, MVR needed (if a driver), or forms are missing.</li>
+          <li><strong>Blocked</strong> — no background check record or check has expired.</li>
+        </ul>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Chaperone compliance is automatically cross-checked against the Compliance module. A chaperone whose background check has expired will be flagged in the list.
+          The compliance summary strip at the top of the Chaperones tab gives you a quick count of cleared, action-needed, and blocked chaperones.
         </div>
       </div>
     </div>
@@ -1288,7 +1324,8 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>Open the trip and go to the <strong>Students</strong> tab. Students from the grade levels assigned to the trip are listed automatically. You can filter, mark individual students as attending or not attending, and export the roster for the day of the trip.</p>
+        <p>Open the trip and go to the <strong>Students</strong> tab. All active students in the grade levels assigned to the trip are listed automatically. Toggle the checkbox next to any student to mark them as attending or not attending.</p>
+        <p>The summary row at the bottom shows how many students are confirmed attending out of the total eligible.</p>
       </div>
     </div>
 
@@ -1299,10 +1336,21 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <ul>
-          <li><strong>Upcoming:</strong> the trip date is in the future and the trip is not cancelled.</li>
+          <li><strong>Upcoming:</strong> the trip date is in the future and the trip has not been cancelled.</li>
           <li><strong>Past:</strong> the trip date has passed.</li>
-          <li><strong>Cancelled:</strong> the trip was manually marked as cancelled. Cancelled trips are hidden from the default list but can be viewed with the status filter.</li>
+          <li><strong>Cancelled:</strong> the trip was manually marked as cancelled. Cancelled trips are hidden from the default list but visible using the status filter.</li>
         </ul>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        I don't see Field Trips in my staff portal navigation.
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>The Field Trips module must be enabled for your school. Contact your administrator and ask them to enable the <strong>Field Trips</strong> module in the school's module settings.</p>
+        <p>Once enabled, the <strong>Field Trips</strong> link will appear in the left navigation of the staff portal. You will only see trips that you have been added to as a managing teacher.</p>
       </div>
     </div>
   </div>

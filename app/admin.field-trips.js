@@ -15,6 +15,8 @@ let requiredFormTemplates = [];        // school-level, loaded once on init
 let agreementsMap        = new Map(); // email (lower) -> Set<templateId>
 let selectedGuardian     = null;
 let activeTab            = 'chaperones';
+let drawerManagers       = [];   // { profile_id, name, email } — pending in drawer
+let currentManagers      = [];   // loaded from DB for current trip
 
 // Populated from school config on init — not a hardcoded constant
 let GRADE_LEVELS = GRADE_ORDER;
@@ -92,7 +94,7 @@ async function loadTrips() {
 
   const { data, error } = await supabase
     .from('field_trips')
-    .select('id, name, destination, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, status, created_at')
+    .select('id, name, destination, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, notes, status, created_at')
     .eq('school_id', profile.school_id)
     .order('start_date', { ascending: false });
 
@@ -125,7 +127,7 @@ function renderTripList() {
   });
 
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="muted" style="text-align:center;padding:32px 0;">No trips found.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="muted" style="text-align:center;padding:32px 0;">No trips found.</td></tr>`;
     return;
   }
 
@@ -152,6 +154,7 @@ function renderTripList() {
       <td>${t.destination ? esc(t.destination) : '<span class="muted">—</span>'}</td>
       <td>${grades || '<span class="muted">—</span>'}</td>
       <td id="chapCount-${esc(t.id)}"><span class="muted">—</span></td>
+      <td id="studCount-${esc(t.id)}"><span class="muted">—</span></td>
       <td>${badge}</td>
       <td><button class="btn btn-sm" data-id="${esc(t.id)}">Open</button></td>
     `;
@@ -164,6 +167,7 @@ function renderTripList() {
   });
 
   loadChaperoneCounts(filtered.map(t => t.id));
+  loadStudentCounts(filtered);
 }
 
 async function loadChaperoneCounts(ids) {
@@ -181,6 +185,21 @@ async function loadChaperoneCounts(ids) {
     const el = document.getElementById(`chapCount-${id}`);
     if (el) el.textContent = counts[id] ?? '0';
   });
+}
+
+async function loadStudentCounts(trips) {
+  if (!trips.length) return;
+  // For each trip, count students matching its grade_levels (minus explicit non-attenders)
+  await Promise.all(trips.map(async t => {
+    const el = document.getElementById(`studCount-${t.id}`);
+    if (!el) return;
+    const grades = t.grade_levels ?? [];
+    let q = supabase.from('students').select('id', { count: 'exact', head: true })
+      .eq('school_id', profile.school_id).eq('active', true);
+    if (grades.length) q = q.in('grade_level', grades);
+    const { count } = await q;
+    if (el) el.textContent = count ?? '—';
+  }));
 }
 
 function wireFilters() {
@@ -203,7 +222,7 @@ async function openTrip(id) {
 
   renderTripHeader(trip);
   switchTab('chaperones');
-  await loadChaperones();
+  await Promise.all([loadChaperones(), renderComplianceFormLinks(), loadManagers(trip.id)]);
 }
 
 function renderTripHeader(trip) {
@@ -434,8 +453,9 @@ function renderChaperoneTable() {
   document.getElementById('thMvr').style.display   = (driversNeeded && requireMvrGlobal) ? '' : 'none';
   document.getElementById('thForms').style.display  = formsRequired ? '' : 'none';
 
+  const colCount = 4 + (driversNeeded && requireMvrGlobal ? 1 : 0) + (formsRequired ? 1 : 0) + 1 + 1;
   if (!chaperoneList.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">No chaperones added yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${colCount}" class="muted" style="text-align:center;padding:32px 0;">No chaperones added yet.</td></tr>`;
     return;
   }
 
@@ -506,6 +526,62 @@ function renderComplianceStats() {
   document.getElementById('ftStatActionCard').style.display  = action  ? '' : 'none';
   document.getElementById('ftStatBlockedCard').style.display = blocked ? '' : 'none';
   statsWrap.style.display = '';
+}
+
+async function renderComplianceFormLinks() {
+  const wrap = document.getElementById('ftFormLinksWrap');
+  if (!wrap) return;
+
+  const { data: templates } = await supabase
+    .from('compliance_form_templates')
+    .select('id, title')
+    .eq('school_id', profile.school_id)
+    .eq('required_for_chaperones', true)
+    .eq('active', true)
+    .order('title');
+
+  if (!templates?.length) { wrap.style.display = 'none'; return; }
+
+  const { data: links } = await supabase
+    .from('compliance_form_links')
+    .select('id, token, label, template_id, active')
+    .eq('school_id', profile.school_id)
+    .in('template_id', templates.map(t => t.id))
+    .eq('active', true);
+
+  const linksByTemplate = new Map();
+  (links ?? []).forEach(l => {
+    if (!linksByTemplate.has(l.template_id)) linksByTemplate.set(l.template_id, []);
+    linksByTemplate.get(l.template_id).push(l);
+  });
+
+  const BASE = `${window.location.origin}/volunteer.html?form=`;
+  wrap.innerHTML = templates.map(t => {
+    const tLinks = linksByTemplate.get(t.id) ?? [];
+    const linkHtml = tLinks.length
+      ? tLinks.map(l => `
+          <span style="display:inline-flex;align-items:center;gap:6px;margin-right:8px;margin-top:4px;">
+            <span style="font-size:12px;color:#374151;">${esc(l.label || 'Link')}</span>
+            <button class="btn btn-sm" data-copy-url="${esc(BASE + l.token)}" style="font-size:11px;padding:2px 8px;">Copy Link</button>
+          </span>`).join('')
+      : `<span style="font-size:12px;color:#9ca3af;">No active link — create one in Compliance settings</span>`;
+    return `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+      <span style="font-size:13px;font-weight:600;color:#0b2d4f;min-width:160px;">${esc(t.title)}</span>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">${linkHtml}</div>
+    </div>`;
+  }).join('');
+
+  wrap.querySelectorAll('[data-copy-url]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(btn.dataset.copyUrl).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 2000);
+      });
+    });
+  });
+
+  wrap.style.display = '';
 }
 
 async function removeChaperone(chapId) {
@@ -795,6 +871,18 @@ function wireTripDrawer() {
   document.getElementById('ftCancelTripDrawerBtn')?.addEventListener('click', closeTripDrawer);
   document.getElementById('ftSaveTripBtn')?.addEventListener('click', saveTrip);
   buildGradeCheckboxes();
+
+  const mgrSearch = document.getElementById('ftMgrSearch');
+  if (mgrSearch) {
+    mgrSearch.addEventListener('input', debounce(searchManagerProfiles, 250));
+    mgrSearch.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('ftMgrResults').style.display = 'none'; });
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#ftMgrSearchWrap')) {
+      const r = document.getElementById('ftMgrResults');
+      if (r) r.style.display = 'none';
+    }
+  });
 }
 
 function buildGradeCheckboxes() {
@@ -809,6 +897,8 @@ function buildGradeCheckboxes() {
 }
 
 function openTripDrawer(trip) {
+  drawerManagers = [];
+  renderDrawerManagerChips();
   document.getElementById('ftDrawerTitle').textContent = trip ? 'Edit Trip' : 'New Trip';
   document.getElementById('ftDrawerTripId').value  = trip?.id ?? '';
   document.getElementById('ftDrawerName').value    = trip?.name ?? '';
@@ -873,11 +963,21 @@ async function saveTrip() {
       const idx = tripCache.findIndex(t => t.id === id);
       if (idx >= 0) tripCache[idx] = { ...tripCache[idx], ...payload };
       if (currentTrip?.id === id) { currentTrip = { ...currentTrip, ...payload }; renderTripHeader(currentTrip); }
+      if (drawerManagers.length) await saveManagers(id);
     }
   } else {
     const { data, error: insertErr } = await supabase.from('field_trips').insert({ ...payload, created_by_profile_id: profile.id }).select().single();
     error = insertErr;
-    if (!error && data) { tripCache.unshift(data); }
+    if (!error && data) {
+      tripCache.unshift(data);
+      // Auto-add creator + any drawer-selected managers
+      const allMgrs = [{ profile_id: profile.id, name: '', email: '' }, ...drawerManagers];
+      const unique = [...new Map(allMgrs.map(m => [m.profile_id, m])).values()];
+      await supabase.from('field_trip_managers').upsert(
+        unique.map(m => ({ field_trip_id: data.id, profile_id: m.profile_id, added_by: profile.id })),
+        { onConflict: 'field_trip_id,profile_id' }
+      );
+    }
   }
 
   btn.disabled = false;
@@ -887,6 +987,115 @@ async function saveTrip() {
 
   closeTripDrawer();
   renderTripList();
+}
+
+// ── Trip managers ────────────────────────────────────────────────────────
+async function loadManagers(tripId) {
+  const { data } = await supabase
+    .from('field_trip_managers')
+    .select('profile_id, profiles(display_name, email)')
+    .eq('field_trip_id', tripId);
+  currentManagers = (data ?? []).map(r => ({
+    profile_id: r.profile_id,
+    name:  r.profiles?.display_name ?? r.profiles?.email ?? '',
+    email: r.profiles?.email ?? '',
+  }));
+  renderManagerChips();
+}
+
+async function saveManagers(tripId) {
+  if (!drawerManagers.length) return;
+  const rows = drawerManagers.map(m => ({
+    field_trip_id: tripId,
+    profile_id:    m.profile_id,
+    added_by:      profile.id,
+  }));
+  await supabase.from('field_trip_managers').upsert(rows, { onConflict: 'field_trip_id,profile_id' });
+}
+
+async function removeManager(profileId) {
+  if (!currentTrip) return;
+  await supabase.from('field_trip_managers')
+    .delete()
+    .eq('field_trip_id', currentTrip.id)
+    .eq('profile_id', profileId);
+  currentManagers = currentManagers.filter(m => m.profile_id !== profileId);
+  renderManagerChips();
+}
+
+function renderManagerChips() {
+  const wrap = document.getElementById('ftManagerChips');
+  if (!wrap) return;
+  if (!currentManagers.length) {
+    wrap.innerHTML = '<span style="font-size:12px;color:#9ca3af;">No managers assigned</span>';
+    return;
+  }
+  wrap.innerHTML = currentManagers.map(m => `
+    <span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:2px 10px;font-size:12px;color:#1d4ed8;">
+      ${esc(m.name)}
+      <button data-remove-mgr="${esc(m.profile_id)}" style="background:none;border:none;cursor:pointer;padding:0;color:#93c5fd;font-size:14px;line-height:1;" title="Remove">&times;</button>
+    </span>`).join('');
+  wrap.querySelectorAll('[data-remove-mgr]').forEach(btn => {
+    btn.addEventListener('click', () => removeManager(btn.dataset.removeMgr));
+  });
+}
+
+// Drawer manager typeahead
+async function searchManagerProfiles() {
+  const val = document.getElementById('ftMgrSearch')?.value.trim();
+  const results = document.getElementById('ftMgrResults');
+  if (!results) return;
+  if (!val || val.length < 2) { results.style.display = 'none'; return; }
+
+  results.innerHTML = `<div class="ft-typeahead-empty">Searching...</div>`;
+  results.style.display = '';
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, display_name, email')
+    .eq('school_id', profile.school_id)
+    .eq('can_login', true)
+    .or(`display_name.ilike.%${val}%,email.ilike.%${val}%`)
+    .limit(8);
+
+  const existingIds = new Set(drawerManagers.map(m => m.profile_id));
+  const filtered = (data ?? []).filter(p => !existingIds.has(p.id));
+
+  if (!filtered.length) {
+    results.innerHTML = `<div class="ft-typeahead-empty">No staff found.</div>`;
+    return;
+  }
+
+  results.innerHTML = '';
+  filtered.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'ft-typeahead-item';
+    item.innerHTML = `<strong>${esc(p.display_name ?? p.email)}</strong><span>${esc(p.email ?? '')}</span>`;
+    item.addEventListener('mousedown', e => {
+      e.preventDefault();
+      drawerManagers.push({ profile_id: p.id, name: p.display_name ?? p.email ?? '', email: p.email ?? '' });
+      renderDrawerManagerChips();
+      document.getElementById('ftMgrSearch').value = '';
+      results.style.display = 'none';
+    });
+    results.appendChild(item);
+  });
+}
+
+function renderDrawerManagerChips() {
+  const wrap = document.getElementById('ftDrawerMgrChips');
+  if (!wrap) return;
+  wrap.innerHTML = drawerManagers.map((m, i) => `
+    <span style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:2px 10px;font-size:12px;color:#15803d;">
+      ${esc(m.name)}
+      <button data-remove-drawer-mgr="${i}" style="background:none;border:none;cursor:pointer;padding:0;color:#86efac;font-size:14px;line-height:1;" title="Remove">&times;</button>
+    </span>`).join('');
+  wrap.querySelectorAll('[data-remove-drawer-mgr]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      drawerManagers.splice(Number(btn.dataset.removeDrawerMgr), 1);
+      renderDrawerManagerChips();
+    });
+  });
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────

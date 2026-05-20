@@ -169,7 +169,7 @@ async function loadAccessProfile(profileId) {
       can_manage_staff, can_manage_students, can_manage_placement,
       can_manage_families, can_manage_guardians, can_manage_bus_groups,
       can_manage_carpools, can_manage_substitutes, can_manage_campuses,
-      can_bulk_upload, can_export_data, can_manage_licensure, can_manage_compliance
+      can_bulk_upload, can_export_data, can_manage_licensure, can_manage_compliance, can_manage_field_trips
     `)
     .eq('id', profileId)
     .single();

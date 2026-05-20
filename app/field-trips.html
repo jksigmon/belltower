@@ -282,7 +282,6 @@
                 <option value="">All statuses</option>
                 <option value="upcoming">Upcoming</option>
                 <option value="past">Past</option>
-                <option value="active">Active</option>
                 <option value="cancelled">Cancelled</option>
               </select>
               <button class="btn btn-primary" id="newTripBtn" style="height:34px;font-size:13px;white-space:nowrap;">+ New Trip</button>
@@ -297,6 +296,7 @@
                   <th>Destination</th>
                   <th>Grades</th>
                   <th>Chaperones</th>
+                  <th>Students</th>
                   <th>Status</th>
                   <th></th>
                 </tr>
@@ -332,6 +332,10 @@
             <button class="btn btn-sm btn-danger" id="ftCancelBtn" style="display:none;">Cancel Trip</button>
           </div>
         </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+          <span style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Managing Teachers</span>
+          <div id="ftManagerChips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
 
         <!-- Compliance summary strip -->
         <div class="ft-stat-row" id="ftCompStats" style="display:none;">
@@ -351,6 +355,11 @@
             <div class="ft-stat-val" id="ftStatBlocked">0</div>
             <div class="ft-stat-label">Blocked</div>
           </div>
+        </div>
+
+        <!-- Compliance form links (chaperone-required forms) -->
+        <div id="ftFormLinksWrap" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;margin-bottom:16px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1d4ed8;margin-bottom:6px;">Chaperone Form Links — share with parents</div>
         </div>
 
         <!-- Tabs -->
@@ -473,6 +482,16 @@
     <div class="drawer-field">
       <label class="drawer-label" for="ftDrawerNotes">Notes</label>
       <textarea id="ftDrawerNotes" rows="3" placeholder="Optional internal notes..."></textarea>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label">Managing Teachers / Staff</label>
+      <div id="ftDrawerMgrChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:24px;"></div>
+      <div class="ft-typeahead-wrap" id="ftMgrSearchWrap">
+        <input type="text" id="ftMgrSearch" class="admin-input" placeholder="Search staff to add..." style="width:100%;">
+        <div id="ftMgrResults" class="ft-typeahead-results" style="display:none;"></div>
+      </div>
+      <small style="font-size:11px;color:#9ca3af;">Added teachers can manage this trip from their staff portal. The creator is added automatically.</small>
     </div>
 
   </div>

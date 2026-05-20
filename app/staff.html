@@ -197,6 +197,72 @@
   box-sizing: border-box;
 }
 
+/* ─── Field Trips ─────────────────────────────────── */
+.trip-badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; }
+.trip-badge-active    { background:#dcfce7; color:#15803d; }
+.trip-badge-cancelled { background:#f1f5f9; color:#64748b; }
+.trip-badge-past      { background:#f0f9ff; color:#0369a1; }
+
+.comp-chip { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700; white-space:nowrap; }
+.comp-cleared { background:#dcfce7; color:#15803d; }
+.comp-action  { background:#fef3c7; color:#92400e; }
+.comp-blocked { background:#fee2e2; color:#991b1b; }
+.comp-unknown { background:#f1f5f9; color:#64748b; }
+
+.trip-hdr-card { background:#fff; border:1px solid var(--border,#e5e7eb); border-radius:12px; padding:20px 24px; margin-bottom:20px; display:flex; align-items:flex-start; gap:20px; flex-wrap:wrap; }
+.trip-hdr-main { flex:1; min-width:200px; }
+.trip-hdr-name { font-size:20px; font-weight:800; color:#0b2d4f; margin-bottom:4px; }
+.trip-hdr-dest { font-size:14px; color:var(--text-muted,#6b7280); margin-bottom:8px; }
+.trip-hdr-meta { display:flex; flex-wrap:wrap; gap:14px; }
+.trip-hdr-meta-item { display:flex; align-items:center; gap:5px; font-size:13px; color:#374151; }
+.trip-hdr-actions { display:flex; gap:8px; align-items:flex-start; flex-shrink:0; }
+
+.ft-tabs { display:flex; gap:0; border-bottom:2px solid var(--border,#e5e7eb); margin-bottom:20px; }
+.ft-tab { padding:9px 18px; font-size:14px; font-weight:600; color:var(--text-muted,#6b7280); background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:color .15s,border-color .15s; }
+.ft-tab.active { color:#0b2d4f; border-bottom-color:#0b2d4f; }
+.ft-tab:hover:not(.active) { color:#374151; }
+.ft-staff-tab { padding:9px 18px; font-size:14px; font-weight:600; color:var(--text-muted,#6b7280); background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-2px; cursor:pointer; transition:color .15s,border-color .15s; }
+.ft-staff-tab.active { color:#0b2d4f; border-bottom-color:#0b2d4f; }
+.ft-staff-tab:hover:not(.active) { color:#374151; }
+
+.chap-row td { vertical-align:middle; }
+.chap-name strong { display:block; font-size:14px; }
+.chap-name span   { font-size:12px; color:var(--text-muted,#6b7280); }
+.chap-students    { font-size:12px; color:var(--text-muted,#6b7280); }
+
+.student-attending-toggle { display:flex; align-items:center; gap:8px; cursor:pointer; }
+.student-attending-toggle input[type="checkbox"] { width:16px; height:16px; cursor:pointer; }
+
+.grade-pill { display:inline-block; padding:1px 8px; border-radius:999px; font-size:11px; font-weight:600; background:#eff6ff; color:#1d4ed8; margin:1px; }
+
+.ft-stat-row  { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.ft-stat-card { background:#fff; border:1px solid var(--border,#e5e7eb); border-radius:10px; padding:12px 16px; flex:1; min-width:90px; }
+.ft-stat-val  { font-size:22px; font-weight:800; color:#0b2d4f; line-height:1; }
+.ft-stat-label{ font-size:11px; color:var(--text-muted,#9ca3af); text-transform:uppercase; letter-spacing:0.06em; margin-top:4px; }
+.ft-stat-warn .ft-stat-val  { color:#d97706; }
+.ft-stat-alert .ft-stat-val { color:#dc2626; }
+
+.ft-typeahead-wrap { position:relative; }
+.ft-typeahead-results { position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid #d1d5db; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,0.10); z-index:200; max-height:220px; overflow-y:auto; }
+.ft-typeahead-item { padding:9px 14px; cursor:pointer; font-size:14px; border-bottom:1px solid #f3f4f6; }
+.ft-typeahead-item:last-child { border-bottom:none; }
+.ft-typeahead-item:hover { background:#f8fafc; }
+.ft-typeahead-item strong { display:block; }
+.ft-typeahead-item span   { font-size:12px; color:var(--text-muted,#6b7280); }
+.ft-typeahead-empty { padding:12px 14px; font-size:13px; color:var(--text-muted,#6b7280); }
+
+.drawer-field { display:flex; flex-direction:column; gap:6px; margin-bottom:16px; }
+.drawer-label { font-size:12px; font-weight:700; color:var(--text-muted,#9ca3af); text-transform:uppercase; letter-spacing:0.05em; }
+.drawer-field input, .drawer-field select, .drawer-field textarea { padding:8px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:0.92rem; background:#fff; color:#0f172a; font-family:inherit; transition:border-color .15s,box-shadow .15s; }
+.drawer-field input:focus, .drawer-field select:focus, .drawer-field textarea:focus { outline:none; border-color:#0b2d4f; box-shadow:0 0 0 3px rgba(11,45,79,0.08); }
+.drawer-field textarea { resize:vertical; }
+.drawer-row { display:flex; gap:12px; }
+.drawer-row .drawer-field { flex:1; }
+
+.admin-input { height:34px; padding:0 12px; border:1px solid #d1d5db; border-radius:8px; font-size:0.875rem; background:#fff; color:#0f172a; font-family:inherit; -webkit-appearance:none; appearance:none; transition:border-color .15s,box-shadow .15s; }
+.admin-input:focus { outline:none; border-color:#0b2d4f; box-shadow:0 0 0 3px rgba(11,45,79,0.08); }
+select.admin-input { padding-right:28px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; }
+
 /* Submit row */
 .pto-submit-row {
   display: flex;
@@ -629,6 +695,7 @@
   <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
   <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
   <a href="#compliance-report" data-module="compliance"><i data-lucide="clipboard-list"></i> Compliance Report</a>
+  <a href="#field-trips" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
   <a href="#access-request"><i data-lucide="key"></i> Request Access</a>
 </nav>
 
@@ -1016,6 +1083,158 @@
 
     </section>
 
+    <!-- ── Field Trips ─────────────────────────────── -->
+    <section id="field-trips" style="display:none;">
+
+      <!-- List view -->
+      <div id="ftStaffListView">
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+            <h3 style="margin:0;">Field Trips</h3>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+              <input type="text" id="ftStaffSearch" class="admin-input" placeholder="Search trips..." style="width:180px;">
+              <select id="ftStaffStatusFilter" class="admin-input" style="width:130px;">
+                <option value="">All statuses</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="past">Past</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <button class="btn btn-primary" id="ftStaffNewTripBtn" style="height:34px;font-size:13px;white-space:nowrap;">+ New Trip</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Trip</th>
+                  <th>Date</th>
+                  <th>Destination</th>
+                  <th>Grades</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="ftStaffTableBody">
+                <tr><td colspan="6" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Detail view -->
+      <div id="ftStaffDetailView" style="display:none;">
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+          <button class="btn btn-sm" id="ftStaffBackBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+            All Trips
+          </button>
+        </div>
+
+        <div class="trip-hdr-card">
+          <div class="trip-hdr-main">
+            <div class="trip-hdr-name" id="ftStaffDetailName"></div>
+            <div class="trip-hdr-dest" id="ftStaffDetailDest"></div>
+            <div class="trip-hdr-meta" id="ftStaffDetailMeta"></div>
+          </div>
+          <div class="trip-hdr-actions">
+            <span id="ftStaffDetailBadge"></span>
+            <button class="btn btn-sm" id="ftStaffEditBtn">Edit Trip</button>
+            <button class="btn btn-sm btn-danger" id="ftStaffCancelBtn" style="display:none;">Cancel Trip</button>
+          </div>
+        </div>
+
+        <!-- Managing teachers -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <span style="font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Managing Teachers</span>
+          <div id="ftStaffManagerChips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <div class="ft-typeahead-wrap" id="ftStaffMgrSearchWrap" style="max-width:300px;">
+            <input type="text" id="ftStaffMgrSearch" class="admin-input" placeholder="Add teacher/staff..." style="width:100%;">
+            <div id="ftStaffMgrResults" class="ft-typeahead-results" style="display:none;"></div>
+          </div>
+        </div>
+
+        <!-- Compliance form links -->
+        <div id="ftStaffFormLinksWrap" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px 16px;margin-bottom:16px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#1d4ed8;margin-bottom:6px;">Chaperone Form Links — share with parents</div>
+        </div>
+
+        <!-- Compliance summary strip -->
+        <div class="ft-stat-row" id="ftStaffCompStats" style="display:none;">
+          <div class="ft-stat-card">
+            <div class="ft-stat-val" id="ftStaffStatTotal">0</div>
+            <div class="ft-stat-label">Chaperones</div>
+          </div>
+          <div class="ft-stat-card">
+            <div class="ft-stat-val" id="ftStaffStatCleared">0</div>
+            <div class="ft-stat-label">Cleared</div>
+          </div>
+          <div class="ft-stat-card ft-stat-warn" id="ftStaffStatActionCard">
+            <div class="ft-stat-val" id="ftStaffStatAction">0</div>
+            <div class="ft-stat-label">Action needed</div>
+          </div>
+          <div class="ft-stat-card ft-stat-alert" id="ftStaffStatBlockedCard">
+            <div class="ft-stat-val" id="ftStaffStatBlocked">0</div>
+            <div class="ft-stat-label">Blocked</div>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="ft-tabs">
+          <button class="ft-staff-tab active" data-tab="chaperones">Chaperones</button>
+          <button class="ft-staff-tab" data-tab="students">Students</button>
+        </div>
+
+        <!-- Chaperones tab -->
+        <div id="ftStaffTabChaperones">
+          <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+            <button class="btn btn-sm" id="ftStaffAddChaperoneBtn">+ Add Chaperone</button>
+          </div>
+          <div class="panel" style="padding:0;overflow:hidden;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Students (from family)</th>
+                  <th>Background Check</th>
+                  <th id="ftStaffThMvr" style="display:none;">MVR</th>
+                  <th id="ftStaffThForms" style="display:none;">Forms</th>
+                  <th>Driver</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="ftStaffChapTableBody">
+                <tr><td colspan="6" class="muted" style="text-align:center;padding:32px 0;">No chaperones added yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Students tab -->
+        <div id="ftStaffTabStudents" style="display:none;">
+          <div class="panel" style="padding:0;overflow:hidden;">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Grade</th>
+                  <th>Homeroom</th>
+                  <th>Attending</th>
+                </tr>
+              </thead>
+              <tbody id="ftStaffStudTableBody">
+                <tr><td colspan="4" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -1023,6 +1242,8 @@
 import { supabase } from '/app/admin.supabase.js';
 import { initUserMenu } from '/app/user-menu.js';
 import { requireAuth } from '/app/admin.auth.js';
+import { initStaffFieldTrips, wireDetailManagerSearch } from '/app/staff.field-trips.js';
+wireDetailManagerSearch();
 
 // Prevent browser from restoring a stale scroll position on load
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -1533,6 +1754,7 @@ function setActive(hash) {
   if (hash === '#licensure')       subtitle.textContent = 'My Licenses';
   if (hash === '#bg-checks')          subtitle.textContent = 'Background Checks';
   if (hash === '#compliance-report')  subtitle.textContent = 'Compliance Report';
+  if (hash === '#field-trips')        subtitle.textContent = 'Field Trips';
   if (hash === '#access-request')     subtitle.textContent = 'Request Access';
 
   document.querySelectorAll('nav a').forEach(function (a) {
@@ -1553,6 +1775,7 @@ function setActive(hash) {
   if (hash === '#licensure')           loadMyLicenses();
   if (hash === '#bg-checks')           loadMyBgRequests();
   if (hash === '#compliance-report')   initComplianceReport();
+  if (hash === '#field-trips')         initStaffFieldTrips(currentProfile);
   if (hash === '#access-request')      { buildAccessRequestOptions(); loadMyAccessRequests(); }
 }
 
@@ -3019,6 +3242,130 @@ if (past) {
     </div>
   </div>
 </div>
+
+<!-- ══ FIELD TRIPS: TRIP CREATE/EDIT DRAWER ══════════════════════════ -->
+<div id="ftStaffTripDrawerOverlay" class="drawer-overlay"></div>
+<aside id="ftStaffTripDrawer" class="drawer">
+  <div class="drawer-header">
+    <span id="ftStaffDrawerTitle">New Trip</span>
+    <button class="drawer-close" id="ftStaffTripDrawerClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <input type="hidden" id="ftStaffDrawerTripId">
+
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftStaffDrawerName">Trip name *</label>
+      <input type="text" id="ftStaffDrawerName" placeholder="e.g. 3rd Grade Nature Museum Trip">
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftStaffDrawerDest">Destination</label>
+      <input type="text" id="ftStaffDrawerDest" placeholder="e.g. City Nature Museum">
+    </div>
+
+    <div class="drawer-row">
+      <div class="drawer-field">
+        <label class="drawer-label" for="ftStaffDrawerDate">Start date *</label>
+        <input type="date" id="ftStaffDrawerDate">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-label" for="ftStaffDrawerEndDate">End date</label>
+        <input type="date" id="ftStaffDrawerEndDate">
+        <small style="font-size:11px;color:#9ca3af;">Leave blank for single-day</small>
+      </div>
+    </div>
+
+    <div class="drawer-row">
+      <div class="drawer-field">
+        <label class="drawer-label" for="ftStaffDrawerDepart">Depart time</label>
+        <input type="time" id="ftStaffDrawerDepart">
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-label" for="ftStaffDrawerReturn">Return time</label>
+        <input type="time" id="ftStaffDrawerReturn">
+      </div>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label">Grade levels</label>
+      <div id="ftStaffDrawerGrades" style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;"></div>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftStaffDrawerMaxChap">Max chaperones</label>
+      <input type="number" id="ftStaffDrawerMaxChap" min="1" max="99" placeholder="Leave blank for unlimited">
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="ftStaffDrawerDrivers" style="width:16px;height:16px;">
+        Drivers needed (require MVR clearance for drivers)
+      </label>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftStaffDrawerNotes">Notes</label>
+      <textarea id="ftStaffDrawerNotes" rows="3" placeholder="Optional internal notes..."></textarea>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label">Managing Teachers / Staff</label>
+      <div id="ftStaffDrawerMgrChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:24px;"></div>
+      <div class="ft-typeahead-wrap">
+        <input type="text" id="ftStaffDrawerMgrSearch" class="admin-input" placeholder="Search staff to add..." style="width:100%;">
+        <div id="ftStaffDrawerMgrResults" class="ft-typeahead-results" style="display:none;"></div>
+      </div>
+      <small style="font-size:11px;color:#9ca3af;">Added teachers can manage this trip alongside you. You are added automatically.</small>
+    </div>
+
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="ftStaffCancelTripDrawerBtn">Cancel</button>
+    <button class="btn btn-primary" id="ftStaffSaveTripBtn">Save Trip</button>
+  </div>
+</aside>
+
+<!-- ══ FIELD TRIPS: ADD CHAPERONE DRAWER ════════════════════════════ -->
+<div id="ftStaffChapDrawerOverlay" class="drawer-overlay"></div>
+<aside id="ftStaffChapDrawer" class="drawer">
+  <div class="drawer-header">
+    <span>Add Chaperone</span>
+    <button class="drawer-close" id="ftStaffChapDrawerClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftStaffChapSearch">Search guardians</label>
+      <div class="ft-typeahead-wrap" id="ftStaffChapSearchWrap">
+        <input type="text" id="ftStaffChapSearch" class="admin-input" placeholder="Name or email..." style="width:100%;">
+        <div id="ftStaffChapResults" class="ft-typeahead-results" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div id="ftStaffChapSelected" style="display:none;margin-bottom:16px;">
+      <div class="panel" style="padding:12px 16px;border-radius:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <strong id="ftStaffChapSelectedName"></strong>
+            <div style="font-size:12px;color:var(--text-muted,#6b7280);" id="ftStaffChapSelectedEmail"></div>
+          </div>
+          <button class="btn btn-sm" id="ftStaffChapClearBtn" style="font-size:11px;">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="ftStaffChapIsDriver" style="width:16px;height:16px;">
+        Driving (will check MVR clearance)
+      </label>
+    </div>
+
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="ftStaffCancelChapBtn">Cancel</button>
+    <button class="btn btn-primary" id="ftStaffSaveChapBtn" disabled>Add Chaperone</button>
+  </div>
+</aside>
 
 <script src="/app/nav-mobile.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
