@@ -17,6 +17,15 @@ function generateStudentNumber() {
     .toUpperCase()}`;
 }
 
+function parseDate(val: any): string | null {
+  if (val === null || val === undefined || val === "") return null;
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val.toISOString().slice(0, 10);
+  const s = String(val).trim();
+  if (!s) return null;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -480,10 +489,12 @@ const { data: existingStudents } = await admin
     student_number,
     first_name,
     last_name,
+    preferred_name,
     grade_level,
     homeroom_teacher_id,
     bus_group_id,
     campus_id,
+    birthdate,
     active
     `
   )
@@ -500,10 +511,12 @@ const existingStudentsByNumber = new Map<
     family_id: string;
     first_name: string | null;
     last_name: string | null;
+    preferred_name: string | null;
     grade_level: string | null;
     homeroom_teacher_id: string | null;
     bus_group_id: string | null;
     campus_id: string | null;
+    birthdate: string | null;
     active: boolean;
   }
 >(
@@ -514,10 +527,12 @@ const existingStudentsByNumber = new Map<
       family_id: s.family_id,
       first_name: s.first_name,
       last_name: s.last_name,
+      preferred_name: s.preferred_name ?? null,
       grade_level: s.grade_level,
       homeroom_teacher_id: s.homeroom_teacher_id,
       bus_group_id: s.bus_group_id,
       campus_id: s.campus_id ?? null,
+      birthdate: s.birthdate ?? null,
       active: s.active
     }
   ])
@@ -577,6 +592,12 @@ if (homeroomEmail) {
     continue;
   }
 }
+
+const preferredName = row.preferred_name
+  ? String(row.preferred_name).trim() || null
+  : null;
+
+const birthdate = parseDate(row.birthdate);
 
 
 
@@ -709,6 +730,14 @@ if (homeroomEmail) {
           diff.last_name = { before: existing.last_name, after: lastName };
         }
 
+        if (existing.preferred_name !== preferredName) {
+          diff.preferred_name = { before: existing.preferred_name, after: preferredName };
+        }
+
+        if (existing.birthdate !== birthdate) {
+          diff.birthdate = { before: existing.birthdate, after: birthdate };
+        }
+
         if (existing.grade_level !== normalizedGrade) {
         diff.grade_level = {
         before: existing.grade_level,
@@ -760,10 +789,12 @@ if (homeroomEmail) {
             family_id: familyId,
             first_name: firstName,
             last_name: lastName,
+            preferred_name: preferredName,
             grade_level: normalizedGrade,
             homeroom_teacher_id: homeroomTeacherId,
             bus_group_id: busGroupId,
             campus_id: studentCampusId,
+            birthdate,
             active: newActive
           },
           diff
@@ -792,10 +823,12 @@ if (homeroomEmail) {
           student_number: studentNumber,
           first_name: firstName,
           last_name: lastName,
+          preferred_name: preferredName,
           grade_level: normalizedGrade,
           homeroom_teacher_id: homeroomTeacherId,
           bus_group_id: busGroupId,
           campus_id: studentCampusId,
+          birthdate,
           active: String(row.active).toUpperCase() !== "FALSE"
         }
       });
