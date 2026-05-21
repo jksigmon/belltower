@@ -293,7 +293,7 @@ async function boot() {
 async function loadStudents() {
   const { data } = await supabase
     .from('students')
-    .select('id, first_name, last_name, grade_level, homeroom_teacher_id, bus_group_id, family_id')
+    .select('id, first_name, last_name, preferred_name, grade_level, homeroom_teacher_id, bus_group_id, family_id')
     .eq('school_id', profile.school_id)
     .eq('active', true)
     .order('last_name');
@@ -723,7 +723,7 @@ function buildCard(student, statusClass) {
   el.innerHTML = `
     ${icon ? `<span class="cl-card-icon">${icon}</span>` : ''}
     <span class="cl-card-body">
-      <span class="cl-card-name">${esc(student.first_name)} ${esc(student.last_name)}${grade}</span>
+      <span class="cl-card-name">${esc(student.preferred_name || student.first_name)} ${esc(student.last_name)}${grade}</span>
     </span>
     <span class="cl-card-meta">
       ${tag ? `<span class="cl-card-tag">${esc(tag)}</span>` : ''}
@@ -756,7 +756,7 @@ function setupRealtime() {
       if (changed && (r.status === 'CALLED' || r.status === 'RECALLED')) {
         const student = allStudents.find(s => s.id === r.student_id);
         if (student) {
-          callLog.unshift({ name: `${student.first_name} ${student.last_name}`, status: r.status, time: r.called_at || new Date().toISOString() });
+          callLog.unshift({ name: `${student.preferred_name || student.first_name} ${student.last_name}`, status: r.status, time: r.called_at || new Date().toISOString() });
           renderLog();
         }
       }

@@ -234,13 +234,15 @@ function openEditStudentDrawer(r) {
   avatar.textContent      = initials;
   avatar.style.background = color;
 
-  document.getElementById('estuTitle').textContent    = `${r.first_name} ${r.last_name}`;
+  const displayName = r.preferred_name ? `${r.preferred_name} (${r.first_name} ${r.last_name})` : `${r.first_name} ${r.last_name}`;
+  document.getElementById('estuTitle').textContent    = displayName;
   document.getElementById('estuSubtitle').textContent = r.grade_level
     ? `Grade ${r.grade_level}`
     : (r.families?.family_name ?? '');
 
   document.getElementById('estuFirst').value      = r.first_name ?? '';
   document.getElementById('estuLast').value       = r.last_name ?? '';
+  document.getElementById('estuPreferred').value  = r.preferred_name ?? '';
   document.getElementById('estuGrade').value      = r.grade_level ?? '';
   document.getElementById('estuNumber').value     = r.student_number ?? '';
   document.getElementById('estuBirthdate').value  = r.birthdate ?? '';
@@ -288,6 +290,7 @@ async function saveEditStudent() {
   const updated = {
     first_name:          first,
     last_name:           last,
+    preferred_name:      document.getElementById('estuPreferred').value.trim() || null,
     family_id:           family,
     grade_level:         document.getElementById('estuGrade').value || null,
     student_number:      document.getElementById('estuNumber').value.trim() || null,
@@ -451,6 +454,7 @@ async function createStudent() {
     family_id:           document.getElementById('studentFamily').value,
     first_name:          document.getElementById('studentFirst').value.trim(),
     last_name:           document.getElementById('studentLast').value.trim(),
+    preferred_name:      document.getElementById('studentPreferred').value.trim() || null,
     grade_level:         document.getElementById('studentGrade').value || null,
     homeroom_teacher_id: document.getElementById('studentHomeroom').value || null,
     bus_group_id:        document.getElementById('studentBusGroup').value || null,
@@ -468,8 +472,8 @@ async function createStudent() {
   const { error } = await supabase.from('students').insert(student);
   if (error) { console.error('Create student error', error); alert('Failed to add student'); return; }
 
-  ['studentFirst', 'studentLast', 'studentGrade', 'studentHomeroom', 'studentNumber',
-   'studentFamily', 'studentCampus', 'studentBusGroup', 'studentBirthdate']
+  ['studentFirst', 'studentLast', 'studentPreferred', 'studentGrade', 'studentHomeroom',
+   'studentNumber', 'studentFamily', 'studentCampus', 'studentBusGroup', 'studentBirthdate']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 
   window.closeDrawer?.('studentDrawer');
