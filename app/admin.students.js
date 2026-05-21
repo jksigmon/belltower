@@ -468,7 +468,8 @@ async function createStudent() {
   const { error } = await supabase.from('students').insert(student);
   if (error) { console.error('Create student error', error); alert('Failed to add student'); return; }
 
-  ['studentFirst', 'studentLast', 'studentGrade', 'studentHomeroom', 'studentNumber']
+  ['studentFirst', 'studentLast', 'studentGrade', 'studentHomeroom', 'studentNumber',
+   'studentFamily', 'studentCampus', 'studentBusGroup', 'studentBirthdate']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
 
   window.closeDrawer?.('studentDrawer');
