@@ -161,10 +161,9 @@ async function previewBulkUpload() {
     return;
   }
 
-  if (!data || !data.summary) {
-    const msg = data?.error || 'Unknown server error.';
-    console.error('Preview response:', data);
-    alert(`Preview failed: ${msg}`);
+  if (!data) {
+    console.error('Preview response: null');
+    alert('Preview failed: no response from server.');
     return;
   }
 
@@ -225,7 +224,20 @@ function renderPreview(result) {
   const container = document.getElementById('bulkUploadPreview');
   container.innerHTML = '';
 
-  Object.entries(result.summary).forEach(([sheet, counts]) => {
+  // Early blocking errors (e.g. dependency check failed before summary was built)
+  if (result.blockingErrors && Object.keys(result.summary ?? {}).length === 0) {
+    const allErrors = Object.entries(result.details ?? {}).flatMap(([sheet, rows]) =>
+      rows.filter(r => r.error).map(r => `${sheet}: ${r.error}`)
+    );
+    const div = document.createElement('div');
+    div.style.color = '#c0392b';
+    div.innerHTML = allErrors.map(e => `<div>⚠️ ${e}</div>`).join('') || '<div>⚠️ Blocking error — check your file and sheet selection.</div>';
+    container.appendChild(div);
+    document.getElementById('bulkUploadCommit').style.display = 'none';
+    return;
+  }
+
+  Object.entries(result.summary ?? {}).forEach(([sheet, counts]) => {
     const div = document.createElement('div');
     div.style.marginBottom = '12px';
 
