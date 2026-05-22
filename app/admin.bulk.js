@@ -162,7 +162,8 @@ async function previewBulkUpload() {
   }
 
   if (!data || !data.summary) {
-    const msg = data?.error || 'Unknown error from preview function.';
+    const msg = data?.error || 'Unknown server error.';
+    console.error('Preview response:', data);
     alert(`Preview failed: ${msg}`);
     return;
   }
