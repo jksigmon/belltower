@@ -820,12 +820,15 @@ function buildColumn(teacherId, name) {
        </div>`
     : '';
 
+  const flagCountsHtml = buildFlagCounts(allColStudents);
+
   col.innerHTML = `
     <div class="placement-col-header ${headerClass}">
       ${dragHandle}
       ${avatarOrBadge}
       <span class="placement-col-name">${esc(name)}</span>
       <span class="placement-col-count ${countClass}">${countDisplay}</span>
+      ${flagCountsHtml}
     </div>
     ${assignBar}
     ${capacityBarHtml}
@@ -954,6 +957,23 @@ function buildCard(student) {
   });
 
   return card;
+}
+
+function buildFlagCounts(students) {
+  const counts = new Map(); // flagId → count
+  students.forEach(s => {
+    (_studentFlags[s.id] ?? new Set()).forEach(fid => {
+      counts.set(fid, (counts.get(fid) ?? 0) + 1);
+    });
+  });
+  if (!counts.size) return '';
+  const chips = _flags
+    .filter(f => counts.has(f.id))
+    .map(f => `<span class="placement-col-flag-chip">
+      <span class="placement-col-flag-dot" style="background:${f.color};"></span>${counts.get(f.id)}
+    </span>`)
+    .join('');
+  return `<div class="placement-col-flag-counts">${chips}</div>`;
 }
 
 function refreshFlagDots(cardEl, studentId) {
