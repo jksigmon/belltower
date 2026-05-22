@@ -897,7 +897,7 @@ function buildGradeCheckboxes() {
 }
 
 function openTripDrawer(trip) {
-  drawerManagers = [];
+  drawerManagers = trip ? currentManagers.map(m => ({ ...m })) : [];
   renderDrawerManagerChips();
   document.getElementById('ftDrawerTitle').textContent = trip ? 'Edit Trip' : 'New Trip';
   document.getElementById('ftDrawerTripId').value  = trip?.id ?? '';
@@ -963,20 +963,43 @@ async function saveTrip() {
       const idx = tripCache.findIndex(t => t.id === id);
       if (idx >= 0) tripCache[idx] = { ...tripCache[idx], ...payload };
       if (currentTrip?.id === id) { currentTrip = { ...currentTrip, ...payload }; renderTripHeader(currentTrip); }
-      if (drawerManagers.length) await saveManagers(id);
+      // Delta: insert new managers, delete removed ones
+      const editorEntry = { profile_id: profile.id, name: '', email: '' };
+      const allEditMgrs = drawerManagers.some(m => m.profile_id === profile.id)
+        ? drawerManagers
+        : [editorEntry, ...drawerManagers];
+      const existingIds = new Set(currentManagers.map(m => m.profile_id));
+      const toAdd = allEditMgrs.filter(m => !existingIds.has(m.profile_id));
+      const keptIds = new Set(allEditMgrs.map(m => m.profile_id));
+      const toRemove = currentManagers.filter(m => !keptIds.has(m.profile_id) && m.profile_id !== profile.id);
+      if (toAdd.length) {
+        const { error: mgrErr } = await supabase.from('field_trip_managers').insert(
+          toAdd.map(m => ({ field_trip_id: id, profile_id: m.profile_id, added_by: profile.id }))
+        );
+        if (mgrErr) console.error('manager insert failed:', mgrErr);
+      }
+      if (toRemove.length) {
+        await supabase.from('field_trip_managers').delete()
+          .eq('field_trip_id', id).in('profile_id', toRemove.map(m => m.profile_id));
+      }
+      await loadManagers(id);
     }
   } else {
     const { data, error: insertErr } = await supabase.from('field_trips').insert({ ...payload, created_by_profile_id: profile.id }).select().single();
     error = insertErr;
     if (!error && data) {
       tripCache.unshift(data);
-      // Auto-add creator + any drawer-selected managers
-      const allMgrs = [{ profile_id: profile.id, name: '', email: '' }, ...drawerManagers];
-      const unique = [...new Map(allMgrs.map(m => [m.profile_id, m])).values()];
-      await supabase.from('field_trip_managers').upsert(
-        unique.map(m => ({ field_trip_id: data.id, profile_id: m.profile_id, added_by: profile.id })),
-        { onConflict: 'field_trip_id,profile_id' }
+      // Insert creator first (bootstrap), then any additional drawer managers
+      await supabase.from('field_trip_managers').insert(
+        { field_trip_id: data.id, profile_id: profile.id, added_by: profile.id }
       );
+      const others = drawerManagers.filter(m => m.profile_id !== profile.id);
+      if (others.length) {
+        await supabase.from('field_trip_managers').insert(
+          others.map(m => ({ field_trip_id: data.id, profile_id: m.profile_id, added_by: profile.id }))
+        );
+      }
+      await loadManagers(data.id);
     }
   }
 
@@ -991,26 +1014,16 @@ async function saveTrip() {
 
 // ── Trip managers ────────────────────────────────────────────────────────
 async function loadManagers(tripId) {
-  const { data } = await supabase
-    .from('field_trip_managers')
-    .select('profile_id, profiles(display_name, email)')
-    .eq('field_trip_id', tripId);
-  currentManagers = (data ?? []).map(r => ({
-    profile_id: r.profile_id,
-    name:  r.profiles?.display_name ?? r.profiles?.email ?? '',
-    email: r.profiles?.email ?? '',
-  }));
+  const { data: rows, error: rpcErr } = await supabase.rpc('get_trip_managers', { trip_id: tripId });
+  if (rpcErr) { console.error('get_trip_managers failed:', rpcErr); currentManagers = []; renderManagerChips(); return; }
+  const ids = (rows ?? []).map(r => r.profile_id).filter(Boolean);
+  if (!ids.length) { currentManagers = []; renderManagerChips(); return; }
+  const { data: profs } = await supabase.from('profiles').select('id, display_name, email').in('id', ids);
+  currentManagers = ids.map(pid => {
+    const prof = (profs ?? []).find(p => p.id === pid) ?? {};
+    return { profile_id: pid, name: prof.display_name ?? prof.email ?? '', email: prof.email ?? '' };
+  });
   renderManagerChips();
-}
-
-async function saveManagers(tripId) {
-  if (!drawerManagers.length) return;
-  const rows = drawerManagers.map(m => ({
-    field_trip_id: tripId,
-    profile_id:    m.profile_id,
-    added_by:      profile.id,
-  }));
-  await supabase.from('field_trip_managers').upsert(rows, { onConflict: 'field_trip_id,profile_id' });
 }
 
 async function removeManager(profileId) {
