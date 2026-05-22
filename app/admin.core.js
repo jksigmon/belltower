@@ -24,7 +24,7 @@ async function init() {
   
 const { data: profile, error } = await supabase
   .from('profiles')
-  .select('*, schools!profiles_school_id_fkey(id, name, weather_lat, weather_lon, school_modules(module, enabled))')
+  .select('*, schools!profiles_school_id_fkey(id, name, timezone, weather_lat, weather_lon, school_modules(module, enabled))')
   .eq('user_id', user.id)
   .single();
 
@@ -46,7 +46,7 @@ document.getElementById('dashboardUser').textContent =
 document.getElementById('dashboardSchool').textContent =
   profile.schools?.name ?? '';
 
-  loadWeather('dashWeather', profile.schools?.weather_lat, profile.schools?.weather_lon);
+  loadWeather('dashWeather', profile.schools?.weather_lat, profile.schools?.weather_lon, profile.schools?.timezone);
 
   if (profile.is_superadmin) await initSchoolSwitcher(profile);
 

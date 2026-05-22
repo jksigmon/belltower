@@ -2212,6 +2212,49 @@
       <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Staff who sign in with this domain are automatically linked to this school.</small>
     </div>
     <div class="drawer-field">
+      <label>Phone</label>
+      <input id="schoolPhoneInput" class="form-input" placeholder="e.g. (336) 555-0100" />
+    </div>
+    <div class="drawer-field">
+      <label>Address</label>
+      <input id="schoolAddressInput" class="form-input" placeholder="Street address" />
+    </div>
+    <div class="admin-form-row compact three" style="gap:8px;">
+      <div class="drawer-field" style="margin:0;">
+        <label>City</label>
+        <input id="schoolCityInput" class="form-input" placeholder="City" />
+      </div>
+      <div class="drawer-field" style="margin:0;">
+        <label>State</label>
+        <input id="schoolStateInput" class="form-input" placeholder="NC" maxlength="2" style="text-transform:uppercase;" />
+      </div>
+      <div class="drawer-field" style="margin:0;">
+        <label>Zip</label>
+        <input id="schoolZipInput" class="form-input" placeholder="27358" maxlength="10" />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Timezone</label>
+      <select id="schoolTimezoneInput" class="form-input">
+        <option value="America/New_York">Eastern (ET)</option>
+        <option value="America/Chicago">Central (CT)</option>
+        <option value="America/Denver">Mountain (MT)</option>
+        <option value="America/Los_Angeles">Pacific (PT)</option>
+        <option value="America/Anchorage">Alaska (AKT)</option>
+        <option value="Pacific/Honolulu">Hawaii (HT)</option>
+      </select>
+    </div>
+    <div class="admin-form-row compact two" style="gap:8px;">
+      <div class="drawer-field" style="margin:0;">
+        <label>Weather Lat</label>
+        <input id="schoolLatInput" class="form-input" placeholder="e.g. 36.2112" type="number" step="any" />
+      </div>
+      <div class="drawer-field" style="margin:0;">
+        <label>Weather Lon</label>
+        <input id="schoolLonInput" class="form-input" placeholder="e.g. -79.9058" type="number" step="any" />
+      </div>
+    </div>
+    <div class="drawer-field">
       <label>Enable Modules</label>
       <div class="module-check-grid">
         <label><input type="checkbox" id="addMod_pto"> PTO Management</label>
@@ -2255,6 +2298,49 @@
     <div class="drawer-field">
       <label>Email Domain <span class="required">*</span></label>
       <input id="esSchoolDomain" class="form-input" placeholder="e.g. rarhinosk12.com" />
+    </div>
+    <div class="drawer-field">
+      <label>Phone</label>
+      <input id="esSchoolPhone" class="form-input" placeholder="e.g. (336) 555-0100" />
+    </div>
+    <div class="drawer-field">
+      <label>Address</label>
+      <input id="esSchoolAddress" class="form-input" placeholder="Street address" />
+    </div>
+    <div class="admin-form-row compact three" style="gap:8px;">
+      <div class="drawer-field" style="margin:0;">
+        <label>City</label>
+        <input id="esSchoolCity" class="form-input" placeholder="City" />
+      </div>
+      <div class="drawer-field" style="margin:0;">
+        <label>State</label>
+        <input id="esSchoolState" class="form-input" placeholder="NC" maxlength="2" style="text-transform:uppercase;" />
+      </div>
+      <div class="drawer-field" style="margin:0;">
+        <label>Zip</label>
+        <input id="esSchoolZip" class="form-input" placeholder="27358" maxlength="10" />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Timezone</label>
+      <select id="esSchoolTimezone" class="form-input">
+        <option value="America/New_York">Eastern (ET)</option>
+        <option value="America/Chicago">Central (CT)</option>
+        <option value="America/Denver">Mountain (MT)</option>
+        <option value="America/Los_Angeles">Pacific (PT)</option>
+        <option value="America/Anchorage">Alaska (AKT)</option>
+        <option value="Pacific/Honolulu">Hawaii (HT)</option>
+      </select>
+    </div>
+    <div class="admin-form-row compact two" style="gap:8px;">
+      <div class="drawer-field" style="margin:0;">
+        <label>Weather Lat</label>
+        <input id="esSchoolLat" class="form-input" placeholder="e.g. 36.2112" type="number" step="any" />
+      </div>
+      <div class="drawer-field" style="margin:0;">
+        <label>Weather Lon</label>
+        <input id="esSchoolLon" class="form-input" placeholder="e.g. -79.9058" type="number" step="any" />
+      </div>
     </div>
     <div class="drawer-field">
       <label>Modules</label>

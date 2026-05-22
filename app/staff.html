@@ -1672,7 +1672,7 @@ async function initStaff() {
   // Profile + school name + modules + employee campus in one round-trip
   const profileResult = await supabase
     .from('profiles')
-    .select('*, schools!profiles_school_id_fkey(id, name, weather_lat, weather_lon, school_modules(module, enabled)), employees!employee_id(campus_id, campuses(workday_hours, pto_increment_minutes, day_start_time, day_end_time))')
+    .select('*, schools!profiles_school_id_fkey(id, name, timezone, weather_lat, weather_lon, school_modules(module, enabled)), employees!employee_id(campus_id, campuses(workday_hours, pto_increment_minutes, day_start_time, day_end_time))')
     .eq('user_id', session.user.id)
     .single();
 
@@ -1687,7 +1687,7 @@ async function initStaff() {
   }
 
   initUserMenu(currentProfile.display_name ?? currentProfile.email);
-  loadWeather('staffDashWeather', currentProfile.schools?.weather_lat, currentProfile.schools?.weather_lon);
+  loadWeather('staffDashWeather', currentProfile.schools?.weather_lat, currentProfile.schools?.weather_lon, currentProfile.schools?.timezone);
 
   // Extract modules from joined data — no separate round-trip needed
   window.staffModules = {};
