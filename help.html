@@ -173,19 +173,28 @@
 .faq-answer li { margin-bottom: 4px; }
 .faq-answer strong { color: #111827; }
 .faq-answer .tip {
-  display: grid;
-  grid-template-columns: 14px 1fr;
-  align-items: start;
-  gap: 8px;
+  position: relative;
+  padding: 10px 12px 10px 30px;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
   border-radius: 8px;
-  padding: 10px 12px;
   margin-top: 10px;
   font-size: 13px;
   color: #1e40af;
+  line-height: 1.5;
 }
-.faq-answer .tip svg { margin-top: 1px; }
+.faq-answer .tip svg {
+  position: absolute;
+  left: 10px;
+  top: 12px;
+}
+
+/* Help page overrides admin-page body lock so the page can scroll */
+body.admin-page {
+  height: auto;
+  min-height: 100vh;
+  overflow-y: auto;
+}
 
 /* ── Still need help ── */
 .help-cta {
