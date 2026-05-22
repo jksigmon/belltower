@@ -865,11 +865,13 @@ async function _saveTrip() {
         ? _drawerManagers
         : [editorEntry, ..._drawerManagers];
 
-      const { error: mgrErr } = await supabase.from('field_trip_managers').upsert(
-        allEditMgrs.map(m => ({ field_trip_id: id, profile_id: m.profile_id, added_by: _profile.id })),
+      console.log('[mgr save] allEditMgrs:', allEditMgrs);
+      const upsertRows = allEditMgrs.map(m => ({ field_trip_id: id, profile_id: m.profile_id, added_by: _profile.id }));
+      const { data: mgrData, error: mgrErr } = await supabase.from('field_trip_managers').upsert(
+        upsertRows,
         { onConflict: 'field_trip_id,profile_id', ignoreDuplicates: true }
       );
-      if (mgrErr) console.error('field_trip_managers upsert failed:', mgrErr);
+      console.log('[mgr save] upsert result:', { data: mgrData, error: mgrErr });
 
       // Delete managers removed in the drawer (excluding the current user)
       const keptIds = new Set(allEditMgrs.map(m => m.profile_id));
@@ -880,6 +882,11 @@ async function _saveTrip() {
           .eq('field_trip_id', id)
           .in('profile_id', removed.map(m => m.profile_id));
       }
+      const { data: loadData, error: loadErr } = await supabase
+        .from('field_trip_managers')
+        .select('profile_id, profiles(display_name, email)')
+        .eq('field_trip_id', id);
+      console.log('[mgr save] direct load check:', { data: loadData, error: loadErr });
       await _loadManagers(id);
     }
   } else {
