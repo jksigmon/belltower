@@ -272,15 +272,11 @@ async function _renderFormLinks() {
 
 // ── Managers ─────────────────────────────────────────────────────────────
 async function _loadManagers(tripId) {
-  const { data } = await supabase
-    .from('field_trip_managers')
-    .select('profile_id, profiles(display_name, email)')
-    .eq('field_trip_id', tripId);
-
+  const { data } = await supabase.rpc('get_trip_managers', { trip_id: tripId });
   _managers = (data ?? []).map(r => ({
     profile_id: r.profile_id,
-    name:  r.profiles?.display_name ?? r.profiles?.email ?? '',
-    email: r.profiles?.email ?? '',
+    name:  r.display_name ?? r.email ?? '',
+    email: r.email ?? '',
   }));
   _renderManagerChips();
 }
