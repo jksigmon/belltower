@@ -126,6 +126,7 @@
         <div id="dashboardSchool"></div>
       </div>
       <div class="dash-banner-date" id="dashBannerDate"></div>
+      <div class="dash-banner-weather" id="dashWeather"></div>
     </div>
   </div>
 
@@ -2378,6 +2379,10 @@
   import { TEMPLATE_URL } from '/app/config.js';
   const link = document.getElementById('bulkTemplateDownload');
   if (link && TEMPLATE_URL) link.href = TEMPLATE_URL;
+</script>
+<script type="module">
+  import { loadWeather } from '/app/weather.js';
+  loadWeather('dashWeather');
 </script>
 <script defer src="/app/nav-mobile.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
