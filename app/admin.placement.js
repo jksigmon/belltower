@@ -1098,7 +1098,11 @@ function tryMoveSurgical(studentIds, toTeacherId) {
     card.classList.remove('selected');
   });
 
-  affectedCols.forEach(tid => updateColCount(tid === '' ? null : tid));
+  affectedCols.forEach(tid => {
+    const key = tid === '' ? null : tid;
+    updateColCount(key);
+    refreshColumnFlagCounts(key);
+  });
   return true;
 }
 
@@ -1121,7 +1125,11 @@ function tryUndoSurgical(group) {
     card.classList.remove('selected');
   }
 
-  affectedCols.forEach(tid => updateColCount(tid === '' ? null : tid));
+  affectedCols.forEach(tid => {
+    const key = tid === '' ? null : tid;
+    updateColCount(key);
+    refreshColumnFlagCounts(key);
+  });
   return true;
 }
 
