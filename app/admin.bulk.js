@@ -161,6 +161,12 @@ async function previewBulkUpload() {
     return;
   }
 
+  if (!data || !data.summary) {
+    const msg = data?.error || 'Unknown error from preview function.';
+    alert(`Preview failed: ${msg}`);
+    return;
+  }
+
   renderPreview(data);
   window.lastBulkPreviewResult = data;
 }
