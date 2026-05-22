@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
-import { esc, getAvatarColor, debounce } from './admin.shared.js';
+import { esc, getAvatarColor, debounce, dbError } from './admin.shared.js';
 
 let currentProfile;
 let initialized    = false;
@@ -169,7 +169,7 @@ function renderMemberList(tags) {
 
 async function removeMember(familyId, tagRowId) {
   const { error } = await supabase.from('carline_tags').delete().eq('id', tagRowId);
-  if (error) { alert('Failed to remove family: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to remove family'); return; }
   editingMembers = editingMembers.filter(id => id !== familyId);
   await refreshMemberList();
 }
@@ -231,7 +231,7 @@ async function addMember(familyId) {
     carpool_id: editingId,
     family_id:  familyId,
   });
-  if (error) { alert('Failed to add family: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to add family to carpool'); return; }
   document.getElementById('ecpAddFamilyPicker').hidden = true;
   await refreshMemberList();
 }
@@ -257,7 +257,7 @@ async function saveEditCarpool() {
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
 
-  if (error) { alert('Failed to save: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to save carpool'); return; }
   window.closeDrawer?.('editCarpoolDrawer');
   carpoolsDir.load();
 }
@@ -275,7 +275,7 @@ async function executeDelete() {
   if (!editingId) return;
   const { error } = await supabase.from('carpools').delete().eq('id', editingId);
   document.getElementById('deleteCarpoolModal').hidden = true;
-  if (error) { alert('Failed to delete: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to delete carpool'); return; }
   window.closeDrawer?.('editCarpoolDrawer');
   editingId = null;
   carpoolsDir.load();
@@ -297,7 +297,7 @@ async function createCarpool() {
     active:     true,
   });
 
-  if (error) { alert('Failed to create carpool (duplicate tag number?): ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to create carpool'); return; }
 
   document.getElementById('carpoolTag').value        = '';
   document.getElementById('carpoolLabel').value      = '';

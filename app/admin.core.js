@@ -105,10 +105,10 @@ if (fade) {
     '#guardians':   () => import('./admin.guardians.js').then(m => m.initGuardiansSection(currentProfile)),
     '#bus':         () => import('./admin.busgroups.js').then(m => m.initBusGroupsSection(currentProfile)),
     '#carpools':    () => import('./admin.carpools.js').then(m => m.initCarpoolsSection(currentProfile)),
-    '#access':      async () => {
-      await import('./admin.access.js').then(m => m.initAccessSection(currentProfile, currentModules));
-      await import('./admin.access-requests.js').then(m => m.initAccessRequests(currentProfile));
-    },
+    '#access':      () => Promise.all([
+      import('./admin.access.js').then(m => m.initAccessSection(currentProfile, currentModules)),
+      import('./admin.access-requests.js').then(m => m.initAccessRequests(currentProfile)),
+    ]),
     '#bulk-upload': () => import('./admin.bulk.js').then(m => m.initBulkSection()),
     '#exports':     () => import('./admin.exports.js').then(m => m.initExportsSection(currentProfile)),
     '#campuses':    () => import('./admin.campuses.js').then(m => m.initCampusesSection(currentProfile)),

@@ -1,5 +1,5 @@
 import { supabase } from './admin.supabase.js';
-import { esc, getAvatarColor } from './admin.shared.js';
+import { esc, getAvatarColor, fmtTime, dbError } from './admin.shared.js';
 
 let currentProfile;
 let campuses = [];
@@ -38,10 +38,6 @@ async function loadCampuses() {
 /* ===============================
    HELPERS
 ================================ */
-
-function fmtTime(t) {
-  return t ? t.slice(0, 5) : '—';
-}
 
 /* ===============================
    RENDER TABLE
@@ -152,7 +148,7 @@ async function saveEditCampus() {
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
 
-  if (error) { alert('Failed to save campus.'); return; }
+  if (error) { dbError(error, 'Failed to save campus'); return; }
   window.closeDrawer?.('editCampusDrawer');
   await loadCampuses();
 }
@@ -169,7 +165,7 @@ async function executeDeleteCampus() {
   if (!editingCampusId) return;
   const { error } = await supabase.from('campuses').delete().eq('id', editingCampusId);
   document.getElementById('deleteCampusModal').hidden = true;
-  if (error) { alert('Failed to delete campus.'); return; }
+  if (error) { dbError(error, 'Failed to delete campus'); return; }
   window.closeDrawer?.('editCampusDrawer');
   editingCampusId = null;
   await loadCampuses();
@@ -197,7 +193,7 @@ async function createCampus() {
     pto_increment_minutes: increment,
   });
 
-  if (error) { alert('Failed to create campus.'); return; }
+  if (error) { dbError(error, 'Failed to create campus'); return; }
 
   ['campusName', 'campusStart', 'campusEnd', 'campusHours', 'campusIncrement']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });

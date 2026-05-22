@@ -195,3 +195,54 @@ export function gradeLabel(grade) {
   }
   return `Grade ${grade}`;
 }
+
+/* ===============================
+   DATE / TIME UTILITIES
+================================ */
+
+/**
+ * Formats a time string (HH:MM or HH:MM:SS) as "8:30 AM".
+ * Returns empty string for falsy input.
+ */
+export function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':');
+  const hr = parseInt(h, 10);
+  return `${hr % 12 || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+}
+
+/**
+ * Returns today's date as an ISO date string (YYYY-MM-DD) in local time.
+ */
+export function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Formats a date string or ISO timestamp as "May 22, 2026".
+ * Handles date-only strings safely (avoids UTC-midnight timezone shift).
+ */
+export function fmtShortDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/* ===============================
+   ERROR HANDLING
+================================ */
+
+/**
+ * Logs a Supabase error to the console and shows a user-friendly alert.
+ * Distinguishes duplicate-key (23505) and permission (42501) errors.
+ */
+export function dbError(error, context = 'Operation failed') {
+  console.error(context, error);
+  if (error?.code === '23505') {
+    alert(`${context}: this record already exists.`);
+  } else if (error?.code === '42501') {
+    alert(`${context}: permission denied.`);
+  } else {
+    alert(`${context}${error?.message ? ': ' + error.message : '.'}`);
+  }
+}

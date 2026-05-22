@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
-import { esc, getAvatarColor, debounce } from './admin.shared.js';
+import { esc, getAvatarColor, debounce, dbError } from './admin.shared.js';
 
 let currentProfile;
 let initialized = false;
@@ -145,7 +145,7 @@ async function saveEditBusGroup() {
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
 
-  if (error) { alert('Failed to save: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to save bus group'); return; }
   window.closeDrawer?.('editBusGroupDrawer');
   busGroupsDirectory.load();
 }
@@ -200,7 +200,7 @@ async function executeDeleteBusGroup() {
   if (!editingBusGroupId) return;
   const { error } = await supabase.from('bus_groups').delete().eq('id', editingBusGroupId);
   document.getElementById('deleteBusGroupModal').hidden = true;
-  if (error) { alert('Failed to delete: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to delete bus group'); return; }
   window.closeDrawer?.('editBusGroupDrawer');
   editingBusGroupId = null;
   busGroupsDirectory.load();
@@ -230,7 +230,7 @@ async function createBusGroup() {
     capacity:     capacity ? parseInt(capacity, 10) : null,
   });
 
-  if (error) { alert('Failed to create bus group: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to create bus group'); return; }
 
   ['busName', 'busRoute', 'busDriver', 'busMonitor', 'busCapacity'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
