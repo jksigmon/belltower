@@ -270,7 +270,7 @@ background: rgba(255, 255, 255, 0.12);
 body.admin-page {
   display: grid;
   grid-template-rows: auto 1fr;
-  min-height: 100vh;
+  height: 100vh;
   overflow: hidden; /* page itself never scrolls */
 }
 
@@ -309,6 +309,8 @@ nav {
   );
   border-right: 1px solid #d1d5db;
   padding: 10px;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 
