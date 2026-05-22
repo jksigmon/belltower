@@ -892,13 +892,17 @@ async function _saveTrip() {
     error = insertErr;
     if (!error && data) {
       _tripCache.unshift(data);
-      // Auto-add creator + drawer managers
-      const allMgrs = [{ profile_id: _profile.id }, ..._drawerManagers];
-      const unique  = [...new Map(allMgrs.map(m => [m.profile_id, m])).values()];
-      await supabase.from('field_trip_managers').upsert(
-        unique.map(m => ({ field_trip_id: data.id, profile_id: m.profile_id, added_by: _profile.id })),
-        { onConflict: 'field_trip_id,profile_id', ignoreDuplicates: true }
+      // Insert creator first (self-insert satisfies RLS bootstrap),
+      // then insert any additional drawer managers.
+      await supabase.from('field_trip_managers').insert(
+        { field_trip_id: data.id, profile_id: _profile.id, added_by: _profile.id }
       );
+      const others = _drawerManagers.filter(m => m.profile_id !== _profile.id);
+      if (others.length) {
+        await supabase.from('field_trip_managers').insert(
+          others.map(m => ({ field_trip_id: data.id, profile_id: m.profile_id, added_by: _profile.id }))
+        );
+      }
       _currentTrip = data;
       await _loadManagers(data.id);
     }
