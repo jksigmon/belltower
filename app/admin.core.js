@@ -1,6 +1,7 @@
 import { supabase } from './admin.supabase.js';
 import { initUserMenu } from './user-menu.js';
 import { esc } from './admin.shared.js';
+import { loadWeather } from './weather.js';
 
 let currentProfile = null;
 let currentModules = {}; // { pto: true, substitutes: false, ... }
@@ -23,7 +24,7 @@ async function init() {
   
 const { data: profile, error } = await supabase
   .from('profiles')
-  .select('*, schools!profiles_school_id_fkey(id, name, school_modules(module, enabled))')
+  .select('*, schools!profiles_school_id_fkey(id, name, weather_lat, weather_lon, school_modules(module, enabled))')
   .eq('user_id', user.id)
   .single();
 
@@ -44,6 +45,8 @@ document.getElementById('dashboardUser').textContent =
 
 document.getElementById('dashboardSchool').textContent =
   profile.schools?.name ?? '';
+
+  loadWeather('dashWeather', profile.schools?.weather_lat, profile.schools?.weather_lon);
 
   if (profile.is_superadmin) await initSchoolSwitcher(profile);
 

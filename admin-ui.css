@@ -2780,6 +2780,15 @@ nav a[data-cap-group] {
   text-align: right;
   white-space: nowrap;
 }
+.dash-weather-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.dash-weather-link:hover .dash-weather-main {
+  text-decoration: underline;
+  text-decoration-color: rgba(255,255,255,0.4);
+}
 .dash-weather-main {
   font-size: 0.95rem;
   font-weight: 600;

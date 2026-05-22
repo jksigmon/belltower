@@ -1,6 +1,3 @@
-const LAT = 36.2112;
-const LON = -79.9058;
-
 const WMO = {
   0:  ['☀️', 'Clear'],
   1:  ['🌤️', 'Mostly Clear'],
@@ -25,12 +22,12 @@ const WMO = {
   99: ['⛈️', 'Thunderstorm'],
 };
 
-export async function loadWeather(elementId) {
+export async function loadWeather(elementId, lat, lon) {
   const el = document.getElementById(elementId);
-  if (!el) return;
+  if (!el || !lat || !lon) return;
 
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}` +
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
       `&daily=temperature_2m_max,temperature_2m_min,weathercode` +
       `&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=1`;
 
@@ -41,11 +38,14 @@ export async function loadWeather(elementId) {
     const high = Math.round(json.daily.temperature_2m_max[0]);
     const low  = Math.round(json.daily.temperature_2m_min[0]);
     const [icon, label] = WMO[code] ?? ['🌡️', 'Unknown'];
+    const href = `https://forecast.weather.gov/MapClick.php?lat=${lat}&lon=${lon}`;
 
     el.innerHTML = `
-      <div class="dash-banner-label">Weather</div>
-      <div class="dash-weather-main">${icon} ${label}</div>
-      <div class="dash-weather-range">H: ${high}° &nbsp; L: ${low}°</div>
+      <a href="${href}" target="_blank" rel="noopener" class="dash-weather-link">
+        <div class="dash-banner-label">Weather</div>
+        <div class="dash-weather-main">${icon} ${label}</div>
+        <div class="dash-weather-range">H: ${high}° &nbsp; L: ${low}°</div>
+      </a>
     `;
   } catch {
     // Silently fail — weather is non-critical
