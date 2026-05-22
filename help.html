@@ -173,8 +173,9 @@
 .faq-answer li { margin-bottom: 4px; }
 .faq-answer strong { color: #111827; }
 .faq-answer .tip {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  align-items: start;
   gap: 8px;
   background: #eff6ff;
   border: 1px solid #bfdbfe;
@@ -184,7 +185,7 @@
   font-size: 13px;
   color: #1e40af;
 }
-.faq-answer .tip svg { flex-shrink: 0; margin-top: 1px; }
+.faq-answer .tip svg { margin-top: 1px; }
 
 /* ── Still need help ── */
 .help-cta {
