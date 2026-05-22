@@ -71,12 +71,28 @@ async function _loadTrips() {
   const tbody = document.getElementById('ftStaffTableBody');
   if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>`;
 
-  const { data, error } = await supabase
+  let tripIds = null;
+  if (!_profile.can_manage_field_trips && !_profile.is_superadmin) {
+    const { data: managed } = await supabase
+      .from('field_trip_managers')
+      .select('field_trip_id')
+      .eq('profile_id', _profile.id);
+    tripIds = (managed ?? []).map(r => r.field_trip_id);
+    if (!tripIds.length) {
+      _tripCache = [];
+      _renderTripList();
+      return;
+    }
+  }
+
+  let query = supabase
     .from('field_trips')
     .select('id, name, destination, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, notes, status, created_at, created_by_profile_id')
     .eq('school_id', _profile.school_id)
     .order('start_date', { ascending: false });
+  if (tripIds) query = query.in('id', tripIds);
 
+  const { data, error } = await query;
   if (error) {
     if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:32px 0;">Failed to load trips.</td></tr>`;
     return;
@@ -272,23 +288,16 @@ async function _renderFormLinks() {
 
 // ── Managers ─────────────────────────────────────────────────────────────
 async function _loadManagers(tripId) {
-  console.log('[mgr] _loadManagers called, tripId=', tripId);
   const { data: rows, error: rpcErr } = await supabase.rpc('get_trip_managers', { trip_id: tripId });
-  console.log('[mgr] rpc rows=', rows, 'error=', rpcErr);
   if (rpcErr) { console.error('get_trip_managers failed:', rpcErr); _managers = []; _renderManagerChips(); return; }
   const ids = (rows ?? []).map(r => r.profile_id).filter(Boolean);
-  console.log('[mgr] ids=', ids);
   if (!ids.length) { _managers = []; _renderManagerChips(); return; }
-  const { data: profs, error: profErr } = await supabase.from('profiles').select('id, display_name, email').in('id', ids);
-  console.log('[mgr] profs=', profs, 'error=', profErr);
+  const { data: profs } = await supabase.from('profiles').select('id, display_name, email').in('id', ids);
   _managers = ids.map(pid => {
     const prof = (profs ?? []).find(p => p.id === pid) ?? {};
     return { profile_id: pid, name: prof.display_name ?? prof.email ?? '', email: prof.email ?? '' };
   });
-  console.log('[mgr] _managers=', _managers);
   _renderManagerChips();
-  const wrap = document.getElementById('ftStaffManagerChips');
-  console.log('[mgr] ftStaffManagerChips element=', wrap, 'innerHTML=', wrap?.innerHTML);
 }
 
 function _renderManagerChips() {
@@ -350,9 +359,8 @@ async function _searchManagerProfiles() {
       e.preventDefault();
       results.style.display = 'none';
       document.getElementById('ftStaffMgrSearch').value = '';
-      const { error } = await supabase.from('field_trip_managers').upsert(
-        { field_trip_id: _currentTrip.id, profile_id: p.id, added_by: _profile.id },
-        { onConflict: 'field_trip_id,profile_id' }
+      const { error } = await supabase.from('field_trip_managers').insert(
+        { field_trip_id: _currentTrip.id, profile_id: p.id, added_by: _profile.id }
       );
       if (error) { alert('Failed to add manager.'); return; }
       _managers.push({ profile_id: p.id, name: p.display_name ?? p.email ?? '', email: p.email ?? '' });
