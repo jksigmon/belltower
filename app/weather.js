@@ -22,14 +22,15 @@ const WMO = {
   99: ['⛈️', 'Thunderstorm'],
 };
 
-export async function loadWeather(elementId, lat, lon) {
+export async function loadWeather(elementId, lat, lon, timezone = 'America/New_York') {
   const el = document.getElementById(elementId);
   if (!el || !lat || !lon) return;
 
   try {
+    const tz  = encodeURIComponent(timezone || 'America/New_York');
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
       `&daily=temperature_2m_max,temperature_2m_min,weathercode` +
-      `&temperature_unit=fahrenheit&timezone=America%2FNew_York&forecast_days=1`;
+      `&temperature_unit=fahrenheit&timezone=${tz}&forecast_days=1`;
 
     const res = await fetch(url);
     const json = await res.json();
