@@ -4615,10 +4615,36 @@ body.placement-fs .wrap {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   padding: 9px 10px 9px 12px;
   border-radius: 10px 10px 0 0;
   border: none;
   gap: 6px;
+}
+
+.placement-col-flag-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  width: 100%;
+  padding-top: 2px;
+}
+
+.placement-col-flag-chip {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.placement-col-flag-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .placement-col-header.col-unplaced {
