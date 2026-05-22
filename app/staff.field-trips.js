@@ -272,12 +272,17 @@ async function _renderFormLinks() {
 
 // ── Managers ─────────────────────────────────────────────────────────────
 async function _loadManagers(tripId) {
-  const { data } = await supabase.rpc('get_trip_managers', { trip_id: tripId });
-  _managers = (data ?? []).map(r => ({
-    profile_id: r.profile_id,
-    name:  r.display_name ?? r.email ?? '',
-    email: r.email ?? '',
-  }));
+  // get_trip_managers is SECURITY DEFINER — returns profile_ids only, no .id join issue
+  const { data: rows, error: rpcErr } = await supabase.rpc('get_trip_managers', { trip_id: tripId });
+  if (rpcErr) { console.error('get_trip_managers failed:', rpcErr); _managers = []; _renderManagerChips(); return; }
+  const ids = (rows ?? []).map(r => r.profile_id).filter(Boolean);
+  if (!ids.length) { _managers = []; _renderManagerChips(); return; }
+  // Fetch display names — same profiles query the typeahead already uses successfully
+  const { data: profs } = await supabase.from('profiles').select('id, display_name, email').in('id', ids);
+  _managers = ids.map(pid => {
+    const prof = (profs ?? []).find(p => p.id === pid) ?? {};
+    return { profile_id: pid, name: prof.display_name ?? prof.email ?? '', email: prof.email ?? '' };
+  });
   _renderManagerChips();
 }
 
