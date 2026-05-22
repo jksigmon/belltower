@@ -17,6 +17,12 @@ let selectedGuardian     = null;
 let activeTab            = 'chaperones';
 let drawerManagers       = [];   // { profile_id, name, email } — pending in drawer
 let currentManagers      = [];   // loaded from DB for current trip
+let drawerInstallments   = [];   // installment rows being built in trip drawer
+let paymentCache         = [];   // field_trip_payments rows for current trip
+let paymentStudentMap    = new Map();
+let paymentChaperoneMap  = new Map();
+let pendingPaymentId     = null; // payment row targeted by the record-payment modal
+let paymentsLoaded       = false;
 
 // Populated from school config on init — not a hardcoded constant
 let GRADE_LEVELS = GRADE_ORDER;
@@ -38,6 +44,12 @@ async function init() {
   document.getElementById('signOut')?.addEventListener('click', async () => {
     await supabase.auth.signOut();
     window.location.href = '/login.html';
+  });
+
+  document.getElementById('ftPaymentModalCancel')?.addEventListener('click', closePaymentModal);
+  document.getElementById('ftPaymentModalSave')?.addEventListener('click', savePayment);
+  document.getElementById('ftPaymentModal')?.addEventListener('click', e => {
+    if (e.target.id === 'ftPaymentModal') closePaymentModal();
   });
 
   document.getElementById('sideNav')?.classList.remove('hidden');
@@ -236,6 +248,10 @@ async function openTrip(id) {
   showDetailView();
   document.getElementById('pageSubtitle').textContent = trip.name;
 
+  paymentsLoaded = false;
+  paymentCache   = [];
+  document.getElementById('ftPaymentsTab').style.display = trip.payment_required ? '' : 'none';
+
   renderTripHeader(trip);
   switchTab('chaperones');
   await Promise.all([loadChaperones(), renderComplianceFormLinks(), loadManagers(trip.id)]);
@@ -309,8 +325,10 @@ function switchTab(tab) {
   document.querySelectorAll('.ft-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('ftTabChaperones').style.display = tab === 'chaperones' ? '' : 'none';
   document.getElementById('ftTabStudents').style.display   = tab === 'students'   ? '' : 'none';
+  document.getElementById('ftTabPayments').style.display   = tab === 'payments'   ? '' : 'none';
 
   if (tab === 'students' && !studentList.length) loadStudents();
+  if (tab === 'payments') loadPayments();
 }
 
 // ── Chaperones ───────────────────────────────────────────────────────────
@@ -899,6 +917,22 @@ function wireTripDrawer() {
       if (r) r.style.display = 'none';
     }
   });
+
+  // Payment toggles
+  document.getElementById('ftDrawerPaymentRequired')?.addEventListener('change', e => {
+    document.getElementById('ftDrawerPaymentFields').style.display = e.target.checked ? '' : 'none';
+  });
+  document.getElementById('ftDrawerChaperonePayment')?.addEventListener('change', e => {
+    document.getElementById('ftDrawerChaperoneCostWrap').style.display = e.target.checked ? '' : 'none';
+  });
+  document.getElementById('ftDrawerAllowInstallments')?.addEventListener('change', e => {
+    document.getElementById('ftDrawerInstallmentWrap').style.display = e.target.checked ? '' : 'none';
+  });
+  document.getElementById('ftDrawerStudentCost')?.addEventListener('input', updateInstallmentTotal);
+  document.getElementById('ftDrawerAddInstallmentBtn')?.addEventListener('click', () => {
+    drawerInstallments.push({ label: '', amount: 0, due_date: '' });
+    renderDrawerInstallments();
+  });
 }
 
 function buildGradeCheckboxes() {
@@ -932,6 +966,22 @@ function openTripDrawer(trip) {
     cb.checked = selected.has(cb.value);
   });
 
+  // Payment settings
+  const payReq = document.getElementById('ftDrawerPaymentRequired');
+  payReq.checked = trip?.payment_required ?? false;
+  document.getElementById('ftDrawerPaymentFields').style.display    = payReq.checked ? '' : 'none';
+  document.getElementById('ftDrawerStudentCost').value              = trip?.student_cost ?? '';
+  document.getElementById('ftDrawerPaymentDueDate').value           = trip?.payment_due_date ?? '';
+  const chapPay = document.getElementById('ftDrawerChaperonePayment');
+  chapPay.checked = trip?.chaperone_payment_required ?? false;
+  document.getElementById('ftDrawerChaperoneCostWrap').style.display = chapPay.checked ? '' : 'none';
+  document.getElementById('ftDrawerChaperoneCost').value             = trip?.chaperone_cost ?? '';
+  const allowInst = document.getElementById('ftDrawerAllowInstallments');
+  allowInst.checked = trip?.allow_installments ?? false;
+  document.getElementById('ftDrawerInstallmentWrap').style.display  = allowInst.checked ? '' : 'none';
+  drawerInstallments = (trip?.installment_schedule ?? []).map(i => ({ ...i }));
+  renderDrawerInstallments();
+
   document.getElementById('ftTripDrawer').classList.add('open');
   document.getElementById('ftTripDrawerOverlay').classList.add('open');
   document.getElementById('ftDrawerName').focus();
@@ -952,20 +1002,40 @@ async function saveTrip() {
   if (!startDate) { alert('Start date is required.'); return; }
   if (endDate && endDate < startDate) { alert('End date cannot be before start date.'); return; }
 
+  const paymentRequired = document.getElementById('ftDrawerPaymentRequired').checked;
+  const studentCost     = document.getElementById('ftDrawerStudentCost').value ? parseFloat(document.getElementById('ftDrawerStudentCost').value) : null;
+  const allowInst       = document.getElementById('ftDrawerAllowInstallments').checked;
+  const instSchedule    = getInstallmentSchedule();
+
+  if (paymentRequired && allowInst && instSchedule?.length && studentCost != null) {
+    const instTotal = instSchedule.reduce((s, i) => s + (i.amount || 0), 0);
+    if (Math.abs(instTotal - studentCost) > 0.01) {
+      alert(`Installment total ($${instTotal.toFixed(2)}) must equal the student cost ($${studentCost.toFixed(2)}).`);
+      return;
+    }
+  }
+
   const grades = [...document.querySelectorAll('#ftDrawerGrades input:checked')].map(cb => cb.value);
 
   const payload = {
-    school_id:      profile.school_id,
+    school_id:                  profile.school_id,
     name,
-    destination:    document.getElementById('ftDrawerDest').value.trim() || null,
-    start_date:     startDate,
-    end_date:       endDate || null,
-    depart_at:      document.getElementById('ftDrawerDepart').value  || null,
-    return_at:      document.getElementById('ftDrawerReturn').value  || null,
-    grade_levels:   grades,
-    drivers_needed: document.getElementById('ftDrawerDrivers').checked,
-    max_chaperones: document.getElementById('ftDrawerMaxChap').value ? parseInt(document.getElementById('ftDrawerMaxChap').value, 10) : null,
-    notes:          document.getElementById('ftDrawerNotes').value.trim() || null,
+    destination:                document.getElementById('ftDrawerDest').value.trim() || null,
+    start_date:                 startDate,
+    end_date:                   endDate || null,
+    depart_at:                  document.getElementById('ftDrawerDepart').value  || null,
+    return_at:                  document.getElementById('ftDrawerReturn').value  || null,
+    grade_levels:               grades,
+    drivers_needed:             document.getElementById('ftDrawerDrivers').checked,
+    max_chaperones:             document.getElementById('ftDrawerMaxChap').value ? parseInt(document.getElementById('ftDrawerMaxChap').value, 10) : null,
+    notes:                      document.getElementById('ftDrawerNotes').value.trim() || null,
+    payment_required:           paymentRequired,
+    student_cost:               studentCost,
+    chaperone_payment_required: document.getElementById('ftDrawerChaperonePayment').checked,
+    chaperone_cost:             document.getElementById('ftDrawerChaperoneCost').value ? parseFloat(document.getElementById('ftDrawerChaperoneCost').value) : null,
+    allow_installments:         allowInst,
+    installment_schedule:       instSchedule,
+    payment_due_date:           document.getElementById('ftDrawerPaymentDueDate').value || null,
   };
 
   const btn = document.getElementById('ftSaveTripBtn');
@@ -978,7 +1048,13 @@ async function saveTrip() {
     if (!error) {
       const idx = tripCache.findIndex(t => t.id === id);
       if (idx >= 0) tripCache[idx] = { ...tripCache[idx], ...payload };
-      if (currentTrip?.id === id) { currentTrip = { ...currentTrip, ...payload }; renderTripHeader(currentTrip); }
+      if (currentTrip?.id === id) {
+        currentTrip = { ...currentTrip, ...payload };
+        renderTripHeader(currentTrip);
+        document.getElementById('ftPaymentsTab').style.display = currentTrip.payment_required ? '' : 'none';
+        if (!currentTrip.payment_required && activeTab === 'payments') switchTab('chaperones');
+        paymentsLoaded = false;
+      }
       // Delta: insert new managers, delete removed ones
       const editorEntry = { profile_id: profile.id, name: '', email: '' };
       const allEditMgrs = drawerManagers.some(m => m.profile_id === profile.id)
@@ -1125,6 +1201,332 @@ function renderDrawerManagerChips() {
       renderDrawerManagerChips();
     });
   });
+}
+
+// ── Payment drawer helpers ────────────────────────────────────────────────
+function renderDrawerInstallments() {
+  const list = document.getElementById('ftDrawerInstallmentList');
+  if (!list) return;
+  list.innerHTML = '';
+  drawerInstallments.forEach((inst, i) => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;align-items:center;';
+    row.innerHTML = `
+      <input type="text" class="admin-input" value="${esc(inst.label ?? '')}" placeholder="Label (e.g. Deposit)" style="flex:2;font-size:12px;padding:5px 8px;">
+      <input type="number" class="admin-input" value="${inst.amount || ''}" min="0" step="0.01" placeholder="$0.00" style="flex:1;font-size:12px;padding:5px 8px;">
+      <input type="date" class="admin-input" value="${inst.due_date ?? ''}" style="flex:1.5;font-size:12px;padding:5px 8px;">
+      <button type="button" style="background:none;border:none;cursor:pointer;padding:0 4px;color:#9ca3af;font-size:18px;line-height:1;">&times;</button>
+    `;
+    const inputs = row.querySelectorAll('input');
+    const delBtn = row.querySelector('button');
+    inputs[0].addEventListener('input', () => { drawerInstallments[i].label    = inputs[0].value; });
+    inputs[1].addEventListener('input', () => { drawerInstallments[i].amount   = parseFloat(inputs[1].value) || 0; updateInstallmentTotal(); });
+    inputs[2].addEventListener('input', () => { drawerInstallments[i].due_date = inputs[2].value; });
+    delBtn.addEventListener('click',   () => { drawerInstallments.splice(i, 1); renderDrawerInstallments(); });
+    list.appendChild(row);
+  });
+  updateInstallmentTotal();
+}
+
+function updateInstallmentTotal() {
+  const el = document.getElementById('ftDrawerInstallmentTotal');
+  if (!el || !drawerInstallments.length) { if (el) el.textContent = ''; return; }
+  const total       = drawerInstallments.reduce((s, i) => s + (parseFloat(i.amount) || 0), 0);
+  const studentCost = parseFloat(document.getElementById('ftDrawerStudentCost')?.value) || 0;
+  const match       = studentCost > 0 && Math.abs(total - studentCost) < 0.01;
+  const color       = match ? '#15803d' : (studentCost > 0 ? '#dc2626' : '#6b7280');
+  el.innerHTML      = `Total: <strong style="color:${color};">$${total.toFixed(2)}</strong>${studentCost ? ` of $${studentCost.toFixed(2)}${match ? ' ✓' : ' — must equal student cost'}` : ''}`;
+}
+
+function getInstallmentSchedule() {
+  if (!document.getElementById('ftDrawerAllowInstallments')?.checked) return null;
+  if (!drawerInstallments.length) return null;
+  return drawerInstallments.map(i => ({
+    label:    (i.label || 'Payment').trim(),
+    amount:   parseFloat(i.amount) || 0,
+    due_date: i.due_date || null,
+  }));
+}
+
+// ── Payments tab ──────────────────────────────────────────────────────────
+async function loadPayments() {
+  const wrap = document.getElementById('ftTabPayments');
+  if (!wrap || !currentTrip) return;
+
+  if (!currentTrip.payment_required) {
+    wrap.innerHTML = '<p class="muted" style="padding:40px;text-align:center;">Payment tracking is not enabled for this trip.</p>';
+    return;
+  }
+
+  wrap.innerHTML = '<p class="muted" style="padding:40px;text-align:center;">Loading...</p>';
+
+  if (!paymentsLoaded) {
+    await ensurePaymentRows();
+    paymentsLoaded = true;
+  }
+
+  const { data: payments, error } = await supabase
+    .from('field_trip_payments')
+    .select('*')
+    .eq('field_trip_id', currentTrip.id)
+    .order('payer_type')
+    .order('created_at');
+
+  if (error) {
+    wrap.innerHTML = '<p class="muted" style="padding:40px;text-align:center;">Failed to load payment data.</p>';
+    return;
+  }
+
+  paymentCache = payments ?? [];
+
+  const studentIds   = paymentCache.filter(p => p.student_id).map(p => p.student_id);
+  const chaperoneIds = paymentCache.filter(p => p.chaperone_id).map(p => p.chaperone_id);
+
+  const [studRes, chapRes] = await Promise.all([
+    studentIds.length
+      ? supabase.from('students').select('id, first_name, last_name, grade_level').in('id', studentIds)
+      : Promise.resolve({ data: [] }),
+    chaperoneIds.length
+      ? supabase.from('field_trip_chaperones').select('id, guardian:guardians(first_name, last_name, email)').in('id', chaperoneIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  paymentStudentMap   = new Map((studRes.data ?? []).map(s => [s.id, s]));
+  paymentChaperoneMap = new Map((chapRes.data ?? []).map(c => [c.id, c.guardian]));
+
+  renderPaymentTab(wrap);
+}
+
+async function ensurePaymentRows() {
+  const studentCost   = currentTrip.student_cost   ?? 0;
+  const chaperoneCost = currentTrip.chaperone_cost  ?? studentCost;
+  const grades        = currentTrip.grade_levels    ?? [];
+
+  if (grades.length) {
+    const [{ data: allStudents }, { data: excluded }] = await Promise.all([
+      supabase.from('students').select('id').eq('school_id', profile.school_id).eq('active', true).in('grade_level', grades),
+      supabase.from('field_trip_students').select('student_id').eq('field_trip_id', currentTrip.id).eq('attending', false),
+    ]);
+    const excludedIds = new Set((excluded ?? []).map(r => r.student_id));
+    const attending   = (allStudents ?? []).filter(s => !excludedIds.has(s.id));
+    if (attending.length) {
+      await supabase.from('field_trip_payments').upsert(
+        attending.map(s => ({ school_id: profile.school_id, field_trip_id: currentTrip.id, student_id: s.id, payer_type: 'student', amount_due: studentCost })),
+        { onConflict: 'field_trip_id,student_id', ignoreDuplicates: true }
+      );
+    }
+  }
+
+  if (currentTrip.chaperone_payment_required) {
+    const { data: chaperones } = await supabase
+      .from('field_trip_chaperones').select('id')
+      .eq('field_trip_id', currentTrip.id).is('removed_at', null);
+    if (chaperones?.length) {
+      await supabase.from('field_trip_payments').upsert(
+        chaperones.map(c => ({ school_id: profile.school_id, field_trip_id: currentTrip.id, chaperone_id: c.id, payer_type: 'chaperone', amount_due: chaperoneCost })),
+        { onConflict: 'field_trip_id,chaperone_id', ignoreDuplicates: true }
+      );
+    }
+  }
+}
+
+function renderPaymentTab(wrap) {
+  const schedule   = currentTrip.installment_schedule ?? [];
+  const students   = paymentCache.filter(p => p.payer_type === 'student');
+  const chaperones = paymentCache.filter(p => p.payer_type === 'chaperone');
+  const today      = new Date(); today.setHours(0, 0, 0, 0);
+
+  const countByStatus = s => paymentCache.filter(p => p.status === s).length;
+  const paid = countByStatus('paid'), partial = countByStatus('partial'),
+        unpaid = countByStatus('unpaid'), waived = countByStatus('waived');
+
+  let html = '';
+
+  // Installment schedule bar
+  if (schedule.length) {
+    html += `<div class="pay-inst-bar">
+      <div style="width:100%;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#475569;margin-bottom:4px;">Installment schedule</div>`;
+    schedule.forEach(inst => {
+      const due     = inst.due_date ? new Date(inst.due_date + 'T12:00:00') : null;
+      const isPast  = due && due < today;
+      const cls     = isPast ? 'pay-inst-overdue' : 'pay-inst-future';
+      const dateStr = due ? due.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+      html += `<div class="pay-inst-badge ${cls}">
+        <span style="font-size:11px;font-weight:700;">${esc(inst.label)}</span>
+        <span style="font-size:14px;font-weight:800;">$${parseFloat(inst.amount || 0).toFixed(2)}</span>
+        ${dateStr ? `<span style="font-size:10px;">${dateStr}</span>` : ''}
+        ${isPast ? `<span style="font-size:9px;font-weight:700;text-transform:uppercase;margin-top:1px;">Past due</span>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Summary strip
+  html += `<div class="pay-summary-strip">
+    <div class="pay-summary-card"><div class="val">${paid}</div><div class="lbl">Paid</div></div>
+    <div class="pay-summary-card${partial ? ' warn' : ''}"><div class="val">${partial}</div><div class="lbl">Partial</div></div>
+    <div class="pay-summary-card${unpaid ? ' alert' : ''}"><div class="val">${unpaid}</div><div class="lbl">Unpaid</div></div>
+    ${waived ? `<div class="pay-summary-card"><div class="val">${waived}</div><div class="lbl">Waived</div></div>` : ''}
+  </div>`;
+
+  if (students.length) {
+    html += `<h4 style="font-size:12px;font-weight:700;color:#374151;margin:0 0 10px 0;text-transform:uppercase;letter-spacing:0.05em;">Students</h4>`;
+    html += buildPaymentTable(students, 'student');
+  } else if (!(currentTrip.grade_levels?.length)) {
+    html += `<p class="muted" style="font-size:13px;margin-bottom:16px;">Set grade levels on this trip to auto-populate student payment records.</p>`;
+  }
+
+  if (currentTrip.chaperone_payment_required) {
+    if (chaperones.length) {
+      html += `<h4 style="font-size:12px;font-weight:700;color:#374151;margin:16px 0 10px 0;text-transform:uppercase;letter-spacing:0.05em;">Chaperones</h4>`;
+      html += buildPaymentTable(chaperones, 'chaperone');
+    } else {
+      html += `<p class="muted" style="font-size:13px;margin-top:8px;">No active chaperones to track.</p>`;
+    }
+  }
+
+  wrap.innerHTML = html;
+
+  wrap.querySelectorAll('[data-record-payment]').forEach(btn => {
+    btn.addEventListener('click', () => openPaymentModal(btn.dataset.recordPayment, btn.dataset.name, parseFloat(btn.dataset.balance)));
+  });
+  wrap.querySelectorAll('[data-waive-payment]').forEach(btn => {
+    btn.addEventListener('click', () => waivePayment(btn.dataset.waivePayment, btn.dataset.name));
+  });
+}
+
+function buildPaymentTable(rows, type) {
+  const gradeCol = type === 'student';
+  let html = `<div class="panel" style="padding:0;overflow:hidden;margin-bottom:20px;">
+    <table class="admin-table">
+      <thead><tr>
+        <th>Name</th>${gradeCol ? '<th>Grade</th>' : ''}
+        <th>Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Last payment</th><th></th>
+      </tr></thead><tbody>`;
+
+  const statusCls = { paid: 'pay-status-paid', partial: 'pay-status-partial', unpaid: 'pay-status-unpaid', waived: 'pay-status-waived' };
+
+  rows.forEach(p => {
+    const balance    = Math.max(0, (p.amount_due || 0) - (p.amount_paid || 0));
+    const badge      = `<span class="comp-chip ${statusCls[p.status] ?? ''}">${p.status}</span>`;
+    const lastDate   = p.last_payment_date
+      ? new Date(p.last_payment_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : '—';
+    let name = '—', grade = '—';
+    if (type === 'student') {
+      const s = paymentStudentMap.get(p.student_id);
+      if (s) { name = `${esc(s.last_name)}, ${esc(s.first_name)}`; grade = esc(s.grade_level ?? '—'); }
+    } else {
+      const g = paymentChaperoneMap.get(p.chaperone_id);
+      if (g) name = `${esc(g.first_name)} ${esc(g.last_name)}`;
+    }
+    const canAct = p.status !== 'paid' && p.status !== 'waived';
+    const actions = canAct
+      ? `<button class="btn btn-sm" data-record-payment="${p.id}" data-name="${name}" data-balance="${balance}" style="font-size:11px;">Record</button>
+         <button data-waive-payment="${p.id}" data-name="${name}" style="background:none;border:none;cursor:pointer;font-size:11px;color:#9ca3af;padding:4px 6px;">Waive</button>`
+      : '';
+
+    html += `<tr>
+      <td><strong>${name}</strong></td>
+      ${gradeCol ? `<td style="font-size:12px;">${grade}</td>` : ''}
+      <td>$${(p.amount_due  || 0).toFixed(2)}</td>
+      <td>$${(p.amount_paid || 0).toFixed(2)}</td>
+      <td>${balance > 0 ? `<span style="color:#dc2626;font-weight:600;">$${balance.toFixed(2)}</span>` : '<span style="color:#15803d;">—</span>'}</td>
+      <td>${badge}</td>
+      <td style="font-size:12px;color:#6b7280;">${lastDate}</td>
+      <td style="white-space:nowrap;">${actions}</td>
+    </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+// ── Payment modal ─────────────────────────────────────────────────────────
+function openPaymentModal(paymentId, name, balanceDue) {
+  pendingPaymentId = paymentId;
+  document.getElementById('ftPaymentModalTitle').textContent = `Record payment — ${name}`;
+  document.getElementById('ftPaymentModalAmount').value      = balanceDue > 0 ? balanceDue.toFixed(2) : '';
+  document.getElementById('ftPaymentModalDate').value        = new Date().toISOString().split('T')[0];
+  document.getElementById('ftPaymentModalNotes').value       = '';
+  document.getElementById('ftPaymentModal').classList.add('open');
+  setTimeout(() => document.getElementById('ftPaymentModalAmount').focus(), 50);
+}
+
+function closePaymentModal() {
+  document.getElementById('ftPaymentModal').classList.remove('open');
+  pendingPaymentId = null;
+}
+
+async function savePayment() {
+  const amount = parseFloat(document.getElementById('ftPaymentModalAmount').value);
+  if (!amount || amount <= 0) { alert('Enter a valid amount greater than $0.'); return; }
+
+  const receivedDate = document.getElementById('ftPaymentModalDate').value  || new Date().toISOString().split('T')[0];
+  const notes        = document.getElementById('ftPaymentModalNotes').value.trim() || null;
+  const rec          = paymentCache.find(p => p.id === pendingPaymentId);
+  if (!rec) return;
+
+  const btn = document.getElementById('ftPaymentModalSave');
+  btn.disabled = true; btn.textContent = 'Saving...';
+
+  const newPaid   = (parseFloat(rec.amount_paid) || 0) + amount;
+  const newStatus = computePaymentStatus(newPaid, rec.amount_due);
+
+  const { error: logErr } = await supabase.from('field_trip_payment_log').insert({
+    payment_id:    pendingPaymentId,
+    amount,
+    received_date: receivedDate,
+    notes,
+    recorded_by:   profile.id,
+  });
+
+  if (logErr) {
+    alert('Failed to save payment log.'); btn.disabled = false; btn.textContent = 'Save'; return;
+  }
+
+  const { error: updErr } = await supabase.from('field_trip_payments').update({
+    amount_paid:       newPaid,
+    status:            newStatus,
+    last_payment_date: receivedDate,
+    updated_by:        profile.id,
+    updated_at:        new Date().toISOString(),
+  }).eq('id', pendingPaymentId);
+
+  if (!updErr) {
+    const idx = paymentCache.findIndex(p => p.id === pendingPaymentId);
+    if (idx >= 0) paymentCache[idx] = { ...paymentCache[idx], amount_paid: newPaid, status: newStatus, last_payment_date: receivedDate };
+  }
+
+  btn.disabled = false; btn.textContent = 'Save';
+  closePaymentModal();
+  renderPaymentTab(document.getElementById('ftTabPayments'));
+}
+
+async function waivePayment(paymentId, name) {
+  const reason = prompt(`Waive payment for ${name}?\nEnter a reason (optional, press OK to confirm):`);
+  if (reason === null) return;
+
+  const { error } = await supabase.from('field_trip_payments').update({
+    status:       'waived',
+    waive_reason: reason || null,
+    updated_by:   profile.id,
+    updated_at:   new Date().toISOString(),
+  }).eq('id', paymentId);
+
+  if (error) { alert('Failed to waive payment.'); return; }
+
+  const idx = paymentCache.findIndex(p => p.id === paymentId);
+  if (idx >= 0) paymentCache[idx] = { ...paymentCache[idx], status: 'waived', waive_reason: reason || null };
+  renderPaymentTab(document.getElementById('ftTabPayments'));
+}
+
+function computePaymentStatus(paid, due) {
+  const p = parseFloat(paid) || 0;
+  const d = parseFloat(due)  || 0;
+  if (d === 0 || p >= d) return 'paid';
+  if (p > 0)             return 'partial';
+  return 'unpaid';
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────

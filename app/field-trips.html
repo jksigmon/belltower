@@ -173,6 +173,50 @@
       border-color: #0b2d4f;
       box-shadow: 0 0 0 3px rgba(11, 45, 79, 0.08);
     }
+
+    /* ── Payment status chips ── */
+    .pay-status-paid    { background:#dcfce7; color:#15803d; }
+    .pay-status-partial { background:#fef3c7; color:#92400e; }
+    .pay-status-unpaid  { background:#fee2e2; color:#991b1b; }
+    .pay-status-waived  { background:#f1f5f9; color:#64748b; }
+
+    /* ── Installment schedule bar ── */
+    .pay-inst-bar {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start;
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+      padding: 12px 16px; margin-bottom: 16px;
+    }
+    .pay-inst-badge {
+      display: inline-flex; flex-direction: column; align-items: center;
+      padding: 6px 14px; border-radius: 8px; font-size: 12px; border: 1px solid transparent;
+    }
+    .pay-inst-future  { background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+    .pay-inst-overdue { background:#fef3c7; color:#92400e; border-color:#fde68a; }
+
+    /* ── Payment summary strip ── */
+    .pay-summary-strip { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+    .pay-summary-card {
+      background:#fff; border:1px solid #e5e7eb; border-radius:10px;
+      padding:10px 18px; min-width:90px; text-align:center;
+    }
+    .pay-summary-card .val { font-size:22px; font-weight:800; color:#0b2d4f; line-height:1.2; }
+    .pay-summary-card .lbl { font-size:11px; color:#6b7280; text-transform:uppercase; letter-spacing:0.05em; }
+    .pay-summary-card.warn  .val { color:#d97706; }
+    .pay-summary-card.alert .val { color:#dc2626; }
+
+    /* ── Record payment modal ── */
+    .ft-modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45); z-index: 500;
+      align-items: center; justify-content: center;
+    }
+    .ft-modal-overlay.open { display: flex; }
+    .ft-modal-card {
+      background: #fff; border-radius: 14px; padding: 28px 24px;
+      width: 380px; max-width: calc(100vw - 32px);
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+    }
+
     .drawer-field textarea { resize: vertical; }
     .drawer-row { display: flex; gap: 12px; }
     .drawer-row .drawer-field { flex: 1; }
@@ -366,6 +410,7 @@
         <div class="ft-tabs">
           <button class="ft-tab active" data-tab="chaperones">Chaperones</button>
           <button class="ft-tab" data-tab="students">Students</button>
+          <button class="ft-tab" data-tab="payments" id="ftPaymentsTab" style="display:none;">Payments</button>
         </div>
 
         <!-- Chaperones tab -->
@@ -413,10 +458,36 @@
           </div>
         </div>
 
+        <!-- Payments tab -->
+        <div id="ftTabPayments" style="display:none;"></div>
+
       </div>
     </section>
 
   </main>
+</div>
+
+<!-- ══ RECORD PAYMENT MODAL ══════════════════════════════════════════ -->
+<div id="ftPaymentModal" class="ft-modal-overlay">
+  <div class="ft-modal-card">
+    <h3 id="ftPaymentModalTitle" style="margin:0 0 18px 0;font-size:16px;font-weight:800;color:#0b2d4f;"></h3>
+    <div style="margin-bottom:14px;">
+      <label class="drawer-label" for="ftPaymentModalAmount">Amount received ($) *</label>
+      <input type="number" id="ftPaymentModalAmount" min="0.01" step="0.01" class="admin-input" style="width:100%;" placeholder="0.00">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="drawer-label" for="ftPaymentModalDate">Date received</label>
+      <input type="date" id="ftPaymentModalDate" class="admin-input" style="width:100%;">
+    </div>
+    <div style="margin-bottom:22px;">
+      <label class="drawer-label" for="ftPaymentModalNotes">Notes (optional)</label>
+      <input type="text" id="ftPaymentModalNotes" class="admin-input" style="width:100%;" placeholder="e.g. Check #1234">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" id="ftPaymentModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="ftPaymentModalSave">Save</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ TRIP CREATE/EDIT DRAWER ════════════════════════════════════════ -->
@@ -482,6 +553,51 @@
     <div class="drawer-field">
       <label class="drawer-label" for="ftDrawerNotes">Notes</label>
       <textarea id="ftDrawerNotes" rows="3" placeholder="Optional internal notes..."></textarea>
+    </div>
+
+    <!-- Payment settings -->
+    <div style="border-top:1px solid #e5e7eb;padding-top:16px;margin-top:4px;">
+      <div class="drawer-field" style="margin-bottom:10px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#374151;">
+          <input type="checkbox" id="ftDrawerPaymentRequired" style="width:16px;height:16px;flex-shrink:0;">
+          Requires payment
+        </label>
+      </div>
+      <div id="ftDrawerPaymentFields" style="display:none;">
+        <div class="drawer-row">
+          <div class="drawer-field">
+            <label class="drawer-label" for="ftDrawerStudentCost">Student cost ($)</label>
+            <input type="number" id="ftDrawerStudentCost" min="0" step="0.01" placeholder="0.00">
+          </div>
+          <div class="drawer-field">
+            <label class="drawer-label" for="ftDrawerPaymentDueDate">Due date</label>
+            <input type="date" id="ftDrawerPaymentDueDate">
+          </div>
+        </div>
+        <div class="drawer-field" style="margin-bottom:8px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:500;color:#374151;">
+            <input type="checkbox" id="ftDrawerChaperonePayment" style="width:15px;height:15px;flex-shrink:0;">
+            Chaperones also pay
+          </label>
+        </div>
+        <div id="ftDrawerChaperoneCostWrap" style="display:none;padding-left:20px;margin-bottom:8px;">
+          <div class="drawer-field">
+            <label class="drawer-label" for="ftDrawerChaperoneCost">Chaperone cost ($)</label>
+            <input type="number" id="ftDrawerChaperoneCost" min="0" step="0.01" placeholder="Same as student">
+          </div>
+        </div>
+        <div class="drawer-field" style="margin-bottom:8px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;font-weight:500;color:#374151;">
+            <input type="checkbox" id="ftDrawerAllowInstallments" style="width:15px;height:15px;flex-shrink:0;">
+            Allow installment payments
+          </label>
+        </div>
+        <div id="ftDrawerInstallmentWrap" style="display:none;padding-left:20px;">
+          <div id="ftDrawerInstallmentList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+          <button type="button" class="btn btn-sm" id="ftDrawerAddInstallmentBtn" style="font-size:12px;">+ Add installment</button>
+          <div id="ftDrawerInstallmentTotal" style="font-size:12px;color:#6b7280;margin-top:6px;"></div>
+        </div>
+      </div>
     </div>
 
     <div class="drawer-field">
