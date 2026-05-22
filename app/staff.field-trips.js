@@ -865,20 +865,24 @@ async function _saveTrip() {
         ? _drawerManagers
         : [editorEntry, ..._drawerManagers];
 
-      const { error: mgrErr } = await supabase.from('field_trip_managers').upsert(
-        allEditMgrs.map(m => ({ field_trip_id: id, profile_id: m.profile_id, added_by: _profile.id })),
-        { onConflict: 'field_trip_id,profile_id', ignoreDuplicates: true }
-      );
-      if (mgrErr) console.error('field_trip_managers upsert failed:', mgrErr);
-
-      // Delete managers removed in the drawer (excluding the current user)
+      // Insert only rows not already in the DB; delete only removed ones.
+      // This avoids ON CONFLICT DO UPDATE and the missing UPDATE policy.
+      const existingIds = new Set(_managers.map(m => m.profile_id));
+      const toAdd = allEditMgrs.filter(m => !existingIds.has(m.profile_id));
       const keptIds = new Set(allEditMgrs.map(m => m.profile_id));
-      const removed = _managers.filter(m => !keptIds.has(m.profile_id) && m.profile_id !== _profile.id);
-      if (removed.length) {
+      const toRemove = _managers.filter(m => !keptIds.has(m.profile_id) && m.profile_id !== _profile.id);
+
+      if (toAdd.length) {
+        const { error: mgrErr } = await supabase.from('field_trip_managers').insert(
+          toAdd.map(m => ({ field_trip_id: id, profile_id: m.profile_id, added_by: _profile.id }))
+        );
+        if (mgrErr) console.error('field_trip_managers insert failed:', mgrErr);
+      }
+      if (toRemove.length) {
         await supabase.from('field_trip_managers')
           .delete()
           .eq('field_trip_id', id)
-          .in('profile_id', removed.map(m => m.profile_id));
+          .in('profile_id', toRemove.map(m => m.profile_id));
       }
       await _loadManagers(id);
     }
@@ -888,13 +892,17 @@ async function _saveTrip() {
     error = insertErr;
     if (!error && data) {
       _tripCache.unshift(data);
-      // Auto-add creator + drawer managers
-      const allMgrs = [{ profile_id: _profile.id }, ..._drawerManagers];
-      const unique  = [...new Map(allMgrs.map(m => [m.profile_id, m])).values()];
-      await supabase.from('field_trip_managers').upsert(
-        unique.map(m => ({ field_trip_id: data.id, profile_id: m.profile_id, added_by: _profile.id })),
-        { onConflict: 'field_trip_id,profile_id', ignoreDuplicates: true }
+      // Insert creator first (self-insert satisfies RLS bootstrap),
+      // then insert any additional drawer managers.
+      await supabase.from('field_trip_managers').insert(
+        { field_trip_id: data.id, profile_id: _profile.id, added_by: _profile.id }
       );
+      const others = _drawerManagers.filter(m => m.profile_id !== _profile.id);
+      if (others.length) {
+        await supabase.from('field_trip_managers').insert(
+          others.map(m => ({ field_trip_id: data.id, profile_id: m.profile_id, added_by: _profile.id }))
+        );
+      }
       _currentTrip = data;
       await _loadManagers(data.id);
     }
