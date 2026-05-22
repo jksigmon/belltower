@@ -23,7 +23,7 @@ let GRADE_LEVELS = GRADE_ORDER;
 
 // ── Init ────────────────────────────────────────────────────────────────
 async function init() {
-  profile = await initPage({ requiredCap: 'can_manage_field_trips' });
+  profile = await initPage();
   if (!profile) return;
 
   schoolConfig = await loadSchoolConfig(profile.school_id);
@@ -92,12 +92,28 @@ async function loadTrips() {
   const tbody = document.getElementById('ftTableBody');
   tbody.innerHTML = `<tr><td colspan="7" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>`;
 
-  const { data, error } = await supabase
+  let tripIds = null;
+  if (!profile.can_manage_field_trips && !profile.is_superadmin) {
+    const { data: managed } = await supabase
+      .from('field_trip_managers')
+      .select('field_trip_id')
+      .eq('profile_id', profile.id);
+    tripIds = (managed ?? []).map(r => r.field_trip_id);
+    if (!tripIds.length) {
+      tripCache = [];
+      renderTripList();
+      return;
+    }
+  }
+
+  let query = supabase
     .from('field_trips')
     .select('id, name, destination, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, notes, status, created_at')
     .eq('school_id', profile.school_id)
     .order('start_date', { ascending: false });
+  if (tripIds) query = query.in('id', tripIds);
 
+  const { data, error } = await query;
   if (error) {
     tbody.innerHTML = `<tr><td colspan="7" class="muted" style="text-align:center;padding:32px 0;">Failed to load: ${esc(error.message)}</td></tr>`;
     return;
