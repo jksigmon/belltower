@@ -797,6 +797,7 @@ function buildColumn(teacherId, name) {
 
   const col = document.createElement('div');
   col.className = 'placement-col' + (isPlaceholder ? ' placement-col--placeholder' : '');
+  col.dataset.colKey = teacherId ?? '__unplaced__';
   if (isUnplaced && totalCount === 0) col.classList.add('placement-col--unplaced-empty');
 
   const dragHandle = !isUnplaced
@@ -824,10 +825,12 @@ function buildColumn(teacherId, name) {
 
   col.innerHTML = `
     <div class="placement-col-header ${headerClass}">
-      ${dragHandle}
-      ${avatarOrBadge}
-      <span class="placement-col-name">${esc(name)}</span>
-      <span class="placement-col-count ${countClass}">${countDisplay}</span>
+      <div class="placement-col-header-row">
+        ${dragHandle}
+        ${avatarOrBadge}
+        <span class="placement-col-name">${esc(name)}</span>
+        <span class="placement-col-count ${countClass}">${countDisplay}</span>
+      </div>
       ${flagCountsHtml}
     </div>
     ${assignBar}
@@ -957,6 +960,19 @@ function buildCard(student) {
   });
 
   return card;
+}
+
+function refreshColumnFlagCounts(teacherId) {
+  const key = teacherId ?? '__unplaced__';
+  const col = document.querySelector(`.placement-col[data-col-key="${key}"]`);
+  if (!col) return;
+  const students = _students.filter(s => (_assignments[s.id] ?? null) === teacherId);
+  const header = col.querySelector('.placement-col-header');
+  if (!header) return;
+  const existing = header.querySelector('.placement-col-flag-counts');
+  const html = buildFlagCounts(students);
+  if (existing) existing.outerHTML = html;
+  else if (html) header.insertAdjacentHTML('beforeend', html);
 }
 
 function buildFlagCounts(students) {
@@ -1274,6 +1290,7 @@ function openFlagPopover(studentId, card) {
         await toggleFlag(studentId, f.id);
         refreshFlagDots(card, studentId);
         btn.classList.toggle('active', (_studentFlags[studentId] || new Set()).has(f.id));
+        refreshColumnFlagCounts(_assignments[studentId] ?? null);
       });
       pop.appendChild(btn);
     });
