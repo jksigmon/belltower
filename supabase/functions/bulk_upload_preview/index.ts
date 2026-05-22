@@ -466,10 +466,10 @@ const existingBusGroupsByName = new Map<string, {
 // --------------------------------------------------
 const { data: teacherEmployees } = await admin
   .from("employees")
-  .select("id, email, first_name, last_name, position, active")
+  .select("id, email, first_name, last_name, active")
   .eq("school_id", profile.school_id)
   .eq("active", true)
-  .ilike("position", "%teacher%")
+  .eq("is_teacher", true)
   .not("email", "is", null);
 
 const teachersByEmail = new Map<string, string>(

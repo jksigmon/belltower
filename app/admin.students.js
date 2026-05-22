@@ -127,7 +127,7 @@ async function loadHomeroomOptions() {
     .select('id, first_name, last_name')
     .eq('school_id', currentProfile.school_id)
     .eq('active', true)
-    .ilike('position', '%teacher%')
+    .eq('is_teacher', true)
     .order('last_name');
 
   if (error) { console.error('Failed to load teachers', error); return; }
