@@ -794,7 +794,7 @@ function _buildGradeCheckboxes() {
 }
 
 function _openTripDrawer(trip) {
-  _drawerManagers = [];
+  _drawerManagers = trip ? _managers.map(m => ({ ...m })) : [];
   _renderDrawerMgrChips();
   document.getElementById('ftStaffDrawerTitle').textContent      = trip ? 'Edit Trip' : 'New Trip';
   document.getElementById('ftStaffDrawerTripId').value           = trip?.id ?? '';
@@ -858,13 +858,21 @@ async function _saveTrip() {
       const idx = _tripCache.findIndex(t => t.id === id);
       if (idx >= 0) _tripCache[idx] = { ..._tripCache[idx], ...payload };
       if (_currentTrip?.id === id) { _currentTrip = { ..._currentTrip, ...payload }; _renderTripHeader(_currentTrip); }
-      // Save any new drawer managers
-      if (_drawerManagers.length) {
-        await supabase.from('field_trip_managers').upsert(
-          _drawerManagers.map(m => ({ field_trip_id: id, profile_id: m.profile_id, added_by: _profile.id })),
-          { onConflict: 'field_trip_id,profile_id' }
-        );
+      // Sync drawer managers to DB (upsert all, deletions handled separately)
+      await supabase.from('field_trip_managers').upsert(
+        _drawerManagers.map(m => ({ field_trip_id: id, profile_id: m.profile_id, added_by: _profile.id })),
+        { onConflict: 'field_trip_id,profile_id' }
+      );
+      // Remove any managers that were in the DB but removed in the drawer
+      const keptIds = new Set(_drawerManagers.map(m => m.profile_id));
+      const removed = _managers.filter(m => !keptIds.has(m.profile_id));
+      if (removed.length) {
+        await supabase.from('field_trip_managers')
+          .delete()
+          .eq('field_trip_id', id)
+          .in('profile_id', removed.map(m => m.profile_id));
       }
+      await _loadManagers(id);
     }
   } else {
     const { data, error: insertErr } = await supabase
@@ -879,6 +887,8 @@ async function _saveTrip() {
         unique.map(m => ({ field_trip_id: data.id, profile_id: m.profile_id, added_by: _profile.id })),
         { onConflict: 'field_trip_id,profile_id' }
       );
+      _currentTrip = data;
+      await _loadManagers(data.id);
     }
   }
 
