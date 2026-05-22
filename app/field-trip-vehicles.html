@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vehicle Assignments</title>
+  <link rel="stylesheet" href="/admin-ui.css" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+  <style>
+    /* ── Toolbar ── */
+    .veh-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 12px 20px;
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .veh-trip-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: #0b2d4f;
+      flex: 1;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .veh-save-status { font-size: 12px; color: #9ca3af; transition: color 0.2s; }
+    .veh-save-status.saving { color: #d97706; }
+    .veh-save-status.saved  { color: #15803d; }
+    .veh-save-status.error  { color: #dc2626; }
+
+    /* ── Board ── */
+    .veh-board {
+      display: flex;
+      gap: 14px;
+      padding: 18px 20px 40px;
+      overflow-x: auto;
+      min-height: calc(100vh - 58px);
+      align-items: flex-start;
+    }
+    .veh-col {
+      flex: 0 0 220px;
+      min-width: 220px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 90px);
+    }
+    .veh-col-unassigned { border-color: #d1d5db; }
+    .veh-col-unassigned .veh-col-header { background: #f1f5f9; border-radius: 13px 13px 0 0; }
+
+    .veh-col-header {
+      padding: 12px 14px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      flex-shrink: 0;
+    }
+    .veh-col-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #0b2d4f;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .veh-col-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: #6b7280;
+      flex-wrap: wrap;
+    }
+    .veh-cap-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #eff6ff;
+      color: #1d4ed8;
+      cursor: pointer;
+      border: 1px solid #bfdbfe;
+      white-space: nowrap;
+      transition: background 0.12s;
+    }
+    .veh-cap-badge:hover { background: #dbeafe; }
+    .veh-cap-badge.at-cap   { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+    .veh-cap-badge.over-cap { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
+    .veh-col-body {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      min-height: 80px;
+    }
+    .veh-col-body.drag-over { background: rgba(59,130,246,0.07); border-radius: 0 0 13px 13px; }
+
+    /* ── Student cards ── */
+    .veh-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-left: 4px solid #94a3b8;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-bottom: 6px;
+      cursor: grab;
+      user-select: none;
+      transition: box-shadow 0.12s, opacity 0.12s;
+    }
+    .veh-card:active { cursor: grabbing; }
+    .veh-card:hover  { box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
+    .veh-card.dragging { opacity: 0.45; }
+    .veh-card-name  { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.2; }
+    .veh-card-grade { font-size: 11px; color: #6b7280; margin-top: 2px; }
+
+    /* ── Print ── */
+    @media print {
+      .veh-toolbar, .veh-board { display: none !important; }
+      .print-roster { display: block !important; }
+      * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body { background: #fff; }
+    }
+    .print-roster { display: none; padding: 24px; }
+    .print-roster h1 {
+      font-size: 22px; font-weight: 800; color: #0b2d4f; margin: 0 0 4px 0;
+    }
+    .print-meta { font-size: 13px; color: #6b7280; margin-bottom: 22px; }
+    .print-vehicles { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .print-vehicle-box {
+      border: 1px solid #e5e7eb; border-radius: 10px;
+      padding: 14px 16px; break-inside: avoid;
+    }
+    .print-vehicle-name { font-size: 14px; font-weight: 800; color: #0b2d4f; margin-bottom: 2px; }
+    .print-vehicle-cap  { font-size: 11px; color: #6b7280; margin-bottom: 10px; }
+    .print-vehicle-student {
+      font-size: 13px; color: #374151; padding: 3px 0;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .print-vehicle-student:last-child { border-bottom: none; }
+    .print-unassigned { margin-top: 20px; border-top: 2px solid #e5e7eb; padding-top: 16px; }
+    .print-unassigned-title { font-size: 13px; font-weight: 700; color: #dc2626; margin-bottom: 8px; }
+  </style>
+</head>
+
+<body class="admin-page" style="background:#f8fafc;">
+
+<!-- ── Toolbar ── -->
+<div class="veh-toolbar">
+  <a href="/app/field-trips.html" class="btn btn-sm" style="flex-shrink:0;">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+    Field Trips
+  </a>
+  <div class="veh-trip-name" id="vehTripName">Loading…</div>
+  <span class="veh-save-status" id="vehSaveStatus"></span>
+  <button class="btn btn-sm" id="vehAutoAssignBtn" style="flex-shrink:0;">Auto-assign</button>
+  <button class="btn btn-sm" id="vehPrintBtn" style="flex-shrink:0;">Print Roster</button>
+  <!-- Hidden elements for auth layer -->
+  <span id="userInitials" style="display:none;"></span>
+  <span id="userDropdownName" style="display:none;"></span>
+</div>
+
+<!-- ── Board ── -->
+<div class="veh-board" id="vehBoard">
+  <div style="padding:60px 40px;color:#9ca3af;font-size:14px;">Loading…</div>
+</div>
+
+<!-- ── Print roster (hidden on screen) ── -->
+<div class="print-roster" id="printRoster"></div>
+
+<script type="module" src="/app/field-trip-vehicles.js"></script>
+</body>
+</html>

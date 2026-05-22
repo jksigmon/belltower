@@ -372,6 +372,7 @@
           </div>
           <div class="trip-hdr-actions">
             <span id="ftDetailBadge"></span>
+            <button class="btn btn-sm" id="ftPlanVehiclesBtn" style="display:none;">Plan Vehicles</button>
             <button class="btn btn-sm" id="ftEditBtn">Edit Trip</button>
             <button class="btn btn-sm btn-danger" id="ftCancelBtn" style="display:none;">Cancel Trip</button>
           </div>
@@ -650,6 +651,11 @@
         <input type="checkbox" id="ftChapIsDriver" style="width:16px;height:16px;">
         Driving (will check MVR clearance)
       </label>
+    </div>
+
+    <div id="ftChapCapacityWrap" class="drawer-field" style="display:none;padding-left:20px;">
+      <label class="drawer-label" for="ftChapCapacity">Vehicle capacity (seats)</label>
+      <input type="number" id="ftChapCapacity" min="1" max="99" placeholder="e.g. 7">
     </div>
 
   </div>

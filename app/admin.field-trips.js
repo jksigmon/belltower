@@ -365,6 +365,15 @@ async function loadChaperones() {
 
   renderChaperoneTable();
   renderComplianceStats();
+
+  const hasDrivers = chaperoneList.some(c => c.is_driver);
+  const planBtn = document.getElementById('ftPlanVehiclesBtn');
+  if (planBtn) {
+    planBtn.style.display = hasDrivers ? '' : 'none';
+    planBtn.onclick = () => {
+      window.location.href = `/app/field-trip-vehicles.html?trip=${currentTrip.id}`;
+    };
+  }
 }
 
 async function loadRequiredForms() {
@@ -627,6 +636,8 @@ async function removeChaperone(chapId) {
   chaperoneList = chaperoneList.filter(c => c.id !== chapId);
   renderChaperoneTable();
   renderComplianceStats();
+  const planBtn = document.getElementById('ftPlanVehiclesBtn');
+  if (planBtn) planBtn.style.display = chaperoneList.some(c => c.is_driver) ? '' : 'none';
   // Reload chaperone counts in list cache
   const t = tripCache.find(t => t.id === currentTrip.id);
   if (t) loadChaperoneCounts([t.id]);
@@ -747,6 +758,10 @@ function wireChapDrawer() {
       document.getElementById('ftChapResults').style.display = 'none';
     }
   });
+
+  document.getElementById('ftChapIsDriver')?.addEventListener('change', e => {
+    document.getElementById('ftChapCapacityWrap').style.display = e.target.checked ? '' : 'none';
+  });
 }
 
 function openChapDrawer() {
@@ -754,6 +769,8 @@ function openChapDrawer() {
   document.getElementById('ftChapSearch').value = '';
   document.getElementById('ftChapResults').style.display = 'none';
   document.getElementById('ftChapIsDriver').checked = false;
+  document.getElementById('ftChapCapacity').value = '';
+  document.getElementById('ftChapCapacityWrap').style.display = 'none';
   document.getElementById('ftChapDrawer').classList.add('open');
   document.getElementById('ftChapDrawerOverlay').classList.add('open');
   document.getElementById('ftChapSearch').focus();
@@ -826,12 +843,15 @@ async function saveChaperone() {
   const btn = document.getElementById('ftSaveChapBtn');
   btn.disabled = true;
 
-  const isDriver = document.getElementById('ftChapIsDriver').checked;
+  const isDriver   = document.getElementById('ftChapIsDriver').checked;
+  const capInput   = document.getElementById('ftChapCapacity').value;
+  const vehicleCap = isDriver && capInput ? (parseInt(capInput, 10) || null) : null;
   const { error } = await supabase.from('field_trip_chaperones').insert({
     school_id:           profile.school_id,
     field_trip_id:       currentTrip.id,
     guardian_id:         selectedGuardian.id,
     is_driver:           isDriver,
+    vehicle_capacity:    vehicleCap,
     added_by_profile_id: profile.id,
   });
 
