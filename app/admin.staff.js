@@ -38,6 +38,7 @@ export async function initStaffSection(profile) {
         last_name,
         email,
         position,
+        is_teacher,
         active,
         supervisor_id,
         campus_id,
@@ -232,7 +233,8 @@ function openEditStaffDrawer(emp) {
   document.getElementById('esPosition').value = emp.position ?? '';
   document.getElementById('esMonths').value   = emp.employment_months ?? '';
   document.getElementById('esBirthdate').value = emp.birthdate ?? '';
-  document.getElementById('esActive').checked  = !!emp.active;
+  document.getElementById('esActive').checked     = !!emp.active;
+  document.getElementById('esIsTeacher').checked  = !!emp.is_teacher;
 
   // Supervisor dropdown
   const supSel = document.getElementById('esSupervisor');
@@ -271,6 +273,7 @@ async function saveEditStaff() {
     employment_months: empMonthsVal ? parseInt(empMonthsVal) : null,
     birthdate:         document.getElementById('esBirthdate').value || null,
     active:            document.getElementById('esActive').checked,
+    is_teacher:        document.getElementById('esIsTeacher').checked,
   };
 
   const saveBtn = document.getElementById('esSaveBtn');
@@ -546,7 +549,8 @@ async function createStaff() {
     campus_id:         campusId,
     employment_months: employmentMonths,
     birthdate,
-    active:            true
+    active:            true,
+    is_teacher:        !!document.getElementById('staffIsTeacher')?.checked,
   });
 
   if (error) { console.error('Failed to add staff', error); alert('Failed to add staff member.'); return; }
@@ -554,6 +558,7 @@ async function createStaff() {
   ['staffFirst', 'staffLast', 'staffEmail', 'staffPosition'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
+  const itEl = document.getElementById('staffIsTeacher'); if (itEl) itEl.checked = false;
   const sup = document.getElementById('staffSupervisor'); if (sup) sup.value = '';
   const cam = document.getElementById('staffCampusAdd');  if (cam) cam.value = '';
   const mos = document.getElementById('staffEmploymentMonths'); if (mos) mos.value = '';
