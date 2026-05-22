@@ -858,14 +858,22 @@ async function _saveTrip() {
       const idx = _tripCache.findIndex(t => t.id === id);
       if (idx >= 0) _tripCache[idx] = { ..._tripCache[idx], ...payload };
       if (_currentTrip?.id === id) { _currentTrip = { ..._currentTrip, ...payload }; _renderTripHeader(_currentTrip); }
-      // Sync drawer managers to DB (upsert all, deletions handled separately)
-      await supabase.from('field_trip_managers').upsert(
-        _drawerManagers.map(m => ({ field_trip_id: id, profile_id: m.profile_id, added_by: _profile.id })),
+      // Always include the current user so we can satisfy RLS even if
+      // they were never inserted as a manager on this trip.
+      const editorEntry = { profile_id: _profile.id };
+      const allEditMgrs = _drawerManagers.some(m => m.profile_id === _profile.id)
+        ? _drawerManagers
+        : [editorEntry, ..._drawerManagers];
+
+      const { error: mgrErr } = await supabase.from('field_trip_managers').upsert(
+        allEditMgrs.map(m => ({ field_trip_id: id, profile_id: m.profile_id, added_by: _profile.id })),
         { onConflict: 'field_trip_id,profile_id' }
       );
-      // Remove any managers that were in the DB but removed in the drawer
-      const keptIds = new Set(_drawerManagers.map(m => m.profile_id));
-      const removed = _managers.filter(m => !keptIds.has(m.profile_id));
+      if (mgrErr) console.error('field_trip_managers upsert failed:', mgrErr);
+
+      // Delete managers removed in the drawer (excluding the current user)
+      const keptIds = new Set(allEditMgrs.map(m => m.profile_id));
+      const removed = _managers.filter(m => !keptIds.has(m.profile_id) && m.profile_id !== _profile.id);
       if (removed.length) {
         await supabase.from('field_trip_managers')
           .delete()
