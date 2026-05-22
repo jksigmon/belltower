@@ -43,6 +43,7 @@ export async function initStudentsSection(profile) {
         student_number,
         first_name,
         last_name,
+        preferred_name,
         grade_level,
         homeroom_teacher_id,
         campus_id,
