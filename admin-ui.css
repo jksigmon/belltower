@@ -4622,12 +4622,17 @@ body.placement-fs .wrap {
 
 .placement-col-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex-direction: column;
   padding: 9px 10px 9px 12px;
   border-radius: 10px 10px 0 0;
   border: none;
+  gap: 4px;
+}
+
+.placement-col-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 6px;
 }
 
@@ -4635,8 +4640,6 @@ body.placement-fs .wrap {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
-  width: 100%;
-  padding-top: 2px;
 }
 
 .placement-col-flag-chip {
