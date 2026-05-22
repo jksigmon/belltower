@@ -272,18 +272,23 @@ async function _renderFormLinks() {
 
 // ── Managers ─────────────────────────────────────────────────────────────
 async function _loadManagers(tripId) {
-  // get_trip_managers is SECURITY DEFINER — returns profile_ids only, no .id join issue
+  console.log('[mgr] _loadManagers called, tripId=', tripId);
   const { data: rows, error: rpcErr } = await supabase.rpc('get_trip_managers', { trip_id: tripId });
+  console.log('[mgr] rpc rows=', rows, 'error=', rpcErr);
   if (rpcErr) { console.error('get_trip_managers failed:', rpcErr); _managers = []; _renderManagerChips(); return; }
   const ids = (rows ?? []).map(r => r.profile_id).filter(Boolean);
+  console.log('[mgr] ids=', ids);
   if (!ids.length) { _managers = []; _renderManagerChips(); return; }
-  // Fetch display names — same profiles query the typeahead already uses successfully
-  const { data: profs } = await supabase.from('profiles').select('id, display_name, email').in('id', ids);
+  const { data: profs, error: profErr } = await supabase.from('profiles').select('id, display_name, email').in('id', ids);
+  console.log('[mgr] profs=', profs, 'error=', profErr);
   _managers = ids.map(pid => {
     const prof = (profs ?? []).find(p => p.id === pid) ?? {};
     return { profile_id: pid, name: prof.display_name ?? prof.email ?? '', email: prof.email ?? '' };
   });
+  console.log('[mgr] _managers=', _managers);
   _renderManagerChips();
+  const wrap = document.getElementById('ftStaffManagerChips');
+  console.log('[mgr] ftStaffManagerChips element=', wrap, 'innerHTML=', wrap?.innerHTML);
 }
 
 function _renderManagerChips() {
