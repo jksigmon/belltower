@@ -220,12 +220,22 @@ function renderPreview(result) {
 
   Object.entries(result.summary).forEach(([sheet, counts]) => {
     const div = document.createElement('div');
+    div.style.marginBottom = '12px';
+
+    const errors = (result.details?.[sheet] ?? []).filter(r => r.action === 'error');
+    const errorHtml = errors.length
+      ? `<ul style="margin:6px 0 0 0; padding-left:18px; color:#c0392b; font-size:0.875rem;">
+          ${errors.map(r => `<li>Row ${r.row}: ${r.error}</li>`).join('')}
+        </ul>`
+      : '';
+
     div.innerHTML = `
       <strong>${sheet}</strong><br>
       Insert: ${counts.insert ?? 0},
       Update: ${counts.update ?? 0},
       Skip: ${counts.skip ?? 0},
-      Error: ${counts.error ?? 0}
+      <span style="color:${(counts.error ?? 0) > 0 ? '#c0392b' : 'inherit'}">Error: ${counts.error ?? 0}</span>
+      ${errorHtml}
     `;
     container.appendChild(div);
   });
