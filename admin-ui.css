@@ -2776,6 +2776,21 @@ nav a[data-cap-group] {
   white-space: nowrap;
 }
 
+.dash-banner-weather {
+  text-align: right;
+  white-space: nowrap;
+}
+.dash-weather-main {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+}
+.dash-weather-range {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.6);
+  margin-top: 2px;
+}
+
 /* Stat card accent borders */
 [data-accent="blue"]   { border-top: 3px solid #2563eb; }
 [data-accent="red"]    { border-top: 3px solid #dc2626; }
