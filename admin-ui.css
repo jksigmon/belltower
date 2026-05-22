@@ -311,6 +311,31 @@ nav {
   padding: 10px;
   overflow-y: auto;
   min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.2s;
+}
+
+nav:hover {
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+nav::-webkit-scrollbar {
+  width: 3px;
+}
+
+nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+nav::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 99px;
+  transition: background 0.2s;
+}
+
+nav:hover::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
 }
 
 
