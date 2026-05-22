@@ -867,7 +867,7 @@ async function _saveTrip() {
 
       const { error: mgrErr } = await supabase.from('field_trip_managers').upsert(
         allEditMgrs.map(m => ({ field_trip_id: id, profile_id: m.profile_id, added_by: _profile.id })),
-        { onConflict: 'field_trip_id,profile_id' }
+        { onConflict: 'field_trip_id,profile_id', ignoreDuplicates: true }
       );
       if (mgrErr) console.error('field_trip_managers upsert failed:', mgrErr);
 
@@ -893,7 +893,7 @@ async function _saveTrip() {
       const unique  = [...new Map(allMgrs.map(m => [m.profile_id, m])).values()];
       await supabase.from('field_trip_managers').upsert(
         unique.map(m => ({ field_trip_id: data.id, profile_id: m.profile_id, added_by: _profile.id })),
-        { onConflict: 'field_trip_id,profile_id' }
+        { onConflict: 'field_trip_id,profile_id', ignoreDuplicates: true }
       );
       _currentTrip = data;
       await _loadManagers(data.id);
