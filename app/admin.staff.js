@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
-import { esc, getAvatarColor, debounce } from './admin.shared.js';
+import { esc, getAvatarColor, debounce, dbError } from './admin.shared.js';
 
 
 let currentProfile;
@@ -285,7 +285,7 @@ async function saveEditStaff() {
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
 
-  if (error) { alert('Failed to save: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to save staff'); return; }
   window.closeDrawer?.('editStaffDrawer');
   staffDirectory.load();
 }
@@ -303,7 +303,7 @@ async function executeDeleteStaff() {
   if (!editingEmpId) return;
   const { error } = await supabase.from('employees').delete().eq('id', editingEmpId);
   document.getElementById('deleteStaffModal').hidden = true;
-  if (error) { alert('Failed to delete: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to delete staff'); return; }
   window.closeDrawer?.('editStaffDrawer');
   editingEmpId = null;
   staffDirectory.load();
@@ -336,7 +336,7 @@ async function executeBulkStaffStatus(active) {
   const label = active ? 'Activate' : 'Deactivate';
   if (!confirm(`${label} ${ids.length} staff member${ids.length !== 1 ? 's' : ''}?`)) return;
   const { error } = await supabase.from('employees').update({ active }).in('id', ids).eq('school_id', currentProfile.school_id);
-  if (error) { alert(`Failed to ${label.toLowerCase()} staff: ` + error.message); return; }
+  if (error) { dbError(error, `Failed to ${label.toLowerCase()} staff`); return; }
   staffDirectory.load();
 }
 
@@ -553,7 +553,7 @@ async function createStaff() {
     is_teacher:        !!document.getElementById('staffIsTeacher')?.checked,
   });
 
-  if (error) { console.error('Failed to add staff', error); alert('Failed to add staff member.'); return; }
+  if (error) { dbError(error, 'Failed to add staff member'); return; }
 
   ['staffFirst', 'staffLast', 'staffEmail', 'staffPosition'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';

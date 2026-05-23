@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js';
 import { initPage } from './admin.auth.js';
-import { esc, debounce, loadSchoolConfig, GRADE_ORDER } from './admin.shared.js';
+import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, todayISO, dbError } from './admin.shared.js';
 
 let profile = null;
 let schoolConfig = null;
@@ -307,7 +307,7 @@ function renderTripHeader(trip) {
 async function cancelTrip(id) {
   if (!confirm('Cancel this trip? This cannot be undone.')) return;
   const { error } = await supabase.from('field_trips').update({ status: 'cancelled' }).eq('id', id);
-  if (error) { alert('Failed to cancel trip.'); return; }
+  if (error) { dbError(error, 'Failed to cancel trip'); return; }
   const t = tripCache.find(t => t.id === id);
   if (t) t.status = 'cancelled';
   renderTripHeader(currentTrip);
@@ -632,7 +632,7 @@ async function removeChaperone(chapId) {
     .from('field_trip_chaperones')
     .update({ removed_at: new Date().toISOString() })
     .eq('id', chapId);
-  if (error) { alert('Failed to remove chaperone.'); return; }
+  if (error) { dbError(error, 'Failed to remove chaperone'); return; }
   chaperoneList = chaperoneList.filter(c => c.id !== chapId);
   renderChaperoneTable();
   renderComplianceStats();
@@ -1118,7 +1118,7 @@ async function saveTrip() {
   btn.disabled = false;
   btn.textContent = 'Save Trip';
 
-  if (error) { alert('Failed to save trip.'); return; }
+  if (error) { dbError(error, 'Failed to save trip'); return; }
 
   closeTripDrawer();
   renderTripList();
@@ -1467,7 +1467,7 @@ function openPaymentModal(paymentId, name, balanceDue) {
   pendingPaymentId = paymentId;
   document.getElementById('ftPaymentModalTitle').textContent = `Record payment — ${name}`;
   document.getElementById('ftPaymentModalAmount').value      = balanceDue > 0 ? balanceDue.toFixed(2) : '';
-  document.getElementById('ftPaymentModalDate').value        = new Date().toISOString().split('T')[0];
+  document.getElementById('ftPaymentModalDate').value        = todayISO();
   document.getElementById('ftPaymentModalNotes').value       = '';
   document.getElementById('ftPaymentModal').classList.add('open');
   setTimeout(() => document.getElementById('ftPaymentModalAmount').focus(), 50);
@@ -1482,7 +1482,7 @@ async function savePayment() {
   const amount = parseFloat(document.getElementById('ftPaymentModalAmount').value);
   if (!amount || amount <= 0) { alert('Enter a valid amount greater than $0.'); return; }
 
-  const receivedDate = document.getElementById('ftPaymentModalDate').value  || new Date().toISOString().split('T')[0];
+  const receivedDate = document.getElementById('ftPaymentModalDate').value  || todayISO();
   const notes        = document.getElementById('ftPaymentModalNotes').value.trim() || null;
   const rec          = paymentCache.find(p => p.id === pendingPaymentId);
   if (!rec) return;
@@ -1502,7 +1502,7 @@ async function savePayment() {
   });
 
   if (logErr) {
-    alert('Failed to save payment log.'); btn.disabled = false; btn.textContent = 'Save'; return;
+    dbError(logErr, 'Failed to save payment log'); btn.disabled = false; btn.textContent = 'Save'; return;
   }
 
   const { error: updErr } = await supabase.from('field_trip_payments').update({
@@ -1534,7 +1534,7 @@ async function waivePayment(paymentId, name) {
     updated_at:   new Date().toISOString(),
   }).eq('id', paymentId);
 
-  if (error) { alert('Failed to waive payment.'); return; }
+  if (error) { dbError(error, 'Failed to waive payment'); return; }
 
   const idx = paymentCache.findIndex(p => p.id === paymentId);
   if (idx >= 0) paymentCache[idx] = { ...paymentCache[idx], status: 'waived', waive_reason: reason || null };
@@ -1547,15 +1547,6 @@ function computePaymentStatus(paid, due) {
   if (d === 0 || p >= d) return 'paid';
   if (p > 0)             return 'partial';
   return 'unpaid';
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────
-function fmtTime(t) {
-  if (!t) return '';
-  const [h, m] = t.split(':');
-  const hr  = parseInt(h, 10);
-  const ampm = hr >= 12 ? 'PM' : 'AM';
-  return `${hr % 12 || 12}:${m} ${ampm}`;
 }
 
 // ── Boot ─────────────────────────────────────────────────────────────────

@@ -5474,3 +5474,78 @@ body.placement-fs .wrap {
 
 }
 .guardian-chip-phone:hover { text-decoration: underline; }
+
+
+/* ============================================================
+   SHARED STATUS CHIPS  (comp-chip)
+   Used by: field-trips, compliance, any module with status chips
+   ============================================================ */
+.comp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.comp-cleared  { background: #dcfce7; color: #15803d; }
+.comp-action   { background: #fef3c7; color: #92400e; }
+.comp-blocked  { background: #fee2e2; color: #991b1b; }
+.comp-unknown  { background: #f1f5f9; color: #64748b; }
+
+/* ============================================================
+   SHARED INPUT STYLE  (.admin-input)
+   Provides a consistent styled input/select for standalone pages
+   that load admin-ui.css but don't use the full admin drawer stack.
+   ============================================================ */
+.admin-input {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  background: #fff;
+  color: #0f172a;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.admin-input:focus {
+  outline: none;
+  border-color: #0b2d4f;
+  box-shadow: 0 0 0 3px rgba(11, 45, 79, 0.08);
+}
+select.admin-input {
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+
+/* ============================================================
+   TAB NAVIGATION  (.ft-tabs / .ft-tab)
+   Underline-style tab bar used by field-trips and other modules.
+   ============================================================ */
+.ft-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border, #e5e7eb);
+  margin-bottom: 20px;
+}
+.ft-tab {
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.ft-tab.active { color: #0b2d4f; border-bottom-color: #0b2d4f; }
+.ft-tab:hover:not(.active) { color: #374151; }

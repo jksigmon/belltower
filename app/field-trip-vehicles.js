@@ -337,6 +337,22 @@ function setSaveStatus(status) {
     : 'Save failed — try again';
 }
 
+// ── Clear all assignments ─────────────────────────────────────────────────
+
+function clearAssignments() {
+  const assigned = students.filter(s => assignments.get(s.id));
+  if (!assigned.length) { alert('No students are currently assigned.'); return; }
+  if (!confirm(`Move all ${assigned.length} assigned student${assigned.length !== 1 ? 's' : ''} back to Unassigned?`)) return;
+
+  assigned.forEach(s => {
+    assignments.set(s.id, null);
+    dirty.add(s.id);
+  });
+
+  buildBoard();
+  scheduleSave();
+}
+
 // ── Auto-assign ───────────────────────────────────────────────────────────
 
 function autoAssign() {
@@ -434,6 +450,7 @@ function preparePrintRoster() {
 
 function wireActions() {
   document.getElementById('vehAutoAssignBtn')?.addEventListener('click', autoAssign);
+  document.getElementById('vehClearBtn')?.addEventListener('click', clearAssignments);
   document.getElementById('vehPrintBtn')?.addEventListener('click', () => {
     preparePrintRoster();
     window.print();

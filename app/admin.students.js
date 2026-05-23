@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js';
-import { loadFamilyOptions, loadBusGroupOptions, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER } from './admin.shared.js';
+import { loadFamilyOptions, loadBusGroupOptions, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER, todayISO, dbError } from './admin.shared.js';
 import { createDirectory } from './admin.directory.js';
 
 let currentProfile;
@@ -312,7 +312,7 @@ async function saveEditStudent() {
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
 
-  if (error) { alert('Failed to save: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to save student'); return; }
   window.closeDrawer?.('editStudentDrawer');
   studentsDirectory.load();
 }
@@ -321,7 +321,7 @@ function openWithdrawModal() {
   if (!editingStudentId) return;
   const name = `${document.getElementById('estuFirst').value} ${document.getElementById('estuLast').value}`;
   document.getElementById('withdrawStudentMsg').textContent = `Enter withdrawal details for ${name}.`;
-  document.getElementById('withdrawDate').value   = new Date().toISOString().slice(0, 10);
+  document.getElementById('withdrawDate').value   = todayISO();
   document.getElementById('withdrawReason').value = '';
   document.getElementById('withdrawStudentModal').hidden = false;
 }
@@ -339,7 +339,7 @@ async function executeWithdrawStudent() {
   }).eq('id', editingStudentId);
 
   document.getElementById('withdrawStudentModal').hidden = true;
-  if (error) { alert('Failed to withdraw student: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to withdraw student'); return; }
   window.closeDrawer?.('editStudentDrawer');
   editingStudentId = null;
   studentsDirectory.load();
@@ -362,7 +362,7 @@ async function executeReenrollStudent() {
   }).eq('id', editingStudentId);
 
   document.getElementById('reenrollStudentModal').hidden = true;
-  if (error) { alert('Failed to re-enroll student: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to re-enroll student'); return; }
   window.closeDrawer?.('editStudentDrawer');
   editingStudentId = null;
   studentsDirectory.load();
@@ -471,7 +471,7 @@ async function createStudent() {
   }
 
   const { error } = await supabase.from('students').insert(student);
-  if (error) { console.error('Create student error', error); alert('Failed to add student'); return; }
+  if (error) { dbError(error, 'Failed to add student'); return; }
 
   ['studentFirst', 'studentLast', 'studentPreferred', 'studentGrade', 'studentHomeroom',
    'studentNumber', 'studentFamily', 'studentCampus', 'studentBusGroup', 'studentBirthdate']

@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
-import { esc, getAvatarColor, debounce, loadSchoolConfig } from './admin.shared.js';
+import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError } from './admin.shared.js';
 
 let currentProfile;
 let schoolConfig = null;
@@ -187,7 +187,7 @@ async function saveEditFamily() {
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
 
-  if (error) { alert('Failed to save: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to save family'); return; }
   window.closeDrawer?.('editFamilyDrawer');
   familiesDirectory.load();
 }
@@ -204,7 +204,7 @@ async function executeDeleteFamily() {
   if (!editingFamilyId) return;
   const { error } = await supabase.from('families').delete().eq('id', editingFamilyId);
   document.getElementById('deleteFamilyModal').hidden = true;
-  if (error) { alert('Failed to delete: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to delete family'); return; }
   window.closeDrawer?.('editFamilyDrawer');
   editingFamilyId = null;
   familiesDirectory.load();
@@ -228,7 +228,7 @@ async function createFamily() {
     active:             true
   });
 
-  if (error) { alert('Failed to add family (duplicate tag?)'); return; }
+  if (error) { dbError(error, 'Failed to add family'); return; }
 
   document.getElementById('familyTag').value  = '';
   document.getElementById('familyName').value = '';

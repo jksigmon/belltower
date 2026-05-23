@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js';
-import { loadFamilyOptions, esc, getAvatarColor, cloneSelectOptions, debounce } from './admin.shared.js';
+import { loadFamilyOptions, esc, getAvatarColor, cloneSelectOptions, debounce, dbError } from './admin.shared.js';
 import { createDirectory } from './admin.directory.js';
 
 let currentProfile;
@@ -173,7 +173,7 @@ async function saveEditGuardian() {
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
 
-  if (error) { alert('Failed to save: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to save guardian'); return; }
   window.closeDrawer?.('editGuardianDrawer');
   guardiansDirectory.load();
 }
@@ -190,7 +190,7 @@ async function executeDeleteGuardian() {
   if (!editingGuardianId) return;
   const { error } = await supabase.from('guardians').delete().eq('id', editingGuardianId);
   document.getElementById('deleteGuardianModal').hidden = true;
-  if (error) { alert('Failed to delete: ' + error.message); return; }
+  if (error) { dbError(error, 'Failed to delete guardian'); return; }
   window.closeDrawer?.('editGuardianDrawer');
   editingGuardianId = null;
   guardiansDirectory.load();
@@ -223,7 +223,7 @@ async function createGuardian() {
   }
 
   const { error } = await supabase.from('guardians').insert(guardian);
-  if (error) { alert('Failed to add guardian'); return; }
+  if (error) { dbError(error, 'Failed to add guardian'); return; }
 
   ['guardianFirst', 'guardianLast', 'guardianEmail', 'guardianPhone'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
