@@ -60,9 +60,8 @@ export async function initGuardiansSection(profile) {
   if (!initialized) {
     wireGuardianEvents();
     initialized = true;
+    guardiansDirectory.load();
   }
-
-  guardiansDirectory.load();
 }
 
 /* ===============================

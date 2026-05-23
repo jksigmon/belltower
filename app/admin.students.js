@@ -1,12 +1,13 @@
 
 import { supabase } from './admin.supabase.js';
-import { loadFamilyOptions, loadBusGroupOptions, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER, todayISO, dbError } from './admin.shared.js';
+import { loadFamilyOptions, loadBusGroupOptions, searchFamilies, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER, todayISO, dbError } from './admin.shared.js';
 import { createDirectory } from './admin.directory.js';
 
 let currentProfile;
 let schoolConfig = null;
 let initialized = false;
 let studentsDirectory;
+let selectedFamilyId = null;
 let editingStudentId = null;
 
 /* ===============================
@@ -27,7 +28,7 @@ export async function initStudentsSection(profile) {
   }
 
   await Promise.all([
-    loadFamilyOptions(['#studentFamily'], currentProfile.school_id),
+    loadFamilyOptions([], currentProfile.school_id),
     loadBusGroupOptions('#studentBusGroup', currentProfile.school_id),
     usesHomerooms ? loadHomeroomOptions() : Promise.resolve(),
     loadCampusOptions()
@@ -92,9 +93,8 @@ export async function initStudentsSection(profile) {
     populateGradeSelects();
     wireStudentEvents();
     initialized = true;
+    studentsDirectory.load();
   }
-
-  studentsDirectory.load();
 }
 
 /* ===============================
@@ -225,7 +225,7 @@ function renderStudentRow(r) {
    EDIT DRAWER
 ================================ */
 
-function openEditStudentDrawer(r) {
+async function openEditStudentDrawer(r) {
   editingStudentId = r.id;
 
   const initials = `${r.first_name?.[0] ?? ''}${r.last_name?.[0] ?? ''}`.toUpperCase();
@@ -265,8 +265,10 @@ function openEditStudentDrawer(r) {
   document.getElementById('estuWithdrawBtn').style.display  = isWithdrawn ? 'none' : '';
   document.getElementById('estuReenrollBtn').style.display  = isWithdrawn ? ''     : 'none';
 
-  // Populate selects from the add-drawer source selects
-  cloneSelectOptions('#studentFamily',   document.getElementById('estuFamily'),   r.family_id);
+  // Populate selects; family uses cache directly since add-drawer no longer has a <select> to clone
+  await loadFamilyOptions(['#estuFamily'], currentProfile.school_id);
+  const estuFamily = document.getElementById('estuFamily');
+  if (estuFamily) estuFamily.value = r.family_id;
   cloneSelectOptions('#studentHomeroom', document.getElementById('estuHomeroom'), r.homeroom_teacher_id);
   cloneSelectOptions('#studentBusGroup', document.getElementById('estuBus'),      r.bus_groups?.id);
   cloneSelectOptions('#studentCampus',   document.getElementById('estuCampus'),   r.campus_id);
@@ -423,6 +425,12 @@ function wireStudentEvents() {
   document.getElementById('exportStudentsCurrent')?.addEventListener('click', () => studentsDirectory.exportFiltered());
   document.getElementById('exportStudentsAll')?.addEventListener('click',     () => studentsDirectory.exportAll());
 
+  // Family typeahead
+  document.getElementById('studentFamilySearch')?.addEventListener('input', debounce(onFamilySearchInput, 200));
+  document.getElementById('studentFamilySearch')?.addEventListener('blur', () => {
+    setTimeout(() => { const r = document.getElementById('studentFamilyResults'); if (r) r.style.display = 'none'; }, 150);
+  });
+
   // Edit drawer
   document.getElementById('estuSaveBtn')?.addEventListener('click',   saveEditStudent);
   document.getElementById('estuCancelBtn')?.addEventListener('click', () => window.closeDrawer?.('editStudentDrawer'));
@@ -446,13 +454,64 @@ function wireStudentEvents() {
 }
 
 /* ===============================
+   FAMILY TYPEAHEAD
+================================ */
+
+function onFamilySearchInput(e) {
+  const term = e.target.value.trim();
+  const resultsEl = document.getElementById('studentFamilyResults');
+  if (!resultsEl) return;
+
+  const matches = searchFamilies(currentProfile.school_id, term);
+
+  if (!matches.length) {
+    resultsEl.innerHTML = `<div class="ft-typeahead-empty">No families found.</div>`;
+    resultsEl.style.display = 'block';
+    return;
+  }
+
+  resultsEl.innerHTML = matches.map(f => {
+    const label = f.carline_tag_number
+      ? `${f.carline_tag_number} – ${esc(f.family_name ?? '(no name)')}`
+      : esc(f.family_name ?? '(no name)');
+    return `<div class="ft-typeahead-item" data-id="${esc(f.id)}" data-label="${esc(label)}"><strong>${label}</strong></div>`;
+  }).join('');
+
+  resultsEl.querySelectorAll('.ft-typeahead-item').forEach(item => {
+    item.addEventListener('mousedown', () => selectFamily(item.dataset.id, item.dataset.label));
+  });
+
+  resultsEl.style.display = 'block';
+}
+
+function selectFamily(id, label) {
+  selectedFamilyId = id;
+  const searchEl = document.getElementById('studentFamilySearch');
+  const hiddenEl = document.getElementById('studentFamily');
+  const resultsEl = document.getElementById('studentFamilyResults');
+  if (searchEl)  searchEl.value = label;
+  if (hiddenEl)  hiddenEl.value = id;
+  if (resultsEl) resultsEl.style.display = 'none';
+}
+
+function resetFamilyTypeahead() {
+  selectedFamilyId = null;
+  const searchEl = document.getElementById('studentFamilySearch');
+  const hiddenEl = document.getElementById('studentFamily');
+  const resultsEl = document.getElementById('studentFamilyResults');
+  if (searchEl)  searchEl.value = '';
+  if (hiddenEl)  hiddenEl.value = '';
+  if (resultsEl) resultsEl.style.display = 'none';
+}
+
+/* ===============================
    CREATE STUDENT
 ================================ */
 
 async function createStudent() {
   const student = {
     school_id:           currentProfile.school_id,
-    family_id:           document.getElementById('studentFamily').value,
+    family_id:           selectedFamilyId,
     first_name:          document.getElementById('studentFirst').value.trim(),
     last_name:           document.getElementById('studentLast').value.trim(),
     preferred_name:      document.getElementById('studentPreferred').value.trim() || null,
@@ -474,8 +533,9 @@ async function createStudent() {
   if (error) { dbError(error, 'Failed to add student'); return; }
 
   ['studentFirst', 'studentLast', 'studentPreferred', 'studentGrade', 'studentHomeroom',
-   'studentNumber', 'studentFamily', 'studentCampus', 'studentBusGroup', 'studentBirthdate']
+   'studentNumber', 'studentCampus', 'studentBusGroup', 'studentBirthdate']
     .forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  resetFamilyTypeahead();
 
   window.closeDrawer?.('studentDrawer');
   studentsDirectory.load();

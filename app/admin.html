@@ -1487,9 +1487,11 @@
   <div class="drawer-body">
     <div class="drawer-field">
       <label>Family <span class="required">*</span></label>
-      <select id="studentFamily" class="form-input">
-        <option value="">Select family…</option>
-      </select>
+      <div class="ft-typeahead-wrap">
+        <input type="text" id="studentFamilySearch" class="form-input" placeholder="Search by name or tag…" autocomplete="off">
+        <input type="hidden" id="studentFamily">
+        <div id="studentFamilyResults" class="ft-typeahead-results" style="display:none;"></div>
+      </div>
     </div>
     <div class="drawer-row-2">
       <div class="drawer-field">

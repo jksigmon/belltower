@@ -15,8 +15,8 @@ export async function initCampusesSection(profile) {
   if (!eventsWired) {
     wireStaticEvents();
     eventsWired = true;
+    await loadCampuses();
   }
-  await loadCampuses();
 }
 
 /* ===============================

@@ -37,9 +37,8 @@ export async function initCarpoolsSection(profile) {
   if (!initialized) {
     wireCarpoolEvents();
     initialized = true;
+    carpoolsDir.load();
   }
-
-  carpoolsDir.load();
 }
 
 /* ===============================

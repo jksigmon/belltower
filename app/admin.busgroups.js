@@ -42,9 +42,8 @@ export async function initBusGroupsSection(profile) {
   if (!initialized) {
     wireBusGroupEvents();
     initialized = true;
+    busGroupsDirectory.load();
   }
-
-  busGroupsDirectory.load();
 }
 
 /* ===============================

@@ -121,6 +121,16 @@ export function invalidateFamilyCache(schoolId) {
   else Object.keys(familyCache).forEach(k => delete familyCache[k]);
 }
 
+export function searchFamilies(schoolId, term) {
+  const cache = familyCache[schoolId] ?? [];
+  if (!term) return cache.slice(0, 8);
+  const t = term.toLowerCase();
+  return cache.filter(f =>
+    (f.family_name ?? '').toLowerCase().includes(t) ||
+    String(f.carline_tag_number ?? '').includes(t)
+  ).slice(0, 8);
+}
+
 export function invalidateBusGroupCache(schoolId) {
   if (schoolId) delete busGroupCache[schoolId];
   else Object.keys(busGroupCache).forEach(k => delete busGroupCache[k]);
