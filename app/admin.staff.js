@@ -85,9 +85,8 @@ export async function initStaffSection(profile) {
   if (!initialized) {
     wireStaticEvents();
     initialized = true;
+    staffDirectory.load();
   }
-
-  staffDirectory.load();
 }
 
 

@@ -46,9 +46,8 @@ export async function initFamiliesSection(profile) {
   if (!initialized) {
     wireFamilyEvents();
     initialized = true;
+    familiesDirectory.load();
   }
-
-  familiesDirectory.load();
 }
 
 /* ===============================
