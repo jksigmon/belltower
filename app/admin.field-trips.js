@@ -120,7 +120,7 @@ async function loadTrips() {
 
   let query = supabase
     .from('field_trips')
-    .select('id, name, destination, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, notes, status, created_at')
+    .select('id, name, destination, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, notes, status, created_at, payment_required, student_cost, chaperone_payment_required, chaperone_cost, allow_installments, installment_schedule, payment_due_date')
     .eq('school_id', profile.school_id)
     .order('start_date', { ascending: false });
   if (tripIds) query = query.in('id', tripIds);
