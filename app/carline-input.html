@@ -568,6 +568,16 @@ function setupRealtime() {
 }
 
 // ─── Call actions ──────────────────────────────────────────────────────
+
+function broadcastStudentCalls(calls) {
+  const bc = supabase.channel(`carline-display-${currentEvent.id}`);
+  bc.subscribe(st => {
+    if (st !== 'SUBSCRIBED') return;
+    bc.send({ type: 'broadcast', event: 'student_call', payload: { calls } });
+    setTimeout(() => supabase.removeChannel(bc), 1500);
+  });
+}
+
 async function callByTag(tag, isRecall = false) {
   if (!tag) return;
   if (!currentEvent || currentEvent.status === 'CLOSED') {
@@ -627,6 +637,7 @@ async function callStudents(students, familyIds, tag, callType) {
   playCallSound();
   showToast(`📣 Tag ${tag} — ${students.length} student${students.length !== 1 ? 's' : ''} called`);
   updateBusButtonStates();
+  broadcastStudentCalls(students.map(s => ({ student_id: s.id, status: 'CALLED', called_at: now, call_type: callType })));
 }
 
 async function recallStudents(students, familyIds, tag) {
@@ -641,11 +652,8 @@ async function recallStudents(students, familyIds, tag) {
 
   if (error) { showToast('Recall failed'); return; }
 
-  students.forEach(s => {
-    if (['CALLED', 'WAITING'].includes(callStatus.get(s.id) ?? 'WAITING')) {
-      callStatus.set(s.id, 'RECALLED');
-    }
-  });
+  const recalled = students.filter(s => ['CALLED', 'WAITING'].includes(callStatus.get(s.id) ?? 'WAITING'));
+  recalled.forEach(s => callStatus.set(s.id, 'RECALLED'));
 
   undoStack.push({ studentIds: students.map(s => s.id), prevStatuses, tag, callType: 'RECALL' });
   document.getElementById('btnUndoLast').disabled = false;
@@ -654,6 +662,7 @@ async function recallStudents(students, familyIds, tag) {
   pushRecent(tag, names, 'FAMILY', true);
   playRecallSound();
   showToast(`🔔 Tag ${tag} recalled`);
+  if (recalled.length) broadcastStudentCalls(recalled.map(s => ({ student_id: s.id, status: 'RECALLED', called_at: null, call_type: 'FAMILY' })));
 }
 
 async function callBusGroup(busGroupId) {
@@ -758,39 +767,24 @@ async function allCall() {
   );
   if (!waiting.length) { showToast('No waiting students remaining at this campus'); return; }
 
-  if (!confirm(`Send All Call?\n\nThis will call all ${waiting.length} remaining waiting student${waiting.length !== 1 ? 's' : ''} to the front.`)) return;
+  if (!confirm(`Send All Call?\n\nAll ${waiting.length} remaining student${waiting.length !== 1 ? 's' : ''} will appear as called on the display. Individual tags still work for actual pickups — students not called by tag won't have a record.`)) return;
 
   const now = new Date().toISOString();
-  const rows = waiting.map(s => ({
-    school_id: profile.school_id,
-    carline_event_id: currentEvent.id,
-    student_id: s.id,
-    family_id: s.family_id,
-    call_type: 'ALL_CALL',
-    status: 'CALLED',
-    called_at: now,
-    called_by_profile_id: profile.id,
-  }));
+  const { error } = await supabase
+    .from('carline_events')
+    .update({ all_call_at: now })
+    .eq('id', currentEvent.id);
 
-  const [{ error: callErr }, { error: evErr }] = await Promise.all([
-    supabase.from('carline_calls').upsert(rows, { onConflict: 'carline_event_id,student_id' }),
-    supabase.from('carline_events').update({ all_call_at: now }).eq('id', currentEvent.id),
-  ]);
+  if (error) { showToast('All Call failed'); return; }
 
-  if (callErr) { showToast('All Call failed'); return; }
-  if (evErr)   console.warn('All Call event stamp failed:', evErr.message);
-
-  waiting.forEach(s => callStatus.set(s.id, 'CALLED'));
   undoStack.length = 0;
   document.getElementById('btnUndoLast').disabled = true;
-  updateBusButtonStates();
   playAllCallSound();
-  showToast(`📢 All Call — ${waiting.length} student${waiting.length !== 1 ? 's' : ''} called`);
+  showToast(`📢 All Call sent`);
 
-  // Broadcast instantly to the display page
   const bc = supabase.channel(`carline-display-${currentEvent.id}`);
-  bc.subscribe(status => {
-    if (status !== 'SUBSCRIBED') return;
+  bc.subscribe(st => {
+    if (st !== 'SUBSCRIBED') return;
     bc.send({ type: 'broadcast', event: 'all_call', payload: {} });
     setTimeout(() => supabase.removeChannel(bc), 1500);
   });
@@ -798,14 +792,16 @@ async function allCall() {
 
 async function resetDay() {
   if (!currentEvent) return;
-  if (!confirm('Reset today\'s dismissal? This will clear ALL call records.')) return;
+  if (!confirm('Reset today\'s dismissal? This will clear ALL call records and the All Call banner.')) return;
 
-  const { error } = await supabase
-    .from('carline_calls')
-    .delete()
-    .eq('carline_event_id', currentEvent.id);
+  const [{ error: delErr }, { error: evErr }] = await Promise.all([
+    supabase.from('carline_calls').delete().eq('carline_event_id', currentEvent.id),
+    supabase.from('carline_events').update({ all_call_at: null }).eq('id', currentEvent.id),
+  ]);
 
-  if (error) { showToast('Reset failed'); return; }
+  if (delErr) { showToast('Reset failed'); return; }
+  if (evErr) console.warn('Failed to clear all_call_at:', evErr.message);
+
   callStatus.clear();
   undoStack.length = 0;
   recentCalls.length = 0;

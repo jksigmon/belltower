@@ -648,9 +648,16 @@ function renderColumns() {
 
   const students = getVisibleStudents();
   const multi    = activeTeacherIds.size > 1;
+  const hasAllCall = !!allCallAt;
 
-  const waiting  = students.filter(s => { const st = callStatus.get(s.id); return !st || st === 'WAITING'; });
-  const called   = students.filter(s => callStatus.get(s.id) === 'CALLED');
+  const waiting  = students.filter(s => {
+    const st = callStatus.get(s.id);
+    return (!st || st === 'WAITING') && !hasAllCall;
+  });
+  const called   = students.filter(s => {
+    const st = callStatus.get(s.id);
+    return st === 'CALLED' || (hasAllCall && (!st || st === 'WAITING'));
+  });
   const recalled = students.filter(s => callStatus.get(s.id) === 'RECALLED');
 
   called.sort((a, b) => (calledAt.get(b.id) || '').localeCompare(calledAt.get(a.id) || ''));
@@ -706,14 +713,20 @@ function renderColumn(bodyId, emptyId, students, statusClass, multi, emptyMsg) {
 
 function buildCard(student, statusClass) {
   const tag   = familyTagMap.get(student.family_id) ?? '';
-  const icon  = statusClass === 'called' ? '🚗' : statusClass === 'recalled' ? '🔔' : '';
   const grade = student.grade_level ? ` <span class="cl-card-grade">· ${esc(student.grade_level)}</span>` : '';
-  let timeStr = '';
-  if (statusClass === 'called') {
-    const iso = calledAt.get(student.id);
-    if (iso) {
-      const t = new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-      timeStr = `<span class="cl-card-time">${t}</span>`;
+  let icon = '', timeStr = '';
+
+  if (statusClass === 'recalled') {
+    icon = '🔔';
+  } else if (statusClass === 'called') {
+    const actualStatus = callStatus.get(student.id);
+    if (actualStatus === 'CALLED') {
+      icon = '🚗';
+      const iso = calledAt.get(student.id);
+      if (iso) timeStr = `<span class="cl-card-time">${new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>`;
+    } else {
+      // Virtually called via All Call — no individual record
+      icon = '📢';
     }
   }
   const el = document.createElement('div');
@@ -766,6 +779,27 @@ function setupRealtime() {
       renderColumns();
       if (r.student_id) flashCard(`card-${r.student_id}`, r.status);
     })
+    .on('broadcast', { event: 'student_call' }, ({ payload }) => {
+      if (!payload?.calls?.length) return;
+      let shouldPlayCall = false, shouldPlayRecall = false;
+      payload.calls.forEach(c => {
+        const prev = callStatus.get(c.student_id);
+        callStatus.set(c.student_id, c.status);
+        if (c.called_at) calledAt.set(c.student_id, c.called_at);
+        const changed = c.status !== prev;
+        if (changed) {
+          const student = allStudents.find(s => s.id === c.student_id);
+          if (student) callLog.unshift({ name: `${student.preferred_name || student.first_name} ${student.last_name}`, status: c.status, time: c.called_at || new Date().toISOString() });
+          if (c.status === 'CALLED'   && c.call_type !== 'ALL_CALL') shouldPlayCall   = true;
+          if (c.status === 'RECALLED')                                shouldPlayRecall = true;
+        }
+      });
+      renderLog();
+      renderColumns();
+      payload.calls.forEach(c => flashCard(`card-${c.student_id}`, c.status));
+      if (shouldPlayCall)   { playCallSound();   if (isMobile()) setActiveTab('called'); }
+      if (shouldPlayRecall) { playRecallSound(); if (isMobile()) setActiveTab('recalled'); }
+    })
     .on('broadcast', { event: 'all_call' }, () => {
       if (!allCallAt) {
         allCallAt = new Date().toISOString();
@@ -817,10 +851,11 @@ function watchForNewEvents() {
       if (!ev || !currentEvent || ev.id !== currentEvent.id) return;
       const wasOpen = currentEvent.status !== 'CLOSED';
       currentEvent.status = ev.status;
-      // Detect a new All Call
-      if (ev.all_call_at && ev.all_call_at !== allCallAt) {
-        allCallAt = ev.all_call_at;
-        updateAllCallBanner(true);
+      // Detect All Call set or cleared (reset day)
+      if (ev.all_call_at !== allCallAt) {
+        allCallAt = ev.all_call_at ?? null;
+        updateAllCallBanner(!!ev.all_call_at);
+        renderColumns();
       }
       updateEventUI();
       if (ev.status === 'CLOSED') {
