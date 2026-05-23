@@ -1165,6 +1165,33 @@ function renderManagerChips() {
   });
 }
 
+// Search can_login profiles by employee name or email — returns [{id, name, email}]
+async function searchStaffProfiles(val) {
+  // Search employees by first/last name first, then match to their profiles
+  const { data: emps } = await supabase
+    .from('employees')
+    .select('id, first_name, last_name, email')
+    .eq('school_id', profile.school_id)
+    .eq('active', true)
+    .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,email.ilike.%${val}%`)
+    .limit(20);
+
+  if (!emps?.length) return [];
+
+  const { data: profs } = await supabase
+    .from('profiles')
+    .select('id, employee_id, email')
+    .eq('school_id', profile.school_id)
+    .eq('can_login', true)
+    .in('employee_id', emps.map(e => e.id));
+
+  return (profs ?? []).map(p => {
+    const emp = emps.find(e => e.id === p.employee_id) ?? {};
+    const name = [emp.first_name, emp.last_name].filter(Boolean).join(' ') || p.email;
+    return { id: p.id, name, email: p.email ?? emp.email ?? '' };
+  });
+}
+
 // Drawer manager typeahead
 async function searchManagerProfiles() {
   const val = document.getElementById('ftMgrSearch')?.value.trim();
@@ -1175,16 +1202,9 @@ async function searchManagerProfiles() {
   results.innerHTML = `<div class="ft-typeahead-empty">Searching...</div>`;
   results.style.display = '';
 
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, display_name, email')
-    .eq('school_id', profile.school_id)
-    .eq('can_login', true)
-    .or(`display_name.ilike.%${val}%,email.ilike.%${val}%`)
-    .limit(8);
-
+  const found = await searchStaffProfiles(val);
   const existingIds = new Set(drawerManagers.map(m => m.profile_id));
-  const filtered = (data ?? []).filter(p => !existingIds.has(p.id));
+  const filtered = found.filter(p => !existingIds.has(p.id));
 
   if (!filtered.length) {
     results.innerHTML = `<div class="ft-typeahead-empty">No staff found.</div>`;
@@ -1195,10 +1215,10 @@ async function searchManagerProfiles() {
   filtered.forEach(p => {
     const item = document.createElement('div');
     item.className = 'ft-typeahead-item';
-    item.innerHTML = `<strong>${esc(p.display_name ?? p.email)}</strong><span>${esc(p.email ?? '')}</span>`;
+    item.innerHTML = `<strong>${esc(p.name)}</strong><span>${esc(p.email)}</span>`;
     item.addEventListener('mousedown', e => {
       e.preventDefault();
-      drawerManagers.push({ profile_id: p.id, name: p.display_name ?? p.email ?? '', email: p.email ?? '' });
+      drawerManagers.push({ profile_id: p.id, name: p.name, email: p.email });
       renderDrawerManagerChips();
       document.getElementById('ftMgrSearch').value = '';
       results.style.display = 'none';
