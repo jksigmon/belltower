@@ -815,6 +815,7 @@ function watchForNewEvents() {
     }, payload => {
       const ev = payload.new;
       if (!ev || !currentEvent || ev.id !== currentEvent.id) return;
+      const wasOpen = currentEvent.status !== 'CLOSED';
       currentEvent.status = ev.status;
       // Detect a new All Call
       if (ev.all_call_at && ev.all_call_at !== allCallAt) {
@@ -822,9 +823,14 @@ function watchForNewEvents() {
         updateAllCallBanner(true);
       }
       updateEventUI();
-      if (ev.status === 'CLOSED' && realtimeChannel) {
-        supabase.removeChannel(realtimeChannel);
-        realtimeChannel = null;
+      if (ev.status === 'CLOSED') {
+        if (realtimeChannel) { supabase.removeChannel(realtimeChannel); realtimeChannel = null; }
+        clearInterval(callsPollTimer); callsPollTimer = null;
+      }
+      if (ev.status === 'OPEN' && !wasOpen) {
+        setupRealtime();
+        startCallsPoller();
+        loadExistingCalls().then(() => renderColumns());
       }
     })
     .subscribe();

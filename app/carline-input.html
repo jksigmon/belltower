@@ -206,26 +206,23 @@ let callStatus   = new Map(); // student_id → status
 let undoStack    = [];        // [{ studentIds, prevStatus }]
 let recentCalls  = [];        // [{ tag, names, type, time, ts, isRecall }]
 let realtimeChannel = null;
+let eventPollTimer  = null;
 let audioCtx     = null;
 let tagBuffer    = '';
 let toastTimer   = null;
 
 // ─── Boot ─────────────────────────────────────────────────────────────
 async function boot() {
-  console.log('[boot] 1 - start');
   const sessionRes = await supabase.auth.getSession();
   const session = sessionRes?.data?.session;
-  console.log('[boot] 2 - session:', session ? 'found' : 'none');
   if (!session) { window.location.href = '/login.html'; return; }
 
-  console.log('[boot] 3 - loading profile');
   const { data: p, error } = await supabase
     .from('profiles')
     .select('*, schools!profiles_school_id_fkey(name)')
     .eq('user_id', session.user.id)
     .single();
 
-  console.log('[boot] 4 - profile:', p?.id, 'error:', error?.message);
   if (error || !p) { alert('Profile load failed: ' + (error?.message ?? 'not found')); return; }
   if (!p.can_view_carline && !p.is_superadmin) {
     window.location.href = '/admin.html';
@@ -238,9 +235,7 @@ async function boot() {
     document.getElementById('adminSection').hidden = false;
   }
 
-  console.log('[boot] 5 - loading data');
   await Promise.all([ loadStudents(), loadBusGroups(), loadFamilyTags(), loadCarpoolTags(), loadCampuses() ]);
-  console.log('[boot] 6 - data loaded, students:', allStudents.length);
 
   // Default campus from employee assignment
   if (p.employee_id && allCampuses.length > 0) {
@@ -252,20 +247,19 @@ async function boot() {
     activeCampusId = emp?.campus_id ?? null;
   }
   await ensureCarlineEvent();
-  console.log('[boot] 7 - event:', currentEvent?.id ?? 'none');
   if (currentEvent) {
     await loadExistingCalls();
     await loadBusArrivals();
+    if (currentEvent.status !== 'CLOSED') setupRealtime();
   }
 
-  console.log('[boot] 8 - wiring UI');
   buildKeypad();
   renderBusGrid();
   wireEvents();
+  watchForNewEvents();
 
   document.getElementById('clLoading').hidden = true;
   document.getElementById('inputApp').hidden  = false;
-  console.log('[boot] 9 - done');
 }
 
 // ─── Data loaders ─────────────────────────────────────────────────────
@@ -437,6 +431,7 @@ async function reopenDismissal() {
   currentEvent.status = 'OPEN';
   updateEventUI();
   setupRealtime();
+  await loadExistingCalls();
   showToast('Dismissal reopened');
 }
 
@@ -477,8 +472,67 @@ function updateEventUI() {
   document.getElementById('btnCall').disabled   = !isOpen;
   document.getElementById('btnRecall').disabled = !isOpen;
   document.getElementById('allCallRow').hidden  = !isOpen || !canManage;
+}
 
-  if (isOpen) setupRealtime();
+// ─── Watch for new events (page open before dismissal starts) ─────────
+function watchForNewEvents() {
+  supabase
+    .channel(`carline-input-events-${profile.school_id}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'carline_events',
+      filter: `school_id=eq.${profile.school_id}`,
+    }, async payload => {
+      const ev = payload.new;
+      if (!ev || ev.status === 'CLOSED' || currentEvent) return;
+      // Respect campus filter
+      if (activeCampusId ? ev.campus_id !== activeCampusId : ev.campus_id !== null) return;
+      await onEventStarted(ev);
+    })
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'carline_events',
+      filter: `school_id=eq.${profile.school_id}`,
+    }, payload => {
+      const ev = payload.new;
+      if (!ev || !currentEvent || ev.id !== currentEvent.id) return;
+      currentEvent.status = ev.status;
+      updateEventUI();
+      if (ev.status === 'CLOSED' && realtimeChannel) {
+        supabase.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+      }
+    })
+    .subscribe();
+
+  eventPollTimer = setInterval(pollForEvent, 10_000);
+}
+
+async function pollForEvent() {
+  if (currentEvent) { clearInterval(eventPollTimer); eventPollTimer = null; return; }
+  const today = new Date().toISOString().slice(0, 10);
+  let q = supabase
+    .from('carline_events')
+    .select('id, status, name')
+    .eq('school_id', profile.school_id)
+    .eq('event_date', today)
+    .neq('status', 'CLOSED');
+  q = activeCampusId ? q.eq('campus_id', activeCampusId) : q.is('campus_id', null);
+  const { data } = await q.maybeSingle();
+  if (data) await onEventStarted(data);
+}
+
+async function onEventStarted(ev) {
+  clearInterval(eventPollTimer); eventPollTimer = null;
+  currentEvent = ev;
+  updateEventUI();
+  await loadExistingCalls();
+  await loadBusArrivals();
+  setupRealtime();
+  renderBusGrid();
+  showToast('Dismissal started');
 }
 
 // ─── Realtime ─────────────────────────────────────────────────────────
