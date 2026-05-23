@@ -696,6 +696,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
   <a href="#compliance-report" data-module="compliance"><i data-lucide="clipboard-list"></i> Compliance Report</a>
   <a href="/app/field-trips.html" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
+  <a href="#data-collection"><i data-lucide="link"></i> Form Links</a>
   <a href="#access-request"><i data-lucide="key"></i> Request Access</a>
 </nav>
 
@@ -1082,6 +1083,19 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         </div>
       </div>
 
+    </section>
+
+    <!-- ── Data Collection Form Links ── -->
+    <section id="data-collection" style="display:none;">
+      <div class="panel">
+        <h3 style="margin:0 0 6px;">Active Form Links</h3>
+        <p class="muted" style="margin:0 0 20px;font-size:13px;">
+          Share these links with parents to collect their contact information. Links are created and managed by school administrators.
+        </p>
+        <div id="staffDcList">
+          <p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>
+        </div>
+      </div>
     </section>
 
   </main>
@@ -1600,12 +1614,13 @@ function setActive(hash) {
   history.replaceState(null, '', hash);
 
   const subtitle = document.getElementById('pageSubtitle');
-  if (hash === '#dashboard')       subtitle.textContent = '';
-  if (hash === '#pto')             subtitle.textContent = 'PTO & Leave';
-  if (hash === '#licensure')       subtitle.textContent = 'My Licenses';
+  if (hash === '#dashboard')          subtitle.textContent = '';
+  if (hash === '#pto')                subtitle.textContent = 'PTO & Leave';
+  if (hash === '#licensure')          subtitle.textContent = 'My Licenses';
   if (hash === '#bg-checks')          subtitle.textContent = 'Background Checks';
   if (hash === '#compliance-report')  subtitle.textContent = 'Compliance Report';
   if (hash === '#access-request')     subtitle.textContent = 'Request Access';
+  if (hash === '#data-collection')    subtitle.textContent = 'Form Links';
 
   document.querySelectorAll('nav a').forEach(function (a) {
     a.classList.toggle('active', a.getAttribute('href') === hash);
@@ -1626,7 +1641,52 @@ function setActive(hash) {
   if (hash === '#bg-checks')           loadMyBgRequests();
   if (hash === '#compliance-report')   initComplianceReport();
   if (hash === '#access-request')      { buildAccessRequestOptions(); loadMyAccessRequests(); }
+  if (hash === '#data-collection')     loadStaffFormLinks();
 }
+
+async function loadStaffFormLinks() {
+  var list = document.getElementById('staffDcList');
+  if (!list) return;
+
+  list.innerHTML = '<p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>';
+
+  var schoolId = currentProfile.school_id;
+  var { data, error } = await supabase
+    .from('guardian_intake_campaigns')
+    .select('id, name, token, created_at')
+    .eq('school_id', schoolId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+
+  if (error || !data || !data.length) {
+    list.innerHTML = '<p class="muted" style="text-align:center;padding:24px 0;">No active form links at this time. Check back later or ask an administrator.</p>';
+    return;
+  }
+
+  list.innerHTML = data.map(function (c) {
+    var link = location.origin + '/app/guardian-intake.html?token=' + c.token;
+    var date = new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return '<div style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #f3f4f6;">' +
+      '<div style="flex:1;">' +
+        '<div style="font-weight:600;font-size:14px;">' + c.name + '</div>' +
+        '<div style="font-size:12px;color:#9ca3af;margin-top:2px;">Created ' + date + '</div>' +
+      '</div>' +
+      '<button class="btn btn-sm" data-link="' + link + '" data-name="' + c.name + '" onclick="staffCopyLink(this)">Copy Link</button>' +
+      '<a href="' + link + '" target="_blank" class="btn btn-sm">Open</a>' +
+    '</div>';
+  }).join('');
+}
+
+window.staffCopyLink = function (btn) {
+  var link = btn.dataset.link;
+  navigator.clipboard.writeText(link).then(function () {
+    var orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(function () { btn.textContent = orig; }, 2000);
+  }).catch(function () {
+    prompt('Copy this link:', link);
+  });
+};
 
 async function loadMyLicenses() {
   const container = document.getElementById('staffLicenseList');

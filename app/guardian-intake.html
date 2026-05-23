@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guardian Information Form</title>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      color: #111827;
+      line-height: 1.6;
+    }
+
+    .page-wrap {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+
+    /* ── School header ── */
+    .school-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+      text-align: center;
+    }
+    .school-logo {
+      max-height: 72px;
+      max-width: 240px;
+      object-fit: contain;
+    }
+    .school-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111827;
+    }
+    .campaign-name {
+      font-size: 15px;
+      color: #6b7280;
+      margin-top: -4px;
+    }
+
+    /* ── Form card ── */
+    .form-card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 28px 32px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .form-section-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #374151;
+      margin: 24px 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .form-section-title:first-child { margin-top: 0; }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .form-row.full { grid-template-columns: 1fr; }
+
+    .form-field { display: flex; flex-direction: column; gap: 5px; }
+
+    label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+    }
+    label .req { color: #dc2626; margin-left: 2px; }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      font-size: 15px;
+      font-family: inherit;
+      color: #111827;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus { border-color: #2563eb; }
+    input.error, select.error { border-color: #dc2626; }
+
+    /* ── Student rows ── */
+    .student-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr auto;
+      gap: 10px;
+      align-items: end;
+      margin-bottom: 10px;
+    }
+    .student-row .grade-col { min-width: 90px; }
+
+    .remove-student-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #9ca3af;
+      font-size: 18px;
+      padding: 8px 4px;
+      line-height: 1;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .remove-student-btn:hover { color: #dc2626; }
+
+    .add-student-btn {
+      background: none;
+      border: 1px dashed #d1d5db;
+      border-radius: 7px;
+      padding: 8px 14px;
+      font-size: 13px;
+      color: #6b7280;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      margin-top: 4px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .add-student-btn:hover { border-color: #2563eb; color: #2563eb; }
+
+    /* ── Checkbox ── */
+    .check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .check-row input[type="checkbox"] {
+      width: 17px;
+      height: 17px;
+      margin-top: 2px;
+      flex-shrink: 0;
+      accent-color: #2563eb;
+    }
+    .check-row span {
+      font-size: 14px;
+      color: #374151;
+      line-height: 1.5;
+    }
+
+    /* ── Submit ── */
+    .submit-btn {
+      display: block;
+      width: 100%;
+      margin-top: 28px;
+      padding: 13px;
+      background: #0b2d4f;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .submit-btn:hover:not(:disabled) { background: #1a3a5c; }
+    .submit-btn:disabled { opacity: 0.6; cursor: default; }
+
+    /* ── Error / loading states ── */
+    .form-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: #b91c1c;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .field-error { font-size: 12px; color: #dc2626; margin-top: 2px; }
+
+    /* ── Loading screen ── */
+    #loadingScreen {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6b7280;
+      font-size: 15px;
+    }
+
+    /* ── Confirmation screen ── */
+    #confirmScreen {
+      display: none;
+      text-align: center;
+      padding: 40px 24px;
+    }
+    .confirm-icon {
+      width: 56px;
+      height: 56px;
+      background: #dcfce7;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 26px;
+    }
+    .confirm-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 10px;
+    }
+    .confirm-body {
+      font-size: 15px;
+      color: #6b7280;
+      max-width: 400px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 480px) {
+      .form-card { padding: 20px 18px; }
+      .form-row { grid-template-columns: 1fr; }
+      .student-row { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
+      .student-row .remove-student-btn { grid-column: 2; grid-row: 2; justify-self: end; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="page-wrap">
+  <div id="loadingScreen">Loading form…</div>
+
+  <div id="formRoot" style="display:none;">
+    <div class="school-header">
+      <img id="schoolLogo" class="school-logo" src="" alt="" style="display:none;" />
+      <div class="school-name" id="schoolName"></div>
+      <div class="campaign-name" id="campaignName"></div>
+    </div>
+
+    <div class="form-card">
+      <div id="formErrorBanner" class="form-error"></div>
+
+      <div id="formBody">
+        <!-- ── Your Information ── -->
+        <div class="form-section-title">Your Information</div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="firstName">First Name <span class="req">*</span></label>
+            <input type="text" id="firstName" autocomplete="given-name" />
+            <span class="field-error" id="errFirstName"></span>
+          </div>
+          <div class="form-field">
+            <label for="lastName">Last Name <span class="req">*</span></label>
+            <input type="text" id="lastName" autocomplete="family-name" />
+            <span class="field-error" id="errLastName"></span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" autocomplete="email" />
+            <span class="field-error" id="errEmail"></span>
+          </div>
+          <div class="form-field">
+            <label for="phoneCell">Cell Phone</label>
+            <input type="tel" id="phoneCell" autocomplete="tel" placeholder="(555) 000-0000" />
+          </div>
+        </div>
+
+        <div class="form-row full">
+          <div class="form-field">
+            <label for="relationship">Relationship to Student(s)</label>
+            <select id="relationship">
+              <option value="">— Select —</option>
+              <option value="Mother">Mother</option>
+              <option value="Father">Father</option>
+              <option value="Grandparent">Grandparent</option>
+              <option value="Legal Guardian">Legal Guardian</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- ── Your Student(s) ── -->
+        <div class="form-section-title" style="margin-top:28px;">Your Student(s)</div>
+        <p style="font-size:13px;color:#6b7280;margin:0 0 14px;">
+          List the students enrolled at this school so we can connect your information to the right records.
+        </p>
+
+        <div id="studentList"></div>
+        <button type="button" class="add-student-btn" id="addStudentBtn">+ Add another student</button>
+
+        <button type="button" class="submit-btn" id="submitBtn">Submit</button>
+      </div>
+
+      <!-- Confirmation -->
+      <div id="confirmScreen">
+        <div class="confirm-icon">✓</div>
+        <div class="confirm-title">Thank you!</div>
+        <p class="confirm-body">
+          Your information has been received. Our office will review it and update our records.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div id="errorScreen" style="display:none; text-align:center; padding:60px 20px;">
+    <div style="font-size:32px; margin-bottom:16px;">⚠</div>
+    <div style="font-size:18px; font-weight:700; color:#111827; margin-bottom:8px;" id="errorTitle">Form unavailable</div>
+    <div style="font-size:15px; color:#6b7280;" id="errorBody">This link is no longer active.</div>
+  </div>
+</div>
+
+<script type="module">
+  import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+
+  const REST = `${SUPABASE_URL}/rest/v1`;
+  const HEADERS = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
+
+  const token = new URLSearchParams(location.search).get('token');
+
+  // ── Direct REST helpers ─────────────────────────────────────
+  async function restGet(path) {
+    const res = await fetch(`${REST}/${path}`, { headers: HEADERS });
+    const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  async function restInsert(table, body) {
+    const res = await fetch(`${REST}/${table}`, {
+      method: 'POST',
+      headers: { ...HEADERS, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify(body),
+    });
+    return { ok: res.ok, status: res.status };
+  }
+
+  // ── Student row management ──────────────────────────────────
+  let studentCount = 0;
+  const GRADES = ['Pre-K','K','1st','2nd','3rd','4th','5th','6th','7th','8th','9th','10th','11th','12th'];
+
+  function addStudentRow(firstName = '', lastName = '', grade = '') {
+    studentCount++;
+    const id  = studentCount;
+    const div = document.createElement('div');
+    div.className = 'student-row';
+    div.dataset.studentId = id;
+    div.innerHTML = `
+      <div class="form-field">
+        ${id === 1 ? '<label>First Name</label>' : ''}
+        <input type="text" class="stu-first" placeholder="First name" value="${firstName}" />
+      </div>
+      <div class="form-field grade-col">
+        ${id === 1 ? '<label>Last Name</label>' : ''}
+        <input type="text" class="stu-last" placeholder="Last name" value="${lastName}" />
+      </div>
+      <div class="form-field grade-col">
+        ${id === 1 ? '<label>Grade</label>' : ''}
+        <select class="stu-grade">
+          <option value="">Grade</option>
+          ${GRADES.map(g => `<option value="${g}" ${g === grade ? 'selected' : ''}>${g}</option>`).join('')}
+        </select>
+      </div>
+      <button type="button" class="remove-student-btn" title="Remove" style="${id === 1 ? 'margin-top:20px;' : ''}">×</button>
+    `;
+    div.querySelector('.remove-student-btn').addEventListener('click', () => {
+      if (document.querySelectorAll('#studentList .student-row').length > 1) {
+        div.remove();
+      }
+    });
+    document.getElementById('studentList').appendChild(div);
+  }
+
+  function getStudents() {
+    return Array.from(document.querySelectorAll('#studentList .student-row')).map(row => ({
+      first_name: row.querySelector('.stu-first').value.trim(),
+      last_name:  row.querySelector('.stu-last').value.trim(),
+      grade:      row.querySelector('.stu-grade').value,
+    })).filter(s => s.first_name || s.last_name);
+  }
+
+  // ── Campaign state (set during init, used during submit) ────
+  let campaignId = null;
+  let schoolId   = null;
+
+  // ── Init ────────────────────────────────────────────────────
+  async function init() {
+    if (!token) {
+      showError('Invalid link', 'No form token was found in this URL.');
+      return;
+    }
+
+    const { ok, status, data } = await restGet(
+      `guardian_intake_campaigns?token=eq.${encodeURIComponent(token)}&status=eq.active&select=id,school_id,name,schools(name,logo_url)&limit=1`
+    );
+
+    console.log('[intake] campaign lookup', { ok, status, data });
+    if (!ok || !Array.isArray(data) || !data.length) {
+      showError('Form unavailable', 'This link is no longer active or could not be found.');
+      return;
+    }
+
+    const campaign = data[0];
+    const school   = campaign.schools ?? {};
+    campaignId = campaign.id;
+    schoolId   = campaign.school_id;
+
+    // Populate header — school name + logo
+    document.getElementById('schoolName').textContent   = school.name   ?? '';
+    document.getElementById('campaignName').textContent = campaign.name ?? '';
+
+    let logoUrl = school.logo_url ?? null;
+
+    // If the join didn't return logo_url (anon can't read schools directly),
+    // try a separate schools query with the anon key.
+    if (!logoUrl) {
+      const { ok: sOk, data: sData } = await restGet(
+        `schools?id=eq.${schoolId}&select=name,logo_url&limit=1`
+      );
+      if (sOk && Array.isArray(sData) && sData.length) {
+        logoUrl = sData[0].logo_url ?? null;
+        if (!school.name) document.getElementById('schoolName').textContent = sData[0].name ?? '';
+      }
+    }
+
+    const logoEl = document.getElementById('schoolLogo');
+    logoEl.src = logoUrl ?? '/images/belltower-logo.png';
+    logoEl.style.display = '';
+
+    // Show form
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('formRoot').style.display = '';
+
+    // Add initial 2 student rows
+    addStudentRow();
+    addStudentRow();
+
+    document.getElementById('addStudentBtn').addEventListener('click', () => addStudentRow());
+    document.getElementById('submitBtn').addEventListener('click', handleSubmit);
+  }
+
+  function showError(title, body) {
+    document.getElementById('loadingScreen').style.display = 'none';
+    document.getElementById('errorTitle').textContent = title;
+    document.getElementById('errorBody').textContent  = body;
+    document.getElementById('errorScreen').style.display = '';
+  }
+
+  // ── Submit ──────────────────────────────────────────────────
+  async function handleSubmit() {
+    clearErrors();
+    let valid = true;
+
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName  = document.getElementById('lastName').value.trim();
+    const email     = document.getElementById('email').value.trim();
+
+    if (!firstName) { setError('errFirstName', 'Required'); document.getElementById('firstName').classList.add('error'); valid = false; }
+    if (!lastName)  { setError('errLastName',  'Required'); document.getElementById('lastName').classList.add('error'); valid = false; }
+    if (email && !email.includes('@')) { setError('errEmail', 'Enter a valid email address'); document.getElementById('email').classList.add('error'); valid = false; }
+
+    if (!valid) return;
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
+
+    const { ok } = await restInsert('guardian_intake_submissions', {
+      campaign_id:  campaignId,
+      school_id:    schoolId,
+      first_name:   firstName,
+      last_name:    lastName,
+      email:        email || null,
+      phone_cell:   document.getElementById('phoneCell').value.trim() || null,
+      relationship: document.getElementById('relationship').value || null,
+      students:     getStudents(),
+    });
+
+    if (!ok) {
+      const banner = document.getElementById('formErrorBanner');
+      banner.textContent = 'Something went wrong. Please try again.';
+      banner.style.display = '';
+      btn.disabled = false;
+      btn.textContent = 'Submit';
+      return;
+    }
+
+    // Show confirmation
+    document.getElementById('formBody').style.display = 'none';
+    document.getElementById('confirmScreen').style.display = 'block';
+  }
+
+  function setError(id, msg) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = msg;
+  }
+  function clearErrors() {
+    document.querySelectorAll('.field-error').forEach(el => el.textContent = '');
+    document.querySelectorAll('input.error, select.error').forEach(el => el.classList.remove('error'));
+    const banner = document.getElementById('formErrorBanner');
+    banner.style.display = 'none';
+    banner.textContent = '';
+  }
+
+  init();
+</script>
+</body>
+</html>

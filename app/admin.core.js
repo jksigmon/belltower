@@ -113,8 +113,9 @@ if (fade) {
     '#exports':     () => import('./admin.exports.js').then(m => m.initExportsSection(currentProfile)),
     '#campuses':    () => import('./admin.campuses.js').then(m => m.initCampusesSection(currentProfile)),
     '#schools':     () => import('./admin.schools.js').then(m => m.initSchoolsSection(currentProfile)),
-    '#placement':   () => import('./admin.placement.js').then(m => m.initPlacementSection(currentProfile)),
-    '#promotion':   () => import('./admin.promotion.js').then(m => m.initPromotionSection(currentProfile)),
+    '#placement':        () => import('./admin.placement.js').then(m => m.initPlacementSection(currentProfile)),
+    '#promotion':        () => import('./admin.promotion.js').then(m => m.initPromotionSection(currentProfile)),
+    '#data-collection':  () => import('./admin.data-collection.js').then(m => m.initDataCollectionSection(currentProfile)),
   };
 
   if (routes[target]) await routes[target]();

@@ -93,6 +93,7 @@
         <a href="#students" data-cap="can_manage_students" data-module="students"><i data-lucide="graduation-cap"></i> Students</a>
         <a href="#families" data-cap="can_manage_families" data-module="families"><i data-lucide="home"></i> Families</a>
         <a href="#guardians" data-cap="can_manage_guardians" data-module="guardians"><i data-lucide="user-check"></i> Guardians</a>
+        <a href="#data-collection" data-cap="can_manage_guardians"><i data-lucide="clipboard-list"></i> Data Collection</a>
         <a href="#campuses" data-cap="can_manage_campuses"><i data-lucide="building-2"></i> Campuses</a>
         <a href="#bus" data-cap="can_manage_bus_groups" data-module="bus_groups"><i data-lucide="bus"></i> Bus Groups</a>
         <a href="#carpools" data-cap="can_manage_carpools" data-module="carline"><i data-lucide="users-round"></i> Carpools</a>
@@ -1299,6 +1300,173 @@
     </div>
   </div>
 </section>
+
+<!-- ═══════════════════════════════════════════════
+     DATA COLLECTION
+═══════════════════════════════════════════════ -->
+<section id="data-collection" class="admin-section">
+  <div class="admin-content fade-in" id="dataCollectionRoot">
+
+    <!-- ── Campaign list view ── -->
+    <div id="dcCampaignView">
+      <div class="directory-header" style="margin-bottom:20px;">
+        <h2 style="margin:0;font-size:18px;font-weight:700;">Data Collection</h2>
+        <button class="btn btn-primary btn-sm" id="dcNewCampaignBtn">+ New Campaign</button>
+      </div>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 20px;">
+        Create a shareable form link for parents to submit their contact information. Submissions are held for your review — nothing updates automatically.
+      </p>
+      <div class="panel" style="padding:0;overflow:hidden;">
+        <table class="admin-table">
+          <thead><tr>
+            <th>Campaign</th><th>Status</th><th>Created</th><th>Link</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="dcCampaignTable">
+            <tr><td colspan="5" class="muted" style="padding:24px;text-align:center;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Review queue view ── -->
+    <div id="dcReviewView" style="display:none;">
+      <div class="directory-header" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button class="btn btn-sm" id="dcBackToCampaigns">← Back</button>
+          <h2 style="margin:0;font-size:18px;font-weight:700;" id="dcReviewCampaignName"></h2>
+        </div>
+      </div>
+
+      <!-- Filter bar -->
+      <div id="dcFilterBar" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;">
+        <button class="btn btn-sm active" data-filter="all">All <span class="dc-filter-count"></span></button>
+        <button class="btn btn-sm" data-filter="pending">Pending <span class="dc-filter-count"></span></button>
+        <button class="btn btn-sm" data-filter="high" style="border-color:#6ee7b7;color:#065f46;">High Match <span class="dc-filter-count"></span></button>
+        <button class="btn btn-sm" data-filter="medium" style="border-color:#fcd34d;color:#92400e;">Medium Match <span class="dc-filter-count"></span></button>
+        <button class="btn btn-sm" data-filter="none">No Match <span class="dc-filter-count"></span></button>
+        <button class="btn btn-sm" data-filter="accepted">Accepted <span class="dc-filter-count"></span></button>
+        <button class="btn btn-sm" data-filter="discarded">Discarded <span class="dc-filter-count"></span></button>
+      </div>
+
+      <!-- Bulk action bar -->
+      <div id="dcBulkBar" style="display:none;align-items:center;gap:10px;padding:10px 14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;margin-bottom:14px;">
+        <span id="dcBulkCount" style="font-size:13px;font-weight:600;color:#0369a1;"></span>
+        <button class="btn btn-sm" id="dcBulkAcceptBtn" style="background:#059669;color:#fff;border-color:#059669;display:none;">Bulk Accept</button>
+        <button class="btn btn-sm" id="dcBulkMergeBtn">Merge Duplicates</button>
+        <button class="btn btn-sm" id="dcBulkDiscardBtn">Discard All</button>
+      </div>
+
+      <!-- Submission list -->
+      <div class="panel" style="padding:0;overflow:hidden;">
+        <div style="padding:10px 14px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="dcSelectAll" style="width:16px;height:16px;" />
+          <span style="font-size:12px;color:#6b7280;font-weight:600;">Select all</span>
+        </div>
+        <div id="dcReviewList"></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── New Campaign Modal ── -->
+<div id="dcNewCampaignModal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);">
+  <div class="panel" style="width:440px;max-width:94vw;padding:28px 32px;">
+    <h3 style="margin:0 0 18px;font-size:16px;font-weight:700;">New Data Collection Campaign</h3>
+    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Campaign name</label>
+    <input type="text" id="dcNewCampaignName" class="form-control" placeholder="e.g. Fall 2026 Open House" style="width:100%;margin-bottom:20px;" />
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn" id="dcCancelCampaignBtn" style="height:36px;padding:0 16px;">Cancel</button>
+      <button class="btn btn-primary" id="dcSaveCampaignBtn" style="height:36px;padding:0 16px;">Create &amp; Get Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Share Link Modal ── -->
+<div id="dcShareLinkModal" style="display:none;position:fixed;inset:0;z-index:1001;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);">
+  <div class="panel" style="width:520px;max-width:94vw;padding:28px 32px;">
+    <h3 style="margin:0 0 6px;font-size:16px;font-weight:700;">Campaign Created</h3>
+    <p style="font-size:13px;color:#6b7280;margin:0 0 18px;" id="dcShareLinkName"></p>
+    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Shareable link</label>
+    <div style="display:flex;gap:8px;align-items:stretch;">
+      <input type="text" id="dcShareLinkInput" readonly style="flex:1;font-size:12px;background:#f8fafc;" />
+      <button class="btn btn-primary" id="dcShareLinkCopyBtn" style="height:auto;padding:0 18px;align-self:stretch;">Copy</button>
+    </div>
+    <p style="font-size:12px;color:#9ca3af;margin:10px 0 0;">Share this link at open house, via email, or on your school's website. Anyone with the link can submit — no login required.</p>
+    <div style="text-align:right;margin-top:20px;">
+      <button class="btn" id="dcShareLinkClose" style="height:36px;padding:0 16px;">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Review Drawer ── -->
+<div id="dcDrawerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:900;"></div>
+<div id="dcReviewDrawer" style="position:fixed;top:0;right:0;height:100%;width:520px;max-width:100vw;background:#fff;z-index:901;box-shadow:-4px 0 24px rgba(0,0,0,0.12);overflow-y:auto;">
+  <style>
+    #dcReviewDrawer { transform: translateX(100%); transition: transform 0.25s ease; }
+    #dcReviewDrawer.open { transform: translateX(0); }
+    .dc-submission-row { display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid #f3f4f6;cursor:default; }
+    .dc-submission-row:hover { background:#f9fafb; }
+    .dc-row-name { flex:1;min-width:0; }
+    .dc-row-name strong { display:block;font-size:14px; }
+    .dc-row-sub { display:block;font-size:12px;color:#9ca3af; }
+    .dc-row-meta { display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap; }
+    .dc-row-badges { display:flex;gap:4px;align-items:center; }
+    .dc-drawer-meta { display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap; }
+    .dc-drawer-section-title { font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;margin:20px 0 10px;padding-bottom:6px;border-bottom:1px solid #f3f4f6; }
+    .dc-compare-table { width:100%;border-collapse:collapse;font-size:13px; }
+    .dc-compare-table th { font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:#9ca3af;padding:6px 8px;text-align:left;border-bottom:2px solid #f3f4f6; }
+    .dc-compare-table td { padding:8px;border-bottom:1px solid #f9fafb;vertical-align:middle; }
+    .dc-compare-label { font-weight:600;color:#374151;white-space:nowrap; }
+    .dc-compare-submitted { color:#111827; }
+    .dc-compare-existing { color:#6b7280; }
+    .dc-row-diff .dc-compare-submitted { color:#059669;font-weight:600; }
+    .dc-comparison-hint { font-size:12px;color:#9ca3af;margin:0 0 10px; }
+    .dc-students-list { display:flex;flex-direction:column;gap:6px; }
+    .dc-student-item { display:flex;align-items:center;gap:8px;font-size:13px; }
+    .dc-merge-option { display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid #e5e7eb;border-radius:7px;margin-bottom:8px;cursor:pointer; }
+    .dc-filter-count { display:inline-block;background:#e5e7eb;color:#374151;border-radius:999px;font-size:10px;font-weight:700;padding:1px 6px;margin-left:4px; }
+    #dcFilterBar button.active { background:#0b2d4f;color:#fff;border-color:#0b2d4f; }
+    #dcFilterBar button.active .dc-filter-count { background:rgba(255,255,255,0.25);color:#fff; }
+  </style>
+  <div style="padding:20px 24px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;">
+    <h3 id="dcDrawerTitle" style="margin:0;font-size:16px;font-weight:700;"></h3>
+    <button id="dcDrawerClose" style="background:none;border:none;cursor:pointer;font-size:22px;color:#6b7280;padding:4px 8px;">×</button>
+  </div>
+  <div id="dcDrawerContent" style="padding:20px 24px;"></div>
+  <div id="dcDrawerActions" style="padding:16px 24px;border-top:1px solid #f3f4f6;display:flex;gap:10px;flex-wrap:wrap;position:sticky;bottom:0;background:#fff;"></div>
+</div>
+
+<!-- ── Family Picker Modal ── -->
+<div id="dcFamilyPickerModal" style="display:none;position:fixed;inset:0;z-index:1020;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);">
+  <div class="panel" style="width:480px;max-width:94vw;padding:28px 32px;">
+    <h3 style="margin:0 0 6px;font-size:16px;font-weight:700;">Assign to Family</h3>
+    <p style="font-size:13px;color:#6b7280;margin:0 0 16px;" id="dcFamilyPickerSubtitle"></p>
+    <input type="text" id="dcFamilySearchInput" class="form-control" placeholder="Search existing families…" style="width:100%;margin-bottom:8px;" />
+    <div id="dcFamilySearchResults" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:16px;"></div>
+    <div style="border-top:1px solid #f3f4f6;padding-top:14px;margin-bottom:4px;">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Or create a new family</label>
+      <input type="text" id="dcNewFamilyNameInput" class="form-control" placeholder="Family name (e.g. Steelman Family)" style="width:100%;" />
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn" id="dcFamilyPickerCancelBtn" style="height:36px;padding:0 16px;">Cancel</button>
+      <button class="btn btn-primary" id="dcFamilyPickerConfirmBtn" style="height:36px;padding:0 16px;">Create Guardian</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Merge Modal ── -->
+<div id="dcMergeModal" style="display:none;position:fixed;inset:0;z-index:1010;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);">
+  <div class="panel" style="width:480px;max-width:94vw;padding:28px 32px;">
+    <h3 style="margin:0 0 8px;font-size:16px;font-weight:700;">Merge Duplicates</h3>
+    <p style="font-size:13px;color:#6b7280;margin:0 0 18px;">Select the primary submission to keep. The others will be marked as merged and hidden from the queue.</p>
+    <div id="dcMergeList"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <button class="btn" id="dcMergeCancelBtn" style="height:36px;padding:0 16px;">Cancel</button>
+      <button class="btn btn-primary" id="dcMergeConfirmBtn" style="height:36px;padding:0 16px;">Merge</button>
+    </div>
+  </div>
+</div>
 
  </main>
  </div>
