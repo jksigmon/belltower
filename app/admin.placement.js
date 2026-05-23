@@ -1,5 +1,9 @@
 import { supabase } from './admin.supabase.js';
 import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig } from './admin.shared.js';
+import {
+  initSessions, showSessionList, showCreateForm, renderSessionList,
+  setShowArchived, submitCreateForm,
+} from './admin.placement.sessions.js';
 
 /* ── State ── */
 let _profile = null;
@@ -22,7 +26,6 @@ let _targetClassSize = null;
 let _undoStack = [];          // array of move groups [{studentId, fromTeacherId}]
 let _homeroomTeacherNames = {}; // employeeId → last name for comparison display
 let _draggingColumnTeacherId = null;
-let _showArchivedSessions = false;
 let _placeholderColIds = new Set(); // PST row IDs that are placeholder columns
 let _resolvingColId = null;         // col ID being resolved in Assign Teacher modal
 
@@ -37,10 +40,12 @@ export async function initPlacementSection(profile) {
   }
 
   _schoolConfig = await loadSchoolConfig(_profile.school_id);
+  initSessions(_profile, _schoolConfig);
 
   if (!_initialized) {
     _initialized = true;
     wireGlobalEvents();
+    document.addEventListener('placement:show-board', e => showBoard(e.detail.sessionId));
   }
   await showSessionList();
 }
@@ -63,6 +68,8 @@ function wireGlobalEvents() {
     ?.addEventListener('click', () => showSessionList());
   document.getElementById('submitCreatePlacementBtn')
     ?.addEventListener('click', submitCreateForm);
+  document.getElementById('showArchivedSessionsToggle')
+    ?.addEventListener('change', e => { setShowArchived(e.target.checked); renderSessionList(); });
   document.getElementById('backToSessionListBtn')
     ?.addEventListener('click', () => { exitFullscreen(); showSessionList(); });
   document.getElementById('commitPlacementBtn')
@@ -73,8 +80,6 @@ function wireGlobalEvents() {
     ?.addEventListener('click', openAuditLog);
   document.getElementById('closeAuditLogBtn')
     ?.addEventListener('click', closeAuditLog);
-  document.getElementById('showArchivedSessionsToggle')
-    ?.addEventListener('change', e => { _showArchivedSessions = e.target.checked; renderSessionList(); });
   document.getElementById('manageFlagsBtn')
     ?.addEventListener('click', openFlagEditor);
   document.getElementById('closeFlagEditorBtn')
@@ -132,466 +137,7 @@ function wireGlobalEvents() {
   });
 }
 
-/* ── Session list ── */
-async function showSessionList() {
-  showView('placementSessionListView');
-  await renderSessionList();
-}
-
-async function renderSessionList() {
-  const container = document.getElementById('placementSessionList');
-  if (!container) return;
-  container.innerHTML = Array.from({ length: 2 }, () => `
-    <div class="placement-session-card" style="pointer-events:none;opacity:.55;">
-      <div class="placement-session-card-accent"></div>
-      <div class="placement-session-card-body">
-        <div class="placement-session-card-left">
-          <div style="width:165px;height:16px;border-radius:4px;background:#e2e8f0;margin-bottom:10px;"></div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <div style="width:58px;height:20px;border-radius:10px;background:#e2e8f0;"></div>
-            <div style="width:78px;height:20px;border-radius:10px;background:#e2e8f0;"></div>
-            <div style="width:14px;height:12px;border-radius:2px;background:#edf0f5;"></div>
-            <div style="width:78px;height:20px;border-radius:10px;background:#e2e8f0;"></div>
-          </div>
-        </div>
-        <div class="placement-session-card-right">
-          <div style="width:78px;height:22px;border-radius:12px;background:#e2e8f0;"></div>
-        </div>
-      </div>
-    </div>`).join('');
-
-  let query = supabase
-    .from('placement_sessions')
-    .select('id, label, academic_year, incoming_grade, target_grade, status, created_at, committed_at, target_class_size, archived_at')
-    .eq('school_id', _profile.school_id)
-    .order('created_at', { ascending: false });
-  if (!_showArchivedSessions) query = query.is('archived_at', null);
-  const { data, error } = await query;
-
-  if (error) {
-    container.innerHTML = '<p class="muted" style="font-size:13px;">Failed to load sessions.</p>';
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    container.innerHTML = `
-      <div class="placement-empty">
-        <p style="font-weight:600;margin:0 0 4px;">No placement sessions yet.</p>
-        <p class="muted" style="font-size:13px;margin:0;">Create a session to start placing students for the upcoming year.</p>
-      </div>`;
-    return;
-  }
-
-  container.innerHTML = '';
-  data.forEach(s => {
-    const row = document.createElement('div');
-    const committed = s.status === 'committed';
-    const archived  = !!s.archived_at;
-    row.className = 'placement-session-card' +
-      (committed ? ' placement-session-card--committed' : '') +
-      (archived  ? ' placement-session-card--archived'  : '');
-
-    const dateLabel = committed && s.committed_at
-      ? 'Committed ' + new Date(s.committed_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' })
-      : 'Created '   + new Date(s.created_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' });
-
-    row.innerHTML = `
-      <div class="placement-session-card-accent"></div>
-      <div class="placement-session-card-body">
-        <div class="placement-session-card-left">
-          <div class="placement-session-label">${esc(s.label)}</div>
-          <div class="placement-session-meta">
-            <span class="placement-year-chip">${esc(s.academic_year.replace('-','–'))}</span>
-            <span class="placement-grade-chip placement-grade-chip--from">${gradeLabel(s.incoming_grade)}</span>
-            <span class="placement-grade-arrow">→</span>
-            <span class="placement-grade-chip placement-grade-chip--to">${gradeLabel(s.target_grade)}</span>
-            ${archived ? '<span class="placement-grade-chip" style="background:#f1f5f9;color:#64748b;">Archived</span>' : ''}
-          </div>
-        </div>
-        <div class="placement-session-card-right">
-          <div class="placement-session-card-status">
-            <span class="placement-status-badge ${committed ? 'badge-committed' : 'badge-draft'}">${committed ? 'Committed' : 'Draft'}</span>
-            <span class="placement-session-date">${dateLabel}</span>
-          </div>
-          <div class="placement-session-card-actions">
-            <button class="psc-icon-btn clone-session-btn" data-idx="${data.indexOf(s)}" title="Clone to a new year">
-              <i data-lucide="copy" style="width:14px;height:14px;"></i>
-            </button>
-            <button class="psc-icon-btn archive-session-btn" data-id="${s.id}" data-archived="${archived}" title="${archived ? 'Unarchive' : 'Archive'} session">
-              <i data-lucide="${archived ? 'archive-restore' : 'archive'}" style="width:14px;height:14px;"></i>
-            </button>
-            ${!committed && !archived ? `<button class="psc-icon-btn psc-icon-btn--danger delete-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" title="Delete draft">
-              <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
-            </button>` : ''}
-            ${!archived ? `<button class="btn btn-sm ${committed ? 'btn-outline' : 'btn-primary'} open-session-btn" data-id="${s.id}" style="gap:6px;">
-              ${committed ? 'View' : 'Open Board'} <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
-            </button>` : ''}
-          </div>
-        </div>
-      </div>
-    `;
-    container.appendChild(row);
-  });
-
-  container.querySelectorAll('.open-session-btn').forEach(btn => {
-    btn.addEventListener('click', () => showBoard(btn.dataset.id));
-  });
-
-  container.querySelectorAll('.clone-session-btn').forEach(btn => {
-    btn.addEventListener('click', () => cloneSession(data[parseInt(btn.dataset.idx, 10)]));
-  });
-
-  container.querySelectorAll('.archive-session-btn').forEach(btn => {
-    btn.addEventListener('click', () => archiveSession(btn.dataset.id, btn.dataset.archived !== 'true'));
-  });
-
-  container.querySelectorAll('.delete-session-btn').forEach(btn => {
-    btn.addEventListener('click', () => confirmDeleteSession(btn.dataset.id, btn.dataset.label));
-  });
-
-  if (window.lucide) lucide.createIcons({ nodes: Array.from(container.querySelectorAll('[data-lucide]')) });
-}
-
-/* ── Delete session ── */
-async function confirmDeleteSession(sessionId, label) {
-  const confirmed = confirm(
-    `Delete draft session "${label}"?\n\nThis will permanently remove the session and all its assignments. This cannot be undone.`
-  );
-  if (!confirmed) return;
-
-  const { error } = await supabase
-    .from('placement_sessions')
-    .delete()
-    .eq('id', sessionId);
-
-  if (error) {
-    console.error('Delete session error:', error);
-    alert('Failed to delete session. Check the console for details.');
-    return;
-  }
-
-  await renderSessionList();
-}
-
-/* ── Archive session ── */
-async function archiveSession(id, archive) {
-  const { error } = await supabase
-    .from('placement_sessions')
-    .update({ archived_at: archive ? new Date().toISOString() : null })
-    .eq('id', id)
-    .eq('school_id', _profile.school_id);
-  if (error) { console.error('Archive session error:', error); return; }
-  await renderSessionList();
-}
-
-/* ── Clone session ── */
-async function cloneSession(original) {
-  const suggested = nextAcademicYear(original.academic_year);
-  const newYear = prompt(
-    `Clone "${original.label}" into a new draft session.\n\nNew academic year:`,
-    suggested
-  );
-  if (!newYear?.trim()) return;
-
-  const { data: origTeachers, error: tErr } = await supabase
-    .from('placement_session_teachers')
-    .select('teacher_id, sort_order')
-    .eq('session_id', original.id)
-    .not('teacher_id', 'is', null)  // skip placeholder columns — they don't carry over to new years
-    .order('sort_order');
-  if (tErr) { alert('Failed to load session teachers.'); return; }
-
-  const { data: newSession, error: sErr } = await supabase
-    .from('placement_sessions')
-    .insert({
-      school_id:        _profile.school_id,
-      academic_year:    newYear.trim(),
-      incoming_grade:   original.incoming_grade,
-      target_grade:     original.target_grade,
-      label:            original.label,
-      status:           'draft',
-      target_class_size: original.target_class_size ?? null,
-    })
-    .select('id')
-    .single();
-  if (sErr || !newSession) { alert('Failed to create cloned session.'); return; }
-
-  if (origTeachers?.length) {
-    await supabase.from('placement_session_teachers').insert(
-      origTeachers.map(t => ({ session_id: newSession.id, teacher_id: t.teacher_id, sort_order: t.sort_order }))
-    );
-  }
-
-  const { data: gradeStudents } = await supabase
-    .from('students')
-    .select('id')
-    .eq('school_id', _profile.school_id)
-    .eq('active', true)
-    .eq('grade_level', original.incoming_grade);
-
-  if (gradeStudents?.length) {
-    await supabase.from('placement_assignments').insert(
-      gradeStudents.map((s, i) => ({ session_id: newSession.id, student_id: s.id, teacher_id: null, sort_order: i }))
-    );
-  }
-
-  await showBoard(newSession.id);
-}
-
-function nextAcademicYear(year) {
-  const parts = year.split('-');
-  if (parts.length === 2) {
-    const start = parseInt(parts[0], 10);
-    if (!isNaN(start)) return `${start + 1}-${start + 2}`;
-  }
-  return year;
-}
-
-/* ── Create form ── */
-async function showCreateForm() {
-  showView('placementCreateFormView');
-  populateCreateFormYears();
-  populateIncomingGradeSelect();
-  const searchEl = document.getElementById('placementStaffSearch');
-  if (searchEl) searchEl.value = '';
-  await loadEmployeesForForm();
-}
-
-function populateIncomingGradeSelect() {
-  const sel = document.getElementById('placementIncomingGrade');
-  if (!sel) return;
-  const grades = _schoolConfig?.grade_levels ?? GRADE_ORDER;
-  sel.innerHTML = '<option value="">— Select grade —</option>';
-  grades.forEach(g => {
-    // Exclude the terminal grade — students there graduate rather than advance
-    if (nextGrade(g, _schoolConfig) === null) return;
-    const opt = document.createElement('option');
-    opt.value = g;
-    opt.textContent = gradeLabel(g);
-    sel.appendChild(opt);
-  });
-}
-
-function populateCreateFormYears() {
-  const sel = document.getElementById('placementYear');
-  if (!sel) return;
-  const cur = new Date().getFullYear();
-  sel.innerHTML = '';
-  for (let y = cur; y <= cur + 1; y++) {
-    const opt = document.createElement('option');
-    opt.value = `${y}-${y + 1}`;
-    opt.textContent = `${y}–${y + 1}`;
-    sel.appendChild(opt);
-  }
-}
-
-async function loadEmployeesForForm() {
-  const container = document.getElementById('placementTeacherCheckboxes');
-  if (!container) return;
-  container.innerHTML = '<p class="muted" style="font-size:13px;">Loading…</p>';
-
-  // Load campuses for filter
-  const { data: camps } = await supabase
-    .from('campuses')
-    .select('id, name')
-    .eq('school_id', _profile.school_id)
-    .order('name');
-
-  const campuses = camps || [];
-  const campusFilterWrap = document.getElementById('placementCampusFilterWrap');
-  const campusFilter = document.getElementById('placementCampusFilter');
-
-  if (campusFilter && campuses.length > 1) {
-    campusFilter.innerHTML = '<option value="">All Campuses</option>';
-    campuses.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.name;
-      campusFilter.appendChild(opt);
-    });
-    if (campusFilterWrap) campusFilterWrap.hidden = false;
-
-    campusFilter.addEventListener('change', () => {
-      renderEmployeeCheckboxes(campusFilter.value);
-    });
-  }
-
-  const sortSelect = document.getElementById('placementStaffSort');
-  if (sortSelect) {
-    sortSelect.addEventListener('change', () => {
-      const campusId = document.getElementById('placementCampusFilter')?.value ?? '';
-      renderEmployeeCheckboxes(campusId);
-    });
-  }
-
-  const searchInput = document.getElementById('placementStaffSearch');
-  if (searchInput) {
-    searchInput.value = '';
-    searchInput.addEventListener('input', () => {
-      const campusId = document.getElementById('placementCampusFilter')?.value ?? '';
-      renderEmployeeCheckboxes(campusId);
-    });
-  }
-
-  // Load employees
-  const { data, error } = await supabase
-    .from('employees')
-    .select('id, first_name, last_name, position, campus_id')
-    .eq('school_id', _profile.school_id)
-    .eq('active', true)
-    .order('last_name');
-
-  if (error) {
-    console.error('Load employees error:', error);
-    container.innerHTML = '<p class="muted" style="font-size:13px;">Failed to load employees.</p>';
-    return;
-  }
-
-  _formEmployees = data || [];
-  renderEmployeeCheckboxes('');
-}
-
-function renderEmployeeCheckboxes(campusId) {
-  const container = document.getElementById('placementTeacherCheckboxes');
-  if (!container) return;
-
-  const sortBy   = document.getElementById('placementStaffSort')?.value ?? 'last_name';
-  const searchTerm = (document.getElementById('placementStaffSearch')?.value ?? '').trim().toLowerCase();
-
-  let filtered = campusId
-    ? _formEmployees.filter(e => e.campus_id === campusId)
-    : [..._formEmployees];
-
-  if (searchTerm) {
-    filtered = filtered.filter(e =>
-      e.first_name.toLowerCase().includes(searchTerm) ||
-      e.last_name.toLowerCase().includes(searchTerm) ||
-      (e.position ?? '').toLowerCase().includes(searchTerm)
-    );
-  }
-
-  filtered.sort((a, b) => {
-    if (sortBy === 'first_name') return a.first_name.localeCompare(b.first_name);
-    if (sortBy === 'position')   return (a.position ?? '').localeCompare(b.position ?? '');
-    return a.last_name.localeCompare(b.last_name);
-  });
-
-  if (filtered.length === 0) {
-    container.innerHTML = `<p class="muted" style="font-size:13px;">${searchTerm ? 'No employees match your search.' : 'No employees found.'}</p>`;
-    return;
-  }
-
-  // Preserve checked state across re-renders
-  const checked = new Set(
-    Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value)
-  );
-
-  container.innerHTML = '';
-  filtered.forEach(emp => {
-    const label = document.createElement('label');
-    label.className = 'placement-teacher-check';
-    label.innerHTML = `
-      <input type="checkbox" value="${emp.id}" data-name="${esc(emp.first_name + ' ' + emp.last_name)}"${checked.has(emp.id) ? ' checked' : ''}>
-      <div class="placement-teacher-check-info">
-        <span class="placement-teacher-check-name">${esc(emp.last_name)}, ${esc(emp.first_name)}</span>
-        ${emp.position ? `<span class="placement-teacher-check-type">${esc(emp.position)}</span>` : ''}
-      </div>
-    `;
-    container.appendChild(label);
-  });
-}
-
-async function submitCreateForm() {
-  const year = document.getElementById('placementYear')?.value;
-  const incoming = document.getElementById('placementIncomingGrade')?.value;
-  const labelInput = document.getElementById('placementLabel')?.value.trim();
-
-  if (!year || !incoming) {
-    alert('Please select a year and incoming grade.');
-    return;
-  }
-
-  const target = nextGrade(incoming, _schoolConfig);
-  const label = labelInput || `${gradeLabel(incoming)} → ${target ? gradeLabel(target) : 'Graduate'}`;
-
-  const checked = Array.from(
-    document.querySelectorAll('#placementTeacherCheckboxes input[type="checkbox"]:checked')
-  ).map((cb, i) => ({ id: cb.value, name: cb.dataset.name, sort_order: i }));
-
-  if (checked.length === 0) {
-    alert('Please select at least one teacher for the board.');
-    return;
-  }
-
-  const btn = document.getElementById('submitCreatePlacementBtn');
-  btn.disabled = true;
-  btn.textContent = 'Creating…';
-
-  const targetSizeRaw = document.getElementById('placementTargetSize')?.value;
-  const targetClassSize = targetSizeRaw ? parseInt(targetSizeRaw, 10) || null : null;
-
-  const { data: session, error: sessionErr } = await supabase
-    .from('placement_sessions')
-    .insert({
-      school_id: _profile.school_id,
-      academic_year: year,
-      incoming_grade: incoming,
-      target_grade: target,
-      label,
-      status: 'draft',
-      target_class_size: targetClassSize,
-    })
-    .select('id')
-    .single();
-
-  if (sessionErr || !session) {
-    console.error('Create session error:', sessionErr);
-    alert('Failed to create session.');
-    btn.disabled = false;
-    btn.textContent = 'Create Session';
-    return;
-  }
-
-  const { error: teachersErr } = await supabase.from('placement_session_teachers').insert(
-    checked.map(t => ({ session_id: session.id, teacher_id: t.id, sort_order: t.sort_order }))
-  );
-  if (teachersErr) {
-    console.error('Failed to attach teachers to session:', teachersErr);
-    alert('Session created but teachers could not be attached. Please try again.');
-    btn.disabled = false;
-    btn.textContent = 'Create Session';
-    return;
-  }
-
-  // Pre-populate assignments with all active students in the incoming grade (all unplaced)
-  const { data: gradeStudents } = await supabase
-    .from('students')
-    .select('id')
-    .eq('school_id', _profile.school_id)
-    .eq('active', true)
-    .eq('grade_level', incoming);
-
-  if (gradeStudents && gradeStudents.length > 0) {
-    const { error: assignErr } = await supabase.from('placement_assignments').insert(
-      gradeStudents.map((s, i) => ({
-        session_id: session.id,
-        student_id: s.id,
-        teacher_id: null,
-        sort_order: i,
-      }))
-    );
-    if (assignErr) console.error('Failed to pre-populate student assignments:', assignErr);
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'Create Session';
-  document.getElementById('placementLabel').value = '';
-  document.getElementById('placementIncomingGrade').value = '';
-  const tsEl = document.getElementById('placementTargetSize');
-  if (tsEl) tsEl.value = '';
-
-  await showBoard(session.id);
-}
+/* ── Session list / create form — see admin.placement.sessions.js ── */
 
 /* ── Board ── */
 async function showBoard(sessionId) {
