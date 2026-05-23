@@ -230,7 +230,7 @@ async function loadDashboardStats() {
     });
   }
 
-  const set  = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  const set  = (id, val) => { const el = document.getElementById(id); if (el) { el.textContent = val; el.classList.remove('skeleton', 'stat-skel'); } };
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
 
   // ── Build all queries synchronously based on capabilities ─────────
@@ -616,6 +616,8 @@ async function loadDashboardStats() {
     }
     show('dashAlertsSection');
   }
+
+  document.getElementById('dashGrid')?.classList.add('loaded');
 
 }
 

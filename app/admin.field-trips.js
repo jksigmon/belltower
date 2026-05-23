@@ -736,6 +736,18 @@ async function toggleAttendance(studentId, attending, tr) {
     `;
     label.querySelector('input').addEventListener('change', e => toggleAttendance(studentId, e.target.checked, tr));
   }
+
+  if (currentTrip.payment_required) {
+    if (!attending) {
+      await supabase.from('field_trip_payments')
+        .delete()
+        .eq('field_trip_id', currentTrip.id)
+        .eq('student_id', studentId);
+    } else {
+      await ensurePaymentRows();
+    }
+    paymentsLoaded = false;
+  }
 }
 
 // ── Add Chaperone drawer ─────────────────────────────────────────────────
@@ -1409,9 +1421,17 @@ function renderPaymentTab(wrap) {
     ${waived ? `<div class="pay-summary-card"><div class="val">${waived}</div><div class="lbl">Waived</div></div>` : ''}
   </div>`;
 
-  if (students.length) {
+  const sortedStudents = [...students].sort((a, b) => {
+    const sa = paymentStudentMap.get(a.student_id);
+    const sb = paymentStudentMap.get(b.student_id);
+    const last  = (sa?.last_name  ?? '').localeCompare(sb?.last_name  ?? '');
+    const first = (sa?.first_name ?? '').localeCompare(sb?.first_name ?? '');
+    return last !== 0 ? last : first;
+  });
+
+  if (sortedStudents.length) {
     html += `<h4 style="font-size:12px;font-weight:700;color:#374151;margin:0 0 10px 0;text-transform:uppercase;letter-spacing:0.05em;">Students</h4>`;
-    html += buildPaymentTable(students, 'student');
+    html += buildPaymentTable(sortedStudents, 'student');
   } else if (!(currentTrip.grade_levels?.length)) {
     html += `<p class="muted" style="font-size:13px;margin-bottom:16px;">Set grade levels on this trip to auto-populate student payment records.</p>`;
   }

@@ -1498,6 +1498,8 @@ async function loadStaffDashboard() {
     }
   }());
 
+  document.getElementById('staffDashGrid')?.classList.add('loaded');
+
 }
 
 function hasAdminAccess(profile) {
