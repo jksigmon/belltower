@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Belltower — School Onboarding Guide</title>
+  <style>
+
+/* ── Reset & base ── */
+*, *::before, *::after { box-sizing: border-box; }
+html { font-size: 13px; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #111827;
+  background: #fff;
+  line-height: 1.55;
+}
+
+/* ── Page layout ── */
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 36px 40px 60px;
+}
+
+/* ── Document header ── */
+.doc-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 3px solid #1d4ed8;
+  padding-bottom: 16px;
+  margin-bottom: 28px;
+}
+.doc-title { margin: 0; font-size: 22px; font-weight: 800; color: #111827; letter-spacing: -0.03em; }
+.doc-subtitle { margin: 3px 0 0; font-size: 13px; color: #6b7280; }
+.doc-meta { text-align: right; font-size: 11px; color: #9ca3af; line-height: 1.8; }
+
+/* ── Section headers ── */
+.section {
+  margin-bottom: 28px;
+  break-inside: avoid;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 6px 12px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+.section-header.gray  { background: #374151; }
+.section-header.green { background: #15803d; }
+.section-header.amber { background: #b45309; }
+.section-header.red   { background: #b91c1c; }
+
+/* ── Steps ── */
+.step {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 0 10px;
+  margin-bottom: 14px;
+  break-inside: avoid;
+}
+.step-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.step-body {}
+.step-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 3px;
+}
+.step-where {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-bottom: 5px;
+}
+.step-body p {
+  margin: 4px 0;
+  font-size: 12.5px;
+  color: #374151;
+}
+.step-body ul, .step-body ol {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+.step-body li {
+  font-size: 12.5px;
+  color: #374151;
+  margin-bottom: 2px;
+}
+.step-body code {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 11.5px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 3px;
+  padding: 0 4px;
+  color: #111827;
+}
+
+/* ── Pitfall callouts ── */
+.pitfall {
+  display: flex;
+  gap: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 6px;
+  break-inside: avoid;
+}
+.pitfall-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+.pitfall p { margin: 0; font-size: 12px; color: #7f1d1d; line-height: 1.5; }
+.pitfall strong { color: #991b1b; }
+
+/* ── Note callouts ── */
+.note {
+  display: flex;
+  gap: 8px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-top: 6px;
+  break-inside: avoid;
+}
+.note-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+.note p { margin: 0; font-size: 12px; color: #1e3a8a; line-height: 1.5; }
+
+/* ── Two-column layout ── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* ── Tables ── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-top: 6px;
+}
+th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 5px 8px;
+}
+td {
+  border: 1px solid #e5e7eb;
+  padding: 5px 8px;
+  vertical-align: top;
+  color: #374151;
+  line-height: 1.45;
+}
+tr:nth-child(even) td { background: #f9fafb; }
+td code {
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 11px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 3px;
+  padding: 0 3px;
+}
+td strong { color: #111827; }
+
+/* ── Checklist boxes ── */
+.checklist { list-style: none; padding: 0; margin: 6px 0; }
+.checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #374151;
+  margin-bottom: 4px;
+}
+.checklist li::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #6b7280;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ── Page break ── */
+.page-break { break-before: page; }
+.no-break { break-inside: avoid; }
+
+/* ── Print ── */
+@media print {
+  body { font-size: 11.5px; }
+  .page { padding: 20px 24px 40px; max-width: 100%; }
+  .doc-header { margin-bottom: 20px; }
+  .section { margin-bottom: 20px; }
+  .no-print { display: none; }
+  a { color: inherit; text-decoration: none; }
+}
+
+/* ── Screen-only controls ── */
+.print-btn {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  background: #1d4ed8;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  box-shadow: 0 2px 8px rgba(29,78,216,0.35);
+}
+.print-btn:hover { background: #1e40af; }
+@media print { .print-btn { display: none; } }
+
+  </style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">
+  ⬇ Save as PDF
+</button>
+
+<div class="page">
+
+  <!-- ══ DOCUMENT HEADER ══════════════════════════════════════════ -->
+  <div class="doc-header">
+    <div>
+      <h1 class="doc-title">Belltower — School Onboarding Guide</h1>
+      <p class="doc-subtitle">Step-by-step setup for a new school from scratch. Follow in order.</p>
+    </div>
+    <div class="doc-meta">
+      Internal — Admin use only<br>
+      Keep updated as platform changes
+    </div>
+  </div>
+
+
+  <!-- ══ BEFORE YOU START ════════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header gray">Before You Start — Gather These</div>
+    <ul class="checklist">
+      <li>School's full name and short name (abbreviation for tight UI spaces)</li>
+      <li>Staff email domain — the part after @ in their Google accounts (e.g. <code>lincoln.edu</code>). Must be exact.</li>
+      <li>Timezone (e.g. <code>America/New_York</code>)</li>
+      <li>Complete grade list the school uses, in order, including the terminal/graduating grade</li>
+      <li>Whether school uses homeroom teacher assignments</li>
+      <li>Staff roster spreadsheet: first name, last name, email, position</li>
+      <li>Student/family roster: student names, grades, family names, carline tag numbers</li>
+      <li>Which Belltower modules they need (PTO, Carline, Compliance, Licensure, Field Trips, Substitutes)</li>
+      <li>If using carline: bus group names and which students ride each bus</li>
+      <li>If using PTO: workday hours (e.g. 8), annual PTO allotment per employee type</li>
+    </ul>
+    <div class="pitfall">
+      <span class="pitfall-icon">⚠</span>
+      <p><strong>Carline tag numbers:</strong> Every family needs one. These are the physical numbered tags families hang in their car. Collect the full list before upload — you cannot bulk-load families without them. Numbers must be unique across the school.</p>
+    </div>
+  </div>
+
+
+  <!-- ══ PHASE 1: SCHOOL RECORD ══════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">Phase 1 — Create the School Record</div>
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">Create the school</div>
+        <span class="step-where">Admin Panel → Settings → Schools (superadmin only)</span>
+        <p>Click <strong>Add School</strong>. Fill in:</p>
+        <ul>
+          <li><strong>Name</strong> — full school name</li>
+          <li><strong>Short name</strong> — abbreviation used in tight UI spaces</li>
+          <li><strong>Email domain</strong> — staff Google account domain, e.g. <code>lincoln.edu</code></li>
+          <li><strong>Timezone</strong> — e.g. <code>America/New_York</code>. Affects PTO calendar and email notification times.</li>
+          <li><strong>Weather lat/lon</strong> — optional, enables weather widget on admin dashboard</li>
+        </ul>
+        <div class="pitfall">
+          <span class="pitfall-icon">⚠</span>
+          <p><strong>Email domain is critical.</strong> When a staff member signs in with Google for the first time, Belltower checks their email domain against this field to auto-link them to the school. If the domain doesn't match (e.g. you entered <code>lincoln.edu</code> but their email is <code>staff.lincoln.edu</code>), their profile will be created as a floating pending account with no school attachment.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">Configure grade levels</div>
+        <span class="step-where">Admin Panel → Settings → Schools → Edit school</span>
+        <p>This is the single most important configuration step. Enter the exact grade level strings the school uses, in ascending order. Examples:</p>
+        <ul>
+          <li>Elementary: <code>PK</code>, <code>K</code>, <code>1</code>, <code>2</code>, <code>3</code>, <code>4</code>, <code>5</code></li>
+          <li>K–8: <code>K</code>, <code>1</code>, <code>2</code> … <code>8</code></li>
+        </ul>
+        <p>Also set: <strong>Terminal grade</strong> (the last grade before students graduate/leave — used by Year-End Promotion to automatically mark students inactive).</p>
+        <p>Set <strong>Uses homerooms</strong> if teachers are assigned as homeroom teachers. Set <strong>Require MVR for drivers</strong> if the school requires a motor vehicle record check for chaperones who drive.</p>
+        <div class="pitfall">
+          <span class="pitfall-icon">⚠</span>
+          <p><strong>Grade level strings must be exactly consistent everywhere.</strong> Student records, bulk upload sheets, class placement, carline filtering, and year-end promotion all match on these exact strings. If you enter <code>Pre-K</code> here but the bulk upload sheet says <code>PreK</code>, those students will have mismatched grades that won't filter correctly. Decide on the format before touching anything else.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">Enable modules</div>
+        <span class="step-where">Admin Panel → Settings → Schools → Edit school → Module toggles</span>
+        <p>Toggle on only the modules this school is using. Unused modules clutter the nav for their staff. You can enable more later. Modules available:</p>
+        <ul>
+          <li><strong>PTO</strong> — PTO requests, approvals, balances, substitutes trigger</li>
+          <li><strong>Substitutes</strong> — substitute assignment board</li>
+          <li><strong>Carline</strong> — dismissal screen, carline input, bus groups, carpools in nav</li>
+          <li><strong>Licensure</strong> — staff license tracking and expiry alerts</li>
+          <li><strong>Compliance</strong> — background checks and volunteer agreement forms</li>
+          <li><strong>Field Trips</strong> — trip planning, chaperone management, vehicle assignment</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">Set up campus(es) — only if using Carline</div>
+        <span class="step-where">Admin Panel → Directory → Campuses</span>
+        <p>Standalone single-campus schools <strong>do not need a campus record</strong> unless they are using the Carline module. If carline is enabled, create at least one campus — the carline screen uses campus to filter students. Name it something clear (e.g. "Main Campus" or the campus name).</p>
+        <div class="note">
+          <span class="note-icon">ℹ</span>
+          <p>Multi-campus schools should set up all campuses before uploading students, since students can be assigned to a campus during bulk upload.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══ PHASE 2: DATA UPLOAD ═════════════════════════════════════ -->
+  <div class="section page-break">
+    <div class="section-header">Phase 2 — Load Data</div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">Bulk upload employees (staff)</div>
+        <span class="step-where">Admin Panel → Settings → Bulk Upload</span>
+        <p>Download the Bulk Upload Template. Fill in the <strong>Employees</strong> sheet. Required columns: first name, last name, email, position. Upload → Preview → Commit.</p>
+        <div class="pitfall">
+          <span class="pitfall-icon">⚠</span>
+          <p><strong>Employee emails must exactly match their Google sign-in email.</strong> This is what Belltower uses to auto-link their login to their employee record. A wrong email means they'll create a floating pending profile on first login that you'll need to manually resolve.</p>
+        </div>
+        <div class="note">
+          <span class="note-icon">ℹ</span>
+          <p>Uploading creates the employee record but does <em>not</em> create a login. Staff still need to sign in with Google themselves first (see Step 8).</p>
+        </div>
+        <p>If something looks wrong after Commit, use <strong>Undo Last Upload</strong> immediately — it rolls back the entire batch cleanly.</p>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">Bulk upload students and families</div>
+        <span class="step-where">Admin Panel → Settings → Bulk Upload</span>
+        <p>Fill in the <strong>Students</strong> and <strong>Families</strong> sheets. Key fields:</p>
+        <ul>
+          <li><strong>Family: carline_tag_number</strong> — required, must be unique per school, must not be blank. Use the physical tag numbers families already have (or assign new ones).</li>
+          <li><strong>Student: grade_level</strong> — must match the exact strings configured in Step 2.</li>
+          <li><strong>Student: family_name</strong> — must match the family name on the Families sheet so the link is created correctly.</li>
+          <li><strong>Student: campus</strong> — if using multi-campus, match the campus name from Step 4 exactly.</li>
+        </ul>
+        <div class="pitfall">
+          <span class="pitfall-icon">⚠</span>
+          <p><strong>Duplicate carline tag numbers will cause the upload to fail.</strong> Every family must have a unique tag. Check the sheet for duplicates before uploading.</p>
+        </div>
+        <div class="pitfall">
+          <span class="pitfall-icon">⚠</span>
+          <p><strong>Grade level mismatch.</strong> If a student's grade_level string doesn't match the school's configured grade levels, they will exist in the system but won't appear correctly in carline filtering, class placement, or year-end promotion.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="step-title">Set up bus groups — only if using Carline</div>
+        <span class="step-where">Admin Panel → Directory → Bus Groups</span>
+        <p>Create a bus group for each bus/route (e.g. "Bus 1", "Route A"). Then assign students to their bus group — either from each student's record or via the bus group detail panel. Bus group buttons appear on the carline screen and call all assigned students at once.</p>
+        <div class="note">
+          <span class="note-icon">ℹ</span>
+          <p>Students not assigned to any bus group only appear via family tag lookup. Bus groups are separate from and additive to the family tag system.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══ PHASE 3: USER ACCOUNTS ═══════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header green">Phase 3 — Set Up User Accounts</div>
+
+    <div class="step">
+      <div class="step-num">8</div>
+      <div class="step-body">
+        <div class="step-title">Activate the first admin account</div>
+        <span class="step-where">Admin Panel → Settings → User Access &amp; Permissions → Pending Users</span>
+        <p>The school's designated admin needs to <strong>sign in with Google first</strong> before you can activate them. After they sign in, their account appears in the Pending Users table at the bottom of the Access page.</p>
+        <ol>
+          <li>Have the school admin go to <strong>belltower.school</strong> and sign in with Google.</li>
+          <li>In the Admin Panel, go to <strong>User Access &amp; Permissions</strong>.</li>
+          <li>Scroll to <strong>Pending Users</strong> and click <strong>Activate</strong> next to their name.</li>
+          <li>Their account status changes to Active and their login is linked to their employee record.</li>
+          <li>Now grant them permissions — see Phase 4 and the Permissions Reference at the end of this document.</li>
+        </ol>
+        <div class="pitfall">
+          <span class="pitfall-icon">⚠</span>
+          <p><strong>Staff must sign in before you can activate them.</strong> You cannot pre-activate an account. The pending record only appears after their first Google sign-in.</p>
+        </div>
+        <div class="pitfall">
+          <span class="pitfall-icon">⚠</span>
+          <p><strong>If their pending account shows no school attached</strong> (blank school name in the pending table), the email domain didn't match. You'll need to manually link them in Supabase: find their profile row, set the correct <code>school_id</code>, and update <code>status</code> to <code>active</code>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">9</div>
+      <div class="step-body">
+        <div class="step-title">Grant permissions to the school admin</div>
+        <span class="step-where">Admin Panel → Settings → User Access &amp; Permissions</span>
+        <p>Select the newly activated admin. Use the <strong>Role Presets</strong> dropdown → <strong>Admin</strong> to apply a full permission set, then adjust as needed. At minimum, a school admin needs:</p>
+        <ul>
+          <li><strong>can_access_admin</strong> — access to the Admin Panel at all</li>
+          <li><strong>can_manage_access</strong> — so they can activate other staff accounts themselves</li>
+          <li><strong>can_manage_staff, can_manage_students, can_manage_families</strong></li>
+          <li><strong>can_bulk_upload, can_export_data</strong></li>
+          <li>Appropriate module permissions based on enabled modules</li>
+        </ul>
+        <div class="pitfall">
+          <span class="pitfall-icon">⚠</span>
+          <p><strong>can_manage_access is powerful.</strong> A user with this permission can give themselves or others any permission, including can_manage_access itself. Only grant it to fully trusted admins.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">10</div>
+      <div class="step-body">
+        <div class="step-title">Hand off remaining account activations to the school admin</div>
+        <p>Once the school admin can access the Access &amp; Permissions panel, they can activate all remaining staff themselves. Share these instructions with them:</p>
+        <ol>
+          <li>Have each staff member sign in at belltower.school with their school Google account.</li>
+          <li>The admin goes to Admin Panel → User Access &amp; Permissions → Pending Users.</li>
+          <li>Click Activate for each person, then set their permissions using the Role Presets.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══ PHASE 4: MODULE CONFIG ════════════════════════════════════ -->
+  <div class="section page-break">
+    <div class="section-header amber">Phase 4 — Configure Active Modules</div>
+
+    <div class="step no-break">
+      <div class="step-num">11</div>
+      <div class="step-body">
+        <div class="step-title">PTO setup — only if PTO module is enabled</div>
+        <span class="step-where">PTO Management → Adjust Balances → Annual Allotments</span>
+        <p>Before staff can use PTO, allotments must be applied:</p>
+        <ol>
+          <li>Go to PTO Management (staff portal, admin view).</li>
+          <li>Under <strong>Adjust Balances</strong>, find the <strong>Annual Allotments</strong> section.</li>
+          <li>Set the allotment hours per PTO type for each employee (or run bulk allotment for all staff at once).</li>
+        </ol>
+        <div class="pitfall">
+          <span class="pitfall-icon">⚠</span>
+          <p><strong>If allotments are skipped, staff see a $0 balance and think something is broken.</strong> This is the most common source of confusion on day one. Do this before staff start logging in.</p>
+        </div>
+        <p>Also verify <strong>PTO types</strong> are configured correctly — which types count against balance vs. tracking only (Jury Duty, Bereavement, Professional are typically tracking-only).</p>
+      </div>
+    </div>
+
+    <div class="step no-break">
+      <div class="step-num">12</div>
+      <div class="step-body">
+        <div class="step-title">Compliance setup — only if Compliance module is enabled</div>
+        <span class="step-where">Admin Panel → Operations → Compliance → Form Templates</span>
+        <p>Background check tracking works out of the box — staff can start entering records immediately. For volunteer agreement forms:</p>
+        <ol>
+          <li>Go to <strong>Compliance → Form Templates</strong>.</li>
+          <li>Click <strong>New Template</strong>. Enter the form name, upload the school logo, and paste the agreement text.</li>
+          <li>Save the template. It will generate a shareable link.</li>
+          <li>Activate the form link so guardians can access it.</li>
+        </ol>
+        <div class="note">
+          <span class="note-icon">ℹ</span>
+          <p>The school logo must be uploaded to Supabase Storage (bucket: <code>school-assets</code>) before it will appear on the volunteer form. This is done through the school settings panel.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step no-break">
+      <div class="step-num">13</div>
+      <div class="step-body">
+        <div class="step-title">Verify setup with the Setup Checklist</div>
+        <span class="step-where">setup.html (accessible from Admin Panel → Settings → Setup Checklist)</span>
+        <p>Open the Setup Checklist page, select this school (superadmin), and confirm every step shows a green checkmark. Pay attention to:</p>
+        <ul>
+          <li>Any red ✗ — these are blocking issues that will cause features to not work</li>
+          <li>Any amber ⚠ — these are gaps that will cause confusion or degraded functionality</li>
+        </ul>
+        <p>Share the setup checklist link with the school admin so they can monitor their own progress.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══ MANUAL DATA ENTRY NOTES ══════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header gray">Manual Data Entry — What Can't Be Bulk Uploaded</div>
+    <p style="font-size:12.5px;color:#374151;margin:0 0 8px;">These items must be entered manually — there's no bulk import path. Set expectations with the school that this is ongoing work, not a day-one blocker.</p>
+    <div class="two-col">
+      <div>
+        <table>
+          <tr><th>Item</th><th>Where</th></tr>
+          <tr><td><strong>Existing PTO balances</strong><br><span style="color:#9ca3af;font-size:11px;">For schools with carry-over from a previous system</span></td><td>PTO Mgmt → Adjust Balances</td></tr>
+          <tr><td><strong>Background check records</strong><br><span style="color:#9ca3af;font-size:11px;">Historical checks already on file</span></td><td>Compliance → Background Checks</td></tr>
+          <tr><td><strong>Staff licenses</strong><br><span style="color:#9ca3af;font-size:11px;">Existing licensure on file</span></td><td>Admin → Licensure → Add License</td></tr>
+          <tr><td><strong>Substitute directory</strong><br><span style="color:#9ca3af;font-size:11px;">External subs not in employee roster</span></td><td>Substitutes → Directory</td></tr>
+        </table>
+      </div>
+      <div>
+        <table>
+          <tr><th>Item</th><th>Where</th></tr>
+          <tr><td><strong>Carpool groups</strong><br><span style="color:#9ca3af;font-size:11px;">Families that share a pickup tag</span></td><td>Admin → Directory → Carpools</td></tr>
+          <tr><td><strong>Guardian records</strong><br><span style="color:#9ca3af;font-size:11px;">Or use Guardian Intake campaigns</span></td><td>Admin → Directory → Guardians</td></tr>
+          <tr><td><strong>Employee PTO policies</strong><br><span style="color:#9ca3af;font-size:11px;">Per-person allotment overrides</span></td><td>PTO Mgmt → Adjust Balances</td></tr>
+          <tr><td><strong>Homeroom teacher assignments</strong><br><span style="color:#9ca3af;font-size:11px;">Assign students to teachers for carline/class placement</span></td><td>Admin → Students → Edit student</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ══ PERMISSIONS REFERENCE ════════════════════════════════════ -->
+  <div class="section page-break">
+    <div class="section-header">Permissions Reference</div>
+    <p style="font-size:12px;color:#374151;margin:0 0 8px;">All permissions are toggles on the <code>profiles</code> table. The Admin Panel → User Access &amp; Permissions panel manages these. Role Presets apply a predefined bundle.</p>
+
+    <table>
+      <tr>
+        <th style="width:38%;">Permission</th>
+        <th>What it grants access to</th>
+      </tr>
+      <tr><td><code>can_access_admin</code></td><td>The Admin Panel itself. Without this, staff only see the Staff Portal.</td></tr>
+      <tr><td><code>can_manage_staff</code></td><td>Staff tab — add, edit, deactivate employee records.</td></tr>
+      <tr><td><code>can_manage_students</code></td><td>Students tab — add, edit, manage student records.</td></tr>
+      <tr><td><code>can_manage_families</code></td><td>Families tab + Data Collection (Guardian Intake campaigns).</td></tr>
+      <tr><td><code>can_manage_guardians</code></td><td>Guardians tab + Data Collection tab.</td></tr>
+      <tr><td><code>can_manage_access</code></td><td>User Access &amp; Permissions tab — can activate users and change anyone's permissions. <strong>Grant carefully.</strong></td></tr>
+      <tr><td><code>can_bulk_upload</code></td><td>Bulk Upload tab.</td></tr>
+      <tr><td><code>can_export_data</code></td><td>Exports tab — rosters, class placements, contact lists.</td></tr>
+      <tr><td><code>can_manage_bus_groups</code></td><td>Bus Groups tab.</td></tr>
+      <tr><td><code>can_manage_carpools</code></td><td>Carpools tab.</td></tr>
+      <tr><td><code>can_manage_campuses</code></td><td>Campuses tab.</td></tr>
+      <tr><td><code>can_view_pto_calendar</code></td><td>PTO calendar view — see who is out on what days.</td></tr>
+      <tr><td><code>can_review_pto</code></td><td>PTO pending requests tab — see requests awaiting decision.</td></tr>
+      <tr><td><code>can_approve_pto</code></td><td>Approve or deny PTO requests and handle cancellations/rescind requests.</td></tr>
+      <tr><td><code>can_adjust_pto</code></td><td>Adjust Balances tab — add/subtract hours and run allotments.</td></tr>
+      <tr><td><code>can_generate_pto_reports</code></td><td>PTO Reports tab — export PTO summaries and ledgers.</td></tr>
+      <tr><td><code>can_manage_substitutes</code></td><td>Substitute Management — assign subs, manage substitute directory.</td></tr>
+      <tr><td><code>can_view_carline</code></td><td>View the carline display screen (read-only).</td></tr>
+      <tr><td><code>can_manage_carline</code></td><td>Operate the carline input screen — call students, record loads.</td></tr>
+      <tr><td><code>can_manage_licensure</code></td><td>Licensure tab — add/edit/track staff licenses and certifications.</td></tr>
+      <tr><td><code>can_manage_compliance</code></td><td>Compliance tab — background checks, form templates, agreements.</td></tr>
+      <tr><td><code>can_manage_field_trips</code></td><td>Admin-level field trip access — see <em>all</em> school trips. Without this, staff only see trips they are managing teachers on.</td></tr>
+      <tr><td><code>can_manage_placement</code></td><td>Class Placement board + Year-End Promotion.</td></tr>
+      <tr><td><code>is_fallback_approver</code></td><td>Receives PTO approval notifications when a staff member has no supervisor assigned.</td></tr>
+    </table>
+
+    <div style="margin-top:12px;">
+      <strong style="font-size:12px;">Role Presets (quick apply bundles):</strong>
+      <ul style="margin:6px 0 0;padding-left:18px;">
+        <li style="font-size:12px;margin-bottom:3px;"><strong>Teacher</strong> — can_view_pto_calendar, can_manage_field_trips (own trips only, no admin flag), basic portal access</li>
+        <li style="font-size:12px;margin-bottom:3px;"><strong>Office Staff</strong> — can_access_admin, can_manage_students, can_manage_families, can_manage_guardians, can_view_carline, can_manage_carline</li>
+        <li style="font-size:12px;"><strong>Admin</strong> — full set of permissions including can_manage_access, can_approve_pto, can_manage_access</li>
+      </ul>
+    </div>
+  </div>
+
+
+  <!-- ══ MODULE GATES REFERENCE ═══════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header">Module Gates — What Each Module Unlocks</div>
+    <p style="font-size:12px;color:#374151;margin:0 0 8px;">Modules are toggled in Schools → Edit school. A module must be enabled AND the user must have the matching permission for nav links to appear.</p>
+    <table>
+      <tr><th style="width:18%;">Module key</th><th>Nav items unlocked</th><th>Required permission(s)</th></tr>
+      <tr>
+        <td><code>pto</code></td>
+        <td>PTO Management (admin), PTO &amp; Leave (staff portal)</td>
+        <td>can_view_pto_calendar, can_review_pto, can_approve_pto, or can_generate_pto_reports</td>
+      </tr>
+      <tr>
+        <td><code>substitutes</code></td>
+        <td>Substitutes (admin + staff portal)</td>
+        <td>can_manage_substitutes</td>
+      </tr>
+      <tr>
+        <td><code>carline</code></td>
+        <td>Carline screen, Carline Input, Bus Groups, Carpools</td>
+        <td>can_view_carline or can_manage_carline (for carline); can_manage_bus_groups, can_manage_carpools (for admin tabs)</td>
+      </tr>
+      <tr>
+        <td><code>licensure</code></td>
+        <td>Licensure tab (admin), license alerts on staff portal dashboard</td>
+        <td>can_manage_licensure</td>
+      </tr>
+      <tr>
+        <td><code>compliance</code></td>
+        <td>Compliance tab (admin + staff portal link), chaperone compliance on field trips</td>
+        <td>can_manage_compliance</td>
+      </tr>
+      <tr>
+        <td><code>field_trips</code></td>
+        <td>Field Trips (staff portal nav)</td>
+        <td>None — all staff see field trips they are managing teachers on. can_manage_field_trips grants admin view of all trips.</td>
+      </tr>
+    </table>
+  </div>
+
+
+  <!-- ══ COMMON PITFALLS ══════════════════════════════════════════ -->
+  <div class="section page-break">
+    <div class="section-header red">Common Pitfalls &amp; How to Fix Them</div>
+
+    <table>
+      <tr><th style="width:32%;">Symptom</th><th style="width:38%;">Root cause</th><th>Fix</th></tr>
+      <tr>
+        <td>Staff member signs in but sees "account pending" or gets routed wrong</td>
+        <td>Email domain doesn't match <code>schools.email_domain</code>, so their profile was created with no school</td>
+        <td>In Supabase table editor: find their row in <code>profiles</code>, set correct <code>school_id</code>, set <code>status = 'active'</code>, <code>can_login = true</code></td>
+      </tr>
+      <tr>
+        <td>Students don't appear in carline when tag is entered</td>
+        <td>Student's grade_level string doesn't match the campus filter, or student has no family linked, or family tag number doesn't match</td>
+        <td>Check student record for correct grade_level and family_id. Check family's carline_tag_number matches what was entered.</td>
+      </tr>
+      <tr>
+        <td>Bulk upload fails on families</td>
+        <td>Duplicate carline_tag_number in the sheet, or a tag number left blank</td>
+        <td>Find and fix duplicates/blanks in the spreadsheet. Every family must have a unique non-empty tag.</td>
+      </tr>
+      <tr>
+        <td>Students appear in system but wrong grade filtering in carline / placement</td>
+        <td>grade_level string in student record doesn't match school's configured grade_levels</td>
+        <td>Fix grade_level on the student record to match exactly. Can bulk-fix in Supabase table editor with a SQL UPDATE if widespread.</td>
+      </tr>
+      <tr>
+        <td>Staff see $0 PTO balance on day one</td>
+        <td>Annual allotments were never run</td>
+        <td>PTO Management → Adjust Balances → Annual Allotments → run for all staff</td>
+      </tr>
+      <tr>
+        <td>Admin nav link doesn't appear for a user</td>
+        <td><code>can_access_admin</code> is false on their profile, or the module is disabled</td>
+        <td>Go to User Access &amp; Permissions, find the user, toggle can_access_admin on</td>
+      </tr>
+      <tr>
+        <td>Carline screen shows "no students" even with families loaded</td>
+        <td>No campus record exists (required when carline module is on), or wrong campus selected</td>
+        <td>Add a campus in Admin → Campuses. Ensure students are assigned to that campus if multi-campus.</td>
+      </tr>
+      <tr>
+        <td>A staff member's profile is linked to the wrong school</td>
+        <td>Email domain matched a different school's record, or they logged in before the school was set up</td>
+        <td>In Supabase <code>profiles</code> table: update <code>school_id</code> to the correct school UUID</td>
+      </tr>
+      <tr>
+        <td>PTO calendar times are wrong (off by hours)</td>
+        <td>Timezone not set on the school record</td>
+        <td>Edit school in Schools tab, set the correct IANA timezone string (e.g. <code>America/Chicago</code>)</td>
+      </tr>
+      <tr>
+        <td>Year-end promotion graduates wrong students or misses students</td>
+        <td>Terminal grade not set, or students have blank/mismatched grade_level</td>
+        <td>Set terminal_grade on the school. Fix any students with blank or mismatched grade_level before running promotion.</td>
+      </tr>
+    </table>
+  </div>
+
+
+  <!-- ══ SUPABASE DIRECT ACCESS ════════════════════════════════════ -->
+  <div class="section">
+    <div class="section-header gray">Supabase Direct Access — Emergency Fixes</div>
+    <p style="font-size:12.5px;color:#374151;margin:0 0 10px;">For issues that can't be resolved through the UI. Use the Supabase Table Editor or SQL Editor. Always make a note of what you changed and why.</p>
+
+    <div class="two-col">
+      <div>
+        <table>
+          <tr><th colspan="2">Key tables for manual fixes</th></tr>
+          <tr><td><code>schools</code></td><td>School config, grade_levels, timezone, modules</td></tr>
+          <tr><td><code>school_modules</code></td><td>Enable/disable modules per school</td></tr>
+          <tr><td><code>profiles</code></td><td>User accounts, permissions, school linkage, status</td></tr>
+          <tr><td><code>employees</code></td><td>Staff records, email, position, active flag</td></tr>
+          <tr><td><code>students</code></td><td>Student records, grade_level, family_id, campus_id</td></tr>
+          <tr><td><code>families</code></td><td>Family records, carline_tag_number (must be unique)</td></tr>
+          <tr><td><code>pto_balances</code></td><td>Current PTO balance per employee per type</td></tr>
+          <tr><td><code>campuses</code></td><td>Campus records — required for carline</td></tr>
+        </table>
+      </div>
+      <div>
+        <table>
+          <tr><th colspan="2">Useful SQL snippets</th></tr>
+          <tr>
+            <td>Find a user's profile by email</td>
+            <td><code>SELECT * FROM profiles WHERE email = 'x@school.edu';</code></td>
+          </tr>
+          <tr>
+            <td>Fix a profile's school</td>
+            <td><code>UPDATE profiles SET school_id = '&lt;uuid&gt;' WHERE email = 'x@school.edu';</code></td>
+          </tr>
+          <tr>
+            <td>Activate a pending profile</td>
+            <td><code>UPDATE profiles SET status = 'active', can_login = true WHERE email = 'x@school.edu';</code></td>
+          </tr>
+          <tr>
+            <td>Check which modules are on for a school</td>
+            <td><code>SELECT * FROM school_modules WHERE school_id = '&lt;uuid&gt;' AND enabled = true;</code></td>
+          </tr>
+          <tr>
+            <td>Find students with mismatched grade levels</td>
+            <td><code>SELECT grade_level, count(*) FROM students WHERE school_id = '&lt;uuid&gt;' GROUP BY grade_level;</code></td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="note" style="margin-top:12px;">
+      <span class="note-icon">ℹ</span>
+      <p><strong>RLS is enabled on all tables.</strong> SQL run in the Supabase SQL Editor uses the <code>postgres</code> role and bypasses RLS — changes take effect immediately regardless of policy. Be careful. Always WHERE-clause by school_id so you don't accidentally modify another school's data.</p>
+    </div>
+  </div>
+
+
+  <!-- ══ QUICK ORDER CHECKLIST ════════════════════════════════════ -->
+  <div class="section page-break">
+    <div class="section-header">Quick-Reference Order Checklist</div>
+    <ul class="checklist">
+      <li>Gathered all school info (domain, timezone, grades, roster, tag numbers)</li>
+      <li>Created school record in Admin Panel → Schools</li>
+      <li>Configured grade levels (exact strings) and terminal grade</li>
+      <li>Enabled correct modules</li>
+      <li>Created campus record (only if carline is enabled)</li>
+      <li>Bulk uploaded employees — verified emails match Google accounts</li>
+      <li>Bulk uploaded students and families — verified tag numbers unique, grade levels match</li>
+      <li>Set up bus groups and assigned students (only if carline is enabled)</li>
+      <li>School admin signed in with Google (creates pending account)</li>
+      <li>Activated school admin account and granted full permissions</li>
+      <li>Applied PTO allotments for all staff (only if PTO is enabled)</li>
+      <li>Created compliance form templates (only if Compliance is enabled)</li>
+      <li>Ran Setup Checklist — all items green</li>
+      <li>School admin can log in and see correct data</li>
+      <li>Handed off remaining staff activations to school admin</li>
+    </ul>
+  </div>
+
+</div><!-- end .page -->
+
+</body>
+</html>
