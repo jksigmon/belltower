@@ -33,10 +33,10 @@ export async function getAccessRequestCount(schoolId) {
 ================================ */
 
 async function loadAccessRequests() {
-  const tbody = document.getElementById('accessRequestsBody');
-  if (!tbody) return;
+  const container = document.getElementById('accessRequestsBody');
+  if (!container) return;
 
-  tbody.innerHTML = '<tr><td colspan="6" class="muted">Loading…</td></tr>';
+  container.innerHTML = '<p class="muted">Loading…</p>';
 
   const { data, error } = await supabase
     .from('access_requests')
@@ -56,17 +56,17 @@ async function loadAccessRequests() {
     .order('created_at', { ascending: true });
 
   if (error) {
-    tbody.innerHTML = '<tr><td colspan="6" class="muted">Failed to load.</td></tr>';
+    container.innerHTML = '<p class="muted">Failed to load.</p>';
     console.error('Access requests load error', error);
     return;
   }
 
   if (!data?.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="muted">No pending access requests.</td></tr>';
+    container.innerHTML = '<p class="muted">No pending access requests.</p>';
     return;
   }
 
-  tbody.innerHTML = '';
+  container.innerHTML = '';
   data.forEach(req => {
     const name  = req.employees ? `${req.employees.first_name} ${req.employees.last_name}` : '—';
     const perms = (req.requested_permissions ?? []).join(', ') || '—';
@@ -78,33 +78,36 @@ async function loadAccessRequests() {
       ? new Date(rawSignIn).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       : '—';
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${esc(name)}</strong></td>
-      <td>${esc(perms)}</td>
-      <td class="muted">${esc(req.reason ?? '—')}</td>
-      <td class="muted">${date}</td>
-      <td class="muted">${lastSignIn}</td>
-      <td>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-sm btn-primary ar-approve-btn"
-            data-id="${req.id}"
-            data-name="${esc(name)}"
-            data-perms="${esc(perms)}">Approve</button>
-          <button class="btn btn-sm ar-deny-btn"
-            data-id="${req.id}"
-            data-name="${esc(name)}">Deny</button>
+    const card = document.createElement('div');
+    card.className = 'access-req-card';
+    card.innerHTML = `
+      <div class="access-req-card-main">
+        <div class="access-req-name">${esc(name)}</div>
+        <div class="access-req-perms">${esc(perms)}</div>
+        <div class="access-req-meta">
+          ${req.reason ? `<span>Reason: ${esc(req.reason)}</span>` : ''}
+          <span>Submitted: ${date}</span>
+          <span>Last sign-in: ${lastSignIn}</span>
         </div>
-      </td>
+      </div>
+      <div class="access-req-actions">
+        <button class="btn btn-sm btn-primary ar-approve-btn"
+          data-id="${req.id}"
+          data-name="${esc(name)}"
+          data-perms="${esc(perms)}">Approve</button>
+        <button class="btn btn-sm ar-deny-btn"
+          data-id="${req.id}"
+          data-name="${esc(name)}">Deny</button>
+      </div>
     `;
-    tbody.appendChild(tr);
+    container.appendChild(card);
   });
 
-  document.querySelectorAll('.ar-approve-btn').forEach(btn => {
+  container.querySelectorAll('.ar-approve-btn').forEach(btn => {
     btn.addEventListener('click', () =>
       openReviewModal(btn.dataset.id, 'approved', btn.dataset.name, btn.dataset.perms));
   });
-  document.querySelectorAll('.ar-deny-btn').forEach(btn => {
+  container.querySelectorAll('.ar-deny-btn').forEach(btn => {
     btn.addEventListener('click', () =>
       openReviewModal(btn.dataset.id, 'denied', btn.dataset.name, ''));
   });

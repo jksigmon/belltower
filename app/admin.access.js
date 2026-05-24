@@ -307,10 +307,10 @@ async function applyRolePreset(presetKey) {
 ================================ */
 
 async function loadPendingUsers() {
-  const tbody = document.getElementById('pendingUsersTable');
-  if (!tbody) return;
+  const container = document.getElementById('pendingUsersTable');
+  if (!container) return;
 
-  tbody.innerHTML = '';
+  container.innerHTML = '';
 
   const { data, error } = await supabase
     .from('profiles')
@@ -320,20 +320,24 @@ async function loadPendingUsers() {
     .order('email');
 
   if (error || !data.length) {
-    tbody.innerHTML =
-      '<tr><td colspan="3" class="muted">No pending users</td></tr>';
+    container.innerHTML = '<p class="muted">No pending users</p>';
     return;
   }
 
   data.forEach(p => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${esc(p.display_name ?? '—')}</td>
-      <td>${esc(p.email)}</td>
-      <td><button class="btn btn-primary">Activate</button></td>
+    const card = document.createElement('div');
+    card.className = 'access-req-card';
+    card.innerHTML = `
+      <div class="access-req-card-main">
+        <div class="access-req-name">${esc(p.display_name ?? '—')}</div>
+        <div class="access-req-email">${esc(p.email)}</div>
+      </div>
+      <div class="access-req-actions">
+        <button class="btn btn-sm btn-primary">Activate</button>
+      </div>
     `;
 
-    tr.querySelector('button').onclick = async () => {
+    card.querySelector('button').onclick = async () => {
       try {
         /* ===============================
            1️⃣ Load full profile (need profile.id!)
@@ -445,7 +449,7 @@ async function loadPendingUsers() {
       }
     };
 
-    tbody.appendChild(tr);
+    container.appendChild(card);
   });
 }
 

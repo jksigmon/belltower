@@ -449,42 +449,18 @@
     <!-- Access Requests -->
     <div class="panel" id="accessRequestsPanel" style="margin-top:16px;">
       <h4>Access Requests</h4>
-      <table style="width:100%;border-collapse:collapse;">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Requested</th>
-            <th>Reason</th>
-            <th>Date</th>
-            <th>Last sign-in</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="accessRequestsBody">
-          <tr><td colspan="6" class="muted">Loading…</td></tr>
-        </tbody>
-      </table>
+      <div id="accessRequestsBody" class="access-card-list">
+        <p class="muted">Loading…</p>
+      </div>
     </div>
 
-    <!-- ✅ Pending users (GLOBAL, stays visible) -->
+    <!-- Pending Users -->
     <div class="panel" id="pendingUsersPanel" style="margin-top:16px;">
-  <h4>Pending Users</h4>
-
-  <table style="width:100%; border-collapse:collapse;">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Approve</th>
-      </tr>
-    </thead>
-    <tbody id="pendingUsersTable">
-      <tr>
-        <td colspan="3" class="muted">Loading…</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
+      <h4>Pending Users</h4>
+      <div id="pendingUsersTable" class="access-card-list">
+        <p class="muted">Loading…</p>
+      </div>
+    </div>
 
   </div>
 </section>
