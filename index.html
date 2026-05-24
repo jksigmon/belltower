@@ -189,39 +189,63 @@ nav a:hover { opacity: 1; }
 
 /* ── Module strip ────────────────────────────────────────── */
 .modules-strip {
-  background: #ffffff;
-  border-top: 1px solid #e2e8f0;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 2rem;
+  background: linear-gradient(180deg, #0c3059, #071c2f);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 3rem 2rem;
+}
+
+.modules-strip-eyebrow {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1.5rem;
 }
 
 .modules-strip-inner {
-  max-width: 1100px;
+  max-width: 1000px;
   margin: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem 0.6rem;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.6rem;
 }
 
 .mod-pill {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.82rem;
+  gap: 0.65rem;
+  padding: 0.85rem 1.1rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  font-size: 0.83rem;
   font-weight: 600;
-  color: #1f5fa8;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 999px;
-  padding: 0.3rem 0.8rem;
+  color: rgba(255,255,255,0.85);
   white-space: nowrap;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s;
 }
 
-.mod-pill svg { width:15px; height:15px; flex-shrink:0; color: #2563eb; }
+.mod-pill:hover {
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(255,255,255,0.18);
+  transform: translateY(-1px);
+}
+
+.mod-pill svg { width: 16px; height: 16px; flex-shrink: 0; color: #60a5fa; }
 
 .mod-divider { display: none; }
+
+@media (max-width: 760px) {
+  .modules-strip-inner { grid-template-columns: repeat(2, 1fr); }
+  .mod-pill { white-space: normal; }
+}
+
+@media (max-width: 400px) {
+  .modules-strip-inner { grid-template-columns: 1fr; }
+}
 
 /* ── Sections shared ─────────────────────────────────────── */
 section.features {
@@ -610,8 +634,8 @@ footer {
       <h1>Less logistics.<br>More learning.</h1>
       <p class="hero-sub">
         Belltower replaces the spreadsheets, email threads, and manual processes that slow schools down.
-        PTO tracking, substitute coverage, carline dismissal, volunteer compliance, licensure management,
-        and staff administration in one platform built specifically for how schools operate.
+        PTO tracking, substitute coverage, field trip coordination, carline dismissal, volunteer compliance,
+        licensure management, and staff administration in one platform built specifically for how schools operate.
       </p>
       <div class="hero-actions">
         <button class="btn btn-primary" onclick="openModal('Request a Demo')">
@@ -628,6 +652,7 @@ footer {
 
 <!-- ── Module strip ────────────────────────────────────────── -->
 <div class="modules-strip">
+  <p class="modules-strip-eyebrow">One platform. Every operation.</p>
   <div class="modules-strip-inner">
     <div class="mod-pill">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="4" width="14" height="18" rx="2"/><path d="M9 2h6v4H9zM8 10h8M8 14h8M8 18h5" stroke-linecap="round"/></svg>
@@ -647,6 +672,11 @@ footer {
     <div class="mod-pill">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8zM6 1v3M10 1v3M14 1v3"/></svg>
       Carline Dismissal
+    </div>
+    <div class="mod-divider"></div>
+    <div class="mod-pill">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      Field Trip Management
     </div>
     <div class="mod-divider"></div>
     <div class="mod-pill">
@@ -686,11 +716,15 @@ footer {
         <p>Staff submit requests online. Supervisors approve or deny in one click. Balances update automatically.</p>
         <ul class="card-bullets">
           <li>Request &amp; approve in minutes</li>
-          <li>Real-time balance tracking</li>
+          <li>One-click email approval — supervisors act without logging in</li>
+          <li>Real-time balance tracking with full ledger audit trail</li>
+          <li>Cancellation and retroactive rescind workflows</li>
           <li>Annual allotment policies per role</li>
           <li>Bulk policy assignment across staff</li>
+          <li>Manual balance adjustments by admins</li>
           <li>Automated email notifications</li>
           <li>Calendar &amp; ICS export</li>
+          <li>Year-end rollover reports</li>
           <li>Payroll-ready PTO reports</li>
         </ul>
       </div>
@@ -700,12 +734,34 @@ footer {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
         </div>
         <h3>Substitute Assignment</h3>
-        <p>When staff call out, coverage gaps are surfaced immediately and subs are matched to open periods.</p>
+        <p>When staff call out, coverage gaps are surfaced immediately and subs or internal staff are matched to open periods.</p>
         <ul class="card-bullets">
           <li>Triggered by PTO approvals</li>
+          <li>Outside substitutes or internal staff coverage</li>
           <li>Period-by-period coverage view</li>
+          <li>Calendar view of all scheduled assignments</li>
+          <li>Pending cancellation management</li>
+          <li>Double-booking conflict warnings</li>
           <li>Notifies subs and administrators</li>
-          <li>Tracks assignment history</li>
+          <li>Assignment history with Excel export</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-icon-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+        </div>
+        <h3>Field Trip Management</h3>
+        <p>Plan, staff, and track every field trip from chaperone sign-up through vehicle assignments and student attendance.</p>
+        <ul class="card-bullets">
+          <li>Trip creation with destination, date, and capacity limits</li>
+          <li>Chaperone assignment with student groupings</li>
+          <li>Driver clearance requirements (MVR-linked)</li>
+          <li>Student attendance tracking per trip</li>
+          <li>Drag-and-drop vehicle assignment board</li>
+          <li>Payment tracking with installment support</li>
+          <li>Chaperone compliance form links</li>
+          <li>Export trip rosters</li>
         </ul>
       </div>
 
@@ -733,6 +789,7 @@ footer {
         <p>Centralize student, family, guardian, and employee records in one searchable, filterable admin panel.</p>
         <ul class="card-bullets">
           <li>Students, families, and guardians</li>
+          <li>Tokenized guardian intake forms to collect family contact info</li>
           <li>Staff records and bus groups</li>
           <li>Campus management</li>
           <li>Bulk upload and data export</li>
@@ -810,7 +867,7 @@ footer {
 
     <div class="value-stats reveal">
       <div class="stat-card">
-        <div class="stat-num">6</div>
+        <div class="stat-num">7</div>
         <div class="stat-label">Integrated operational modules</div>
       </div>
       <div class="stat-card">

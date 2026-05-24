@@ -808,7 +808,8 @@ async function updatePtoStatus(requestId, newStatus) {
       decided_at: new Date().toISOString(),
       decided_by: currentProfile.employee_id
     })
-    .eq('id', requestId);
+    .eq('id', requestId)
+    .eq('school_id', currentProfile.school_id);
 
   if (error) {
     console.error(error);
@@ -898,7 +899,8 @@ async function loadPtoHistoryBalances(employeeId) {
   const { data, error } = await supabase
     .from('pto_balances')
     .select('pto_type, balance_hours')
-    .eq('employee_id', employeeId);
+    .eq('employee_id', employeeId)
+    .eq('school_id', currentProfile.school_id);
 
   if (statsRow) statsRow.hidden = false;
   if (error || !data || data.length === 0) return;
@@ -1011,12 +1013,13 @@ async function loadStaffPtoHistory(employeeId) {
     .order('submitted_at', { ascending: false });
 
   if (year) {
+    const nextYear = Number(year) + 1;
     ledgerQuery = ledgerQuery
       .gte('created_at', `${year}-01-01`)
-      .lte('created_at', `${year}-12-31`);
+      .lt('created_at', `${nextYear}-01-01`);
     histQuery = histQuery
       .gte('start_date', `${year}-01-01`)
-      .lte('start_date', `${year}-12-31`);
+      .lt('start_date', `${nextYear}-01-01`);
   }
 
   const [
@@ -1032,7 +1035,9 @@ async function loadStaffPtoHistory(employeeId) {
 
   ledger.forEach(l => {
     if (l.reason === 'REQUEST APPROVED') approvedUsed += Math.abs(l.delta_hours);
-    if (l.reason === 'REQUEST CANCELLED FUTURE') cancelled += l.delta_hours;
+    if (l.reason === 'REQUEST CANCELLED FUTURE' || l.reason === 'REQUEST RESCINDED RETROACTIVE') {
+      cancelled += l.delta_hours;
+    }
   });
 
   if (error) {
@@ -1122,9 +1127,10 @@ async function loadStaffPtoLedger(employeeId) {
     .order('created_at', { ascending: false });
 
   if (year) {
+    const nextYear = Number(year) + 1;
     ledgerQuery = ledgerQuery
       .gte('created_at', `${year}-01-01`)
-      .lte('created_at', `${year}-12-31`);
+      .lt('created_at', `${nextYear}-01-01`);
   }
 
   const [balanceMap, { data: ledger, error }] = await Promise.all([
@@ -2207,26 +2213,36 @@ document.getElementById('applyAnnualAllotmentsBulk')
 
     if (!confirmRun) return;
 
-    let applied = 0;
-    let skipped = 0;
-    let failed  = 0;
+    const toApply = policies.filter(p => !appliedSet.has(p.employee_id) && p.annual_hours > 0);
+    const skipped = policies.length - toApply.length;
 
-    for (const p of policies) {
-      const result = await applyAnnualAllotmentIfEligible(
-        { id: p.employee_id, annual_pto_hours: p.annual_hours },
-        ptoType,
-        year
-      );
-      if (result.applied) applied++;
-      else if (result.skipped) skipped++;
-      else failed++;
+    if (toApply.length === 0) {
+      alert(`Annual PTO Allotment Results (${year})\n\n✅ Applied: 0\n⏭️ Skipped: ${skipped}\n\nNothing to apply.`);
+      updateBulkAllotmentStatus();
+      return;
+    }
+
+    const ledgerEntries = toApply.map(p => ({
+      school_id:   currentProfile.school_id,
+      employee_id: p.employee_id,
+      pto_type:    ptoType,
+      delta_hours: p.annual_hours,
+      reason:      `ANNUAL_ALLOTMENT_${year}`,
+      created_by:  currentProfile.employee_id
+    }));
+
+    const { error: insertError } = await supabase.from('pto_ledger').insert(ledgerEntries);
+
+    if (insertError) {
+      console.error('Bulk allotment insert failed:', insertError);
+      alert('Failed to apply allotments. No changes were saved.');
+      return;
     }
 
     alert(
       `Annual PTO Allotment Results (${year})\n\n` +
-      `✅ Applied: ${applied}\n` +
-      `⏭️ Skipped: ${skipped}\n` +
-      `❌ Failed: ${failed}`
+      `✅ Applied: ${toApply.length}\n` +
+      `⏭️ Skipped: ${skipped}`
     );
 
     updateBulkAllotmentStatus();
@@ -2455,7 +2471,11 @@ async function runRolloverReport() {
 }
 
 function renderRolloverReport(rows, ptoType, workdayHours) {
-  const positiveRows = rows.filter(r => r.balance >= 0);
+  // Track the original rolloverReportData index so input handlers update the right employee
+  // regardless of how many negative-balance employees are filtered out before positiveRows.
+  const positiveRows = rows
+    .map((r, origIdx) => ({ ...r, origIdx }))
+    .filter(r => r.balance >= 0);
   const negativeRows = rows.filter(r => r.balance < 0);
 
   const tbody = document.querySelector('#rolloverReportTable tbody');
@@ -2466,7 +2486,7 @@ function renderRolloverReport(rows, ptoType, workdayHours) {
     return;
   }
 
-  positiveRows.forEach((row, i) => {
+  positiveRows.forEach(row => {
     const payoutDays = row.isPayoutEligible
       ? (row.payout / workdayHours).toFixed(2)
       : '—';
@@ -2478,15 +2498,15 @@ function renderRolloverReport(rows, ptoType, workdayHours) {
       <td>${row.balance.toFixed(2)} hrs</td>
       <td>
         <input type="number" class="rollover-input" min="0" max="${row.rolloverMax}" step="0.5"
-          value="${row.rollover}" data-idx="${i}" style="width:80px;" />
+          value="${row.rollover}" data-idx="${row.origIdx}" style="width:80px;" />
       </td>
       <td>
         ${row.isPayoutEligible
           ? `<input type="number" class="payout-input" min="0" max="${row.payoutMax}" step="0.5"
-               value="${row.payout}" data-idx="${i}" style="width:80px;" />`
+               value="${row.payout}" data-idx="${row.origIdx}" style="width:80px;" />`
           : '<span class="muted">N/A</span>'}
       </td>
-      <td class="payout-days-cell" data-idx="${i}">${row.isPayoutEligible ? payoutDays : '—'}</td>
+      <td class="payout-days-cell" data-idx="${row.origIdx}">${row.isPayoutEligible ? payoutDays : '—'}</td>
     `;
     tbody.appendChild(tr);
   });

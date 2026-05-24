@@ -89,6 +89,10 @@ if (
 }
 
 
+const isCancellationRequest =
+  ptoRequest.status === "CANCEL_REQUESTED" ||
+  ptoRequest.status === "RESCIND_REQUESTED";
+
 const newStatus =
   action === "approve"
     ? ptoRequest.status === "CANCEL_REQUESTED"
@@ -96,7 +100,9 @@ const newStatus =
       : ptoRequest.status === "RESCIND_REQUESTED"
         ? "RESCINDED"
         : "APPROVED"
-    : "DENIED";
+    : isCancellationRequest
+      ? "APPROVED"  // denying a cancellation/rescind request → keep the original approval
+      : "DENIED";
 
 
     /* --------------------------------------------------
@@ -126,21 +132,9 @@ const newStatus =
       );
     }
 
-    /* --------------------------------------------------
-       ✅ 2️⃣ WRITE PTO LEDGER (APPROVAL ONLY)
-    -------------------------------------------------- */
-    if (newStatus === "APPROVED") {
-      await supabase
-        .from("pto_ledger")
-        .insert({
-          pto_request_id: ptoRequest.id,
-          employee_id: ptoRequest.employee_id,
-          hours: ptoRequest.requested_hours,
-          created_by: approverEmployeeId,
-          entry_type: "DEBIT",
-          effective_date: ptoRequest.start_date
-        });
-    }
+    // The DB trigger handle_pto_status_change() writes ledger entries for all
+    // status transitions (APPROVED debit, CANCELLED/RESCINDED credit). No manual
+    // ledger write needed here.
 
 return new Response(null, {
   status: 302,

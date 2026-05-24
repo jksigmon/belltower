@@ -732,6 +732,8 @@ async function loadSubstitutes() {
   if (activeFilter === 'true')  query = query.eq('active', true);
   if (activeFilter === 'false') query = query.eq('active', false);
 
+  query = query.limit(250);
+
   const { data, error } = await query;
 
   if (error) {
@@ -1031,7 +1033,7 @@ async function openEditAssignmentModal(event) {
   initAssignDatePickers();
 
   const a = event.extendedProps;
-  await populateAssignmentDropdowns(a.start_date, a.end_date, a.substitute_id);
+  await populateAssignmentDropdowns(a.start_date, a.end_date, a.substitute_id, a.employee_id);
 
   // Set coverer (mutually exclusive)
   assignSub.value = a.substitute_id ?? '';
@@ -1206,20 +1208,34 @@ window.addEventListener('hashchange', () => setActiveView(location.hash));
 let assignmentDropdownsLoaded = false;
 loadSubRequestCounts();
 
-async function populateAssignmentDropdowns(startDate = null, endDate = null, currentSubId = null) {
-  // Run sub availability + employee list in parallel
-  const bookedQuery = startDate
+async function populateAssignmentDropdowns(startDate = null, endDate = null, currentSubId = null, currentEmployeeId = null) {
+  const dateRange = startDate
+    ? { school_id: currentProfile.school_id, status: 'scheduled', startDate, endDate: endDate || startDate }
+    : null;
+
+  const bookedSubQuery = dateRange
     ? supabase
         .from('substitute_assignments')
         .select('substitute_id')
-        .eq('school_id', currentProfile.school_id)
+        .eq('school_id', dateRange.school_id)
         .eq('status', 'scheduled')
-        .lte('start_date', endDate || startDate)
-        .gte('end_date', startDate)
+        .lte('start_date', dateRange.endDate)
+        .gte('end_date', dateRange.startDate)
         .not('substitute_id', 'is', null)
     : Promise.resolve({ data: [] });
 
-  const [subsResult, employeesResult, bookedResult] = await Promise.all([
+  const bookedEmployeeQuery = dateRange
+    ? supabase
+        .from('substitute_assignments')
+        .select('employee_id')
+        .eq('school_id', dateRange.school_id)
+        .eq('status', 'scheduled')
+        .lte('start_date', dateRange.endDate)
+        .gte('end_date', dateRange.startDate)
+        .not('employee_id', 'is', null)
+    : Promise.resolve({ data: [] });
+
+  const [subsResult, employeesResult, bookedSubResult, bookedEmpResult] = await Promise.all([
     supabase
       .from('substitutes')
       .select('id, first_name, last_name')
@@ -1232,14 +1248,21 @@ async function populateAssignmentDropdowns(startDate = null, endDate = null, cur
       .eq('school_id', currentProfile.school_id)
       .eq('active', true)
       .order('last_name'),
-    bookedQuery
+    bookedSubQuery,
+    bookedEmployeeQuery
   ]);
 
-  // Build set of booked sub IDs, excluding the current assignment's sub (edit mode)
+  // Build booked sets, excluding the assignment being edited so it doesn't warn on itself
   const bookedSubIds = new Set(
-    (bookedResult.data || [])
+    (bookedSubResult.data || [])
       .map(b => b.substitute_id)
       .filter(id => id && id !== currentSubId)
+  );
+
+  const bookedEmployeeIds = new Set(
+    (bookedEmpResult.data || [])
+      .map(b => b.employee_id)
+      .filter(id => id && id !== currentEmployeeId)
   );
 
   const subSelect = document.getElementById('assignSub');
@@ -1249,8 +1272,9 @@ async function populateAssignmentDropdowns(startDate = null, endDate = null, cur
     const opt = document.createElement('option');
     opt.value = s.id;
     const booked = bookedSubIds.has(s.id);
-    opt.textContent = `${s.last_name}, ${s.first_name}${booked ? ' — Booked' : ''}`;
-    opt.disabled = booked;
+    // Show a warning but do not disable — partial-day assignments on the same date
+    // may not actually conflict in time. The admin can verify and select if needed.
+    opt.textContent = `${s.last_name}, ${s.first_name}${booked ? ' — ⚠ Booked this date' : ''}`;
     subSelect.appendChild(opt);
   });
 
@@ -1261,7 +1285,8 @@ async function populateAssignmentDropdowns(startDate = null, endDate = null, cur
   employees.forEach(e => {
     const opt = document.createElement('option');
     opt.value = e.id;
-    opt.textContent = `${e.last_name}, ${e.first_name}`;
+    const booked = bookedEmployeeIds.has(e.id);
+    opt.textContent = `${e.last_name}, ${e.first_name}${booked ? ' — ⚠ Covering this date' : ''}`;
     empSelect.appendChild(opt);
   });
 
@@ -1400,7 +1425,7 @@ async function fetchSubAssignments(info, success, failure) {
       const end   = row.end_time   ? `${row.coverage_date}T${row.end_time}`   : row.coverage_date;
 
       events.push({
-        id: `pending_${row.pto_request_id}`,
+        id: `pending_${row.pto_request_id}_${row.coverage_date}`,
         title: `⚠ ${row.out_last_name}, ${row.out_first_name}`,
         start,
         end,
@@ -1488,14 +1513,12 @@ async function loadPendingCancellations() {
 
   tbody.innerHTML = '';
 
-
-const { data, error } = await supabase
-  .from('v_pending_cancellation_days')
-  .select(`
-    *,
-    substitutes ( first_name, last_name ),
-    covering_employee:employees!substitute_assignments_employee_id_fkey ( first_name, last_name )
-  `)
+  // Step 1: query the view for filtered coverage days (out-person name, dates, assignment_id).
+  // PostgREST cannot resolve FK joins through views, so sub/internal coverage names are
+  // fetched separately from the base table in step 2.
+  const { data: cancelDays, error } = await supabase
+    .from('v_pending_cancellation_days')
+    .select('*')
     .eq('school_id', currentProfile.school_id)
     .eq('assignment_status', 'scheduled')
     .order('coverage_date', { ascending: true });
@@ -1506,14 +1529,28 @@ const { data, error } = await supabase
     return;
   }
 
-  if (!data || data.length === 0) {
+  if (!cancelDays || cancelDays.length === 0) {
     empty.hidden = false;
     return;
   }
 
+  // Step 2: fetch sub/internal-coverage names from substitute_assignments base table.
+  const assignmentIds = [...new Set(cancelDays.map(r => r.assignment_id).filter(Boolean))];
+  const { data: assignments } = await supabase
+    .from('substitute_assignments')
+    .select(`
+      id,
+      substitutes ( first_name, last_name ),
+      internal_coverage:employees!substitute_assignments_employee_id_fkey ( first_name, last_name )
+    `)
+    .in('id', assignmentIds);
+
+  const assignmentMap = {};
+  (assignments || []).forEach(a => { assignmentMap[a.id] = a; });
+
   empty.hidden = true;
 
-  data.forEach(row => {
+  cancelDays.forEach(row => {
     const tr = document.createElement('tr');
 
     const outName = `${row.out_last_name}, ${row.out_first_name}`;
@@ -1521,14 +1558,13 @@ const { data, error } = await supabase
       ? `${formatTimeShort(row.start_time)}–${formatTimeShort(row.end_time)}`
       : 'Full day';
 
-    // Who is assigned? Prefer substitute, fallback to internal employee
+    const a = assignmentMap[row.assignment_id] || {};
     let assignedText = '—';
-    if (row.substitutes) {
-      assignedText = `${row.substitutes.first_name} ${row.substitutes.last_name}`;
-    } else if (row.covering_employee) {
-  assignedText = `${row.covering_employee.first_name} ${row.covering_employee.last_name}`;
-}
-
+    if (a.substitutes) {
+      assignedText = `${a.substitutes.first_name} ${a.substitutes.last_name}`;
+    } else if (a.internal_coverage) {
+      assignedText = `${a.internal_coverage.first_name} ${a.internal_coverage.last_name} (internal)`;
+    }
 
     tr.innerHTML = `
       <td>${outName}</td>
@@ -1678,6 +1714,18 @@ document.getElementById('saveAssignBtn').addEventListener('click', async () => {
     return;
   }
 
+  // ✅ Date validation
+  const startDateVal = document.getElementById('assignStart').value;
+  const endDateVal   = document.getElementById('assignEnd').value;
+  if (!startDateVal || !endDateVal) {
+    alert('Please enter both a start date and end date.');
+    return;
+  }
+  if (startDateVal > endDateVal) {
+    alert('End date must be on or after the start date.');
+    return;
+  }
+
   const payload = {
     pto_request_id: ptoRequestId,
     covered_employee_id: ptoRequestId ? null : coveredEmployeeId,
@@ -1735,6 +1783,7 @@ let historyFromFp, historyToFp;
 let historyDatePickersInitialized = false;
 let historySubsLoaded = false;
 let historyLoadSeq = 0;
+let historyData = []; // cached from last loadHistory() call; used by exportHistory()
 
 function initHistoryDatePickers() {
   if (historyDatePickersInitialized) return;
@@ -1827,6 +1876,8 @@ async function loadHistory() {
   if (subFilter)    query = query.eq('substitute_id', subFilter);
   if (statusFilter) query = query.eq('status', statusFilter);
 
+  query = query.limit(250);
+
   const { data, error } = await query;
 
   if (loadId !== historyLoadSeq) return; // discard stale response
@@ -1836,12 +1887,14 @@ async function loadHistory() {
     return;
   }
 
-  if (!data || data.length === 0) {
+  historyData = data || [];
+
+  if (historyData.length === 0) {
     empty.hidden = false;
     return;
   }
 
-  data.forEach(row => tbody.appendChild(renderHistoryRow(row)));
+  historyData.forEach(row => tbody.appendChild(renderHistoryRow(row)));
 }
 
 function renderHistoryRow(a) {
@@ -1882,25 +1935,47 @@ function renderHistoryRow(a) {
 }
 
 function exportHistory() {
-  const rows = [];
-  document.querySelectorAll('#historyTable tbody tr').forEach(tr => {
-    const cells = tr.querySelectorAll('td');
-    rows.push({
-      'Date':        cells[0]?.textContent.trim(),
-      'Out':         cells[1]?.textContent.trim(),
-      'Covered By':  cells[2]?.textContent.trim(),
-      'Time':        cells[3]?.textContent.trim(),
-      'Reason':      cells[4]?.textContent.trim(),
-      'Status':      cells[5]?.textContent.trim()
-    });
+  if (!historyData.length) { alert('No rows to export. Load the history view first.'); return; }
+
+  const rows = historyData.map(a => {
+    const covererName = a.substitutes
+      ? `${a.substitutes.last_name}, ${a.substitutes.first_name}`
+      : a.internal_coverage
+        ? `${a.internal_coverage.last_name}, ${a.internal_coverage.first_name} (internal)`
+        : '—';
+
+    const outName = a.pto?.employees
+      ? `${a.pto.employees.last_name}, ${a.pto.employees.first_name}`
+      : a.covered_employee
+        ? `${a.covered_employee.last_name}, ${a.covered_employee.first_name}`
+        : '—';
+
+    const dateText = a.start_date === a.end_date
+      ? a.start_date
+      : `${a.start_date} – ${a.end_date}`;
+
+    const timeText = (a.start_time && a.end_time)
+      ? `${a.start_time.slice(0, 5)}–${a.end_time.slice(0, 5)}`
+      : 'Full day';
+
+    return {
+      'Date':       dateText,
+      'Out':        outName,
+      'Covered By': covererName,
+      'Time':       timeText,
+      'Reason':     a.reason ?? '—',
+      'Status':     a.status
+    };
   });
 
-  if (!rows.length) { alert('No rows to export.'); return; }
+  const fromDate = document.getElementById('historyFrom')?.value || '';
+  const toDate   = document.getElementById('historyTo')?.value   || '';
+  const datePart = fromDate && toDate ? `${fromDate}_to_${toDate}` : new Date().toISOString().slice(0, 10);
 
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Assignments');
-  XLSX.writeFile(wb, `sub-history-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  XLSX.writeFile(wb, `sub-history-${datePart}.xlsx`);
 }
 
 // -------------------- INIT --------------------
