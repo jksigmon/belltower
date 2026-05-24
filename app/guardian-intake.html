@@ -106,7 +106,7 @@
     /* ── Student rows ── */
     .student-row {
       display: grid;
-      grid-template-columns: 1fr 1fr auto;
+      grid-template-columns: 1fr 1fr auto auto;
       gap: 10px;
       align-items: end;
       margin-bottom: 10px;
@@ -234,8 +234,9 @@
     @media (max-width: 480px) {
       .form-card { padding: 20px 18px; }
       .form-row { grid-template-columns: 1fr; }
-      .student-row { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto; }
-      .student-row .remove-student-btn { grid-column: 2; grid-row: 2; justify-self: end; }
+      .student-row { grid-template-columns: 1fr 1fr auto; grid-template-rows: auto auto; }
+      .student-row .grade-col { grid-column: 1; grid-row: 2; }
+      .student-row .remove-student-btn { grid-column: 3; grid-row: 1 / 3; align-self: center; }
     }
   </style>
 </head>
