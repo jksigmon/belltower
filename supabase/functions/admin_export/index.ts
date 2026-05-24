@@ -9,6 +9,15 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function bufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -116,9 +125,7 @@ const { type, split } = await req.json();
       XLSX.utils.book_append_sheet(wb, ws, "Class Placement");
 
       const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-      const base64 = btoa(
-        String.fromCharCode(...new Uint8Array(buffer))
-      );
+      const base64 = bufferToBase64(buffer);
 
       const filename = `class-placement-${new Date()
         .toISOString()
@@ -207,9 +214,7 @@ if (type === "teacher_rosters") {
   }
 
   const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-  const base64 = btoa(
-    String.fromCharCode(...new Uint8Array(buffer))
-  );
+  const base64 = bufferToBase64(buffer);
 
   const filename = `teacher-rosters-${new Date()
     .toISOString()
@@ -291,9 +296,7 @@ if (type === "grade_rosters") {
   }
 
   const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-  const base64 = btoa(
-    String.fromCharCode(...new Uint8Array(buffer))
-  );
+  const base64 = bufferToBase64(buffer);
 
   const filename = `grade-rosters-${new Date()
     .toISOString()
@@ -391,9 +394,7 @@ if (type === "bus_assignments") {
   }
 
   const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-  const base64 = btoa(
-    String.fromCharCode(...new Uint8Array(buffer))
-  );
+  const base64 = bufferToBase64(buffer);
 
   const filename = `bus-group-assignments-${new Date()
     .toISOString()
@@ -504,9 +505,7 @@ if (type === "contact_lists") {
   }
 
   const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-  const base64 = btoa(
-    String.fromCharCode(...new Uint8Array(buffer))
-  );
+  const base64 = bufferToBase64(buffer);
 
   const suffix =
     split === "grade"
