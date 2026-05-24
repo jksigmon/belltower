@@ -494,6 +494,10 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
       Field Trips
     </a>
+    <a href="#section-guardian-intake" class="help-cat-card">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><line x1="16" y1="11" x2="22" y2="11"/><line x1="19" y1="8" x2="19" y2="14"/></svg>
+      Guardian Intake
+    </a>
   </div>
 
   <!-- ══════════ GETTING STARTED ══════════ -->
@@ -1363,6 +1367,182 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <p>Once enabled, the <strong>Field Trips</strong> link will appear in the left navigation of the staff portal. You will only see trips that you have been added to as a managing teacher.</p>
       </div>
     </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I set up payment tracking for a trip?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>When creating or editing a trip, toggle on <strong>Requires payment</strong>. This reveals the following fields:</p>
+        <ul>
+          <li><strong>Student cost</strong> — the amount owed per attending student.</li>
+          <li><strong>Payment due date</strong> — when full payment must be received by.</li>
+          <li><strong>Chaperones pay</strong> — toggle on and enter a chaperone cost if applicable.</li>
+          <li><strong>Allow installments</strong> — lets you define a custom schedule of partial payments (label, amount, due date per installment). The installment total is validated against the student cost before saving.</li>
+        </ul>
+        <p>Once enabled, a <strong>Payments</strong> tab appears on the trip detail page. Student rows are automatically populated from the trip's grade-level attendees.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I record or waive a payment?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Open the trip and go to the <strong>Payments</strong> tab. Each student (and chaperone, if applicable) has a row showing their payment status.</p>
+        <ul>
+          <li>Click <strong>Record</strong> to log a payment received — enter the amount, date, and optional notes. Partial payments accumulate and the status updates automatically.</li>
+          <li>Click <strong>Waive</strong> to mark a student as exempt from payment. You can enter a reason, which is saved for your records.</li>
+        </ul>
+        <p>Payment statuses: <strong>Unpaid</strong>, <strong>Partial</strong> (some amount received), <strong>Paid</strong> (full amount on file), and <strong>Waived</strong>. The summary cards at the top give you a count across all four states.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Students marked as <strong>not attending</strong> on the Students tab are automatically excluded from the Payments tab.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I assign students to driver vehicles?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Once at least one chaperone is marked as a driver, a <strong>Plan Vehicles</strong> button appears in the trip header. Clicking it opens a full-screen vehicle assignment board with one column per driver.</p>
+        <ul>
+          <li><strong>Set capacity:</strong> click the capacity badge on any driver column to enter how many students that vehicle can hold. The badge turns amber when at capacity and red when over.</li>
+          <li><strong>Assign students:</strong> drag a student card from the Unassigned column and drop it onto a driver column, or drag between driver columns to reassign.</li>
+          <li><strong>Auto-assign:</strong> click <strong>Auto-assign</strong> to distribute unassigned students evenly across driver vehicles, grouped by grade.</li>
+          <li><strong>Clear All:</strong> removes all current assignments and returns every student to Unassigned.</li>
+          <li><strong>Print Roster:</strong> generates a clean printable layout showing each driver's assigned students.</li>
+        </ul>
+        <p>Assignments save automatically as you drag.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          You can set a chaperone's vehicle capacity when adding them — check <strong>Driving</strong> in the Add Chaperone drawer and enter the seat count.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ GUARDIAN INTAKE ══════════ -->
+  <div class="faq-section" id="section-guardian-intake">
+    <div class="faq-section-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><line x1="16" y1="11" x2="22" y2="11"/><line x1="19" y1="8" x2="19" y2="14"/></svg>
+      Guardian Intake
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What is Guardian Intake?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Guardian Intake lets you collect and update contact information from parents and guardians without requiring them to log in. You create a <strong>campaign</strong>, share its link, and parents fill in their name, email, phone, relationship, and the students they're associated with. Submissions are then reviewed by your staff before any guardian records are created or updated.</p>
+        <p>It's found in the Admin Panel under <strong>Data Collection</strong>.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I create a campaign and share it with parents?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ol>
+          <li>Go to Admin Panel → <strong>Data Collection</strong>.</li>
+          <li>Click <strong>New Campaign</strong> and give it a name (e.g., "2025–26 Back to School Update").</li>
+          <li>After saving, a shareable link is displayed immediately. Click <strong>Copy Link</strong> to copy it to your clipboard.</li>
+          <li>Paste the link into an email or message to parents. They do not need a Belltower account to fill it out.</li>
+        </ol>
+        <p>You can retrieve the link again at any time by clicking <strong>Copy Link</strong> in the campaign table, as long as the campaign is still <strong>Active</strong>.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What does a guardian see when they open the link?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>The guardian sees a simple, branded form asking for:</p>
+        <ul>
+          <li>First and last name</li>
+          <li>Email address and cell phone number</li>
+          <li>Relationship to the student(s) (e.g., Mother, Father, Grandparent)</li>
+          <li>The name(s) and grade(s) of their student(s)</li>
+          <li>Whether it's OK to text them</li>
+        </ul>
+        <p>No login is required. When they submit, a confirmation message is shown and the response is recorded for your staff to review.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I review submitted responses?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>In the campaign table, click <strong>Review</strong> on any campaign to open the submissions list. Use the filter bar to narrow by review status or match confidence.</p>
+        <p>Click <strong>Review</strong> on an individual submission to open its detail drawer. The system automatically compares the submitted information against existing guardian records:</p>
+        <ul>
+          <li><strong>High confidence match</strong> — a strong email or name match was found. Fields that differ are highlighted and pre-checked for you to apply.</li>
+          <li><strong>Medium confidence match</strong> — a likely but imperfect match. Review carefully before applying.</li>
+          <li><strong>No match</strong> — no existing guardian record was found; you'll create a new one.</li>
+        </ul>
+        <p>For matched submissions, check or uncheck individual fields to control exactly which values get written to the existing guardian record.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What do "Accept &amp; Update," "Create New Guardian," and "Discard" do?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ul>
+          <li><strong>Accept &amp; Update:</strong> applies the checked fields from the submission to the matched existing guardian record and marks the submission as Accepted.</li>
+          <li><strong>Create New Guardian:</strong> creates a brand-new guardian record from the submitted data. You'll be prompted to link the new guardian to an existing family or create a new one. Use this when the person is genuinely new to your records.</li>
+          <li><strong>Discard:</strong> marks the submission as discarded without making any changes. Useful for duplicates or test submissions.</li>
+        </ul>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          If you make a mistake, click <strong>Re-open</strong> on a reviewed submission to reset it to Pending and try again.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        Can I process multiple submissions at once?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Yes. Use the checkboxes on the left of each submission row to select multiple records, then choose a bulk action from the bar that appears:</p>
+        <ul>
+          <li><strong>Bulk Accept</strong> — available only when all selected submissions are <em>High confidence</em> and <em>Pending</em>. Applies the matching fields to each guardian record in one step.</li>
+          <li><strong>Bulk Discard</strong> — marks all selected submissions as discarded.</li>
+          <li><strong>Merge</strong> — combine two or more submissions from the same person into a single record (useful when the same guardian submitted more than once).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What are the campaign status options and what do they mean?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ul>
+          <li><strong>Active:</strong> the shareable link works and parents can submit responses.</li>
+          <li><strong>Closed:</strong> the link no longer accepts new submissions, but existing submissions are still available to review. Close a campaign once your collection window has ended.</li>
+          <li><strong>Archived:</strong> the campaign is hidden from the default view. All submission data is preserved. Archive when you've finished reviewing and no longer need the campaign visible.</li>
+        </ul>
+        <p>Archived campaigns can be permanently deleted once you're certain all submissions have been resolved.</p>
+      </div>
+    </div>
   </div>
 
   <!-- ══════════ CTA ══════════ -->
@@ -1415,6 +1595,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
           <option value="Year-End Promotion">Year-End Promotion</option>
           <option value="Compliance">Compliance</option>
           <option value="Field Trips">Field Trips</option>
+          <option value="Guardian Intake">Guardian Intake</option>
           <option value="Other">Other</option>
         </select>
       </div>
