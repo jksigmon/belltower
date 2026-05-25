@@ -33,10 +33,19 @@
     <div class="cl-header-right">
       <span class="cl-clock" id="clClock"></span>
       <button class="cl-icon-btn cl-fontsize-btn" id="btnFontSize" title="Font size (S/M/L)">M</button>
-      <button class="cl-icon-btn" id="btnActivityLog" title="Activity log">📋</button>
-      <a href="/carline-input.html" class="cl-input-link-btn" id="btnInputLink" target="_blank" hidden>📱 <span class="cl-btn-label">Input Page</span></a>
-      <button class="cl-icon-btn" id="btnDarkMode" title="Toggle dark mode">🌙</button>
-      <button class="cl-icon-btn" id="btnFullscreen" title="Fullscreen">⛶</button>
+      <button class="cl-icon-btn" id="btnActivityLog" title="Activity log">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="9" y1="9" x2="10" y2="9"/></svg>
+      </button>
+      <a href="/carline-input.html" class="cl-input-link-btn" id="btnInputLink" target="_blank" hidden>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        <span class="cl-btn-label">Input Page</span>
+      </a>
+      <button class="cl-icon-btn" id="btnDarkMode" title="Toggle dark mode">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="cl-icon-btn" id="btnFullscreen" title="Fullscreen">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      </button>
       <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden><span>✕</span><span class="cl-btn-label">Close</span></button>
       <button class="cl-signout-btn" id="btnSignOut">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -103,6 +112,7 @@
       <div class="cl-status-col-hdr waiting">
         <span class="cl-col-title">Waiting</span>
         <span class="cl-col-badge" id="countWaiting">0</span>
+        <div class="cl-col-progress"><div class="cl-col-progress-fill" id="waitingProgressFill"></div></div>
       </div>
       <div class="cl-status-col-body" id="bodyWaiting">
         <div class="cl-col-empty" id="emptyWaiting">All students called</div>
@@ -221,6 +231,12 @@
 
 <script type="module">
 import { supabase } from '/app/admin.supabase.js';
+
+// ─── SVG icons ────────────────────────────────────────────────────────
+const SVG_MOON     = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const SVG_SUN      = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+const SVG_EXPAND   = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
+const SVG_COMPRESS = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>`;
 
 // ─── State ────────────────────────────────────────────────────────────
 let profile       = null;
@@ -578,7 +594,9 @@ function renderClassBar() {
     if (!info) return;
     const pill = document.createElement('div');
     pill.className = 'cl-class-pill';
+    const initials = info.teacherName.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
     pill.innerHTML = `
+      <span class="cl-pill-avatar">${esc(initials)}</span>
       <span>${esc(info.teacherName)}${info.grade ? ` · ${esc(info.grade)}` : ''}</span>
       <button class="cl-pill-remove" title="Remove class">×</button>
     `;
@@ -632,11 +650,16 @@ function getVisibleStudents() {
 }
 
 function colEmpty(bodyId, msg) {
-  document.getElementById(bodyId).innerHTML = `<div class="cl-col-empty">${esc(msg)}</div>`;
+  const icon = bodyId === 'bodyWaiting'
+    ? `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>`
+    : '';
+  document.getElementById(bodyId).innerHTML = `<div class="cl-col-empty">${icon}<span>${esc(msg)}</span></div>`;
 }
 
 function renderColumns() {
   if (activeTeacherIds.size === 0) {
+    const pf = document.getElementById('waitingProgressFill');
+    if (pf) pf.style.width = '0%';
     colEmpty('bodyWaiting',  '+ Add Class to get started');
     colEmpty('bodyCalled',   '—');
     colEmpty('bodyRecalled', '—');
@@ -662,7 +685,17 @@ function renderColumns() {
 
   called.sort((a, b) => (calledAt.get(b.id) || '').localeCompare(calledAt.get(a.id) || ''));
 
-  renderColumn('bodyWaiting', 'emptyWaiting', waiting, 'waiting', multi, '✓ All students called!');
+  // Progress bar
+  const progressFill = document.getElementById('waitingProgressFill');
+  if (progressFill) {
+    const pct = students.length > 0
+      ? Math.round(((called.length + recalled.length) / students.length) * 100)
+      : 0;
+    progressFill.style.width = pct + '%';
+  }
+
+  const allDone = students.length > 0 && waiting.length === 0 && !hasAllCall;
+  renderColumn('bodyWaiting', 'emptyWaiting', waiting, 'waiting', multi, allDone ? '__celebration__' : '—');
   renderColumn('bodyCalled',  'emptyCalled',  called,  'called',  multi, 'No students called yet');
   renderColumn('bodyRecalled','emptyRecalled',recalled,'recalled', multi, '—');
 
@@ -683,11 +716,29 @@ function renderColumn(bodyId, emptyId, students, statusClass, multi, emptyMsg) {
   body.innerHTML = '';
 
   if (!students.length) {
-    const el = document.createElement('div');
-    el.className = 'cl-col-empty';
-    el.id = emptyId;
-    el.textContent = emptyMsg;
-    body.appendChild(el);
+    if (emptyMsg === '__celebration__') {
+      const el = document.createElement('div');
+      el.className = 'cl-col-celebration';
+      el.innerHTML = `
+        <div class="cl-col-celebration-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="cl-col-celebration-title">All students called!</div>
+        <div class="cl-col-celebration-sub">Dismissal complete</div>
+      `;
+      body.appendChild(el);
+    } else {
+      const EMPTY_ICONS = {
+        called:  `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+        recalled:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+      };
+      const icon = EMPTY_ICONS[statusClass] || '';
+      const el = document.createElement('div');
+      el.className = 'cl-col-empty';
+      el.id = emptyId;
+      el.innerHTML = `${icon}<span>${esc(emptyMsg)}</span>`;
+      body.appendChild(el);
+    }
     return;
   }
 
@@ -723,7 +774,7 @@ function buildCard(student, statusClass) {
     if (actualStatus === 'CALLED') {
       icon = '🚗';
       const iso = calledAt.get(student.id);
-      if (iso) timeStr = `<span class="cl-card-time">${new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>`;
+      if (iso) timeStr = `<span class="cl-card-time-pill">${new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>`;
     } else {
       // Virtually called via All Call — no individual record
       icon = '📢';
@@ -988,15 +1039,15 @@ function showToast(msg) {
 function toggleDarkMode() {
   const dark = document.documentElement.dataset.theme === 'dark';
   document.documentElement.dataset.theme = dark ? 'light' : 'dark';
-  document.getElementById('btnDarkMode').textContent = dark ? '🌙' : '☀️';
+  document.getElementById('btnDarkMode').innerHTML = dark ? SVG_MOON : SVG_SUN;
 }
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen?.();
-    document.getElementById('btnFullscreen').textContent = '⊠';
+    document.getElementById('btnFullscreen').innerHTML = SVG_COMPRESS;
   } else {
     document.exitFullscreen?.();
-    document.getElementById('btnFullscreen').textContent = '⛶';
+    document.getElementById('btnFullscreen').innerHTML = SVG_EXPAND;
   }
 }
 function esc(str) {
