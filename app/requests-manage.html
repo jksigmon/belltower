@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request Manager — Belltower</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+  <link rel="stylesheet" href="/admin-ui.css" />
+  <style>
+    .reqm-main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 48px; }
+    .reqm-title { font-size: 22px; font-weight: 700; color: #111827; margin: 0 0 4px; }
+    .reqm-sub   { font-size: 14px; color: #6b7280; margin: 0 0 24px; }
+
+    .reqm-filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+    .reqm-filters select { width: auto; min-width: 160px; }
+
+    .req-status-badge { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+    .badge-amber { background: #fef3c7; color: #92400e; }
+    .badge-blue  { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+
+    .req-responses { display: flex; flex-direction: column; gap: 10px; }
+    .req-response-row { display: flex; flex-direction: column; gap: 2px; }
+    .req-response-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; }
+    .req-response-value { font-size: 14px; color: #111827; }
+  </style>
+</head>
+<body class="admin-page">
+
+  <header class="admin-header">
+    <div class="header-left">
+      <span class="header-logo">Belltower</span>
+    </div>
+    <div class="header-right" id="userMenuRoot"></div>
+  </header>
+
+  <div class="placement-main reqm-main">
+    <h1 class="reqm-title">Request Manager</h1>
+    <p class="reqm-sub">Review and update requests submitted to the forms you manage.</p>
+
+    <div id="reqmFilters" class="reqm-filters" style="display:none;">
+      <select id="reqmFilterCat" class="form-control">
+        <option value="">All My Forms</option>
+      </select>
+      <select id="reqmFilterStatus" class="form-control">
+        <option value="">All Statuses</option>
+        <option value="pending">Pending</option>
+        <option value="in_review">In Review</option>
+        <option value="resolved">Resolved</option>
+      </select>
+    </div>
+
+    <div id="reqmListWrap"></div>
+
+    <!-- Detail drawer -->
+    <div id="reqmDrawer" class="drawer" style="display:none;">
+      <div class="drawer-header">
+        <span id="reqmDrawerTitle">Request Detail</span>
+        <button class="drawer-close" id="reqmDrawerClose">&times;</button>
+      </div>
+      <div class="drawer-body" id="reqmDrawerBody"></div>
+    </div>
+    <div id="reqmOverlay" class="drawer-overlay" style="display:none;"></div>
+  </div>
+
+  <script type="module" src="/app/requests-manage.js"></script>
+</body>
+</html>
