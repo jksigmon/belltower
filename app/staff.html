@@ -696,6 +696,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
   <a href="#compliance-report" data-module="compliance"><i data-lucide="clipboard-list"></i> Compliance Report</a>
   <a href="/app/field-trips.html" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
+  <a href="/app/placement.html" id="navPlacement" style="display:none;"><i data-lucide="layout-grid"></i> Class Placement</a>
   <a href="#data-collection"><i data-lucide="link"></i> Form Links</a>
   <a href="#access-request"><i data-lucide="key"></i> Request Access</a>
 </nav>
@@ -1391,6 +1392,8 @@ async function loadStaffDashboard() {
     actions.push({ label: 'Carline', icon: 'car', href: '/carline.html' });
   if (window.staffModules['licensure'] === true)
     actions.push({ label: 'My Licenses', icon: 'badge-check', href: '#licensure' });
+  if (currentProfile?.can_manage_placement || currentProfile?.is_superadmin)
+    actions.push({ label: 'Class Placement', icon: 'layout-grid', href: '/app/placement.html' });
   if (actionsRow && actions.length) {
     actionsRow.innerHTML = '';
     actions.forEach(function ({ label, icon, href }) {
@@ -2334,6 +2337,13 @@ function applyModuleNavVisibility() {
     link.style.display =
       moduleEnabled && userAllowed ? 'flex' : 'none';
   });
+
+  // Class Placement: permission-gated on the profile, not module-gated
+  const navPlacement = document.getElementById('navPlacement');
+  if (navPlacement) {
+    navPlacement.style.display =
+      (currentProfile?.can_manage_placement || currentProfile?.is_superadmin) ? 'flex' : 'none';
+  }
 
   // Hide "Request Access" for superadmins and anyone who already has admin access
   if (hasAdminAccess(currentProfile)) {
