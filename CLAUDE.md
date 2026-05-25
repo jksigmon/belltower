@@ -57,6 +57,13 @@ All frontend pages are plain HTML importing ES modules. The admin panel follows 
 
 Non-admin pages (e.g. `pto.html`, `compliance.html`, `volunteer.html`) each have a corresponding `app/<page>.js`.
 
+**Standalone tool pages** (e.g. `app/placement.html`) are self-contained pages with their own auth boot script. The correct pattern is:
+- Wrap all boot logic in an `(async () => { ... })()` IIFE so `return` statements are valid (top-level `return` is illegal in ES modules)
+- Import and call `initUserMenu(displayName)` from `app/user-menu.js` to populate the header avatar/dropdown
+- Wire sign-out with `supabase.auth.signOut()` + redirect
+- Use `body.admin-page` grid layout (header + `.placement-main` wrapper); avoid `fade-in` class — it requires `.admin-section.active` to become visible, which doesn't exist on standalone pages
+- CSS path for `admin-ui.css` must be root-relative (`/admin-ui.css`), not relative (`admin-ui.css`)
+
 ## Auth Flow
 1. User lands on `app/login.html`
 2. Supabase Auth handles login
@@ -100,8 +107,13 @@ All functions use the Deno runtime and `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS
 | `guardian_intake_lookup` | Validate a guardian intake token |
 | `guardian_intake_submit` | Accept and persist guardian intake form submissions |
 
+## Key Reference Documents
+- **`app/onboarding.html`** — Admin onboarding guide: step-by-step school setup, permissions reference table, module gates, and common pitfalls. Update this whenever permissions or module behavior changes.
+- **`help.html`** — End-user help center with FAQs per feature area. Update when user-facing behavior changes.
+
 ## Development Notes
 - **Multi-school:** always scope data queries by `school_id`, never return cross-school data
 - **Vanilla JS:** avoid introducing framework dependencies unless explicitly discussed
 - **Module-based design:** new features should be built as self-contained modules
 - **`esc()`:** always use the shared `esc()` helper from `admin.shared.js` when interpolating user data into HTML strings to prevent XSS
+- **`can_manage_placement`:** permission-gated (not module-gated) — shows Class Placement link in both Staff Portal and Admin Panel nav for the bearer. Year-End Promotion is separate and admin-only.

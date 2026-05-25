@@ -448,6 +448,8 @@ nav a.active {
   border-color: #c7d2fe;
   color: #1e3a8a; /* indigo-900 */
   font-weight: 600;
+  border-left: 3px solid #0b2d4f;
+  padding-left: calc(12px - 2px); /* compensate for border-left so text doesn't shift */
 }
 
 
@@ -818,7 +820,7 @@ main {
 }
 
 .panel {
-  padding: 14px;
+  padding: 20px 24px;
   margin-bottom: 16px;
   transition: box-shadow 120ms ease, transform 120ms ease;
 }
@@ -994,8 +996,9 @@ main {
 
 .panel h3 {
   margin-top: 0;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .empty-state {
@@ -2378,6 +2381,25 @@ nav a[data-cap-group] {
   color: #1d4ed8;
 }
 
+/* Color-coded PTO summary chips */
+.stat-chip-value.ok   { color: #16a34a; }
+.stat-chip-value.warn { color: #d97706; }
+#staffSumCancelled    { color: #6b7280; }
+
+/* Coverage confirmed callout */
+#subCoverageMsg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px;
+}
+
 .stat-chip-divider {
   width: 1px;
   background: var(--border);
@@ -2946,22 +2968,22 @@ a.stat, a.dash-stat-link {
 .dash-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 8px 15px;
-  border-radius: 8px;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 9px;
   border: 1px solid transparent;
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
   white-space: nowrap;
   line-height: 1;
 }
 
 .dash-action-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
 }
 
@@ -2974,7 +2996,7 @@ a.stat, a.dash-stat-link {
 .dash-action-btn--primary:hover {
   background: #1a3a5c;
   border-color: #1a3a5c;
-  box-shadow: 0 4px 12px rgba(11, 45, 79, 0.25);
+  box-shadow: 0 4px 14px rgba(11, 45, 79, 0.28);
   transform: translateY(-1px);
   color: #fff;
 }
@@ -2984,12 +3006,14 @@ a.stat, a.dash-stat-link {
   background: #fff;
   color: #374151;
   border-color: #d1d5db;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 .dash-action-btn--secondary:hover {
-  background: #f8fafc;
+  background: #f0f5ff;
   border-color: #0b2d4f;
   color: #0b2d4f;
-  box-shadow: 0 2px 8px rgba(11, 45, 79, 0.1);
+  box-shadow: 0 4px 12px rgba(11, 45, 79, 0.12);
+  transform: translateY(-1px);
 }
 
 .stat-grid {
@@ -4254,7 +4278,8 @@ a.stat, a.dash-stat-link {
    ===================================================== */
 
 /* Clean select styling — removes native OS arrow, adds consistent chevron */
-#placement select {
+#placement select,
+.placement-main select {
   appearance: none;
   -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
@@ -4417,8 +4442,8 @@ a.stat, a.dash-stat-link {
 /* Create form */
 .placement-form-grid {
   display: grid;
-  grid-template-columns: 180px 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: 160px 200px minmax(200px, 340px) 140px;
+  gap: 16px 20px;
   align-items: end;
 }
 
@@ -4452,7 +4477,8 @@ a.stat, a.dash-stat-link {
   font-size: 12px;
 }
 
-#placement .form-input {
+#placement .form-input,
+.placement-main .form-input {
   width: 100%;
   height: 38px;
   padding: 0 32px 0 10px;
@@ -4463,11 +4489,13 @@ a.stat, a.dash-stat-link {
   color: var(--text-primary);
 }
 
-#placement input.form-input {
+#placement input.form-input,
+.placement-main input.form-input {
   padding-right: 10px;
 }
 
-#placement .form-input:focus {
+#placement .form-input:focus,
+.placement-main .form-input:focus {
   outline: none;
   border-color: #5b9bff;
   box-shadow: 0 0 0 2px rgba(91,155,255,0.15);

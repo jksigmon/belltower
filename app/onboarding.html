@@ -614,7 +614,7 @@ td strong { color: #111827; }
       <tr><td><code>can_manage_licensure</code></td><td>Licensure tab — add/edit/track staff licenses and certifications.</td></tr>
       <tr><td><code>can_manage_compliance</code></td><td>Compliance tab — background checks, form templates, agreements.</td></tr>
       <tr><td><code>can_manage_field_trips</code></td><td>Admin-level field trip access — see <em>all</em> school trips. Without this, staff only see trips they are managing teachers on.</td></tr>
-      <tr><td><code>can_manage_placement</code></td><td>Class Placement board + Year-End Promotion.</td></tr>
+      <tr><td><code>can_manage_placement</code></td><td>Class Placement standalone tool — the link appears in both the <strong>Staff Portal nav</strong> and the Admin Panel nav. Grant this to teachers during placement season so they can access the board without needing full admin access. Year-End Promotion is separate and remains admin-only in the Admin Panel.</td></tr>
       <tr><td><code>is_fallback_approver</code></td><td>Receives PTO approval notifications when a staff member has no supervisor assigned.</td></tr>
     </table>
 
@@ -666,6 +666,10 @@ td strong { color: #111827; }
         <td>None — all staff see field trips they are managing teachers on. can_manage_field_trips grants admin view of all trips.</td>
       </tr>
     </table>
+    <div class="note" style="margin-top:10px;">
+      <span class="note-icon">ℹ</span>
+      <p><strong>Class Placement is permission-gated, not module-gated.</strong> The Class Placement tool (<code>/app/placement.html</code>) is always available as a standalone page — no module toggle required. It shows in the Staff Portal nav and Admin Panel nav for any user with <code>can_manage_placement</code>. Enable this permission for teachers during placement season, then remove it once placements are committed.</p>
+    </div>
   </div>
 
 
@@ -724,6 +728,11 @@ td strong { color: #111827; }
         <td>Year-end promotion graduates wrong students or misses students</td>
         <td>Terminal grade not set, or students have blank/mismatched grade_level</td>
         <td>Set terminal_grade on the school. Fix any students with blank or mismatched grade_level before running promotion.</td>
+      </tr>
+      <tr>
+        <td>Teacher doesn't see Class Placement link in their portal</td>
+        <td><code>can_manage_placement</code> is not enabled on their profile</td>
+        <td>Admin Panel → User Access &amp; Permissions → find the staff member → toggle on <code>can_manage_placement</code>. The link appears in their Staff Portal nav immediately on next page load.</td>
       </tr>
     </table>
   </div>
