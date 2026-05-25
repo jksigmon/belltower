@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submit a Request — Belltower</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+  <link rel="stylesheet" href="/admin-ui.css" />
+  <style>
+    .req-page-main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+    .req-page-title { font-size: 22px; font-weight: 700; color: #111827; margin: 0 0 4px; }
+    .req-page-sub   { font-size: 14px; color: #6b7280; margin: 0 0 28px; }
+
+    /* Category card grid */
+    .req-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+    .req-cat-card {
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 18px;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      background: #fff;
+    }
+    .req-cat-card:hover { border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.12); }
+    .req-cat-card.selected { border-color: #6366f1; background: #f5f3ff; }
+    .req-cat-card-name { font-weight: 600; font-size: 15px; color: #111827; }
+    .req-cat-card-desc { font-size: 13px; color: #6b7280; margin-top: 6px; }
+
+    /* Submission form */
+    .req-form-wrap {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 24px;
+      margin-top: 24px;
+    }
+    .req-form-heading { font-size: 17px; font-weight: 700; color: #111827; margin: 0 0 18px; }
+    .req-field-group  { margin-bottom: 16px; }
+    .req-field-label  { display: block; font-size: 12px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+    .req-field-label .req-required { color: #dc2626; margin-left: 2px; }
+
+    .req-success {
+      background: #f0fdf4;
+      border: 1.5px solid #bbf7d0;
+      border-radius: 10px;
+      padding: 24px;
+      margin-top: 24px;
+      text-align: center;
+    }
+    .req-success h3 { color: #15803d; margin: 0 0 8px; }
+    .req-success p  { color: #374151; margin: 0 0 16px; }
+
+    /* My requests table */
+    .req-history-section { margin-top: 40px; }
+    .req-history-title   { font-size: 17px; font-weight: 700; color: #111827; margin: 0 0 14px; }
+    .req-status-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 99px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-amber { background: #fef3c7; color: #92400e; }
+    .badge-blue  { background: #dbeafe; color: #1e40af; }
+    .badge-green { background: #d1fae5; color: #065f46; }
+  </style>
+</head>
+<body class="admin-page">
+
+  <header class="admin-header">
+    <div class="header-left">
+      <span class="header-logo">Belltower</span>
+    </div>
+    <div class="header-right" id="userMenuRoot"></div>
+  </header>
+
+  <div class="placement-main req-page-main">
+    <h1 class="req-page-title">Submit a Request</h1>
+    <p class="req-page-sub">Select the type of request you'd like to submit.</p>
+
+    <div id="reqCategoriesWrap"></div>
+    <div id="reqFormWrap"></div>
+    <div id="reqHistoryWrap"></div>
+  </div>
+
+  <script type="module" src="/app/requests.js"></script>
+</body>
+</html>

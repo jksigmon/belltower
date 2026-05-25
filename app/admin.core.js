@@ -115,6 +115,7 @@ if (fade) {
     '#schools':     () => import('./admin.schools.js').then(m => m.initSchoolsSection(currentProfile)),
     '#promotion':        () => import('./admin.promotion.js').then(m => m.initPromotionSection(currentProfile)),
     '#data-collection':  () => import('./admin.data-collection.js').then(m => m.initDataCollectionSection(currentProfile)),
+    '#requests':         () => import('./admin.requests.js').then(m => m.initRequestsSection(currentProfile)),
   };
 
   if (routes[target]) await routes[target]();
