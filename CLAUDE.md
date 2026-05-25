@@ -9,9 +9,11 @@ Belltower is a modular, multi-school internal operations tool. Current modules:
 - **Substitute Assignment** — Auto-assignment of subs based on PTO/leave requests
 - **Admin Panel** — Manage students, employees, families, guardians, bus groups, access control, bulk upload/export
 - **Compliance** — Volunteer agreement signing and background check tracking
+- **Carline/Dismissal** — Student dismissal queue, bus groups, all-call, carline events
+- **Licensure** — Staff license tracking, expiry alerts, audit log
 
 In progress:
-- **Carline/Dismissal Module** — Managing student dismissal and carline flow
+- **Field Trips** — Trip creation, vehicle/chaperone assignment, teacher participation, payment tracking
 
 ## Tech Stack
 - **Frontend:** Vanilla HTML/CSS/JavaScript (no framework — incremental React migration planned)
@@ -51,7 +53,9 @@ All frontend pages are plain HTML importing ES modules. The admin panel follows 
 
 - **`app/admin.supabase.js`** — singleton Supabase client, imported by all other modules
 - **`app/admin.core.js`** — entry point for `admin.html`; handles auth check, profile load, school module flags, and delegates to tab-specific modules
-- **`app/admin.shared.js`** — shared utilities (`esc()` for HTML escaping, caches for family/bus-group/school-config lookups, `loadSchoolConfig()`)
+- **`app/admin.shared.js`** — shared utilities: `esc()`, `debounce()`, `getAvatarColor()`, `gradeLabel()`, `GRADE_ORDER`, `nextGrade()`, `isTerminalGrade()`, `fmtTime()`, `todayISO()`, `fmtShortDate()`, `dbError()`, `cloneSelectOptions()`, `loadSchoolConfig()`, family/bus-group cache helpers
+- **`app/admin.auth.js`** — shared auth guard used at the top of every standalone page; avoids duplicating the auth-check boilerplate
+- **`app/admin.directory.js`** — `createDirectory(config)` abstraction: paginates, filters, sorts, and exports any Supabase table via a declarative config object (`table`, `columns`, `query`, `augmentQuery`, `onBeforeLoad`, `exportRow`). All list views in the admin panel use this; don't build custom table logic when this fits
 - **`app/admin.*.js`** — one file per admin tab/domain (e.g. `admin.students.js`, `admin.staff.js`, `admin.compliance.js`)
 - **`app/config.js`** — auto-generated at build time; exports `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `TEMPLATE_URL`
 
@@ -81,9 +85,11 @@ Full schema is in `schema.sql`. Key domains:
 
 **Roles:** `admin`, `staff`, `front office` (defined in `role_type` enum).
 
-**Feature flags:** `school_modules` table controls which modules are enabled per school. Always gate new module UI behind `currentModules['<module_key>']` in `admin.core.js`.
+**Feature flags:** `school_modules` table controls which modules are enabled per school. Known keys: `pto`, `substitutes`, `carline`, `licensure`, `compliance`. Always gate new module UI behind `currentModules['<module_key>']` in `admin.core.js`.
 
 **RLS is enabled on all tables.** Always check existing RLS policies before adding new tables or queries. Never bypass RLS without explicit discussion.
+
+**Database migrations:** Root-level `*.sql` files (e.g. `field-trips-migration.sql`) are ad-hoc scripts run manually against the live DB. Versioned, sequential migrations live in `supabase/migrations/` and follow the `YYYYMMDDNNNNNN_description.sql` naming pattern. New schema changes should go in `supabase/migrations/`.
 
 ## Edge Functions
 All functions use the Deno runtime and `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS intentionally). Every function handles CORS preflight (`OPTIONS`) and returns JSON.
@@ -110,6 +116,7 @@ All functions use the Deno runtime and `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS
 ## Key Reference Documents
 - **`app/onboarding.html`** — Admin onboarding guide: step-by-step school setup, permissions reference table, module gates, and common pitfalls. Update this whenever permissions or module behavior changes.
 - **`help.html`** — End-user help center with FAQs per feature area. Update when user-facing behavior changes.
+- **`TECH_DEBT.md`** — Audit of known issues and their resolution status. One open item: `supabase/functions/.env` contains a live service-role key committed to git (deferred — requires key rotation + `git filter-repo`).
 
 ## Development Notes
 - **Multi-school:** always scope data queries by `school_id`, never return cross-school data
@@ -117,3 +124,4 @@ All functions use the Deno runtime and `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS
 - **Module-based design:** new features should be built as self-contained modules
 - **`esc()`:** always use the shared `esc()` helper from `admin.shared.js` when interpolating user data into HTML strings to prevent XSS
 - **`can_manage_placement`:** permission-gated (not module-gated) — shows Class Placement link in both Staff Portal and Admin Panel nav for the bearer. Year-End Promotion is separate and admin-only.
+- **`admin.shared.js` utilities:** always prefer these over reinventing — `debounce()`, `GRADE_ORDER`/`nextGrade()`/`gradeLabel()`, `getAvatarColor()`, `todayISO()`, `fmtShortDate()`, `fmtTime()`, `dbError()`. Never write inline debounce or grade-order arrays in a new module.
