@@ -704,6 +704,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
   <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
   <a href="#compliance-report" data-module="compliance"><i data-lucide="clipboard-list"></i> Compliance Report</a>
+  <a href="/app/requests.html" data-module="requests"><i data-lucide="inbox"></i> Submit a Request</a>
   <a href="/app/field-trips.html" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
   <a href="/app/placement.html" id="navPlacement" style="display:none;"><i data-lucide="layout-grid"></i> Class Placement</a>
   <a href="#data-collection"><i data-lucide="link"></i> Form Links</a>
@@ -1402,6 +1403,8 @@ async function loadStaffDashboard() {
     actions.push({ label: 'Carline', icon: 'car', href: '/carline.html' });
   if (window.staffModules['licensure'] === true)
     actions.push({ label: 'My Licenses', icon: 'badge-check', href: '#licensure' });
+  if (window.staffModules['requests'] !== false)
+    actions.push({ label: 'Submit a Request', icon: 'inbox', href: '/app/requests.html' });
   if (currentProfile?.can_manage_placement || currentProfile?.is_superadmin)
     actions.push({ label: 'Class Placement', icon: 'layout-grid', href: '/app/placement.html' });
   if (actionsRow && actions.length) {

@@ -587,12 +587,17 @@ td strong { color: #111827; }
     <div class="section-header">Permissions Reference</div>
     <p style="font-size:12px;color:#374151;margin:0 0 8px;">All permissions are toggles on the <code>profiles</code> table. The Admin Panel → User Access &amp; Permissions panel manages these. Role Presets apply a predefined bundle.</p>
 
+    <div class="note" style="margin-bottom:10px;">
+      <span class="note-icon">ℹ</span>
+      <p><strong>Permissions are layered.</strong> <code>can_access_admin</code> is the door key — it lets the user into the Admin Panel at all. The granular permissions below are the room keys — they control which tabs and sections appear once inside. A user with <em>only</em> <code>can_access_admin</code> and no other permissions will see an essentially empty admin panel with just the Setup Checklist and Requests form management nav links.</p>
+    </div>
+
     <table>
       <tr>
         <th style="width:38%;">Permission</th>
         <th>What it grants access to</th>
       </tr>
-      <tr><td><code>can_access_admin</code></td><td>The Admin Panel itself. Without this, staff only see the Staff Portal.</td></tr>
+      <tr><td><code>can_access_admin</code></td><td>The Admin Panel itself. Without this, staff only see the Staff Portal. Also unlocks the <strong>Setup Checklist</strong> and the <strong>Requests</strong> form management section (create/edit request forms and assign category managers).</td></tr>
       <tr><td><code>can_manage_staff</code></td><td>Staff tab — add, edit, deactivate employee records.</td></tr>
       <tr><td><code>can_manage_students</code></td><td>Students tab — add, edit, manage student records.</td></tr>
       <tr><td><code>can_manage_families</code></td><td>Families tab + Data Collection (Guardian Intake campaigns).</td></tr>
@@ -665,6 +670,11 @@ td strong { color: #111827; }
         <td>Field Trips (staff portal nav)</td>
         <td>None — all staff see field trips they are managing teachers on. can_manage_field_trips grants admin view of all trips.</td>
       </tr>
+      <tr>
+        <td><code>requests</code></td>
+        <td>Requests form management (admin panel nav), Submit a Request (staff portal nav)</td>
+        <td>Admin form management: <code>can_access_admin</code>. Staff submission: none — any authenticated staff member can submit. Defaults to enabled (no explicit school toggle required).</td>
+      </tr>
     </table>
     <div class="note" style="margin-top:10px;">
       <span class="note-icon">ℹ</span>
@@ -706,8 +716,13 @@ td strong { color: #111827; }
       </tr>
       <tr>
         <td>Admin nav link doesn't appear for a user</td>
-        <td><code>can_access_admin</code> is false on their profile, or the module is disabled</td>
-        <td>Go to User Access &amp; Permissions, find the user, toggle can_access_admin on</td>
+        <td><code>can_access_admin</code> is false on their profile, or the module is disabled, or the specific granular permission is missing</td>
+        <td>Go to User Access &amp; Permissions, find the user. If they can't reach the admin panel at all, toggle on <code>can_access_admin</code>. If they're in the admin panel but a specific tab is missing, check the matching granular permission (e.g. <code>can_manage_staff</code> for the Staff tab).</td>
+      </tr>
+      <tr>
+        <td>Staff member can't see "Submit a Request" in their portal</td>
+        <td>The <code>requests</code> module is disabled for the school</td>
+        <td>Admin Panel → Schools → Edit school → enable the Requests module toggle. Note: all authenticated staff can submit once the module is on — no per-user permission needed.</td>
       </tr>
       <tr>
         <td>Carline screen shows "no students" even with families loaded</td>

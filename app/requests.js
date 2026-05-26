@@ -1,6 +1,7 @@
 import { supabase } from './admin.supabase.js';
 import { initPage } from './admin.auth.js';
 import { esc, fmtShortDate } from './admin.shared.js';
+import { initUserMenu } from './user-menu.js';
 
 let currentProfile = null;
 let categories     = [];
@@ -10,6 +11,8 @@ let catFields      = [];
 (async () => {
   currentProfile = await initPage({});
   if (!currentProfile) return;
+
+  initUserMenu(currentProfile.display_name ?? currentProfile.email);
 
   await Promise.all([loadCategories(), loadMyRequests()]);
   renderCategories();
@@ -85,8 +88,8 @@ async function selectCategory(cat) {
       <form id="reqSubmitForm">
         ${catFields.map(f => renderFormField(f)).join('')}
         <div style="margin-top:20px;display:flex;gap:8px;align-items:center;">
-          <button type="submit" class="btn btn-primary">Submit Request</button>
-          <button type="button" class="btn btn-secondary" id="reqCancelFormBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" style="height:36px;">Submit Request</button>
+          <button type="button" class="btn" id="reqCancelFormBtn" style="height:36px;">Cancel</button>
         </div>
         <p id="reqFormError" style="color:#dc2626;font-size:13px;margin-top:8px;display:none;"></p>
       </form>

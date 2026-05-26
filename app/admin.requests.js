@@ -19,6 +19,10 @@ export async function initRequestsSection(profile) {
   currentProfile = profile;
   await loadCategories();
   renderRoot();
+  document.getElementById('reqCatDrawerClose')?.addEventListener('click', closeCatDrawer);
+  document.getElementById('reqCatOverlay')?.addEventListener('click', closeCatDrawer);
+  document.getElementById('reqSubDrawerClose')?.addEventListener('click', closeSubDrawer);
+  document.getElementById('reqSubOverlay')?.addEventListener('click', closeSubDrawer);
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -62,9 +66,11 @@ async function loadCategoryDetail(catId) {
       .order('sort_order'),
     supabase
       .from('request_category_managers')
-      .select('profile_id, profiles ( display_name, email )')
+      .select('profile_id, profiles!request_category_managers_profile_id_fkey ( display_name, email )')
       .eq('category_id', catId),
   ]);
+  if (fieldsRes.error)   console.error('loadCategoryDetail fields',   fieldsRes.error);
+  if (managersRes.error) console.error('loadCategoryDetail managers', managersRes.error);
   return {
     fields:   fieldsRes.data   ?? [],
     managers: managersRes.data ?? [],
@@ -79,9 +85,9 @@ function renderRoot() {
   if (!root) return;
 
   root.innerHTML = `
-    <div class="section-header" style="flex-wrap:wrap;gap:8px;">
+    <div class="directory-header">
       <div>
-        <h2 style="margin:0 0 10px;">Staff Requests</h2>
+        <h2 style="margin:0 0 10px;font-size:20px;font-weight:700;">Staff Requests</h2>
         <div class="req-tabs">
           <button class="req-tab${currentView === 'forms' ? ' active' : ''}" data-view="forms">Request Forms</button>
           <button class="req-tab${currentView === 'submissions' ? ' active' : ''}" data-view="submissions">Submissions</button>
@@ -89,27 +95,7 @@ function renderRoot() {
       </div>
       ${currentView === 'forms' ? `<button class="btn btn-primary" id="reqNewFormBtn">+ New Form</button>` : ''}
     </div>
-    <div id="reqViewContainer" style="margin-top:16px;"></div>
-
-    <!-- Category editor drawer -->
-    <div id="reqCatDrawer" class="drawer" style="display:none;">
-      <div class="drawer-header">
-        <span id="reqCatDrawerTitle">New Request Form</span>
-        <button class="drawer-close" id="reqCatDrawerClose">&times;</button>
-      </div>
-      <div class="drawer-body" id="reqCatDrawerBody"></div>
-    </div>
-    <div id="reqCatOverlay" class="drawer-overlay" style="display:none;"></div>
-
-    <!-- Submission detail drawer -->
-    <div id="reqSubDrawer" class="drawer" style="display:none;">
-      <div class="drawer-header">
-        <span id="reqSubDrawerTitle">Request Detail</span>
-        <button class="drawer-close" id="reqSubDrawerClose">&times;</button>
-      </div>
-      <div class="drawer-body" id="reqSubDrawerBody"></div>
-    </div>
-    <div id="reqSubOverlay" class="drawer-overlay" style="display:none;"></div>
+    <div id="reqViewContainer"></div>
   `;
 
   root.querySelectorAll('.req-tab').forEach(btn => {
@@ -126,10 +112,6 @@ function renderRoot() {
   });
 
   document.getElementById('reqNewFormBtn')?.addEventListener('click', () => openCatDrawer(null));
-  document.getElementById('reqCatDrawerClose')?.addEventListener('click', closeCatDrawer);
-  document.getElementById('reqCatOverlay')?.addEventListener('click', closeCatDrawer);
-  document.getElementById('reqSubDrawerClose')?.addEventListener('click', closeSubDrawer);
-  document.getElementById('reqSubOverlay')?.addEventListener('click', closeSubDrawer);
 
   if (currentView === 'forms') renderFormsView();
 }
@@ -143,13 +125,20 @@ function renderFormsView() {
 
   if (!categories.length) {
     container.innerHTML = `
-      <div class="empty-state">
-        <p>No request forms yet. Create one to let staff submit requests.</p>
+      <div style="text-align:center;padding:64px 16px;">
+        <div style="width:52px;height:52px;background:#f3f4f6;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:16px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <p style="font-size:16px;font-weight:600;color:#374151;margin:0 0 6px;">No request forms yet</p>
+        <p style="font-size:13px;color:#9ca3af;margin:0 auto 24px;max-width:360px;line-height:1.6;">Create a form so staff can submit requests — for IT support, facilities work, supply orders, or anything else your school needs to track.</p>
+        <button class="btn btn-primary" id="reqEmptyNewBtn">+ Create First Form</button>
       </div>`;
+    document.getElementById('reqEmptyNewBtn')?.addEventListener('click', () => openCatDrawer(null));
     return;
   }
 
   container.innerHTML = `
+    <p style="font-size:13px;color:#6b7280;margin:0 0 16px;">${categories.length} form${categories.length === 1 ? '' : 's'} — click a card to edit fields and managers.</p>
     <div class="req-cat-grid">
       ${categories.map(c => `
         <div class="req-cat-card${c.is_active ? '' : ' req-cat-card--inactive'}" data-id="${esc(c.id)}">
@@ -185,8 +174,8 @@ async function openCatDrawer(cat) {
   titleEl.textContent = cat ? `Edit: ${cat.name}` : 'New Request Form';
   bodyEl.innerHTML = '<p style="color:#9ca3af;padding:16px;">Loading…</p>';
 
-  document.getElementById('reqCatDrawer').style.display  = '';
-  document.getElementById('reqCatOverlay').style.display = '';
+  document.getElementById('reqCatDrawer').classList.add('open');
+  document.getElementById('reqCatOverlay').classList.add('open');
 
   if (cat) {
     const { fields, managers } = await loadCategoryDetail(cat.id);
@@ -241,10 +230,10 @@ function renderCatDrawerBody(cat) {
       <div id="reqMgrDropdown" class="req-mgr-dropdown" style="display:none;"></div>
     </div>
 
-    <div style="margin-top:24px;display:flex;gap:8px;flex-wrap:wrap;">
-      <button class="btn btn-primary" id="reqSaveCatBtn">${cat ? 'Save Changes' : 'Create Form'}</button>
-      ${cat ? `<button class="btn btn-danger-outline" id="reqToggleActiveBtn">${cat.is_active ? 'Deactivate' : 'Activate'} Form</button>` : ''}
-      <button class="btn btn-secondary" id="reqCancelCatBtn">Cancel</button>
+    <div style="margin-top:24px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button class="btn btn-primary" id="reqSaveCatBtn" style="height:36px;">${cat ? 'Save Changes' : 'Create Form'}</button>
+      ${cat ? `<button class="btn" id="reqToggleActiveBtn" style="height:36px;">${cat.is_active ? 'Deactivate Form' : 'Activate Form'}</button>` : ''}
+      <button class="btn" id="reqCancelCatBtn" style="height:36px;">Cancel</button>
     </div>
     <p id="reqCatError" style="color:#dc2626;font-size:13px;margin-top:8px;display:none;"></p>
   `;
@@ -314,9 +303,10 @@ function renderFieldsList() {
   list.querySelectorAll('.req-field-required').forEach((cb, i) => {
     cb.addEventListener('change', () => { draftFields[i].is_required = cb.checked; });
   });
-  list.querySelectorAll('.req-field-options').forEach((inp, i) => {
+  list.querySelectorAll('.req-field-options').forEach((inp) => {
+    const idx = parseInt(inp.closest('.req-field-row').dataset.idx);
     inp.addEventListener('input', () => {
-      draftFields[i].options = inp.value.split(',').map(s => s.trim()).filter(Boolean);
+      draftFields[idx].options = inp.value.split(',').map(s => s.trim()).filter(Boolean);
     });
   });
   list.querySelectorAll('.req-field-remove').forEach(btn => {
@@ -477,8 +467,8 @@ function showCatError(msg) {
 }
 
 function closeCatDrawer() {
-  document.getElementById('reqCatDrawer').style.display  = 'none';
-  document.getElementById('reqCatOverlay').style.display = 'none';
+  document.getElementById('reqCatDrawer').classList.remove('open');
+  document.getElementById('reqCatOverlay').classList.remove('open');
   editingCat    = null;
   draftFields   = [];
   draftManagers = [];
@@ -580,8 +570,8 @@ async function openSubDrawer(sub) {
   titleEl.textContent = catName;
   bodyEl.innerHTML = '<p style="color:#9ca3af;padding:16px;">Loading…</p>';
 
-  document.getElementById('reqSubDrawer').style.display  = '';
-  document.getElementById('reqSubOverlay').style.display = '';
+  document.getElementById('reqSubDrawer').classList.add('open');
+  document.getElementById('reqSubOverlay').classList.add('open');
 
   // Load responses with field labels
   const { data: responses } = await supabase
@@ -623,9 +613,9 @@ async function openSubDrawer(sub) {
       <label class="form-label">Manager Notes <span style="font-weight:400;color:#9ca3af;">(visible to submitter)</span></label>
       <textarea id="reqSubNotes" class="form-control" rows="3" placeholder="Optional notes…">${esc(sub.manager_notes ?? '')}</textarea>
     </div>
-    <div style="margin-top:16px;display:flex;gap:8px;">
-      <button class="btn btn-primary" id="reqSaveSubBtn">Save</button>
-      <button class="btn btn-secondary" id="reqCancelSubBtn">Close</button>
+    <div style="margin-top:16px;display:flex;gap:8px;align-items:center;">
+      <button class="btn btn-primary" id="reqSaveSubBtn" style="height:36px;">Save</button>
+      <button class="btn" id="reqCancelSubBtn" style="height:36px;">Close</button>
     </div>
     <p id="reqSubError" style="color:#dc2626;font-size:13px;margin-top:8px;display:none;"></p>
   `;
@@ -661,8 +651,8 @@ async function saveSubmission(requestId) {
 }
 
 function closeSubDrawer() {
-  document.getElementById('reqSubDrawer').style.display  = 'none';
-  document.getElementById('reqSubOverlay').style.display = 'none';
+  document.getElementById('reqSubDrawer').classList.remove('open');
+  document.getElementById('reqSubOverlay').classList.remove('open');
 }
 
 /* ═══════════════════════════════════════════════════════════

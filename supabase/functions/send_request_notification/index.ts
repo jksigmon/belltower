@@ -59,18 +59,18 @@ serve(async (req) => {
     // Load category managers' emails
     const { data: managers } = await supabase
       .from("request_category_managers")
-      .select("profiles ( email, display_name )")
+      .select("profiles!request_category_managers_profile_id_fkey ( email, display_name )")
       .eq("category_id", category.id);
 
     // Load school email config
     const { data: school } = await supabase
       .from("schools")
-      .select("pto_from_email, pto_reply_to")
+      .select("notifications_from_email, notifications_reply_to, pto_from_email, pto_reply_to")
       .eq("id", req_row.school_id)
       .single();
 
-    const fromAddr  = school?.pto_from_email ?? DEFAULT_FROM;
-    const replyTo   = school?.pto_reply_to   ?? DEFAULT_REPLY_TO;
+    const fromAddr = school?.notifications_from_email ?? school?.pto_from_email ?? DEFAULT_FROM;
+    const replyTo  = school?.notifications_reply_to   ?? school?.pto_reply_to   ?? DEFAULT_REPLY_TO;
     const manageUrl = `${APP_BASE_URL}/app/requests-manage.html`;
     const submittedAt = new Date(req_row.created_at).toLocaleString("en-US", {
       month: "short", day: "numeric", year: "numeric",
