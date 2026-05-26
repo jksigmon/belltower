@@ -44,6 +44,7 @@ serve(async (req) => {
           body_html,
           content_hash,
           active,
+          require_signature,
           school_id,
           schools!inner (
             id,
@@ -95,8 +96,9 @@ serve(async (req) => {
         school_logo:   school.logo_url ?? null,
         form_title:    template.title,
         form_desc:     template.description ?? null,
-        body_html:     template.body_html,
-        content_hash:  template.content_hash ?? null,
+        body_html:         template.body_html,
+        content_hash:      template.content_hash ?? null,
+        require_signature: template.require_signature ?? true,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

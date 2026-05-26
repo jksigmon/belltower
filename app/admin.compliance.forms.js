@@ -38,7 +38,7 @@ export async function loadTemplates(profile) {
 
   const { data, error } = await supabase
     .from('compliance_form_templates')
-    .select('id, title, description, body_html, active, required_for_chaperones, content_hash, created_at')
+    .select('id, title, description, body_html, active, require_signature, required_for_chaperones, content_hash, created_at')
     .eq('school_id', _profile.school_id)
     .order('created_at', { ascending: false });
 
@@ -92,6 +92,7 @@ export function openTemplateDrawer(id) {
   document.getElementById('tplDescription').value = t?.description ?? '';
   document.getElementById('tplBodyHtml').value    = t?.body_html ?? '';
   document.getElementById('tplActive').checked                = t ? t.active : true;
+  document.getElementById('tplRequireSignature').checked      = t ? (t.require_signature ?? true) : true;
   document.getElementById('tplRequiredForChaperones').checked = t?.required_for_chaperones ?? false;
   document.getElementById('tplDrawerMsg').textContent = '';
 
@@ -116,8 +117,9 @@ export async function saveTemplate() {
   const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(bodyHtml));
   const contentHash = Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
 
+  const requireSignature      = document.getElementById('tplRequireSignature').checked;
   const requiredForChaperones = document.getElementById('tplRequiredForChaperones').checked;
-  const payload = { title, description, body_html: bodyHtml, active, required_for_chaperones: requiredForChaperones, content_hash: contentHash };
+  const payload = { title, description, body_html: bodyHtml, active, require_signature: requireSignature, required_for_chaperones: requiredForChaperones, content_hash: contentHash };
 
   let error;
   if (activeTemplateId) {

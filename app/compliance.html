@@ -434,15 +434,27 @@
       <input type="text" id="tplDescription" class="admin-input" placeholder="Short description shown above the form">
     </div>
     <div class="bg-detail-field" style="flex:1;">
-      <label class="bg-detail-label" for="tplBodyHtml">
-        Form body (HTML)
-        <span style="font-weight:400;font-size:10px;text-transform:none;letter-spacing:0;margin-left:6px;">Use &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;, &lt;h4&gt; etc.</span>
-      </label>
+      <label class="bg-detail-label" for="tplBodyHtml">Form body (HTML)</label>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:6px;line-height:1.6;">
+        Write the agreement text using basic HTML tags:
+        <br><code style="background:#f3f4f6;padding:0 3px;border-radius:3px;">&lt;p&gt;...&lt;/p&gt;</code> — paragraph of text &nbsp;
+        <code style="background:#f3f4f6;padding:0 3px;border-radius:3px;">&lt;strong&gt;...&lt;/strong&gt;</code> — <strong>bold</strong> &nbsp;
+        <code style="background:#f3f4f6;padding:0 3px;border-radius:3px;">&lt;h4&gt;...&lt;/h4&gt;</code> — section heading
+        <br><code style="background:#f3f4f6;padding:0 3px;border-radius:3px;">&lt;ul&gt;&lt;li&gt;item&lt;/li&gt;&lt;/ul&gt;</code> — bulleted list &nbsp;
+        <code style="background:#f3f4f6;padding:0 3px;border-radius:3px;">&lt;ol&gt;&lt;li&gt;item&lt;/li&gt;&lt;/ol&gt;</code> — numbered list
+        <br>The signature line and date are added automatically — do not include them here.
+      </div>
       <textarea id="tplBodyHtml" class="admin-input" rows="14" style="font-family:monospace;font-size:12px;resize:vertical;" placeholder="<p>I agree to maintain confidentiality regarding...</p>"></textarea>
     </div>
     <div class="bg-detail-field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
         <input type="checkbox" id="tplActive" checked> Active (forms can be submitted via links to this template)
+      </label>
+    </div>
+    <div class="bg-detail-field">
+      <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:14px;">
+        <input type="checkbox" id="tplRequireSignature" checked style="margin-top:2px;flex-shrink:0;">
+        <span>Require signature <span class="muted" style="font-size:12px;display:block;margin-top:2px;">When checked, signers must draw or type a signature. Uncheck for informational forms where name and email acknowledgement is sufficient.</span></span>
       </label>
     </div>
     <div class="bg-detail-field">

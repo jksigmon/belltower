@@ -64,9 +64,14 @@ function renderForm(data) {
   document.getElementById('stateLoading').classList.remove('visible');
   document.getElementById('formWrap').style.display = '';
 
-  // Init signature pad
-  initSignaturePad();
-  wireSigModeToggle();
+  // Signature pad — skip entirely when form doesn't require it
+  if (data.require_signature === false) {
+    document.getElementById('sigSection').style.display = 'none';
+    document.getElementById('submitBtn').textContent = 'Acknowledge & Submit';
+  } else {
+    initSignaturePad();
+    wireSigModeToggle();
+  }
   wireSubmit();
 }
 
@@ -200,8 +205,9 @@ async function submitForm() {
     return;
   }
 
-  const signatureData = getSignatureDataUrl();
-  if (!signatureData) {
+  const requiresSig = formData?.require_signature !== false;
+  const signatureData = requiresSig ? getSignatureDataUrl() : null;
+  if (requiresSig && !signatureData) {
     errorEl.textContent = sigMode === 'draw'
       ? 'Please draw your signature in the box above.'
       : 'Please type your name to generate a signature.';
@@ -218,7 +224,7 @@ async function submitForm() {
         token,
         signer_name:             signerName,
         signer_email:            signerEmail,
-        signature_type:          sigMode === 'type' ? 'typed' : sigMode,
+        signature_type:          requiresSig ? (sigMode === 'type' ? 'typed' : sigMode) : 'acknowledged',
         signature_data:          signatureData,
         student_name_hint:       document.getElementById('studentNameHint')?.value.trim()   || null,
         carline_tag_hint:        document.getElementById('carlineTagHint')?.value.trim()    || null,

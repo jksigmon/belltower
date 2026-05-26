@@ -163,6 +163,7 @@ function renderExpiryAlerts() {
   if (!wrap || !list) return;
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
+  const d30   = new Date(today); d30.setDate(d30.getDate() + 30);
   const d90   = new Date(today); d90.setDate(d90.getDate() + 90);
 
   const alerts = bgCheckCache

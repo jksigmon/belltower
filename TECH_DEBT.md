@@ -1,12 +1,13 @@
 # Belltower Tech Debt Report
-_Generated: 2026-05-17 · Last remediation: 2026-05-17_
+_Generated: 2026-05-17 · Last remediation: 2026-05-26_
 
 ## Final Resolution Status
 
 | Item | Status |
 |---|---|
 | **SECURITY** | |
-| `.env` service-role key committed to git | ⏳ **DEFERRED** — rotate key + `git filter-repo` when ready |
+| `.env` service-role key committed to git | ✅ **Not an issue** — confirmed via `git ls-files` that `supabase/functions/.env` was never committed. File is correctly listed in `.gitignore`. No git history purge needed. Service role key rotation is desirable hygiene but not urgent (no actual leak occurred). Defer rotation to when Supabase Pro is set up before going live. |
+| `PTO_APPROVAL_HMAC_SECRET` same value on dev and production | ✅ Fixed (2026-05-26) — production secret updated to a unique value via `supabase secrets set`. Dev and prod HMAC secrets are now distinct. |
 | `config.js` — misleading "do not commit" comment on intentionally-public anon key | ✅ Fixed — comment now correctly documents anon key is safe to commit |
 | XSS: `admin.access.js` — display_name/email unescaped in innerHTML | ✅ Fixed |
 | XSS: `admin.licensure.js` — all table/audit fields unescaped | ✅ Fixed |
@@ -59,7 +60,7 @@ _Generated: 2026-05-17 · Last remediation: 2026-05-17_
 | admin.placement.js — escHtml() dead | ✅ Fixed |
 | send_pto_notifications — dead helpers never called | ✅ Fixed — now wired |
 
-**Only remaining open item:** `.env` service-role key (deferred by design).
+**No open security items.** The `.env` service-role key was confirmed never committed to git (non-issue). The PTO HMAC secret was updated to a unique production value on 2026-05-26. Service role key rotation remains desirable hygiene — defer to Supabase Pro setup before going live.
 
 ---
 
