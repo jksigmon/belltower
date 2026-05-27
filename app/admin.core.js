@@ -503,11 +503,12 @@ async function loadDashboardStats() {
 
     if (allBdays.length > 0) {
       const list = document.getElementById('dashBirthdayList');
-      const ul = document.createElement('ul');
-      ul.style.cssText = 'list-style:none;margin:0;padding:0;';
-      allBdays.forEach(s => {
-        const isToday = s.daysLeft === 0;
-        const when = isToday ? 'Today!' : s.daysLeft === 1 ? 'Tomorrow' : `In ${s.daysLeft} days`;
+      const close    = allBdays.filter(s => s.daysLeft <= 3);
+      const extended = allBdays.filter(s => s.daysLeft > 3);
+
+      const buildLi = s => {
+        const isToday    = s.daysLeft === 0;
+        const when       = isToday ? 'Today!' : s.daysLeft === 1 ? 'Tomorrow' : `In ${s.daysLeft} days`;
         const secondary  = s.type === 'student' ? `Turning ${s.age} — ${fmtBday(s.bday)}` : fmtBday(s.bday);
         const badgeBg    = s.type === 'staff' ? '#dbeafe' : '#fef9c3';
         const badgeColor = s.type === 'staff' ? '#1e40af' : '#713f12';
@@ -519,10 +520,40 @@ async function loadDashboardStats() {
           <span class="staff-dash-req-dates">${secondary}</span>
           <span class="staff-dash-req-badge${isToday ? ' bday-today' : ''}" style="background:${badgeBg};color:${badgeColor};">${prefix}${when}</span>
         `;
-        ul.appendChild(li);
-      });
+        return li;
+      };
+
+      const ul = document.createElement('ul');
+      ul.style.cssText = 'list-style:none;margin:0;padding:0;';
+
+      const shown = close.length > 0 ? close : allBdays.slice(0, 3);
+      const hidden = close.length > 0 ? extended : allBdays.slice(3);
+
+      shown.forEach(s => ul.appendChild(buildLi(s)));
+
+      let extUl = null;
+      if (hidden.length > 0) {
+        extUl = document.createElement('ul');
+        extUl.style.cssText = 'list-style:none;margin:0;padding:0;display:none;';
+        hidden.forEach(s => extUl.appendChild(buildLi(s)));
+
+        const toggleBtn = document.createElement('button');
+        toggleBtn.className = 'btn btn-sm btn-outline';
+        toggleBtn.style.cssText = 'margin:8px 0 4px;font-size:11px;';
+        toggleBtn.textContent = `Show ${hidden.length} more (next 7 days)`;
+        toggleBtn.addEventListener('click', () => {
+          const expanded = extUl.style.display !== 'none';
+          extUl.style.display = expanded ? 'none' : '';
+          toggleBtn.textContent = expanded
+            ? `Show ${hidden.length} more (next 7 days)`
+            : 'Show less';
+        });
+        ul.appendChild(document.createElement('li')).appendChild(toggleBtn);
+      }
+
       list.innerHTML = '';
       list.appendChild(ul);
+      if (extUl) list.appendChild(extUl);
       show('dashBirthdays');
     }
   }
