@@ -276,8 +276,10 @@ function renderExpiryAlerts() {
 
   const alerts = bgCheckCache
     .filter(row => {
+      if (row.archived_at) return false;
       const expDate = row.expires_at ? new Date(row.expires_at + 'T12:00:00') : null;
-      if (row.status === 'expired') return true;
+      // Only alert on 'expired' status if expires_at hasn't been extended past today
+      if (row.status === 'expired') return !expDate || expDate <= today;
       return row.status === 'cleared' && expDate && expDate <= d90;
     })
     .sort((a, b) => (a.expires_at ?? '9999').localeCompare(b.expires_at ?? '9999'));

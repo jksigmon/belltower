@@ -2030,6 +2030,8 @@ function initAssignDatePickers() {
   assignDatePickersInitialized = true;
 }
 
+initAssignDatePickers();
+
 function setTimePicker(fp, timeStr) {
   if (!fp) return;
   if (timeStr) fp.setDate(timeStr.slice(0, 5), true);

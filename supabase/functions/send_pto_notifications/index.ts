@@ -305,6 +305,20 @@ if (event === "UPDATE" && old_status === "CANCEL_REQUESTED" && new_status === "C
   }
 }
 
+// Retroactive rescind: notify sub managers so they can update their records
+if (event === "UPDATE" && old_status === "RESCIND_REQUESTED" && new_status === "RESCINDED") {
+  await sendEmployeeCancellation(request, employee, emailCfg);
+
+  if (request.needs_sub_coverage === true) {
+    const subManagers = await loadSubstituteManagers(employee.school_id);
+    if (subManagers.length > 0) {
+      await sendSubCoverageNoLongerNeeded(request, employee, subManagers, emailCfg);
+    } else {
+      console.warn("No substitute managers found for school (rescind):", employee.school_id);
+    }
+  }
+}
+
 return new Response("OK");
 
   } catch (err) {

@@ -29,8 +29,21 @@ let GRADE_LEVELS = GRADE_ORDER;
 
 // ── Init ────────────────────────────────────────────────────────────────
 async function init() {
-  profile = await initPage();
+  profile = await initPage({ requiredCap: 'can_manage_field_trips' });
   if (!profile) return;
+
+  if (!profile.is_superadmin) {
+    const { data: mod } = await supabase
+      .from('school_modules')
+      .select('enabled')
+      .eq('school_id', profile.school_id)
+      .eq('module', 'field_trips')
+      .single();
+    if (mod && mod.enabled === false) {
+      window.location.href = '/admin.html';
+      return;
+    }
+  }
 
   schoolConfig = await loadSchoolConfig(profile.school_id);
   GRADE_LEVELS = schoolConfig?.grade_levels ?? GRADE_ORDER;
@@ -217,17 +230,27 @@ async function loadChaperoneCounts(ids) {
 
 async function loadStudentCounts(trips) {
   if (!trips.length) return;
-  // For each trip, count students matching its grade_levels (minus explicit non-attenders)
-  await Promise.all(trips.map(async t => {
+
+  const { data: students } = await supabase
+    .from('students')
+    .select('grade_level')
+    .eq('school_id', profile.school_id)
+    .eq('active', true);
+
+  if (!students) return;
+
+  const gradeCountMap = {};
+  students.forEach(s => { gradeCountMap[s.grade_level] = (gradeCountMap[s.grade_level] ?? 0) + 1; });
+
+  trips.forEach(t => {
     const el = document.getElementById(`studCount-${t.id}`);
     if (!el) return;
     const grades = t.grade_levels ?? [];
-    let q = supabase.from('students').select('id', { count: 'exact', head: true })
-      .eq('school_id', profile.school_id).eq('active', true);
-    if (grades.length) q = q.in('grade_level', grades);
-    const { count } = await q;
-    if (el) el.textContent = count ?? '—';
-  }));
+    const count = grades.length
+      ? grades.reduce((sum, g) => sum + (gradeCountMap[g] ?? 0), 0)
+      : students.length;
+    el.textContent = count;
+  });
 }
 
 function wireFilters() {
@@ -357,7 +380,7 @@ async function loadChaperones() {
 
   chaperoneList = data ?? [];
 
-  const emails = chaperoneList.map(c => c.guardian?.email).filter(Boolean);
+  const emails = chaperoneList.map(c => (c.guardian?.email ?? '').toLowerCase()).filter(Boolean);
   await Promise.all([
     loadBgChecksByEmail(emails),
     loadAgreementsByEmail(emails),
@@ -416,7 +439,7 @@ async function loadBgChecksByEmail(emails) {
     .select('id, subject_email, status, cleared_at, expires_at, mvr_cleared_at, mvr_expires_at')
     .eq('school_id', profile.school_id)
     .in('subject_email', emails)
-    .in('status', ['cleared', 'submitted', 'pending']);
+    .in('status', ['cleared', 'submitted', 'pending', 'expired']);
 
   if (!data) return;
   // Keep most recent cleared record per email; fall back to any record
@@ -436,43 +459,47 @@ function getMissingForms(email) {
 }
 
 function computeComplianceStatus(guardian, bgCheck, tripDate, isDriver) {
-  if (!bgCheck) return 'blocked';
+  if (!bgCheck) return { status: 'blocked', detail: '' };
 
   const trip  = new Date(tripDate + 'T12:00:00');
   const bgExp = bgCheck.expires_at ? new Date(bgCheck.expires_at + 'T12:00:00') : null;
-  const bgOk  = bgCheck.status === 'cleared' && (!bgExp || bgExp >= trip);
+  // 'expired' with a future expires_at means admin updated the date but not the status yet — treat as valid
+  const bgStatusOk = bgCheck.status === 'cleared' || (bgCheck.status === 'expired' && bgExp && bgExp >= trip);
+  const bgOk  = bgStatusOk && (!bgExp || bgExp >= trip);
 
   if (!bgOk) {
-    return bgCheck.status === 'pending' || bgCheck.status === 'submitted' ? 'action' : 'blocked';
+    const status = bgCheck.status === 'pending' || bgCheck.status === 'submitted' ? 'action' : 'blocked';
+    return { status, detail: status === 'action' ? `BG check status: ${bgCheck.status}` : '' };
   }
 
   // Only enforce MVR if the school has require_mvr_for_drivers enabled (default: true)
   const requireMvr = schoolConfig?.require_mvr_for_drivers !== false;
   if (isDriver && requireMvr) {
-    if (!bgCheck.mvr_cleared_at) return 'action';
+    if (!bgCheck.mvr_cleared_at) return { status: 'action', detail: 'MVR required for drivers' };
     const mvrExp = bgCheck.mvr_expires_at ? new Date(bgCheck.mvr_expires_at + 'T12:00:00') : null;
-    if (mvrExp && mvrExp < trip) return 'action';
+    if (mvrExp && mvrExp < trip) return { status: 'action', detail: 'MVR expired by trip date' };
   }
 
-  if (getMissingForms(guardian?.email).length) return 'action';
+  const missingForms = getMissingForms((guardian?.email ?? '').toLowerCase());
+  if (missingForms.length) {
+    return { status: 'action', detail: `Missing: ${missingForms.map(t => t.title).join(', ')}` };
+  }
 
-  return 'cleared';
+  return { status: 'cleared', detail: '' };
 }
 
-function renderBgChip(status, bgCheck, tripDate, isDriver) {
+function renderBgChip(status, bgCheck, tripDate, isDriver, detail = '') {
   const labels = { cleared: 'Cleared', action: 'Action needed', blocked: 'Blocked', unknown: 'No record' };
   const cls    = { cleared: 'comp-cleared', action: 'comp-action', blocked: 'comp-blocked', unknown: 'comp-unknown' };
   const s = bgCheck ? status : 'unknown';
 
-  let tooltip = '';
+  let tooltip = detail;
   if (!bgCheck) {
     tooltip = 'No background check on file';
   } else if (s === 'blocked') {
     const bgExp = bgCheck.expires_at ? new Date(bgCheck.expires_at + 'T12:00:00') : null;
     const trip  = new Date(tripDate + 'T12:00:00');
     tooltip = bgExp && bgExp < trip ? 'BG check expired by trip date' : `BG check status: ${bgCheck.status}`;
-  } else if (s === 'action' && bgCheck.status === 'cleared' && isDriver) {
-    tooltip = 'MVR required for drivers';
   }
 
   return `<span class="comp-chip ${cls[s]}" title="${esc(tooltip)}">${labels[s]}</span>`;
@@ -506,8 +533,8 @@ function renderChaperoneTable() {
   chaperoneList.forEach(chap => {
     const g      = chap.guardian ?? {};
     const email  = (g.email ?? '').toLowerCase();
-    const bg     = bgCheckMap.get(email) ?? null;
-    const status = computeComplianceStatus(g, bg, tripDate, chap.is_driver);
+    const bg                = bgCheckMap.get(email) ?? null;
+    const { status, detail } = computeComplianceStatus(g, bg, tripDate, chap.is_driver);
 
     const students = (g.family?.students ?? [])
       .map(s => esc(s.first_name))
@@ -537,7 +564,7 @@ function renderChaperoneTable() {
         <span>${esc(g.email ?? '')}</span>
       </td>
       <td class="chap-students">${students}</td>
-      <td>${renderBgChip(status, bg, tripDate, chap.is_driver)}</td>
+      <td>${renderBgChip(status, bg, tripDate, chap.is_driver, detail)}</td>
       ${mvrCell}
       ${formsCell}
       <td>${chap.is_driver ? '<span class="comp-chip comp-action">Driver</span>' : '<span class="muted" style="font-size:12px;">No</span>'}</td>
@@ -556,7 +583,7 @@ function renderComplianceStats() {
   chaperoneList.forEach(chap => {
     const g  = chap.guardian ?? {};
     const bg = bgCheckMap.get((g.email ?? '').toLowerCase()) ?? null;
-    const s  = computeComplianceStatus(g, bg, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
+    const { status: s } = computeComplianceStatus(g, bg, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
     if (s === 'cleared')  cleared++;
     else if (s === 'action') action++;
     else blocked++;
@@ -897,7 +924,7 @@ function exportChaperoneCSV() {
     const g     = chap.guardian ?? {};
     const email = (g.email ?? '').toLowerCase();
     const bg    = bgCheckMap.get(email) ?? null;
-    const s     = computeComplianceStatus(g, bg, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
+    const { status: s } = computeComplianceStatus(g, bg, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
     const kids  = (g.family?.students ?? []).map(k => `${k.first_name} ${k.last_name}`).join('; ');
     const row = [
       `${g.last_name ?? ''}, ${g.first_name ?? ''}`,

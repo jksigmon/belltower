@@ -689,6 +689,17 @@ async function approveCancellation(r) {
     return;
   }
 
+  // Auto-cancel sub assignments for dates already past (sub already worked; no action needed).
+  // Today's and future assignments stay scheduled so the sub manager can see them in the
+  // Cancellations screen and manually notify the sub before cancelling.
+  const todayStr = new Date().toISOString().slice(0, 10);
+  await supabase
+    .from('substitute_assignments')
+    .update({ status: 'cancelled' })
+    .eq('pto_request_id', r.id)
+    .eq('status', 'scheduled')
+    .lt('start_date', todayStr);
+
   await loadPtoRequestCounts();
   loadPto();
   loadPtoCancellationRequests();
@@ -990,7 +1001,8 @@ async function loadStaffPtoHistory(employeeId) {
   let ledgerQuery = supabase
     .from('pto_ledger')
     .select('delta_hours, reason')
-    .eq('employee_id', employeeId);
+    .eq('employee_id', employeeId)
+    .eq('school_id', currentProfile.school_id);
 
   let histQuery = supabase
     .from('pto_requests')
@@ -1010,6 +1022,7 @@ async function loadStaffPtoHistory(employeeId) {
       employees!pto_requests_decided_by_fkey(first_name, last_name)
     `)
     .eq('employee_id', employeeId)
+    .eq('school_id', currentProfile.school_id)
     .order('submitted_at', { ascending: false });
 
   if (year) {
@@ -1124,6 +1137,7 @@ async function loadStaffPtoLedger(employeeId) {
     .from('pto_ledger')
     .select('pto_type, delta_hours, reason, created_at')
     .eq('employee_id', employeeId)
+    .eq('school_id', currentProfile.school_id)
     .order('created_at', { ascending: false });
 
   if (year) {

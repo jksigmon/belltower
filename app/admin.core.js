@@ -257,10 +257,10 @@ async function loadDashboardStats() {
       .eq('school_id', schoolId).eq('status', 'APPROVED').lte('start_date', today).gte('end_date', today);
     // Named alert queries
     queries.alertCancels = supabase.from('pto_requests')
-      .select('id, status, employees(first_name, last_name)')
+      .select('id, status, employees!pto_requests_employee_id_fkey(first_name, last_name)')
       .eq('school_id', schoolId).in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED']).limit(8);
     queries.alertStaffOut = supabase.from('pto_requests')
-      .select('id, pto_type, employees(first_name, last_name)')
+      .select('id, pto_type, employees!pto_requests_employee_id_fkey(first_name, last_name)')
       .eq('school_id', schoolId).eq('status', 'APPROVED')
       .lte('start_date', today).gte('end_date', today).limit(8);
   }
@@ -270,10 +270,16 @@ async function loadDashboardStats() {
       .eq('school_id', schoolId);
     queries.subToday = supabase.from('substitute_assignments').select('id', { count: 'exact', head: true })
       .eq('school_id', schoolId).eq('status', 'scheduled').eq('start_date', today);
+    queries.subCancellations = supabase.from('v_pending_cancellation_days').select('assignment_id', { count: 'exact', head: true })
+      .eq('school_id', schoolId).eq('assignment_status', 'scheduled');
     // Named alert queries
     queries.alertCoverage = supabase.from('v_pending_coverage_days')
       .select('out_first_name, out_last_name, coverage_date, pto_type')
       .eq('school_id', schoolId).order('coverage_date', { ascending: true }).limit(8);
+    queries.alertSubCancellations = supabase.from('v_pending_cancellation_days')
+      .select('out_first_name, out_last_name, coverage_date')
+      .eq('school_id', schoolId).eq('assignment_status', 'scheduled')
+      .order('coverage_date', { ascending: true }).limit(8);
   }
 
   if (moduleEnabled('licensure') && p.can_manage_licensure) {
@@ -392,8 +398,9 @@ async function loadDashboardStats() {
   }
 
   if (r.subUnassigned !== undefined) {
-    set('statSubUnassigned', r.subUnassigned.count ?? 0);  show('dashSubUnassigned');
-    set('statSubToday',      r.subToday.count ?? 0);       show('dashSubToday');
+    set('statSubUnassigned',    r.subUnassigned.count ?? 0);    show('dashSubUnassigned');
+    set('statSubToday',         r.subToday.count ?? 0);         show('dashSubToday');
+    set('statSubCancellations', r.subCancellations.count ?? 0); show('dashSubCancellations');
     show('dashAttention');
   }
 
@@ -542,6 +549,15 @@ async function loadDashboardStats() {
       });
     });
 
+    // 🟠 Pending sub cancellations — PTO was cancelled but sub assignment still scheduled
+    (r.alertSubCancellations?.data ?? []).forEach(row => {
+      alerts.push({
+        level: 'amber',
+        text: `${row.out_first_name} ${row.out_last_name}'s PTO was cancelled — sub assignment on ${fmtDate(row.coverage_date)} still needs to be cancelled`,
+        href: '/app/substitutes.html#cancellations'
+      });
+    });
+
     // 🔴 Licenses expiring within 7 days
     (r.alertLicCritical?.data ?? []).forEach(lic => {
       const d = daysUntil(lic.expiration_date);
@@ -569,7 +585,7 @@ async function loadDashboardStats() {
       alerts.push({
         level: 'amber',
         text: `${fullName(req.employees)} has requested to ${action} approved PTO`,
-        href: '/app/pto.html'
+        href: '/app/pto.html#cancellations'
       });
     });
 
@@ -579,7 +595,7 @@ async function loadDashboardStats() {
       alerts.push({
         level: 'amber',
         text: `${n} PTO request${n === 1 ? '' : 's'} awaiting approval`,
-        href: '/app/pto.html'
+        href: '/app/pto.html#pending'
       });
     }
 
@@ -598,7 +614,7 @@ async function loadDashboardStats() {
       alerts.push({
         level: 'blue',
         text: `${fullName(req.employees)} is out today — ${req.pto_type}`,
-        href: '/app/pto.html'
+        href: '/app/pto.html#calendar'
       });
     });
 
