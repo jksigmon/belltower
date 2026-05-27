@@ -28,7 +28,7 @@ let _denyCallback = null;
    AUTH + PROFILE
 ============================================= */
 const _session = await requireAuth();
-if (!_session) throw new Error('No session');
+if (!_session) { window.location.href = '/login.html'; throw new Error('No session'); }
 
 const signOutBtn = document.getElementById('signOut');
 if (signOutBtn) {
@@ -251,6 +251,7 @@ async function bulkApprovePending() {
   clearPendingSelection();
   await loadPtoRequestCounts();
   loadPto();
+  loadPtoCancellationRequests();
   ptoCalendar?.refetchEvents();
 }
 
@@ -1043,6 +1044,8 @@ async function loadStaffPtoHistory(employeeId) {
   if (ledgerError) {
     console.error('Failed to load PTO ledger:', ledgerError);
     resetStaffHistoryView();
+    const el = document.getElementById('ptoLedgerEmpty');
+    if (el) el.textContent = 'Failed to load ledger — try refreshing.';
     return;
   }
 
@@ -1056,6 +1059,8 @@ async function loadStaffPtoHistory(employeeId) {
   if (error) {
     console.error('Failed to load PTO history:', error);
     resetStaffHistoryView();
+    const el = document.getElementById('ptoHistoryEmpty');
+    if (el) el.textContent = 'Failed to load history — try refreshing.';
     return;
   }
 
@@ -2354,8 +2359,10 @@ if (openExportBtn && exportModal) {
   });
 }
 
-document.getElementById('ptoStaffSelect').value = '';
-document.querySelector('#ptoHistoryAdminTable tbody').innerHTML = '';
+const _staffSelectEl = document.getElementById('ptoStaffSelect');
+if (_staffSelectEl) _staffSelectEl.value = '';
+const _histTbodyEl = document.querySelector('#ptoHistoryAdminTable tbody');
+if (_histTbodyEl) _histTbodyEl.innerHTML = '';
 
 document.querySelectorAll('.modal-close').forEach(btn => {
   btn.addEventListener('click', () => closeModal(btn.dataset.close));

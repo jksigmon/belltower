@@ -47,6 +47,12 @@ serve(async (req) => {
     if (!signature_data?.startsWith("data:image/png;base64,")) {
       return json({ error: "Invalid signature data." }, 400);
     }
+    const estimatedBytes = Math.ceil(
+      (signature_data.length - "data:image/png;base64,".length) * 0.75
+    );
+    if (estimatedBytes > 1_000_000) {
+      return json({ error: "Signature image is too large (max 1 MB)." }, 400);
+    }
 
     const emailNorm = signer_email.trim().toLowerCase();
 

@@ -374,7 +374,8 @@ async function loadChaperones() {
     .order('added_at', { ascending: true });
 
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:32px 0;">Failed to load.</td></tr>`;
+    chaperoneList = [];
+    tbody.innerHTML = `<tr><td colspan="6" class="muted" style="text-align:center;padding:32px 0;">Failed to load chaperones — try refreshing.</td></tr>`;
     return;
   }
 
@@ -675,18 +676,20 @@ async function loadStudents() {
   const tbody = document.getElementById('ftStudTableBody');
   tbody.innerHTML = `<tr><td colspan="4" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>`;
 
-  // Load all students matching grade_levels for this school
   const grades = currentTrip.grade_levels ?? [];
+
+  if (!grades.length) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px 0;color:#b45309;">No grade levels set on this trip — edit the trip to specify grades before viewing students.</td></tr>`;
+    return;
+  }
+
   let query = supabase
     .from('students')
     .select('id, first_name, last_name, grade_level, homeroom_teacher_id, employees!left(first_name, last_name)')
     .eq('school_id', profile.school_id)
     .eq('active', true)
+    .in('grade_level', grades)
     .order('last_name', { ascending: true });
-
-  if (grades.length) {
-    query = query.in('grade_level', grades);
-  }
 
   const [{ data: students, error: sErr }, { data: ftStudents }] = await Promise.all([
     query,
@@ -771,7 +774,7 @@ async function toggleAttendance(studentId, attending, tr) {
         .eq('field_trip_id', currentTrip.id)
         .eq('student_id', studentId);
     } else {
-      await ensurePaymentRows();
+      _debouncedEnsurePaymentRows();
     }
     paymentsLoaded = false;
   }
@@ -1375,6 +1378,8 @@ async function loadPayments() {
 
   renderPaymentTab(wrap);
 }
+
+const _debouncedEnsurePaymentRows = debounce(() => ensurePaymentRows(), 500);
 
 async function ensurePaymentRows() {
   const studentCost   = currentTrip.student_cost   ?? 0;

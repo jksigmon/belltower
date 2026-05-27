@@ -147,7 +147,8 @@ async function loadBgChecks() {
         requestor:profiles!requestor_id(display_name, email)
       `)
       .eq('school_id', currentProfile.school_id)
-      .order('requested_at', { ascending: false });
+      .order('requested_at', { ascending: false })
+      .limit(1000);
 
     if (error) {
       tbody.innerHTML = `<tr><td colspan="9" class="status-danger" style="text-align:center;padding:32px 0;">Failed to load: ${esc(error.message)}</td></tr>`;
@@ -155,6 +156,9 @@ async function loadBgChecks() {
     }
 
     bgCheckCache = data ?? [];
+    if (bgCheckCache.length === 1000) {
+      console.warn('BG check list hit the 1000-record cap — some records may not be shown.');
+    }
     populateRequestorFilter(bgCheckCache.filter(r => !r.archived_at));
     renderBgStats();
     renderExpiryAlerts();
@@ -851,7 +855,8 @@ async function loadAgreements() {
         compliance_form_templates!inner ( id, title )
       `)
       .eq('school_id', currentProfile.school_id)
-      .order('signed_at', { ascending: false });
+      .order('signed_at', { ascending: false })
+      .limit(1000);
 
     if (templateVal) query = query.eq('template_id', templateVal);
     if (linkVal)     query = query.eq('link_status', linkVal);
@@ -863,6 +868,9 @@ async function loadAgreements() {
     }
 
     agreementCache = data ?? [];
+    if (agreementCache.length === 1000) {
+      console.warn('Agreements list hit the 1000-record cap — some records may not be shown.');
+    }
     lastAgreementTemplateFilter = templateVal;
     lastAgreementLinkFilter = linkVal;
   }

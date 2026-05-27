@@ -194,7 +194,7 @@
               <button class="btn btn-outline btn-sm" id="exportPlacementBtn" title="Export placement as CSV">
                 <i data-lucide="download" style="width:15px;height:15px;"></i> Export
               </button>
-              <button class="btn btn-outline btn-sm" id="togglePlacementDensity" title="Toggle compact view">
+              <button class="btn btn-outline btn-sm" id="togglePlacementDensity" title="Switch to compact view">
                 <i data-lucide="rows-3" style="width:15px;height:15px;"></i>
               </button>
               <button class="btn btn-outline btn-sm" id="togglePlacementFullscreen" title="Expand board">
@@ -272,6 +272,38 @@
       <div class="confirm-modal-actions">
         <button class="btn btn-primary" id="submitAddColumnBtn">Add Column</button>
         <button class="btn" id="cancelAddColumnBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage Column modal (remove or replace teacher) -->
+  <div id="manageColumnModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:400px;width:100%;">
+      <h3 class="confirm-modal-title" id="manageColTitle">Manage Column</h3>
+
+      <!-- Choice panel -->
+      <div id="manageColChoicePanel">
+        <p id="manageColMsg" style="font-size:13px;color:var(--text-secondary);margin-bottom:20px;"></p>
+        <div class="confirm-modal-actions" style="flex-direction:column;gap:8px;align-items:stretch;">
+          <button class="btn btn-primary" id="manageColReplaceBtn">Replace Teacher</button>
+          <button class="btn btn-danger" id="manageColRemoveBtn">Remove Column</button>
+          <button class="btn" id="manageColCancelBtn">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Replace panel -->
+      <div id="manageColReplacePanel" hidden>
+        <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">Select the replacement teacher. All students stay in this column and are re-assigned to the new teacher.</p>
+        <div style="margin-bottom:20px;">
+          <label class="form-label" style="display:block;margin-bottom:6px;">Replacement Teacher</label>
+          <select id="manageColTeacherSelect" class="form-input" style="width:100%;">
+            <option value="">— Select replacement —</option>
+          </select>
+        </div>
+        <div class="confirm-modal-actions">
+          <button class="btn btn-primary" id="manageColConfirmReplaceBtn">Replace</button>
+          <button class="btn" id="manageColBackBtn">Back</button>
+        </div>
       </div>
     </div>
   </div>

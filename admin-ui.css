@@ -5002,6 +5002,41 @@ body.placement-fs .wrap {
   height: 7px;
 }
 
+/* Ultra-compact density mode — name-only rows, flag button revealed on hover */
+.placement-board--ultra .placement-col-body {
+  gap: 1px;
+  padding: 3px 4px;
+}
+.placement-board--ultra .placement-card {
+  padding: 2px 8px 2px 6px;
+  border-radius: 4px;
+}
+.placement-board--ultra .placement-card-name {
+  font-size: 11px;
+  margin-bottom: 1px;
+}
+.placement-board--ultra .placement-card-homeroom {
+  display: none;
+}
+.placement-board--ultra .placement-card-footer {
+  min-height: 9px;
+}
+.placement-board--ultra .placement-flag-btn {
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+.placement-board--ultra .placement-card:hover .placement-flag-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+.placement-board--ultra .placement-flag-dot {
+  width: 6px;
+  height: 6px;
+}
+
 /* Teacher avatar */
 .teacher-avatar {
   width: 26px;

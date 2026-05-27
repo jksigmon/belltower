@@ -26,6 +26,7 @@ let _targetClassSize = null;
 let _undoStack = [];          // array of move groups [{studentId, fromTeacherId}]
 let _homeroomTeacherNames = {}; // employeeId → last name for comparison display
 let _draggingColumnTeacherId = null;
+let _managingColId = null;
 let _placeholderColIds = new Set(); // PST row IDs that are placeholder columns
 let _resolvingColId = null;         // col ID being resolved in Assign Teacher modal
 
@@ -100,6 +101,19 @@ function wireGlobalEvents() {
     ?.addEventListener('click', closeAssignTeacherModal);
   document.getElementById('submitAssignTeacherBtn')
     ?.addEventListener('click', submitAssignTeacher);
+  document.getElementById('manageColCancelBtn')
+    ?.addEventListener('click', closeManageColumnModal);
+  document.getElementById('manageColReplaceBtn')
+    ?.addEventListener('click', showManageReplacePanel);
+  document.getElementById('manageColBackBtn')
+    ?.addEventListener('click', () => {
+      document.getElementById('manageColChoicePanel').hidden = false;
+      document.getElementById('manageColReplacePanel').hidden = true;
+    });
+  document.getElementById('manageColRemoveBtn')
+    ?.addEventListener('click', confirmRemoveColumn);
+  document.getElementById('manageColConfirmReplaceBtn')
+    ?.addEventListener('click', confirmReplaceColumnTeacher);
   document.getElementById('addColTypeReal')
     ?.addEventListener('change', () => {
       document.getElementById('addColRealPanel').hidden = false;
@@ -134,6 +148,18 @@ function wireGlobalEvents() {
 
   document.addEventListener('fullscreenchange', () => {
     if (!document.fullscreenElement) exitFullscreen();
+  });
+
+  // If the tab was hidden (user switched away) and another admin may have edited the same
+  // session, the in-memory undo stack could reference stale teacher/student positions.
+  // Clear it on visibility restore to prevent incorrect undos from corrupting placements.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && _currentSessionId && _undoStack.length > 0) {
+      _undoStack = [];
+      updateUndoBtn();
+      updateSaveStatus('Undo history cleared after tab switch');
+      setTimeout(() => updateSaveStatus(''), 3000);
+    }
   });
 }
 
@@ -347,7 +373,11 @@ function buildColumn(teacherId, name) {
   if (isUnplaced && totalCount === 0) col.classList.add('placement-col--unplaced-empty');
 
   const dragHandle = !isUnplaced
-    ? `<span class="col-drag-handle" title="Drag to reorder"><i data-lucide="grip-vertical" style="width:12px;height:12px;opacity:0.4;"></i></span>`
+    ? `<span class="col-drag-handle" title="Drag to reorder columns (cannot be undone)"><i data-lucide="grip-vertical" style="width:12px;height:12px;opacity:0.4;"></i></span>`
+    : '';
+
+  const manageBtn = !isUnplaced
+    ? `<button class="placement-col-manage-btn" data-col-id="${teacherId}" title="Remove or replace teacher" style="margin-left:auto;background:none;border:none;cursor:pointer;padding:2px 4px;opacity:0.35;border-radius:4px;display:flex;align-items:center;flex-shrink:0;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.35'"><i data-lucide="more-horizontal" style="width:14px;height:14px;"></i></button>`
     : '';
 
   let avatarOrBadge = '';
@@ -376,6 +406,7 @@ function buildColumn(teacherId, name) {
         ${avatarOrBadge}
         <span class="placement-col-name">${esc(name)}</span>
         <span class="placement-col-count ${countClass}">${countDisplay}</span>
+        ${manageBtn}
       </div>
       ${flagCountsHtml}
     </div>
@@ -417,6 +448,11 @@ function buildColumn(teacherId, name) {
       reorderColumn(draggedId, teacherId);
     });
   }
+
+  col.querySelector('.placement-col-manage-btn')?.addEventListener('click', e => {
+    e.stopPropagation();
+    openManageColumnModal(teacherId);
+  });
 
   const body = col.querySelector('.placement-col-body');
 
@@ -637,12 +673,14 @@ function tryMoveSurgical(studentIds, toTeacherId) {
   if (cards.some(c => !c)) return false;
 
   const affectedCols = new Set([toTeacherId ?? '']);
+  const frag = document.createDocumentFragment();
   cards.forEach(card => {
     const fromBody = card.closest('.placement-col-body');
     if (fromBody) affectedCols.add(fromBody.dataset.teacherId ?? '');
-    toBody.appendChild(card);
     card.classList.remove('selected');
+    frag.appendChild(card);
   });
+  toBody.prepend(frag);
 
   affectedCols.forEach(tid => {
     const key = tid === '' ? null : tid;
@@ -667,8 +705,8 @@ function tryUndoSurgical(group) {
     const fromBody = card.closest('.placement-col-body');
     if (fromBody) affectedCols.add(fromBody.dataset.teacherId ?? '');
     affectedCols.add(fromTeacherId ?? '');
-    toBody.appendChild(card);
     card.classList.remove('selected');
+    toBody.prepend(card);
   }
 
   affectedCols.forEach(tid => {
@@ -759,13 +797,11 @@ function reorderColumn(draggedTeacherId, targetTeacherId) {
 
 async function persistColumnOrder() {
   if (!_currentSessionId) return;
-  await Promise.all(
-    _teachers.map((t, i) =>
-      supabase.from('placement_session_teachers')
-        .update({ sort_order: i })
-        .eq('id', t._rowId)
-    )
-  );
+  await supabase.from('placement_session_teachers')
+    .upsert(
+      _teachers.map((t, i) => ({ id: t._rowId, sort_order: i })),
+      { onConflict: 'id' }
+    );
 }
 
 /* ── Audit log ── */
@@ -1088,12 +1124,15 @@ function autoPlaceStudents() {
   const unplaced = _students.filter(s => _assignments[s.id] == null);
   let studentsToPlace;
 
+  const flagNote = '\n\n⚠ Auto-place does not account for IEP/504, ELL, behavior, or other flags. Review placements after distributing.';
+
   if (unplaced.length === 0) {
     const per = Math.ceil(_students.length / allCols.length);
     const ok = confirm(
       `All ${_students.length} students are already placed.\n\n` +
       `Redistribute everyone evenly across ${allCols.length} column${allCols.length !== 1 ? 's' : ''} (~${per} per column)?\n\n` +
-      `Current placements will be cleared.`
+      `Current placements will be cleared.` +
+      flagNote
     );
     if (!ok) return;
     _students.forEach(s => { _assignments[s.id] = null; });
@@ -1101,7 +1140,8 @@ function autoPlaceStudents() {
   } else {
     const per = Math.ceil(unplaced.length / allCols.length);
     const ok = confirm(
-      `Distribute ${unplaced.length} unplaced student${unplaced.length !== 1 ? 's' : ''} evenly across ${allCols.length} column${allCols.length !== 1 ? 's' : ''} (~${per} per column)?`
+      `Distribute ${unplaced.length} unplaced student${unplaced.length !== 1 ? 's' : ''} evenly across ${allCols.length} column${allCols.length !== 1 ? 's' : ''} (~${per} per column)?` +
+      flagNote
     );
     if (!ok) return;
     studentsToPlace = unplaced;
@@ -1161,9 +1201,32 @@ function toggleCompact() {
   const board = document.getElementById('placementBoard');
   const btn   = document.getElementById('togglePlacementDensity');
   if (!board || !btn) return;
-  const compact = board.classList.toggle('placement-board--compact');
-  btn.style.color = compact ? 'var(--primary)' : '';
-  btn.style.borderColor = compact ? 'var(--primary)' : '';
+
+  const wasCompact = board.classList.contains('placement-board--compact');
+  const wasUltra   = board.classList.contains('placement-board--ultra');
+  board.classList.remove('placement-board--compact', 'placement-board--ultra');
+
+  if (!wasCompact && !wasUltra) {
+    // Normal → Compact
+    board.classList.add('placement-board--compact');
+    btn.style.color = 'var(--primary)';
+    btn.style.borderColor = 'var(--primary)';
+    btn.style.background = '';
+    btn.title = 'Switch to ultra-compact view';
+  } else if (wasCompact) {
+    // Compact → Ultra
+    board.classList.add('placement-board--ultra');
+    btn.style.color = 'white';
+    btn.style.borderColor = 'var(--primary)';
+    btn.style.background = 'var(--primary)';
+    btn.title = 'Switch to normal view';
+  } else {
+    // Ultra → Normal
+    btn.style.color = '';
+    btn.style.borderColor = '';
+    btn.style.background = '';
+    btn.title = 'Switch to compact view';
+  }
 }
 
 function setFullscreenIcon(isFs) {
@@ -1632,6 +1695,160 @@ async function openAssignTeacherModal(colId) {
 function closeAssignTeacherModal() {
   document.getElementById('assignTeacherModal').hidden = true;
   _resolvingColId = null;
+}
+
+/* ── Manage Column (remove or replace teacher) ── */
+function openManageColumnModal(teacherId) {
+  _managingColId = teacherId;
+  const teacher = _teachers.find(t => t.id === teacherId);
+  if (!teacher) return;
+
+  const name = teacher.isPlaceholder
+    ? (teacher.placeholder_name ?? 'Open Position')
+    : `${teacher.first_name} ${teacher.last_name}`;
+  const assignedCount = _students.filter(s => _assignments[s.id] === teacherId).length;
+
+  document.getElementById('manageColTitle').textContent = name;
+  document.getElementById('manageColMsg').textContent = assignedCount > 0
+    ? `${assignedCount} student${assignedCount !== 1 ? 's' : ''} assigned to this column.`
+    : 'No students are currently assigned to this column.';
+  document.getElementById('manageColRemoveBtn').textContent = assignedCount > 0
+    ? `Remove Column (${assignedCount} student${assignedCount !== 1 ? 's' : ''} become Unassigned)`
+    : 'Remove Column';
+
+  document.getElementById('manageColChoicePanel').hidden = false;
+  document.getElementById('manageColReplacePanel').hidden = true;
+  document.getElementById('manageColumnModal').hidden = false;
+}
+
+function closeManageColumnModal() {
+  document.getElementById('manageColumnModal').hidden = true;
+  _managingColId = null;
+}
+
+async function showManageReplacePanel() {
+  if (!_managingColId) return;
+  await getAvailableEmployees(); // ensures _formEmployees is populated
+  const currentIds = new Set(_teachers.filter(t => !t.isPlaceholder).map(t => t.id));
+  currentIds.delete(_managingColId); // allow re-selecting a different real teacher
+  const available = _formEmployees.filter(e => !currentIds.has(e.id));
+
+  const sel = document.getElementById('manageColTeacherSelect');
+  sel.innerHTML = '<option value="">— Select replacement —</option>' +
+    available.map(e => `<option value="${esc(e.id)}">${esc(e.last_name)}, ${esc(e.first_name)}</option>`).join('');
+
+  document.getElementById('manageColChoicePanel').hidden = true;
+  document.getElementById('manageColReplacePanel').hidden = false;
+}
+
+async function confirmReplaceColumnTeacher() {
+  const newEmpId = document.getElementById('manageColTeacherSelect').value;
+  if (!newEmpId) { alert('Please select a replacement teacher.'); return; }
+  if (!_managingColId) return;
+
+  const oldTeacherId = _managingColId;
+  const teacher = _teachers.find(t => t.id === oldTeacherId);
+  const newEmp  = _formEmployees.find(e => e.id === newEmpId);
+  if (!teacher || !newEmp) return;
+
+  const btn = document.getElementById('manageColConfirmReplaceBtn');
+  btn.disabled = true; btn.textContent = 'Replacing…';
+
+  const { error: pstErr } = await supabase
+    .from('placement_session_teachers')
+    .update({ teacher_id: newEmpId, placeholder_name: null })
+    .eq('id', teacher._rowId);
+
+  if (pstErr) {
+    console.error('Replace teacher error:', pstErr);
+    alert('Failed to replace teacher.');
+    btn.disabled = false; btn.textContent = 'Replace';
+    return;
+  }
+
+  const { error: assignErr } = await supabase
+    .from('placement_assignments')
+    .update({ teacher_id: newEmpId })
+    .eq('session_id', _currentSessionId)
+    .eq('teacher_id', oldTeacherId);
+
+  if (assignErr) {
+    console.error('Replace teacher assignments error:', assignErr);
+    alert('Teacher replaced but student assignments could not be updated. Please reload.');
+    btn.disabled = false; btn.textContent = 'Replace';
+    return;
+  }
+
+  _students.forEach(s => {
+    if (_assignments[s.id] === oldTeacherId) {
+      _assignments[s.id]      = newEmpId;
+      _savedAssignments[s.id] = newEmpId;
+    }
+  });
+
+  const idx = _teachers.findIndex(t => t.id === oldTeacherId);
+  if (idx !== -1) {
+    _teachers[idx] = { ..._teachers[idx], id: newEmpId, first_name: newEmp.first_name, last_name: newEmp.last_name, isPlaceholder: false };
+  }
+  _placeholderColIds.delete(oldTeacherId);
+  _homeroomTeacherNames[newEmpId] = newEmp.last_name;
+  _undoStack = [];
+  updateUndoBtn();
+
+  btn.disabled = false; btn.textContent = 'Replace';
+  closeManageColumnModal();
+  renderBoard();
+}
+
+async function confirmRemoveColumn() {
+  if (!_managingColId) return;
+  const teacher = _teachers.find(t => t.id === _managingColId);
+  if (!teacher) return;
+
+  if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; }
+
+  const affected = _students.filter(s => _assignments[s.id] === _managingColId);
+
+  if (affected.length > 0) {
+    const { error: assignErr } = await supabase
+      .from('placement_assignments')
+      .update({ teacher_id: null, assigned_col_id: null })
+      .eq('session_id', _currentSessionId)
+      .in('student_id', affected.map(s => s.id));
+
+    if (assignErr) {
+      console.error('Remove column: unassign error:', assignErr);
+      alert('Failed to unassign students. Column not removed.');
+      closeManageColumnModal();
+      return;
+    }
+
+    affected.forEach(s => {
+      _assignments[s.id]      = null;
+      _savedAssignments[s.id] = null;
+    });
+  }
+
+  const { error: pstErr } = await supabase
+    .from('placement_session_teachers')
+    .delete()
+    .eq('id', teacher._rowId);
+
+  if (pstErr) {
+    console.error('Remove column: delete PST error:', pstErr);
+    alert('Students unassigned but column could not be deleted. Please reload.');
+    closeManageColumnModal();
+    renderBoard();
+    return;
+  }
+
+  _teachers = _teachers.filter(t => t.id !== _managingColId);
+  _placeholderColIds.delete(_managingColId);
+  _undoStack = [];
+  updateUndoBtn();
+
+  closeManageColumnModal();
+  renderBoard();
 }
 
 async function submitAssignTeacher() {
