@@ -43,7 +43,6 @@ export async function loadWeather(elementId, lat, lon, timezone = 'America/New_Y
 
     el.innerHTML = `
       <a href="${href}" target="_blank" rel="noopener" class="dash-weather-link">
-        <div class="dash-banner-label">Weather</div>
         <div class="dash-weather-main">${icon} ${label}</div>
         <div class="dash-weather-range">H: ${high}° &nbsp; L: ${low}°</div>
       </a>

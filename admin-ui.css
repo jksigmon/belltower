@@ -101,7 +101,7 @@ header {
   justify-content: space-between;
   padding: 0 18px;
   box-sizing: border-box;
-  border-bottom: 3px solid #f59e0b;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 
@@ -119,9 +119,17 @@ header .header-link {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  pointer-events: none; /* optional, prevents logo stealing clicks */
+  pointer-events: none;
 }
 
+.header-date {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.42);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  margin-top: 2px;
+}
 
 .page-title {
   font-size: 18px;
@@ -308,7 +316,7 @@ nav {
     #f1f5f9 0%,   /* slate-100 */
     #e5e7eb 100%  /* gray-200 */
   );
-  border-right: 1px solid #d1d5db;
+  box-shadow: 4px 0 16px rgba(0,0,0,0.13);
   padding: 10px;
   overflow-y: auto;
   min-height: 0;
@@ -2815,15 +2823,14 @@ nav a[data-cap-group] {
   gap: 16px;
   flex-wrap: wrap;
   width: 100%;
+  position: relative;
 }
 
-.dash-banner-label {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: #f59e0b;
-  margin-bottom: 3px;
+.dash-banner-greeting {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 2px;
 }
 
 .dash-banner-name {
@@ -2833,17 +2840,22 @@ nav a[data-cap-group] {
   line-height: 1.15;
 }
 
-.dash-banner-school > div:last-child {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: rgba(255,255,255,0.88);
+.dash-banner-school {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.42);
+  margin-top: 4px;
 }
 
 .dash-banner-date {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   font-size: 0.78rem;
   font-weight: 500;
   color: rgba(255,255,255,0.55);
   white-space: nowrap;
+  pointer-events: none;
 }
 
 .dash-banner-weather {
@@ -3128,6 +3140,16 @@ a.stat, a.dash-stat-link {
   border-radius: 8px;
   font-size: 13px;
   flex-wrap: wrap;
+  text-decoration: none;
+  color: inherit;
+}
+a.staff-dash-request-row {
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+a.staff-dash-request-row:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .staff-dash-req-type {
@@ -3519,11 +3541,11 @@ a.stat, a.dash-stat-link {
     font-size: 1.1rem;
   }
 
-  .dash-banner-school > div:last-child {
-    font-size: 0.8rem;
+  .dash-banner-school {
+    font-size: 0.72rem;
   }
 
-  /* Date string is too long for mobile — hide it */
+  /* Date overlaps on narrow screens */
   .dash-banner-date {
     display: none;
   }
@@ -5735,6 +5757,25 @@ select.admin-input {
   border-bottom: 1px solid #f3f4f6;
 }
 .ft-typeahead-item:last-child { border-bottom: none; }
+
+/* ── Request form builder drag-to-reorder ── */
+.req-field-drag {
+  cursor: grab;
+  color: #9ca3af;
+  font-size: 15px;
+  padding: 0 6px 0 2px;
+  flex-shrink: 0;
+  user-select: none;
+  line-height: 1;
+}
+.req-field-drag:active { cursor: grabbing; }
+.req-field-row[draggable="true"] { cursor: default; }
+.req-field-row.dragging { opacity: 0.35; }
+.req-field-row.drag-over {
+  outline: 2px dashed #6366f1;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
 .ft-typeahead-item:hover { background: #f8fafc; }
 .ft-typeahead-item strong { display: block; }
 .ft-typeahead-item span   { font-size: 12px; color: var(--text-muted, #6b7280); }

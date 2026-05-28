@@ -40,11 +40,22 @@ const { data: profile, error } = await supabase
   currentModules = {};
   (profile.schools?.school_modules || []).forEach(r => { currentModules[r.module] = r.enabled; });
 
-document.getElementById('dashboardUser').textContent =
-  currentProfile.display_name ?? currentProfile.email;
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning,' : hour < 17 ? 'Good afternoon,' : 'Good evening,';
+  document.getElementById('dashGreeting').textContent = greeting;
 
-document.getElementById('dashboardSchool').textContent =
-  profile.schools?.name ?? '';
+  document.getElementById('dashboardUser').textContent =
+    currentProfile.display_name ?? currentProfile.email;
+
+  document.getElementById('dashboardSchool').textContent =
+    profile.schools?.name ?? '';
+
+  const bannerDateEl = document.getElementById('dashBannerDate');
+  if (bannerDateEl) {
+    bannerDateEl.textContent = new Date().toLocaleDateString('en-US', {
+      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+    });
+  }
 
   loadWeather('dashWeather', profile.schools?.weather_lat, profile.schools?.weather_lon, profile.schools?.timezone);
 
@@ -224,12 +235,6 @@ async function loadDashboardStats() {
   const today    = new Date().toISOString().slice(0, 10);
   const p        = currentProfile;
 
-  const dateEl = document.getElementById('dashBannerDate');
-  if (dateEl) {
-    dateEl.textContent = new Date().toLocaleDateString('en-US', {
-      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
-    });
-  }
 
   const set  = (id, val) => { const el = document.getElementById(id); if (el) { el.textContent = val; el.classList.remove('skeleton', 'stat-skel'); } };
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };

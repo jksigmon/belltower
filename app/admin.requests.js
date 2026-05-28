@@ -1,11 +1,12 @@
 import { supabase } from './admin.supabase.js';
-import { esc, debounce, getAvatarColor, fmtShortDate } from './admin.shared.js';
+import { esc, debounce, getAvatarColor, fmtShortDate, showToast } from './admin.shared.js';
 
 let currentProfile = null;
 let currentView = 'forms'; // 'forms' | 'submissions'
 let categories   = [];
 let editingCat   = null;   // category being edited in drawer
 let draftFields  = [];     // field rows in open drawer
+let dragSrcIdx   = null;   // index of field row being dragged
 let draftManagers = [];    // manager chips in open drawer
 let submissions  = [];
 let filterCatId  = '';
@@ -261,16 +262,20 @@ function renderFieldsList() {
   if (!list) return;
 
   if (!draftFields.length) {
-    list.innerHTML = '<p style="font-size:13px;color:#9ca3af;">No fields yet. Add a field above.</p>';
+    list.innerHTML = `
+      <p style="font-size:13px;color:#9ca3af;margin-bottom:10px;">No fields yet.</p>
+      <button class="btn btn-sm btn-secondary" id="reqAddFieldBtnBottom">+ Add Field</button>`;
+    document.getElementById('reqAddFieldBtnBottom').addEventListener('click', addField);
     return;
   }
 
   list.innerHTML = draftFields.map((f, i) => `
-    <div class="req-field-row" data-idx="${i}">
+    <div class="req-field-row" data-idx="${i}" draggable="true">
       <div class="req-field-main">
+        <span class="req-field-drag" title="Drag to reorder">⠿</span>
         <input class="form-control req-field-label" type="text" placeholder="Field label *" value="${esc(f.label)}" style="flex:1;" />
-        <select class="form-control req-field-type" style="width:140px;">
-          ${['text','textarea','select','date','boolean'].map(t =>
+        <select class="form-control req-field-type" style="width:145px;">
+          ${['text','textarea','select','date','boolean','file'].map(t =>
             `<option value="${t}" ${f.field_type === t ? 'selected' : ''}>${fieldTypeLabel(t)}</option>`
           ).join('')}
         </select>
@@ -288,7 +293,7 @@ function renderFieldsList() {
           />
         </div>` : ''}
     </div>
-  `).join('');
+  `).join('') + `<div style="margin-top:12px;"><button class="btn btn-sm btn-secondary" id="reqAddFieldBtnBottom">+ Add Field</button></div>`;
 
   list.querySelectorAll('.req-field-label').forEach((inp, i) => {
     inp.addEventListener('input', () => { draftFields[i].label = inp.value; });
@@ -315,18 +320,48 @@ function renderFieldsList() {
       renderFieldsList();
     });
   });
+
+  list.querySelectorAll('.req-field-row').forEach((row, i) => {
+    row.addEventListener('dragstart', (e) => {
+      dragSrcIdx = i;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      if (dragSrcIdx === null || dragSrcIdx === i) return;
+      const [moved] = draftFields.splice(dragSrcIdx, 1);
+      draftFields.splice(i, 0, moved);
+      renderFieldsList();
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('dragging');
+      list.querySelectorAll('.req-field-row').forEach(r => r.classList.remove('drag-over'));
+      dragSrcIdx = null;
+    });
+  });
+
+  document.getElementById('reqAddFieldBtnBottom').addEventListener('click', addField);
 }
 
 function addField() {
   draftFields.push({ label: '', field_type: 'text', is_required: false, options: null, sort_order: draftFields.length });
   renderFieldsList();
-  // focus the new label input
   const inputs = document.querySelectorAll('.req-field-label');
-  inputs[inputs.length - 1]?.focus();
+  const last = inputs[inputs.length - 1];
+  last?.focus();
+  last?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function fieldTypeLabel(t) {
-  return { text: 'Short Text', textarea: 'Paragraph', select: 'Dropdown', date: 'Date', boolean: 'Yes / No' }[t] ?? t;
+  return { text: 'Short Text', textarea: 'Paragraph', select: 'Dropdown', date: 'Date', boolean: 'Yes / No', file: 'File Upload' }[t] ?? t;
 }
 
 /* Manager search + chips */
@@ -405,19 +440,29 @@ async function saveCategoryDrawer() {
       .from('request_categories')
       .update({ name, description: desc || null, is_active: active })
       .eq('id', catId);
-    if (error) { showCatError('Save failed: ' + error.message); saveBtn.disabled = false; saveBtn.textContent = 'Save Changes'; return; }
+    if (error) { showToast('Save failed: ' + error.message, 'error'); saveBtn.disabled = false; saveBtn.textContent = 'Save Changes'; return; }
   } else {
     const { data, error } = await supabase
       .from('request_categories')
       .insert({ school_id: currentProfile.school_id, name, description: desc || null, is_active: active, created_by: currentProfile.id })
       .select('id')
       .single();
-    if (error) { showCatError('Create failed: ' + error.message); saveBtn.disabled = false; saveBtn.textContent = 'Create Form'; return; }
+    if (error) { showToast('Create failed: ' + error.message, 'error'); saveBtn.disabled = false; saveBtn.textContent = 'Create Form'; return; }
     catId = data.id;
   }
 
-  // Replace all fields
-  await supabase.from('request_category_fields').delete().eq('category_id', catId);
+  // Replace all fields — delete first, then re-insert
+  const { error: delErr } = await supabase
+    .from('request_category_fields')
+    .delete()
+    .eq('category_id', catId);
+  if (delErr) {
+    showToast('Failed to save fields: ' + delErr.message, 'error');
+    saveBtn.disabled = false;
+    saveBtn.textContent = editingCat ? 'Save Changes' : 'Create Form';
+    return;
+  }
+
   if (draftFields.length) {
     const fieldRows = draftFields.map((f, i) => ({
       category_id: catId,
@@ -427,8 +472,13 @@ async function saveCategoryDrawer() {
       is_required: f.is_required,
       sort_order:  i,
     }));
-    const { error } = await supabase.from('request_category_fields').insert(fieldRows);
-    if (error) console.error('field insert', error);
+    const { error: insErr } = await supabase.from('request_category_fields').insert(fieldRows);
+    if (insErr) {
+      showToast('Failed to save fields: ' + insErr.message, 'error');
+      saveBtn.disabled = false;
+      saveBtn.textContent = editingCat ? 'Save Changes' : 'Create Form';
+      return;
+    }
   }
 
   // Sync managers: delete all, re-insert
@@ -595,7 +645,7 @@ async function openSubDrawer(sub) {
         return `
           <div class="req-response-row">
             <div class="req-response-label">${esc(label)}</div>
-            <div class="req-response-value">${esc(val)}</div>
+            <div class="req-response-value">${val}</div>
           </div>`;
       }).join('') || '<p style="color:#9ca3af;">No responses recorded.</p>'}
     </div>
@@ -669,5 +719,11 @@ function statusBadgeClass(s) {
 function formatResponseValue(val, type) {
   if (!val) return '—';
   if (type === 'boolean') return val === 'true' ? 'Yes' : 'No';
-  return val;
+  if (type === 'file') {
+    const url = esc(val);
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(val);
+    if (isImage) return `<img src="${url}" alt="Attachment" style="max-width:220px;max-height:180px;border-radius:6px;display:block;margin-top:4px;" />`;
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">View Attachment</a>`;
+  }
+  return esc(val);
 }

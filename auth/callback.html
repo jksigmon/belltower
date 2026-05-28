@@ -128,21 +128,48 @@
 <script type="module">
 import { supabase } from '/app/admin.supabase.js'
 
+// If Google redirected back with an error (e.g. user cancelled), go back to login
+const qp = new URLSearchParams(window.location.search);
+const hp = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+if (qp.get('error') || hp.get('error')) {
+  window.location.replace('/app/login.html');
+}
+
 supabase.auth.onAuthStateChange(async (event, session) => {
   if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return
   if (!session) return
 
   const user = session.user
+  const email = user.email.toLowerCase()
+  const domain = email.split('@')[1]
 
-  // Load profile (may not exist)
-  const { data: profile } = await supabase
+  // Load profile by user_id first
+  let { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('user_id', user.id)
     .maybeSingle()
 
-  const email = user.email.toLowerCase()
-  const domain = email.split('@')[1]
+  // Fallback: check for a pre-populated profile matched by email (no user_id yet)
+  if (!profile) {
+    const { data: prebuilt } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', email)
+      .is('user_id', null)
+      .maybeSingle()
+
+    if (prebuilt) {
+      await supabase
+        .from('profiles')
+        .update({
+          user_id: user.id,
+          display_name: user.user_metadata?.full_name ?? prebuilt.display_name
+        })
+        .eq('id', prebuilt.id)
+      profile = { ...prebuilt, user_id: user.id }
+    }
+  }
 
   // Look up school by domain
   const { data: school } = await supabase

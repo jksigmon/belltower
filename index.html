@@ -52,19 +52,35 @@ header {
 }
 
 .logo img {
-  height: 48px;
+  height: 52px;
   width: auto;
 }
 
 nav a {
   color: var(--white);
   text-decoration: none;
-  margin-left: 1.25rem;
-  font-size: 0.95rem;
-  opacity: 0.85;
+  margin-left: 1.5rem;
+  font-size: 0.93rem;
+  font-weight: 600;
+  opacity: 0.8;
   transition: opacity 0.2s;
 }
 nav a:hover { opacity: 1; }
+
+.nav-login-btn {
+  padding: 0.38rem 1rem;
+  border-radius: 8px;
+  border: 1.5px solid rgba(255,255,255,0.45);
+  font-weight: 600;
+  font-size: 0.9rem;
+  opacity: 1 !important;
+  transition: background 0.18s, border-color 0.18s !important;
+}
+.nav-login-btn:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.7);
+  opacity: 1 !important;
+}
 
 /* ── Hero ────────────────────────────────────────────────── */
 .hero {
@@ -90,8 +106,8 @@ nav a:hover { opacity: 1; }
   border: 1px solid rgba(255,255,255,0.18);
   border-radius: 24px;
   padding: 3rem 3.5rem;
-  max-width: 660px;
-  margin: 0 auto;
+  max-width: 620px;
+  margin: 0;
   box-shadow: 0 24px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12);
 }
 
@@ -100,7 +116,7 @@ nav a:hover { opacity: 1; }
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: #93c5fd;
   margin-bottom: 0.9rem;
 }
 
@@ -128,49 +144,43 @@ nav a:hover { opacity: 1; }
 
 .btn {
   padding: 0.72rem 1.65rem;
-  border-radius: 999px;
+  border-radius: 10px;
   font-size: 0.93rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
   cursor: pointer;
   border: none;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+  transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
 }
 
 .btn-primary {
-  background: linear-gradient(180deg, #3b82f6, #1d4ed8);
+  background: #1d4ed8;
   color: #fff;
-  box-shadow: 0 4px 18px rgba(29,78,216,0.45), inset 0 1px 0 rgba(255,255,255,0.18);
 }
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(29,78,216,0.6), inset 0 1px 0 rgba(255,255,255,0.18);
+  background: #1e40af;
 }
 
 .btn-accent {
-  background: linear-gradient(180deg, #fb923c, #ea580c);
+  background: #ea580c;
   color: #fff;
-  box-shadow: 0 4px 18px rgba(234,88,12,0.45), inset 0 1px 0 rgba(255,255,255,0.18);
 }
 .btn-accent:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px rgba(234,88,12,0.6), inset 0 1px 0 rgba(255,255,255,0.18);
+  background: #c2410c;
 }
 
 .btn-outline {
-  background: rgba(255,255,255,0.12);
+  background: transparent;
   color: #fff;
-  border: 1px solid rgba(255,255,255,0.28);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+  border: 1.5px solid rgba(255,255,255,0.45);
 }
 .btn-outline:hover {
-  transform: translateY(-2px);
-  background: rgba(255,255,255,0.2);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.7);
 }
 
 .hero-login {
@@ -201,7 +211,7 @@ nav a:hover { opacity: 1; }
   font-weight: 700;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: #93c5fd;
   margin-bottom: 1.5rem;
 }
 
@@ -258,7 +268,7 @@ section.features {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: #93c5fd;
   margin-bottom: 0.75rem;
 }
 
@@ -362,7 +372,7 @@ section.features {
 
 /* ── Light section overrides (features + value) ─────────── */
 section.features .section-label,
-section.value    .section-label { color: #b45309; }
+section.value    .section-label { color: #2563eb; }
 
 section.features .section-title,
 section.value    .section-title { color: #0f172a; }
@@ -569,17 +579,17 @@ footer {
 
 .modal-actions button {
   padding: 0.55rem 1.2rem;
-  border-radius: 999px;
+  border-radius: 8px;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   border: none;
-  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  transition: background 0.18s;
 }
 .cancel { background: #f1f5f9; color: #475569; }
 .cancel:hover { background: #e2e8f0; }
-.submit { background: linear-gradient(180deg,#fb923c,#ea580c); color:#fff; box-shadow: 0 4px 14px rgba(234,88,12,0.35); }
-.submit:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(234,88,12,0.5); }
+.submit { background: #ea580c; color: #fff; }
+.submit:hover { background: #c2410c; }
 
 /* ── Reveal animation ────────────────────────────────────── */
 .reveal {
@@ -593,7 +603,7 @@ footer {
 @media (max-width: 900px) {
   nav { display: none; }
   .hero h1 { font-size: 2.1rem; }
-  .hero-glass { padding: 2rem; }
+  .hero-glass { padding: 2rem; margin: 0 auto; }
   .value-inner { grid-template-columns: 1fr; gap: 2.5rem; }
   .value-stats { grid-template-columns: 1fr 1fr; }
   .section-title { font-size: 1.6rem; }
@@ -621,7 +631,7 @@ footer {
     <nav>
       <a href="#features">Features</a>
       <a href="#how-it-helps">Why Belltower</a>
-      <a href="app/login.html">Login</a>
+      <a href="app/login.html" class="nav-login-btn">Login</a>
     </nav>
   </div>
 </header>
@@ -633,16 +643,12 @@ footer {
       <p class="hero-eyebrow">School Operations Platform</p>
       <h1>Less logistics.<br>More learning.</h1>
       <p class="hero-sub">
-        Belltower replaces the spreadsheets, email threads, and manual processes that slow schools down.
-        PTO tracking, substitute coverage, field trip coordination, carline dismissal, volunteer compliance,
-        licensure management, and staff administration in one platform built specifically for how schools operate.
+        Belltower replaces the spreadsheets and email chains that slow schools down.
+        One connected platform, built specifically for how schools operate.
       </p>
       <div class="hero-actions">
         <button class="btn btn-primary" onclick="openModal('Request a Demo')">
           Request a Demo
-        </button>
-        <button class="btn btn-accent" onclick="openModal('Suggest a Feature')">
-          Suggest a Feature
         </button>
       </div>
       <p class="hero-login">Already use Belltower? <a href="app/login.html">Log in →</a></p>
@@ -715,16 +721,10 @@ footer {
         <h3>PTO &amp; Leave Management</h3>
         <p>Staff submit requests online. Supervisors approve or deny in one click. Balances update automatically.</p>
         <ul class="card-bullets">
-          <li>Request &amp; approve in minutes</li>
-          <li>One-click email approval — supervisors act without logging in</li>
-          <li>Real-time balance tracking with full ledger audit trail</li>
-          <li>Cancellation and retroactive rescind workflows</li>
+          <li>One-click email approval — no login required</li>
+          <li>Real-time balance tracking with full audit trail</li>
           <li>Annual allotment policies per role</li>
-          <li>Bulk policy assignment across staff</li>
-          <li>Manual balance adjustments by admins</li>
-          <li>Automated email notifications</li>
-          <li>Calendar &amp; ICS export</li>
-          <li>Year-end rollover reports</li>
+          <li>Automated notifications and calendar export</li>
           <li>Payroll-ready PTO reports</li>
         </ul>
       </div>
@@ -736,13 +736,10 @@ footer {
         <h3>Substitute Assignment</h3>
         <p>When staff call out, coverage gaps are surfaced immediately and subs or internal staff are matched to open periods.</p>
         <ul class="card-bullets">
-          <li>Triggered by PTO approvals</li>
-          <li>Outside substitutes or internal staff coverage</li>
+          <li>Triggered automatically by PTO approvals</li>
+          <li>Outside subs or internal staff coverage</li>
           <li>Period-by-period coverage view</li>
-          <li>Calendar view of all scheduled assignments</li>
-          <li>Pending cancellation management</li>
           <li>Double-booking conflict warnings</li>
-          <li>Notifies subs and administrators</li>
           <li>Assignment history with Excel export</li>
         </ul>
       </div>
@@ -754,13 +751,10 @@ footer {
         <h3>Field Trip Management</h3>
         <p>Plan, staff, and track every field trip from chaperone sign-up through vehicle assignments and student attendance.</p>
         <ul class="card-bullets">
-          <li>Trip creation with destination, date, and capacity limits</li>
           <li>Chaperone assignment with student groupings</li>
           <li>Driver clearance requirements (MVR-linked)</li>
-          <li>Student attendance tracking per trip</li>
           <li>Drag-and-drop vehicle assignment board</li>
           <li>Payment tracking with installment support</li>
-          <li>Chaperone compliance form links</li>
           <li>Export trip rosters</li>
         </ul>
       </div>
@@ -775,8 +769,6 @@ footer {
           <li>Live call board for display screens</li>
           <li>Audio announcements for each call</li>
           <li>Real-time sync across all devices</li>
-          <li>Multi-campus simultaneous sessions</li>
-          <li>Instant recall and undo</li>
           <li>All-call for remaining students</li>
         </ul>
       </div>
@@ -788,16 +780,11 @@ footer {
         <h3>School Administration</h3>
         <p>Centralize student, family, guardian, and employee records in one searchable, filterable admin panel.</p>
         <ul class="card-bullets">
-          <li>Students, families, and guardians</li>
-          <li>Tokenized guardian intake forms to collect family contact info</li>
-          <li>Staff records and bus groups</li>
-          <li>Campus management</li>
+          <li>Students, families, guardians, and staff records</li>
+          <li>Tokenized guardian intake forms</li>
           <li>Bulk upload and data export</li>
           <li>Role-based access control</li>
-          <li>Self-service access requests</li>
-          <li>Upcoming birthdays for students and staff</li>
           <li>Year-end promotion and grade retention workflow</li>
-          <li>Placement flags and grade-level tracking</li>
         </ul>
       </div>
 
@@ -809,13 +796,10 @@ footer {
         <p>Collect and track volunteer agreements, background checks, and driver clearances across your parent community.</p>
         <ul class="card-bullets">
           <li>Digital volunteer agreements with e-signature</li>
-          <li>Draw or type a signature on any device</li>
           <li>Background check request and status tracking</li>
-          <li>Volunteer role clearances: chaperone, driver, and more</li>
+          <li>Chaperone and driver clearance flags</li>
           <li>Per-student compliance report for teachers and admins</li>
-          <li>Driver and chaperone restriction flags</li>
           <li>PDF export of signed agreements</li>
-          <li>School-branded forms with your logo</li>
         </ul>
       </div>
 
@@ -827,8 +811,7 @@ footer {
         <p>Keep staff certifications and professional licenses current with expiration tracking and automated alerts.</p>
         <ul class="card-bullets">
           <li>License and certification records per staff member</li>
-          <li>Expiration date tracking with advance alerts</li>
-          <li>Email notifications before licenses expire</li>
+          <li>Expiration alerts sent before licenses lapse</li>
           <li>Admin view across all staff at a glance</li>
           <li>Staff self-service license submission</li>
         </ul>
@@ -895,7 +878,6 @@ footer {
     <p class="reveal">Request a live demo and we'll walk through how Belltower fits your school's workflow.</p>
     <div class="cta-actions reveal">
       <button class="btn btn-primary" onclick="openModal('Request a Demo')">Request a Demo</button>
-      <button class="btn btn-outline" onclick="openModal('Suggest a Feature')">Suggest a Feature</button>
     </div>
   </div>
 </section>

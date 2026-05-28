@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js';
 import { initPage } from './admin.auth.js';
-import { esc, fmtShortDate } from './admin.shared.js';
+import { esc, fmtShortDate, showToast } from './admin.shared.js';
 import { initUserMenu } from './user-menu.js';
 
 let currentProfile = null;
@@ -137,6 +137,9 @@ function renderFormField(field) {
         </label>
       </div>`;
       break;
+    case 'file':
+      inputHtml = `<input id="field_${esc(field.id)}" class="form-control" type="file" accept="image/*,.pdf,.doc,.docx" ${field.is_required ? 'required' : ''} style="padding:6px;" />`;
+      break;
     default:
       inputHtml = `<input id="field_${esc(field.id)}" class="form-control" type="text" />`;
   }
@@ -170,18 +173,37 @@ async function handleSubmit(e) {
     return;
   }
 
-  // Insert responses
-  const responseRows = catFields.map(f => {
+  // Insert responses (file fields are uploaded first, then URL stored as value)
+  const responseRows = [];
+  for (const f of catFields) {
     let value = '';
-    if (f.field_type === 'boolean') {
+    if (f.field_type === 'file') {
+      const el   = document.getElementById(`field_${f.id}`);
+      const file = el?.files?.[0];
+      if (file) {
+        const ext  = file.name.split('.').pop();
+        const path = `${currentProfile.school_id}/${newReq.id}/${f.id}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('request-attachments')
+          .upload(path, file, { upsert: true });
+        if (upErr) {
+          showToast(`File upload failed: ${upErr.message}`, 'error', 7000);
+        } else {
+          const { data: urlData } = supabase.storage
+            .from('request-attachments')
+            .getPublicUrl(path);
+          value = urlData?.publicUrl ?? '';
+        }
+      }
+    } else if (f.field_type === 'boolean') {
       const checked = document.querySelector(`input[name="field_${f.id}"]:checked`);
       value = checked ? checked.value : '';
     } else {
       const el = document.getElementById(`field_${f.id}`);
       value = el ? el.value.trim() : '';
     }
-    return { request_id: newReq.id, field_id: f.id, value: value || null };
-  });
+    responseRows.push({ request_id: newReq.id, field_id: f.id, value: value || null });
+  }
 
   if (responseRows.length) {
     await supabase.from('staff_request_responses').insert(responseRows);

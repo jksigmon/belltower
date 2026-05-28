@@ -720,12 +720,9 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
     <div class="dash-banner">
       <div class="dash-banner-inner">
         <div>
-          <div class="dash-banner-label">Welcome back</div>
+          <div class="dash-banner-greeting" id="staffDashGreeting"></div>
           <div class="dash-banner-name" id="staffDashName"></div>
-        </div>
-        <div class="dash-banner-school">
-          <div class="dash-banner-label">School</div>
-          <div id="staffDashSchool"></div>
+          <div class="dash-banner-school" id="staffDashSchool"></div>
         </div>
         <div class="dash-banner-date" id="staffDashDate"></div>
         <div class="dash-banner-weather" id="staffDashWeather"></div>
@@ -1337,6 +1334,9 @@ async function loadStaffDashboard() {
   const schoolId = p.school_id;
   const today = new Date().toISOString().slice(0, 10);
 
+  const staffHour = new Date().getHours();
+  const staffGreeting = staffHour < 12 ? 'Good morning,' : staffHour < 17 ? 'Good afternoon,' : 'Good evening,';
+  document.getElementById('staffDashGreeting').textContent = staffGreeting;
   document.getElementById('staffDashName').textContent = p.display_name ?? p.email ?? '';
   document.getElementById('staffDashSchool').textContent = p.schools?.name ?? '';
   document.getElementById('staffDashDate').textContent = new Date().toLocaleDateString('en-US', {
@@ -1426,7 +1426,8 @@ async function loadStaffDashboard() {
     grid.innerHTML = '';
     const BALANCE_ACCENTS = ['blue', 'green', 'amber', 'orange', 'red'];
     r.balances.data.forEach(function (b, idx) {
-      const card = document.createElement('div');
+      const card = document.createElement('a');
+      card.href = '#pto';
       card.className = 'stat';
       card.setAttribute('data-accent', BALANCE_ACCENTS[idx % BALANCE_ACCENTS.length]);
       const hrs = b.balance_hours.toFixed(1);
@@ -1453,12 +1454,12 @@ async function loadStaffDashboard() {
         : req.start_date + ' → ' + req.end_date;
       const [bg, color, label] = statusStyle[req.status] ?? ['#f1f5f9', '#374151', req.status];
       const hrs = Number(req.requested_hours ?? 0);
-      return '<div class="staff-dash-request-row">' +
+      return '<a href="#pto" class="staff-dash-request-row">' +
         '<span class="staff-dash-req-type">' + req.pto_type + '</span>' +
         '<span class="staff-dash-req-dates">' + dateText + '</span>' +
         (hrs > 0 ? '<span class="staff-dash-req-hours">' + hrs + ' hrs</span>' : '') +
         '<span class="staff-dash-req-badge" style="background:' + bg + ';color:' + color + ';">' + label + '</span>' +
-        '</div>';
+        '</a>';
     }).join('');
     document.getElementById('staffDashRequests').style.display = '';
   }
@@ -1567,6 +1568,7 @@ async function initStaff() {
 
   initUserMenu(currentProfile.display_name ?? currentProfile.email);
   loadWeather('staffDashWeather', currentProfile.schools?.weather_lat, currentProfile.schools?.weather_lon, currentProfile.schools?.timezone);
+
 
   // Extract modules from joined data — no separate round-trip needed
   window.staffModules = {};
