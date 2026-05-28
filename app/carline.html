@@ -231,6 +231,7 @@
 
 <script type="module">
 import { supabase } from '/app/admin.supabase.js';
+import { GRADE_ORDER } from '/app/admin.shared.js';
 
 // ─── SVG icons ────────────────────────────────────────────────────────
 const SVG_MOON     = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
@@ -615,7 +616,12 @@ function openClassDropdown() {
   const tm  = getTeacherMap();
   dd.innerHTML = '';
 
-  const available = [...tm.entries()].filter(([k]) => !activeTeacherIds.has(k));
+  const available = [...tm.entries()]
+    .filter(([k]) => !activeTeacherIds.has(k))
+    .sort(([, a], [, b]) => {
+      const gi = GRADE_ORDER.indexOf(a.grade) - GRADE_ORDER.indexOf(b.grade);
+      return gi !== 0 ? gi : a.teacherName.localeCompare(b.teacherName);
+    });
   if (!available.length) {
     dd.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:var(--cl-text-muted);">All classes added</div>';
   } else {
