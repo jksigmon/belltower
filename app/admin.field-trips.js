@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js';
 import { initPage } from './admin.auth.js';
-import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, todayISO, dbError } from './admin.shared.js';
+import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, todayISO, dbError, showToast } from './admin.shared.js';
 
 let profile = null;
 let schoolConfig = null;
@@ -898,7 +898,7 @@ async function saveChaperone() {
   });
 
   if (error) {
-    alert(error.code === '23505' ? 'This guardian is already added.' : 'Failed to add chaperone.');
+    showToast(error.code === '23505' ? 'This guardian is already added.' : 'Failed to add chaperone.', 'error');
     btn.disabled = false;
     return;
   }
@@ -1060,9 +1060,9 @@ async function saveTrip() {
   const startDate = document.getElementById('ftDrawerDate').value;
   const endDate   = document.getElementById('ftDrawerEndDate').value;
 
-  if (!name)      { alert('Trip name is required.'); return; }
-  if (!startDate) { alert('Start date is required.'); return; }
-  if (endDate && endDate < startDate) { alert('End date cannot be before start date.'); return; }
+  if (!name)      { showToast('Trip name is required.', 'warn'); return; }
+  if (!startDate) { showToast('Start date is required.', 'warn'); return; }
+  if (endDate && endDate < startDate) { showToast('End date cannot be before start date.', 'warn'); return; }
 
   const paymentRequired = document.getElementById('ftDrawerPaymentRequired').checked;
   const studentCost     = document.getElementById('ftDrawerStudentCost').value ? parseFloat(document.getElementById('ftDrawerStudentCost').value) : null;
@@ -1072,7 +1072,7 @@ async function saveTrip() {
   if (paymentRequired && allowInst && instSchedule?.length && studentCost != null) {
     const instTotal = instSchedule.reduce((s, i) => s + (i.amount || 0), 0);
     if (Math.abs(instTotal - studentCost) > 0.01) {
-      alert(`Installment total ($${instTotal.toFixed(2)}) must equal the student cost ($${studentCost.toFixed(2)}).`);
+      showToast(`Installment total ($${instTotal.toFixed(2)}) must equal the student cost ($${studentCost.toFixed(2)}).`, 'warn');
       return;
     }
   }
@@ -1552,7 +1552,7 @@ function closePaymentModal() {
 
 async function savePayment() {
   const amount = parseFloat(document.getElementById('ftPaymentModalAmount').value);
-  if (!amount || amount <= 0) { alert('Enter a valid amount greater than $0.'); return; }
+  if (!amount || amount <= 0) { showToast('Enter a valid amount greater than $0.', 'warn'); return; }
 
   const receivedDate = document.getElementById('ftPaymentModalDate').value  || todayISO();
   const notes        = document.getElementById('ftPaymentModalNotes').value.trim() || null;

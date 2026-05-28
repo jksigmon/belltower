@@ -248,11 +248,57 @@ export function fmtShortDate(dateStr) {
  */
 export function dbError(error, context = 'Operation failed') {
   console.error(context, error);
+  let msg;
   if (error?.code === '23505') {
-    alert(`${context}: this record already exists.`);
+    msg = `${context}: this record already exists.`;
   } else if (error?.code === '42501') {
-    alert(`${context}: permission denied.`);
+    msg = `${context}: permission denied.`;
   } else {
-    alert(`${context}${error?.message ? ': ' + error.message : '.'}`);
+    msg = `${context}${error?.message ? ': ' + error.message : '.'}`;
+  }
+  showToast(msg, 'error');
+}
+
+export function showToast(message, type = 'success', duration = 4500) {
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    document.body.appendChild(container);
+  }
+
+  const icons = { success: '✓', error: '✕', warn: '⚠', info: 'ℹ' };
+  const toast = document.createElement('div');
+  toast.className = `toast toast--${type}`;
+
+  const icon = document.createElement('em');
+  icon.className = 'toast-icon';
+  icon.textContent = icons[type] ?? icons.info;
+
+  const msg = document.createElement('span');
+  msg.className = 'toast-message';
+  msg.textContent = message;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'toast-close';
+  closeBtn.setAttribute('aria-label', 'Dismiss');
+  closeBtn.textContent = '×';
+
+  toast.appendChild(icon);
+  toast.appendChild(msg);
+  toast.appendChild(closeBtn);
+
+  const dismiss = () => {
+    toast.classList.add('toast--out');
+    setTimeout(() => toast.remove(), 220);
+  };
+
+  closeBtn.addEventListener('click', dismiss);
+  container.appendChild(toast);
+  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('toast--in')));
+
+  if (duration > 0) {
+    const timer = setTimeout(dismiss, duration);
+    closeBtn.addEventListener('click', () => clearTimeout(timer), { once: true });
   }
 }

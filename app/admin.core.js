@@ -233,6 +233,18 @@ async function loadDashboardStats() {
 
   const set  = (id, val) => { const el = document.getElementById(id); if (el) { el.textContent = val; el.classList.remove('skeleton', 'stat-skel'); } };
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
+  // For action-required cards: ✓ + green when 0, red when > 0
+  const setAlert = (statId, cardId, count) => {
+    const card = document.getElementById(cardId);
+    const num  = document.getElementById(statId);
+    if (!num) return;
+    num.textContent = count > 0 ? count : '✓';
+    num.classList.remove('skeleton', 'stat-skel');
+    if (card) {
+      card.classList.toggle('stat-alert', count > 0);
+      card.classList.toggle('stat-ok',    count === 0);
+    }
+  };
 
   // ── Build all queries synchronously based on capabilities ─────────
   const in7  = new Date(); in7.setDate(in7.getDate() + 7);
@@ -391,33 +403,33 @@ async function loadDashboardStats() {
   }
 
   if (r.ptoPending !== undefined) {
-    set('statPtoPending', r.ptoPending.count ?? 0);  show('dashPtoPending');
-    set('statPtoCancels', r.ptoCancels.count ?? 0);  show('dashPtoCancels');
-    set('statStaffOut',   r.staffOut.count ?? 0);    show('dashStaffOut');
+    setAlert('statPtoPending', 'dashPtoPending', r.ptoPending.count ?? 0); show('dashPtoPending');
+    setAlert('statPtoCancels', 'dashPtoCancels', r.ptoCancels.count ?? 0); show('dashPtoCancels');
+    set('statStaffOut', r.staffOut.count ?? 0); show('dashStaffOut');
     show('dashAttention');
   }
 
   if (r.subUnassigned !== undefined) {
-    set('statSubUnassigned',    r.subUnassigned.count ?? 0);    show('dashSubUnassigned');
-    set('statSubToday',         r.subToday.count ?? 0);         show('dashSubToday');
-    set('statSubCancellations', r.subCancellations.count ?? 0); show('dashSubCancellations');
+    setAlert('statSubUnassigned',    'dashSubUnassigned',    r.subUnassigned.count ?? 0);    show('dashSubUnassigned');
+    set('statSubToday', r.subToday.count ?? 0); show('dashSubToday');
+    setAlert('statSubCancellations', 'dashSubCancellations', r.subCancellations.count ?? 0); show('dashSubCancellations');
     show('dashAttention');
   }
 
   if (r.licExpiring !== undefined) {
-    set('statLicExpiring', r.licExpiring.count ?? 0);
+    setAlert('statLicExpiring', 'dashLicExpiring', r.licExpiring.count ?? 0);
     show('dashLicExpiring');
     show('dashAttention');
   }
 
   if (r.bgPending !== undefined) {
-    set('statBgPending', r.bgPending.count ?? 0);
+    setAlert('statBgPending', 'dashBgPending', r.bgPending.count ?? 0);
     show('dashBgPending');
     show('dashAttention');
   }
 
   if (r.agreementsExpiring !== undefined) {
-    set('statAgreementsExpiring', r.agreementsExpiring.count ?? 0);
+    setAlert('statAgreementsExpiring', 'dashAgreementsExpiring', r.agreementsExpiring.count ?? 0);
     show('dashAgreementsExpiring');
     show('dashAttention');
   }

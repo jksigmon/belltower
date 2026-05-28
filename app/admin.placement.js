@@ -1,5 +1,5 @@
 import { supabase } from './admin.supabase.js';
-import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig } from './admin.shared.js';
+import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast } from './admin.shared.js';
 import {
   initSessions, showSessionList, showCreateForm, renderSessionList,
   setShowArchived, submitCreateForm,
@@ -1055,7 +1055,7 @@ async function runUndoCommit() {
     .in('student_id', placedStudentIds);
 
   if (loadErr) {
-    alert('Failed to load previous homeroom data. Cannot undo.');
+    showToast('Failed to load previous homeroom data. Cannot undo.', 'error');
     if (undoBtn) { undoBtn.disabled = false; undoBtn.textContent = 'Undo Commit'; }
     return;
   }
@@ -1093,7 +1093,7 @@ async function runUndoCommit() {
 
   if (errors.length) {
     console.error('Undo commit errors:', errors);
-    alert('Some reversions failed. Check the console for details.');
+    showToast('Some reversions failed. Check the console for details.', 'error');
     if (undoBtn) { undoBtn.disabled = false; undoBtn.textContent = 'Undo Commit'; }
     return;
   }
@@ -1109,7 +1109,7 @@ async function runUndoCommit() {
   const autoBtn = document.getElementById('autoPlacementBtn');
   if (autoBtn) autoBtn.disabled = false;
 
-  alert('Commit reverted. Session is back in Draft.');
+  showToast('Commit reverted. Session is back in Draft.', 'success');
 }
 
 /* ── Auto-place ── */
@@ -1117,7 +1117,7 @@ function autoPlaceStudents() {
   if (_session?.status === 'committed') return;
   const allCols = _teachers; // includes real teachers and placeholder columns
   if (allCols.length === 0) {
-    alert('No columns on this board to distribute students into.');
+    showToast('No columns on this board to distribute students into.', 'warn');
     return;
   }
 
@@ -1248,9 +1248,9 @@ async function confirmCommit() {
     _assignments[s.id] && _placeholderColIds.has(_assignments[s.id])
   ).length;
   if (placeholderStudentCount > 0) {
-    alert(
-      `Cannot commit: ${placeholderStudentCount} student${placeholderStudentCount !== 1 ? 's' : ''} are assigned to Open Position columns.\n\n` +
-      `Click "Assign Teacher" on each placeholder column to resolve it before committing.`
+    showToast(
+      `Cannot commit: ${placeholderStudentCount} student${placeholderStudentCount !== 1 ? 's' : ''} are in Open Position columns. Assign a teacher to each before committing.`,
+      'error', 7000
     );
     return;
   }
@@ -1362,7 +1362,7 @@ async function runCommit() {
 
   if (errors.length) {
     console.error('Placement commit errors:', errors);
-    alert('Some student updates failed. Check the console for details.');
+    showToast('Some student updates failed. Check the console for details.', 'error');
     btn.disabled = false;
     btn.textContent = 'Commit Placement';
     return;
@@ -1379,7 +1379,7 @@ async function runCommit() {
   updateSaveStatus('');
 
   const placed = placedEntries.length;
-  alert(`Done! ${placed} student${placed !== 1 ? 's' : ''} assigned to their homeroom teacher.`);
+  showToast(`Done! ${placed} student${placed !== 1 ? 's' : ''} assigned to their homeroom teacher.`, 'success');
 }
 
 /* ── Flag editor ── */
@@ -1469,7 +1469,7 @@ function renderFlagEditorList() {
         const newLabel = labelInput.value.trim();
         if (!newLabel || newLabel === f.label) { labelInput.value = f.label; return; }
         const { error } = await supabase.from('placement_flags').update({ label: newLabel }).eq('id', f.id);
-        if (error) { alert('Failed to rename flag.'); labelInput.value = f.label; }
+        if (error) { showToast('Failed to rename flag.', 'error'); labelInput.value = f.label; }
         else { f.label = newLabel; }
       });
     }
@@ -1481,7 +1481,7 @@ function renderFlagEditorList() {
       actionBtn.innerHTML = '<i data-lucide="rotate-ccw" style="width:13px;height:13px;"></i>';
       actionBtn.addEventListener('click', async () => {
         const { error } = await supabase.from('placement_flags').update({ archived_at: null }).eq('id', f.id);
-        if (error) { alert('Failed to restore flag.'); return; }
+        if (error) { showToast('Failed to restore flag.', 'error'); return; }
         f.archived_at = null;
         renderFlagEditorList();
       });
@@ -1497,7 +1497,7 @@ function renderFlagEditorList() {
         if (!confirm(msg)) return;
         const now = new Date().toISOString();
         const { error } = await supabase.from('placement_flags').update({ archived_at: now }).eq('id', f.id);
-        if (error) { alert('Failed to archive flag.'); return; }
+        if (error) { showToast('Failed to archive flag.', 'error'); return; }
         f.archived_at = now;
         renderFlagEditorList();
         renderBoard(); // remove archived flag dots from cards
@@ -1554,7 +1554,7 @@ async function addFlag() {
     .select('id, label, color, sort_order')
     .single();
 
-  if (error) { alert('Failed to create flag.'); return; }
+  if (error) { showToast('Failed to create flag.', 'error'); return; }
 
   _flags.push(data);
   document.getElementById('newFlagLabel').value = '';
@@ -1603,7 +1603,7 @@ async function submitAddColumn() {
   const type = document.querySelector('input[name="addColType"]:checked')?.value ?? 'real';
   if (type === 'real') {
     const empId = document.getElementById('addColTeacherSelect')?.value;
-    if (!empId) { alert('Please select a teacher.'); return; }
+    if (!empId) { showToast('Please select a teacher.', 'warn'); return; }
     await addRealTeacherColumn(empId);
   } else {
     const name = document.getElementById('addColPlaceholderName')?.value.trim();
@@ -1614,7 +1614,7 @@ async function submitAddColumn() {
 
 async function addRealTeacherColumn(empId) {
   const emp = _formEmployees.find(e => e.id === empId);
-  if (!emp) { alert('Employee not found.'); return; }
+  if (!emp) { showToast('Employee not found.', 'error'); return; }
 
   const { data: row, error } = await supabase
     .from('placement_session_teachers')
@@ -1624,7 +1624,7 @@ async function addRealTeacherColumn(empId) {
 
   if (error || !row) {
     console.error('Add column error:', error);
-    alert('Failed to add teacher column.');
+    showToast('Failed to add teacher column.', 'error');
     return;
   }
 
@@ -1643,7 +1643,7 @@ async function addPlaceholderColumn(name) {
 
   if (error || !row) {
     console.error('Add placeholder column error:', error);
-    alert('Failed to add open position column.');
+    showToast('Failed to add open position column.', 'error');
     return;
   }
 
@@ -1743,7 +1743,7 @@ async function showManageReplacePanel() {
 
 async function confirmReplaceColumnTeacher() {
   const newEmpId = document.getElementById('manageColTeacherSelect').value;
-  if (!newEmpId) { alert('Please select a replacement teacher.'); return; }
+  if (!newEmpId) { showToast('Please select a replacement teacher.', 'warn'); return; }
   if (!_managingColId) return;
 
   const oldTeacherId = _managingColId;
@@ -1761,7 +1761,7 @@ async function confirmReplaceColumnTeacher() {
 
   if (pstErr) {
     console.error('Replace teacher error:', pstErr);
-    alert('Failed to replace teacher.');
+    showToast('Failed to replace teacher.', 'error');
     btn.disabled = false; btn.textContent = 'Replace';
     return;
   }
@@ -1774,7 +1774,7 @@ async function confirmReplaceColumnTeacher() {
 
   if (assignErr) {
     console.error('Replace teacher assignments error:', assignErr);
-    alert('Teacher replaced but student assignments could not be updated. Please reload.');
+    showToast('Teacher replaced but student assignments could not be updated. Please reload.', 'error');
     btn.disabled = false; btn.textContent = 'Replace';
     return;
   }
@@ -1818,7 +1818,7 @@ async function confirmRemoveColumn() {
 
     if (assignErr) {
       console.error('Remove column: unassign error:', assignErr);
-      alert('Failed to unassign students. Column not removed.');
+      showToast('Failed to unassign students. Column not removed.', 'error');
       closeManageColumnModal();
       return;
     }
@@ -1836,7 +1836,7 @@ async function confirmRemoveColumn() {
 
   if (pstErr) {
     console.error('Remove column: delete PST error:', pstErr);
-    alert('Students unassigned but column could not be deleted. Please reload.');
+    showToast('Students unassigned but column could not be deleted. Please reload.', 'error');
     closeManageColumnModal();
     renderBoard();
     return;
@@ -1853,11 +1853,11 @@ async function confirmRemoveColumn() {
 
 async function submitAssignTeacher() {
   const empId = document.getElementById('assignTeacherSelect')?.value;
-  if (!empId) { alert('Please select a teacher.'); return; }
+  if (!empId) { showToast('Please select a teacher.', 'warn'); return; }
   if (!_resolvingColId) return;
 
   const emp = _formEmployees.find(e => e.id === empId);
-  if (!emp) { alert('Employee not found.'); return; }
+  if (!emp) { showToast('Employee not found.', 'error'); return; }
 
   const btn = document.getElementById('submitAssignTeacherBtn');
   btn.disabled = true;
@@ -1871,7 +1871,7 @@ async function submitAssignTeacher() {
 
   if (pstErr) {
     console.error('Assign teacher PST error:', pstErr);
-    alert('Failed to assign teacher.');
+    showToast('Failed to assign teacher.', 'error');
     btn.disabled = false;
     btn.textContent = 'Assign';
     return;
@@ -1886,7 +1886,7 @@ async function submitAssignTeacher() {
 
   if (assignErr) {
     console.error('Assign teacher assignments error:', assignErr);
-    alert('Teacher assigned but student records could not be updated. Please reload.');
+    showToast('Teacher assigned but student records could not be updated. Please reload.', 'error');
     btn.disabled = false;
     btn.textContent = 'Assign';
     return;
