@@ -5758,6 +5758,15 @@ select.admin-input {
 }
 .ft-typeahead-item:last-child { border-bottom: none; }
 
+/* ── Submissions list preview ── */
+.req-sub-preview {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: #374151;
+}
+
 /* ── Request form builder drag-to-reorder ── */
 .req-field-drag {
   cursor: grab;

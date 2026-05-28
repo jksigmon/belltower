@@ -45,7 +45,8 @@ async function loadSubmissions() {
     .select(`
       id, status, created_at, manager_notes,
       request_categories ( name ),
-      profiles!staff_requests_submitted_by_fkey ( display_name, email )
+      profiles!staff_requests_submitted_by_fkey ( display_name, email ),
+      staff_request_responses ( value, request_category_fields ( label, field_type, sort_order ) )
     `)
     .eq('school_id', currentProfile.school_id)
     .order('created_at', { ascending: false });
@@ -578,22 +579,25 @@ function renderSubmissionsList() {
     <table class="data-table">
       <thead>
         <tr>
-          <th>Submitted By</th>
-          <th>Form</th>
-          <th>Date</th>
-          <th>Status</th>
+          <th style="width:160px;">Submitted By</th>
+          <th style="width:160px;">Form</th>
+          <th>Details</th>
+          <th style="width:110px;">Date</th>
+          <th style="width:100px;">Status</th>
         </tr>
       </thead>
       <tbody>
         ${submissions.map(s => {
           const submitter = s.profiles;
-          const name = submitter?.display_name ?? submitter?.email ?? 'Unknown';
-          const cat  = s.request_categories?.name ?? '—';
+          const name    = submitter?.display_name ?? submitter?.email ?? 'Unknown';
+          const cat     = s.request_categories?.name ?? '—';
+          const preview = submissionPreview(s);
           return `
             <tr class="req-sub-row" data-id="${esc(s.id)}" style="cursor:pointer;">
               <td>${esc(name)}</td>
-              <td>${esc(cat)}</td>
-              <td>${fmtShortDate(s.created_at)}</td>
+              <td style="color:#6b7280;">${esc(cat)}</td>
+              <td style="color:#374151;max-width:0;">${preview ? `<div class="req-sub-preview">${esc(preview)}</div>` : '<span style="color:#d1d5db;">—</span>'}</td>
+              <td style="white-space:nowrap;">${fmtShortDate(s.created_at)}</td>
               <td><span class="status-badge ${statusBadgeClass(s.status)}">${statusLabel(s.status)}</span></td>
             </tr>`;
         }).join('')}
@@ -708,6 +712,22 @@ function closeSubDrawer() {
 /* ═══════════════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════════════════ */
+function submissionPreview(sub) {
+  const rows = (sub.staff_request_responses ?? [])
+    .filter(r => r.request_category_fields?.field_type !== 'file' && r.value)
+    .sort((a, b) => (a.request_category_fields?.sort_order ?? 0) - (b.request_category_fields?.sort_order ?? 0))
+    .slice(0, 3);
+  if (!rows.length) return '';
+  return rows.map(r => {
+    let val = r.request_category_fields?.field_type === 'boolean'
+      ? (r.value === 'true' ? 'Yes' : 'No')
+      : r.value;
+    if (val.length > 48) val = val.slice(0, 48) + '…';
+    const label = r.request_category_fields?.label;
+    return label ? `${label}: ${val}` : val;
+  }).join(' · ');
+}
+
 function statusLabel(s) {
   return { pending: 'Pending', in_review: 'In Review', resolved: 'Resolved' }[s] ?? s;
 }
