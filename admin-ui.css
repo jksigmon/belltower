@@ -3112,6 +3112,40 @@ nav a[data-cap-group] {
   flex-shrink: 0;
 }
 
+/* Birthday expand toggle button */
+.bday-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #fde68a;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef9f0 100%);
+  color: #92400e;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.01em;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, color 0.15s;
+  box-shadow: 0 1px 3px rgba(245,158,11,0.10), inset 0 1px 0 rgba(255,255,255,0.7);
+}
+.bday-toggle-btn:hover {
+  border-color: #f59e0b;
+  background: linear-gradient(135deg, #fef3c7 0%, #fef9ee 100%);
+  color: #78350f;
+  box-shadow: 0 2px 6px rgba(245,158,11,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
+}
+.bday-toggle-icon {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+  color: #f59e0b;
+}
+.bday-toggle-btn.bday-toggle-open .bday-toggle-icon {
+  transform: rotate(180deg);
+}
+
 /* ── End birthday styling ─────────────────────────────────────── */
 
 .dash-welcome { margin-bottom: 4px; }

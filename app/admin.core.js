@@ -530,8 +530,8 @@ async function loadDashboardStats() {
 
     if (allBdays.length > 0) {
       const list = document.getElementById('dashBirthdayList');
-      const close    = allBdays.filter(s => s.daysLeft <= 3);
-      const extended = allBdays.filter(s => s.daysLeft > 3);
+      const shown  = allBdays.filter(s => s.daysLeft <= 1);
+      const hidden = allBdays.filter(s => s.daysLeft > 1);
 
       const buildLi = s => {
         const isToday    = s.daysLeft === 0;
@@ -556,29 +556,34 @@ async function loadDashboardStats() {
       const ul = document.createElement('ul');
       ul.style.cssText = 'list-style:none;margin:0;padding:0;';
 
-      const shown = close.length > 0 ? close : allBdays.slice(0, 3);
-      const hidden = close.length > 0 ? extended : allBdays.slice(3);
-
-      shown.forEach(s => ul.appendChild(buildLi(s)));
+      // If no one has a birthday today or tomorrow, show all directly
+      const hasImminent = shown.length > 0;
+      (hasImminent ? shown : allBdays).forEach(s => ul.appendChild(buildLi(s)));
 
       let extUl = null;
-      if (hidden.length > 0) {
+      if (hasImminent && hidden.length > 0) {
         extUl = document.createElement('ul');
         extUl.style.cssText = 'list-style:none;margin:0;padding:0;display:none;';
         hidden.forEach(s => extUl.appendChild(buildLi(s)));
 
+        const toggleLi = document.createElement('li');
+        toggleLi.style.cssText = 'padding:10px 4px 2px;';
         const toggleBtn = document.createElement('button');
-        toggleBtn.className = 'btn btn-sm btn-outline';
-        toggleBtn.style.cssText = 'margin:8px 0 4px;font-size:11px;';
-        toggleBtn.textContent = `Show ${hidden.length} more (next 7 days)`;
+        toggleBtn.className = 'bday-toggle-btn';
+        toggleBtn.innerHTML = `
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="bday-toggle-icon"><polyline points="6 9 12 15 18 9"/></svg>
+          <span class="bday-toggle-label">${hidden.length} more birthday${hidden.length > 1 ? 's' : ''} this week</span>
+        `;
         toggleBtn.addEventListener('click', () => {
           const expanded = extUl.style.display !== 'none';
           extUl.style.display = expanded ? 'none' : '';
-          toggleBtn.textContent = expanded
-            ? `Show ${hidden.length} more (next 7 days)`
+          toggleBtn.classList.toggle('bday-toggle-open', !expanded);
+          toggleBtn.querySelector('.bday-toggle-label').textContent = expanded
+            ? `${hidden.length} more birthday${hidden.length > 1 ? 's' : ''} this week`
             : 'Show less';
         });
-        ul.appendChild(document.createElement('li')).appendChild(toggleBtn);
+        toggleLi.appendChild(toggleBtn);
+        ul.appendChild(toggleLi);
       }
 
       list.innerHTML = '';
