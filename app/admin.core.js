@@ -540,39 +540,33 @@ async function loadDashboardStats() {
         const initials   = s.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
         const roleLabel  = s.type === 'staff' ? 'Staff' : `Student`;
         const li = document.createElement('li');
-        li.className = 'dash-bday-row';
+        li.className = 'staff-dash-request-row dash-bday-row';
         li.innerHTML = `
           <span class="dash-bday-av">${esc(initials)}</span>
           <span style="flex:1;min-width:0;">
-            <span class="dash-bday-name">${esc(s.name)}</span>
-            <span class="dash-bday-sub">${esc(roleLabel)} · ${esc(secondary)}</span>
+            <div style="font-weight:600;font-size:0.8125rem;color:#1e293b;line-height:1.3;">${esc(s.name)}</div>
+            <div style="font-size:0.7rem;color:#94a3b8;line-height:1.3;">${esc(roleLabel)} · ${esc(secondary)}</div>
           </span>
           <span class="staff-dash-req-badge${isToday ? ' bday-today' : ''}" style="background:#fef08a;color:#92400e;">${when}</span>
         `;
         return li;
       };
 
-      const wrap = document.createElement('div');
-      wrap.className = 'dash-bday-list';
-
       const ul = document.createElement('ul');
-      ul.style.cssText = 'list-style:none;margin:0;padding:0;';
+      ul.style.cssText = 'list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;';
 
       // If no one has a birthday today or tomorrow, show all directly
       const hasImminent = shown.length > 0;
       (hasImminent ? shown : allBdays).forEach(s => ul.appendChild(buildLi(s)));
-      wrap.appendChild(ul);
 
+      let extUl = null;
       if (hasImminent && hidden.length > 0) {
-        const extWrap = document.createElement('div');
-        extWrap.className = 'dash-bday-extended';
-        extWrap.style.display = 'none';
-
-        const extUl = document.createElement('ul');
-        extUl.style.cssText = 'list-style:none;margin:0;padding:0;';
+        extUl = document.createElement('ul');
+        extUl.style.cssText = 'list-style:none;margin:0;padding:0;display:none;flex-direction:column;gap:5px;';
         hidden.forEach(s => extUl.appendChild(buildLi(s)));
-        extWrap.appendChild(extUl);
 
+        const toggleLi = document.createElement('li');
+        toggleLi.style.cssText = 'padding:4px 0 2px;';
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'bday-toggle-btn';
         toggleBtn.innerHTML = `
@@ -580,20 +574,20 @@ async function loadDashboardStats() {
           <span class="bday-toggle-label">${hidden.length} more birthday${hidden.length > 1 ? 's' : ''} this week</span>
         `;
         toggleBtn.addEventListener('click', () => {
-          const expanded = extWrap.style.display !== 'none';
-          extWrap.style.display = expanded ? 'none' : '';
+          const expanded = extUl.style.display !== 'none';
+          extUl.style.display = expanded ? 'none' : '';
           toggleBtn.classList.toggle('bday-toggle-open', !expanded);
           toggleBtn.querySelector('.bday-toggle-label').textContent = expanded
             ? `${hidden.length} more birthday${hidden.length > 1 ? 's' : ''} this week`
             : 'Show less';
         });
-
-        wrap.appendChild(extWrap);
-        wrap.appendChild(toggleBtn);
+        toggleLi.appendChild(toggleBtn);
+        ul.appendChild(toggleLi);
       }
 
       list.innerHTML = '';
-      list.appendChild(wrap);
+      list.appendChild(ul);
+      if (extUl) list.appendChild(extUl);
       show('dashBirthdays');
     }
   }

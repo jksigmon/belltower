@@ -3079,40 +3079,17 @@ nav a[data-cap-group] {
 }
 
 
-/* Birthday connected list container */
-.dash-bday-list {
-  border: 1px solid #fde68a;
+/* Birthday individual card rows */
+#dashBirthdays .staff-dash-request-row,
+#staffDashBirthdays .staff-dash-request-row {
+  background: rgba(255, 255, 255, 0.75);
   border-left: 3px solid #f59e0b;
   border-radius: 10px;
-  overflow: hidden;
-  background: #fff;
-}
-.dash-bday-extended {
-  border-top: 1px solid #fef3c7;
+  padding: 7px 12px;
 }
 
-/* Birthday compact rows */
 .dash-bday-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-bottom: 1px solid #fef9ee;
-  background: transparent;
-}
-.dash-bday-row:last-child { border-bottom: none; }
-.dash-bday-name {
-  display: block;
-  font-weight: 600;
-  font-size: 0.8125rem;
-  color: #1e293b;
-  line-height: 1.3;
-}
-.dash-bday-sub {
-  display: block;
-  font-size: 0.7rem;
-  color: #94a3b8;
-  line-height: 1.3;
+  border: 1px solid #fde68a;
 }
 
 @keyframes bday-pulse {
@@ -3129,8 +3106,8 @@ nav a[data-cap-group] {
 
 /* Birthday avatar initials */
 .dash-bday-av {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background: linear-gradient(135deg, #f59e0b, #ea580c);
   color: #fff;
@@ -3138,7 +3115,7 @@ nav a[data-cap-group] {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   flex-shrink: 0;
 }
 
@@ -3149,7 +3126,6 @@ nav a[data-cap-group] {
   gap: 6px;
   width: 100%;
   padding: 8px 12px;
-  margin-top: 8px;
   border-radius: 10px;
   border: 1.5px solid #fde68a;
   background: linear-gradient(135deg, #fffbeb 0%, #fef9f0 100%);
