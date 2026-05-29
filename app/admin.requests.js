@@ -452,34 +452,63 @@ async function saveCategoryDrawer() {
     catId = data.id;
   }
 
-  // Replace all fields — delete first, then re-insert
-  const { error: delErr } = await supabase
-    .from('request_category_fields')
-    .delete()
-    .eq('category_id', catId);
-  if (delErr) {
-    showToast('Failed to save fields: ' + delErr.message, 'error');
+  // Smart field sync — preserve existing field IDs so historical responses stay linked.
+  // Only delete fields the admin explicitly removed; update the rest in place.
+  const fieldErrReset = () => {
     saveBtn.disabled = false;
     saveBtn.textContent = editingCat ? 'Save Changes' : 'Create Form';
-    return;
+  };
+
+  const { data: existingFields, error: existErr } = await supabase
+    .from('request_category_fields')
+    .select('id')
+    .eq('category_id', catId);
+  if (existErr) { showToast('Failed to load fields: ' + existErr.message, 'error'); fieldErrReset(); return; }
+
+  const keptIds  = new Set(draftFields.filter(f => f.id).map(f => f.id));
+  const toDelete = (existingFields ?? []).map(f => f.id).filter(id => !keptIds.has(id));
+
+  if (toDelete.length) {
+    const { error: delErr } = await supabase
+      .from('request_category_fields')
+      .delete()
+      .in('id', toDelete);
+    if (delErr) { showToast('Failed to save fields: ' + delErr.message, 'error'); fieldErrReset(); return; }
   }
 
-  if (draftFields.length) {
-    const fieldRows = draftFields.map((f, i) => ({
+  // Update existing fields in place (preserves foreign keys from old responses)
+  const toUpdate = draftFields
+    .filter(f => f.id)
+    .map(f => ({
+      id:          f.id,
       category_id: catId,
       label:       f.label.trim(),
       field_type:  f.field_type,
       options:     f.field_type === 'select' ? (f.options ?? []) : null,
       is_required: f.is_required,
-      sort_order:  i,
+      sort_order:  draftFields.indexOf(f),
     }));
-    const { error: insErr } = await supabase.from('request_category_fields').insert(fieldRows);
-    if (insErr) {
-      showToast('Failed to save fields: ' + insErr.message, 'error');
-      saveBtn.disabled = false;
-      saveBtn.textContent = editingCat ? 'Save Changes' : 'Create Form';
-      return;
-    }
+  if (toUpdate.length) {
+    const { error: upErr } = await supabase
+      .from('request_category_fields')
+      .upsert(toUpdate, { onConflict: 'id' });
+    if (upErr) { showToast('Failed to save fields: ' + upErr.message, 'error'); fieldErrReset(); return; }
+  }
+
+  // Insert genuinely new fields (no ID yet)
+  const toInsert = draftFields
+    .filter(f => !f.id)
+    .map(f => ({
+      category_id: catId,
+      label:       f.label.trim(),
+      field_type:  f.field_type,
+      options:     f.field_type === 'select' ? (f.options ?? []) : null,
+      is_required: f.is_required,
+      sort_order:  draftFields.indexOf(f),
+    }));
+  if (toInsert.length) {
+    const { error: insErr } = await supabase.from('request_category_fields').insert(toInsert);
+    if (insErr) { showToast('Failed to save fields: ' + insErr.message, 'error'); fieldErrReset(); return; }
   }
 
   // Sync managers: delete all, re-insert

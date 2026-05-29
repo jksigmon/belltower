@@ -404,10 +404,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
 <header>
   <div class="header-left">
     <a href="/admin.html" class="btn btn-admin back-to-admin" aria-label="Admin home"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></a>
-  </div>
-  <div class="page-header">
     <img src="/images/belltower-logo.png" alt="Belltower" class="admin-logo" />
-    <div class="page-subtitle">Help &amp; Support</div>
   </div>
   <div class="header-actions">
     <div class="user-menu" id="userMenu">
@@ -497,6 +494,10 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
     <a href="#section-guardian-intake" class="help-cat-card">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><line x1="16" y1="11" x2="22" y2="11"/><line x1="19" y1="8" x2="19" y2="14"/></svg>
       Guardian Intake
+    </a>
+    <a href="#section-requests" class="help-cat-card">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Staff Requests
     </a>
   </div>
 
@@ -1558,6 +1559,215 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <p>Archived campaigns can be permanently deleted once you're certain all submissions have been resolved.</p>
       </div>
     </div>
+  </div>
+
+  <!-- ══════════ STAFF REQUESTS ══════════ -->
+  <div class="faq-section" id="section-requests">
+    <div class="faq-section-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      Staff Requests
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What is the Staff Requests module?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Staff Requests lets you create custom internal request forms — for facilities work, IT support, supply orders, or anything else your school needs to track. Administrators build the forms and assign managers. Staff submit through their portal. Managers receive notifications and can update each submission's status.</p>
+        <p>Administrators manage forms and view all submissions in the <strong>Admin Panel → Staff Requests</strong> tab. Staff submit requests from the <strong>Staff Portal → Submit a Request</strong> link in the navigation.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        Who can create and manage request forms?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Only users with <strong>Admin</strong> or <strong>Front Office</strong> roles can create, edit, and deactivate request forms, and view all submissions. Regular staff members can only submit requests and view their own submission history.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Form managers do not need admin access. Any staff member can be added as a manager on a form and will receive notifications when new submissions come in.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I create a new request form?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ol>
+          <li>Go to <strong>Admin Panel → Staff Requests</strong>.</li>
+          <li>Click <strong>+ New Form</strong>.</li>
+          <li>Enter a <strong>Form Name</strong> (e.g., "Facilities Request", "IT Support") and an optional description that staff will see when choosing which form to use.</li>
+          <li>Make sure <strong>Active</strong> is checked so the form is visible to staff.</li>
+          <li>Add your fields under <strong>Form Fields</strong> (see below).</li>
+          <li>Add one or more managers who should be notified of new submissions.</li>
+          <li>Click <strong>Create Form</strong>.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What field types are available and when should I use each one?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ul>
+          <li><strong>Short Text</strong> — a single-line input. Use for brief answers like a room number, asset tag, or name.</li>
+          <li><strong>Paragraph</strong> — a multi-line text area. Use for descriptions, detailed notes, or anything that needs more than one sentence.</li>
+          <li><strong>Dropdown</strong> — a list of predefined options the submitter selects from. Enter the options as a comma-separated list (e.g., <em>Low, Medium, High</em>). Use when you want to constrain the answer to known values.</li>
+          <li><strong>Date</strong> — a date picker. Use for "When do you need this by?" or similar time-sensitive fields.</li>
+          <li><strong>Yes / No</strong> — a radio button pair. Use for simple binary questions like "Is this an emergency?"</li>
+          <li><strong>File Upload</strong> — lets the submitter attach a photo, PDF, or document. Accepted formats: images, PDFs, Word documents. Use when you need a photo of the issue, a receipt, or a supporting document.</li>
+        </ul>
+        <p>Mark a field <strong>Required</strong> to prevent submission unless that field is filled in.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I reorder or remove fields on a form?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Open the form by clicking <strong>Edit Form</strong> on its card. In the Form Fields list:</p>
+        <ul>
+          <li><strong>Reorder:</strong> drag and drop rows using the handle (<strong>⠿</strong>) on the left of each field row.</li>
+          <li><strong>Remove:</strong> click the <strong>&times;</strong> button at the right of the field row. This removes it from the form for future submissions but does not delete historical responses already collected against that field.</li>
+        </ul>
+        <p>Click <strong>Save Changes</strong> when done.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        Can I rename a field or change its type after submissions have already come in?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p><strong>Renaming a field label is safe.</strong> Historical responses stay fully intact — they just display under the new label name going forward. This is intentional, so fixing a typo like "Descriptions" to "Description" will not affect any past submissions.</p>
+        <p><strong>Changing a field's type</strong> is also preserved for history but may make old answers appear oddly formatted. For example, if you change a Short Text field to a Dropdown, old free-text answers will still display as-is.</p>
+        <p><strong>Deleting a field</strong> is the only action that can affect history. Once a field is removed and saved, its responses are no longer labelled in old submissions. Avoid deleting fields on active forms with existing submissions unless you're certain the data is no longer needed.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What are form managers and how do I add them?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Managers are staff members who are notified when a new submission arrives for a given form. They can also update the status of submissions and leave notes for the submitter. Any staff member in your school can be a manager — they do not need admin access.</p>
+        <p>To add a manager:</p>
+        <ol>
+          <li>Open the form via <strong>Edit Form</strong>.</li>
+          <li>In the <strong>Managers</strong> section at the bottom of the drawer, type a staff member's name or email in the search box.</li>
+          <li>Select them from the dropdown. They appear as a chip.</li>
+          <li>Click <strong>Save Changes</strong>.</li>
+        </ol>
+        <p>To remove a manager, click the <strong>&times;</strong> on their chip before saving.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          A form with no managers assigned will not send any notifications when submissions come in. Always assign at least one manager to active forms.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I activate or deactivate a form?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Open the form via <strong>Edit Form</strong>. You have two ways to control visibility:</p>
+        <ul>
+          <li>Toggle the <strong>Active</strong> checkbox at the top of the drawer and click <strong>Save Changes</strong>.</li>
+          <li>Or click the <strong>Deactivate Form</strong> / <strong>Activate Form</strong> button at the bottom of the drawer for a one-click toggle.</li>
+        </ul>
+        <p>Inactive forms do not appear in the Staff Portal, so staff cannot submit new requests against them. All existing submissions and their data are preserved.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How does a staff member submit a request?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ol>
+          <li>From the <strong>Staff Portal</strong>, click <strong>Submit a Request</strong> in the side navigation.</li>
+          <li>The available request forms are shown as cards. Click the one that matches the type of request.</li>
+          <li>The form fields appear below. Fill in all required fields (marked with <strong>*</strong>).</li>
+          <li>Click <strong>Submit Request</strong>.</li>
+        </ol>
+        <p>After submitting, a confirmation message is shown. The assigned managers are notified by email automatically. Staff can submit another request immediately by clicking <strong>Submit Another</strong>.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        Where can staff see their past requests?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>On the <strong>Submit a Request</strong> page, a <strong>My Requests</strong> table appears below the form selection area once a staff member has at least one submission. It shows the form name, submission date, current status, and any notes left by a manager.</p>
+        <p>Statuses are:</p>
+        <ul>
+          <li><strong>Pending</strong> — received, not yet reviewed.</li>
+          <li><strong>In Review</strong> — a manager has seen it and is working on it.</li>
+          <li><strong>Resolved</strong> — the request has been completed or closed.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do administrators and managers review and action submissions?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <ol>
+          <li>Go to <strong>Admin Panel → Staff Requests</strong> and click the <strong>Submissions</strong> tab.</li>
+          <li>Use the <strong>All Forms</strong> and <strong>All Statuses</strong> filters to narrow the list.</li>
+          <li>Click any row to open the submission detail drawer.</li>
+          <li>The drawer shows who submitted it, when, and all their answers field by field.</li>
+          <li>Change the <strong>Status</strong> dropdown to reflect progress — <em>Pending</em>, <em>In Review</em>, or <em>Resolved</em>.</li>
+          <li>Optionally add a note in the <strong>Manager Notes</strong> field. This note is visible to the submitter in their My Requests table.</li>
+          <li>Click <strong>Save</strong>.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        Can I filter submissions by form or status?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Yes. On the Submissions tab, two filter dropdowns sit at the top of the list:</p>
+        <ul>
+          <li><strong>All Forms</strong> — filter to a specific request form type.</li>
+          <li><strong>All Statuses</strong> — filter to Pending, In Review, or Resolved submissions.</li>
+        </ul>
+        <p>These filters can be used together. The list updates immediately when you change either dropdown.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        Will staff be notified when the status of their request changes?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>At submission time, the form's assigned managers are notified by email automatically. Status updates and manager notes are visible to the submitter in the <strong>My Requests</strong> table on the Submit a Request page. Staff can check back there at any time to see the latest status and any notes left for them.</p>
+      </div>
+    </div>
+
   </div>
 
   <!-- ══════════ CTA ══════════ -->

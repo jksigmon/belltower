@@ -266,7 +266,17 @@ background: rgba(255, 255, 255, 0.12);
   flex: 1;
   display: flex;
   align-items: center;
+  gap: 12px;
 }
+
+.header-page-subtitle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.65);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.header-page-subtitle:empty { display: none; }
 
 
 .brand {
@@ -1216,6 +1226,8 @@ table tr:hover {
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
               visibility 0s linear 0s;
 }
+
+.drawer.drawer-wide { width: 600px; }
 
 .drawer-header {
   display: flex;
@@ -2806,14 +2818,23 @@ nav a[data-cap-group] {
 
 /* Banner */
 .dash-banner {
+  position: relative;
   background: linear-gradient(135deg, #0b2d4f 0%, #1a3a5c 55%, #0e3660 100%);
-  border-radius: 14px;
-  padding: 0 32px;
-  height: 90px;
-  display: flex;
-  align-items: center;
-  margin-bottom: 24px;
-  box-shadow: 0 4px 20px rgba(11, 45, 79, 0.22);
+  border-radius: 18px;
+  padding: 26px 32px;
+  margin-bottom: 26px;
+  box-shadow: 0 14px 40px rgba(11, 45, 79, 0.28);
+  overflow: hidden;
+}
+
+.dash-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(420px 200px at 88% -20%, rgba(245,158,11,0.18), transparent 70%),
+    radial-gradient(360px 220px at 12% 120%, rgba(37,99,235,0.22), transparent 70%);
+  pointer-events: none;
 }
 
 .dash-banner-inner {
@@ -2824,43 +2845,163 @@ nav a[data-cap-group] {
   flex-wrap: wrap;
   width: 100%;
   position: relative;
+  z-index: 1;
 }
 
 .dash-banner-greeting {
-  font-size: 0.8rem;
-  font-weight: 500;
-  color: rgba(255,255,255,0.55);
-  margin-bottom: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #93c5fd;
+  margin-bottom: 8px;
+}
+
+.dash-banner-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+  flex-shrink: 0;
 }
 
 .dash-banner-name {
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-size: 1.95rem;
+  font-weight: 800;
   color: #ffffff;
-  line-height: 1.15;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
 }
 
 .dash-banner-school {
-  font-size: 0.75rem;
+  display: none;
+}
+
+.dash-banner-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.dash-banner-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
   font-weight: 500;
-  color: rgba(255,255,255,0.42);
-  margin-top: 4px;
+  color: rgba(255,255,255,0.78);
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+}
+
+.dash-banner-chip:empty { display: none; }
+
+.dash-banner-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 .dash-banner-date {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: rgba(255,255,255,0.55);
-  white-space: nowrap;
+  text-align: right;
   pointer-events: none;
+}
+.dash-banner-date-day {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.1;
+}
+.dash-banner-date-full {
+  display: block;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.6);
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
+/* Icon inside banner chips */
+.dash-banner-chip i,
+.dash-banner-chip svg {
+  width: 13px;
+  height: 13px;
+  opacity: 0.7;
+  flex-shrink: 0;
 }
 
 .dash-banner-weather {
   text-align: right;
   white-space: nowrap;
+}
+
+/* ── Header weather widget ───────────────────────────────────── */
+.dash-header-weather {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 11px;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.dash-header-weather:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.28);
+}
+.dash-header-wx-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.dash-header-wx-temp {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+.dash-header-wx-range {
+  display: block;
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.6);
+  margin-top: 2px;
+}
+
+/* ── Section head with eyebrow + rule ────────────────────────── */
+.dash-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.dash-section-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.dash-section-rule {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, #e5e7eb, transparent);
 }
 .dash-weather-link {
   text-decoration: none;
@@ -2887,12 +3028,46 @@ nav a[data-cap-group] {
   margin-top: 2px;
 }
 
-/* Stat card accent borders */
-[data-accent="blue"]   { border-top: 3px solid #2563eb; }
-[data-accent="red"]    { border-top: 3px solid #dc2626; }
-[data-accent="orange"] { border-top: 3px solid #ea580c; }
-[data-accent="amber"]  { border-top: 3px solid #f59e0b; }
-[data-accent="green"]  { border-top: 3px solid #16a34a; }
+/* Stat card accent bars (::before pseudo, CSS var --bar) */
+[data-accent="blue"]   { --bar: #2563eb; }
+[data-accent="red"]    { --bar: #dc2626; }
+[data-accent="orange"] { --bar: #ea580c; }
+[data-accent="amber"]  { --bar: #f59e0b; }
+[data-accent="green"]  { --bar: #16a34a; }
+
+.stat[data-accent]::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--bar, #2563eb);
+}
+
+/* Stat icon chips — colored by data-accent, dark enough to contrast with gradient card bg */
+.stat[data-accent="blue"]   .stat-chip { background: #dbeafe; color: #2563eb; }
+.stat[data-accent="red"]    .stat-chip { background: #fee2e2; color: #dc2626; }
+.stat[data-accent="orange"] .stat-chip { background: #ffedd5; color: #c2410c; }
+.stat[data-accent="amber"]  .stat-chip { background: #fef3c7; color: #b45309; }
+.stat[data-accent="green"]  .stat-chip { background: #dcfce7; color: #15803d; }
+
+/* Accent gradient bleed from top bar into card background */
+.stat[data-accent="blue"]   { background: linear-gradient(180deg, rgba(37,99,235,0.06) 0%, #ffffff 55%); }
+.stat[data-accent="red"]    { background: linear-gradient(180deg, rgba(220,38,38,0.07) 0%, #ffffff 55%); }
+.stat[data-accent="orange"] { background: linear-gradient(180deg, rgba(234,88,12,0.07) 0%, #ffffff 55%); }
+.stat[data-accent="amber"]  { background: linear-gradient(180deg, rgba(245,158,11,0.07) 0%, #ffffff 55%); }
+.stat[data-accent="green"]  { background: linear-gradient(180deg, rgba(22,163,74,0.07) 0%, #ffffff 55%); }
+
+/* Accent-colored numbers — match the top bar color */
+.stat[data-accent="blue"]   .stat-num,
+.stat[data-accent="blue"]   strong { color: #2563eb; }
+.stat[data-accent="red"]    .stat-num,
+.stat[data-accent="red"]    strong { color: #dc2626; }
+.stat[data-accent="orange"] .stat-num,
+.stat[data-accent="orange"] strong { color: #ea580c; }
+.stat[data-accent="amber"]  .stat-num,
+.stat[data-accent="amber"]  strong { color: #b45309; }
+.stat[data-accent="green"]  .stat-num,
+.stat[data-accent="green"]  strong { color: #16a34a; }
 
 /* ── Birthday section — festive styling ──────────────────────── */
 #dashBirthdays,
@@ -2903,10 +3078,6 @@ nav a[data-cap-group] {
   padding: 16px 20px;
 }
 
-#dashBirthdays .dash-section-title::before,
-#staffDashBirthdays .dash-section-title::before {
-  content: '🎂  ';
-}
 
 #dashBirthdays .staff-dash-request-row,
 #staffDashBirthdays .staff-dash-request-row {
@@ -2924,6 +3095,21 @@ nav a[data-cap-group] {
   background: #fef08a !important;
   color: #854d0e !important;
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3);
+}
+
+/* Birthday avatar initials */
+.dash-bday-av {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  flex-shrink: 0;
 }
 
 /* ── End birthday styling ─────────────────────────────────────── */
@@ -2952,14 +3138,8 @@ a.stat, a.dash-stat-link {
   color: inherit;
 }
 
-/* Accent variants */
-.stat.stat-alert { background: #fef2f2; }
-.stat.stat-alert strong { color: #dc2626; }
-.stat.stat-warn  { background: #fffbeb; }
-.stat.stat-warn  strong { color: #b45309; }
+/* Legacy accent class variants — kept for non-data-accent uses */
 .stat.stat-info  strong { color: #2563eb; }
-.stat.stat-ok    { background: #f0fdf4; }
-.stat.stat-ok strong { color: #16a34a; }
 
 /* Sub-label inside a stat (e.g. "3 inactive") */
 .stat span.stat-sub {
@@ -3032,12 +3212,27 @@ a.stat, a.dash-stat-link {
   transform: translateY(-1px);
 }
 
+/* Amber: gradient — for primary everyday actions (e.g. Start Carline) */
+.dash-action-btn--amber {
+  background: linear-gradient(135deg, #f59e0b, #ea580c);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.25);
+}
+.dash-action-btn--amber:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(234, 88, 12, 0.34);
+  color: #fff;
+}
+
 .stat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
   margin-top: 20px;
 }
+
+.stat.stat-wide { grid-column: span 2; }
 
 @media (max-width: 600px) {
   .stat-grid {
@@ -3086,6 +3281,22 @@ a.stat, a.dash-stat-link {
 .dash-alert-dot--red   { background: #dc2626; }
 .dash-alert-dot--amber { background: #f59e0b; }
 .dash-alert-dot--blue  { background: #3b82f6; }
+
+/* Alert icon tiles (polished variant) */
+.dash-alert-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.dash-alert-icon i,
+.dash-alert-icon svg { width: 16px; height: 16px; }
+.dash-alert-icon--red   { background: #fff5f5; color: #f87171; }
+.dash-alert-icon--amber { background: #fffdf0; color: #fbbf24; }
+.dash-alert-icon--blue  { background: #eff6ff; color: #60a5fa; }
 
 .dash-alert-text {
   flex: 1;
@@ -3197,12 +3408,31 @@ a.staff-dash-request-row:hover {
 .stat {
   position: relative;
   background: #ffffff;
-  border-radius: 10px;
-  padding: 16px 18px;
+  border-radius: 12px;
+  padding: 14px 16px 12px;
   border: 1px solid #e6e8eb;
-  box-shadow: 0 2px 6px rgba(11, 45, 79, 0.07);
-  transition: transform 120ms ease, box-shadow 120ms ease;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s;
+  overflow: hidden;
 }
+
+.stat .stat-chip {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-width: 34px;
+  max-width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
+  background: #f1f5f9;
+  color: #64748b;
+}
+.stat .stat-chip i,
+.stat .stat-chip svg { width: 17px; height: 17px; }
 
 .stat-icon {
   position: absolute;
@@ -3220,24 +3450,29 @@ a.staff-dash-request-row:hover {
 .stat.stat-info  .stat-icon { color: rgba(37, 99, 235, 0.35); }
 
 .stat:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(11, 45, 79, 0.11);
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(11, 45, 79, 0.13);
+  border-color: #d7dee8;
 }
 
-.stat strong {
+.stat strong,
+.stat-num {
   display: block;
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 1.75rem;
+  font-weight: 800;
   margin-bottom: 2px;
-  color: #1f2937; /* dark gray */
+  color: #1f2937;
   line-height: 1.1;
+  letter-spacing: -0.01em;
 }
 
-.stat span {
-  font-size: 0.78rem;
-  color: #9ca3af;
+.stat span,
+.stat-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  font-weight: 600;
 }
 
 .school-name {

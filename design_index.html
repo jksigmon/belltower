@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Belltower — School Operations Platform</title>
+<link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+<link rel="manifest" href="/icons/site.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@0.474.0/dist/umd/lucide.min.js"></script>
+<style>
+/* ============================================================
+   Belltower — Landing (Enterprise refresh)
+   Palette aligned with admin-ui.css + the polished dashboard:
+   navy gradient · blue #2563eb · amber bell #f59e0b · slate
+   Light & airy surfaces; navy leads, amber is a small accent.
+   ============================================================ */
+:root {
+  --navy-grad: linear-gradient(135deg, #0b2d4f 0%, #1a3a5c 55%, #0e3660 100%);
+  --navy-900: #071c2f;
+  --navy:     #0b2d4f;
+  --blue:     #2563eb;
+  --blue-hover:#1d4ed8;
+  --amber:    #f59e0b;
+  --amber-2:  #ea580c;
+
+  --bg:       #ffffff;
+  --bg-soft:  #f6f8fc;
+  --border:   #e7eaef;
+
+  --text:     #0f172a;
+  --text-2:   #475569;
+  --muted:    #64748b;
+
+  --blue-tint:#eff4ff;
+  --blue-line:#dbe6fb;
+
+  --ease:     cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* CTA accent (tweakable). Default = navy/blue lead. */
+  --cta-bg:   #1d4ed8;
+  --cta-bg-h: #1e40af;
+  --cta-shadow: rgba(29,78,216,0.28);
+}
+body[data-accent="amber"] {
+  --cta-bg: linear-gradient(135deg, #f59e0b, #ea580c);
+  --cta-bg-h: linear-gradient(135deg, #ea580c, #c2410c);
+  --cta-shadow: rgba(234,88,12,0.30);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.shell { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
+
+/* ── Header ──────────────────────────────────────────────── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--navy-grad);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+header::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(245,158,11,0.45), transparent);
+}
+.header-inner {
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.logo img { height: 40px; width: auto; display: block; }
+
+.nav-links { display: flex; align-items: center; gap: 0.4rem; }
+.nav-links a.text-link {
+  color: rgba(255,255,255,0.82);
+  text-decoration: none;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color 0.18s, background 0.18s;
+}
+.nav-links a.text-link:hover { color: #fff; background: rgba(255,255,255,0.08); }
+
+.nav-login {
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.32);
+  font-weight: 600;
+}
+.nav-login:hover { background: rgba(255,255,255,0.12) !important; border-color: rgba(255,255,255,0.55); }
+
+.nav-cta {
+  margin-left: 0.4rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--navy);
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.15s var(--ease), box-shadow 0.15s;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+}
+.nav-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(0,0,0,0.26); }
+.nav-cta svg { width: 15px; height: 15px; }
+
+/* ── Buttons ─────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.5rem;
+  border-radius: 10px;
+  font-size: 0.94rem;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  line-height: 1;
+  transition: transform 0.15s var(--ease), box-shadow 0.18s, background 0.18s, border-color 0.18s, color 0.18s;
+}
+.btn svg { width: 17px; height: 17px; }
+.btn-primary { background: var(--cta-bg); color: #fff; box-shadow: 0 6px 18px var(--cta-shadow); }
+.btn-primary:hover { background: var(--cta-bg-h); transform: translateY(-2px); box-shadow: 0 10px 26px var(--cta-shadow); }
+
+/* Ghost on light surfaces */
+.btn-ghost { background: #fff; color: var(--navy); border-color: #d8dee7; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.btn-ghost:hover { border-color: var(--navy); background: #f5f8ff; transform: translateY(-2px); box-shadow: 0 8px 18px rgba(11,45,79,0.10); }
+
+/* Ghost on dark surfaces */
+.btn-ghost-dark { background: rgba(255,255,255,0.06); color: #fff; border-color: rgba(255,255,255,0.32); }
+.btn-ghost-dark:hover { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.6); transform: translateY(-2px); }
+
+/* ── Eyebrow ─────────────────────────────────────────────── */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+.eyebrow .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 4px rgba(245,158,11,0.18);
+}
+.eyebrow.on-dark { color: #93c5fd; }
+
+/* ── Hero (shared) ───────────────────────────────────────── */
+.hero-a, .hero-b { display: none; }
+body[data-hero="a"] .hero-a { display: block; }
+body[data-hero="b"] .hero-b { display: block; }
+
+/* ── Hero A — light split with photo ─────────────────────── */
+.hero-a {
+  background:
+    radial-gradient(900px 480px at 88% -10%, var(--blue-tint), transparent 70%),
+    var(--bg);
+  padding: 5rem 0 5.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.hero-a-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 3.5rem;
+  align-items: center;
+}
+.hero-a h1 {
+  font-size: 3.1rem;
+  font-weight: 800;
+  line-height: 1.06;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin: 1.1rem 0 0;
+}
+.hero-a .hero-sub {
+  margin-top: 1.25rem;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--text-2);
+  max-width: 30rem;
+}
+.hero-actions { margin-top: 2rem; display: flex; gap: 0.8rem; flex-wrap: wrap; }
+.hero-trust {
+  margin-top: 1.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.hero-trust svg { width: 16px; height: 16px; color: var(--blue); }
+.hero-trust b { color: var(--text-2); font-weight: 600; }
+
+.hero-a-media { position: relative; }
+.hero-photo {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: 0 30px 60px rgba(11,45,79,0.18), 0 6px 16px rgba(11,45,79,0.08);
+  display: block;
+}
+.float-chip {
+  position: absolute;
+  left: -1.25rem;
+  bottom: 1.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 0.85rem 1.1rem;
+  box-shadow: 0 18px 40px rgba(11,45,79,0.16);
+}
+.float-chip .chip-ico {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--amber), var(--amber-2));
+  color: #fff;
+}
+.float-chip .chip-ico svg { width: 19px; height: 19px; }
+.float-chip .chip-title { font-size: 0.9rem; font-weight: 700; color: var(--text); line-height: 1.1; }
+.float-chip .chip-sub { font-size: 0.76rem; color: var(--muted); margin-top: 2px; }
+
+/* ── Hero B — navy band with product preview ─────────────── */
+.hero-b {
+  position: relative;
+  background: var(--navy-grad);
+  overflow: hidden;
+  padding: 5rem 0 5.5rem;
+}
+.hero-b::before {
+  content: "";
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(520px 280px at 86% -10%, rgba(245,158,11,0.16), transparent 70%),
+    radial-gradient(520px 320px at 8% 120%, rgba(37,99,235,0.30), transparent 70%);
+  pointer-events: none;
+}
+.hero-b-pattern {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(rgba(255,255,255,0.07) 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(180deg, #000, transparent 70%);
+          mask-image: linear-gradient(180deg, #000, transparent 70%);
+  opacity: 0.6;
+}
+.hero-b-inner { position: relative; z-index: 1; text-align: center; }
+.hero-b .eyebrow { justify-content: center; }
+.hero-b h1 {
+  font-size: 3.1rem;
+  font-weight: 800;
+  line-height: 1.07;
+  letter-spacing: -0.02em;
+  color: #fff;
+  margin: 1.1rem auto 0;
+  max-width: 18ch;
+}
+.hero-b .hero-sub {
+  margin: 1.25rem auto 0;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+  max-width: 40rem;
+}
+.hero-b .hero-actions { justify-content: center; }
+.hero-b .hero-trust { justify-content: center; color: rgba(255,255,255,0.65); }
+.hero-b .hero-trust svg { color: #93c5fd; }
+.hero-b .hero-trust b { color: rgba(255,255,255,0.9); }
+
+/* Browser frame product preview */
+.browser {
+  margin: 3rem auto 0;
+  max-width: 920px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.14);
+  box-shadow: 0 40px 90px rgba(0,0,0,0.45), 0 8px 24px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+.browser-bar {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  background: #f4f6fb;
+  border-bottom: 1px solid var(--border);
+}
+.browser-bar .dot { width: 11px; height: 11px; border-radius: 50%; }
+.browser-bar .dot.r { background: #ec6a5e; }
+.browser-bar .dot.y { background: #f4be4f; }
+.browser-bar .dot.g { background: #61c554; }
+.browser-bar .url {
+  margin-left: 0.6rem;
+  flex: 1;
+  max-width: 320px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.74rem;
+  color: var(--muted);
+  display: flex; align-items: center; gap: 0.4rem;
+}
+.browser-bar .url svg { width: 12px; height: 12px; color: var(--success, #16a34a); }
+.browser img { width: 100%; display: block; }
+
+/* ── Section scaffolding ─────────────────────────────────── */
+section.block { padding: 5.5rem 0; }
+section.soft { background: var(--bg-soft); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.section-head { max-width: 640px; }
+.section-head.center { margin: 0 auto; text-align: center; }
+.section-head.center .eyebrow { justify-content: center; }
+.section-title {
+  font-size: 2.1rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  margin-top: 0.85rem;
+  text-wrap: balance;
+}
+.section-sub {
+  font-size: 1.02rem;
+  line-height: 1.6;
+  color: var(--text-2);
+  margin-top: 0.9rem;
+}
+
+/* ── Modules strip ───────────────────────────────────────── */
+.modules-grid {
+  margin-top: 2.5rem;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.9rem;
+}
+.mod-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.95rem 1.05rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(15,23,42,0.04);
+  transition: transform 0.18s var(--ease), box-shadow 0.18s, border-color 0.18s;
+}
+.mod-pill:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(11,45,79,0.1); border-color: var(--blue-line); }
+.mod-pill .mod-ico {
+  width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
+  background: var(--blue-tint); color: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+}
+.mod-pill .mod-ico svg { width: 17px; height: 17px; }
+
+/* ── Feature cards ───────────────────────────────────────── */
+.feature-grid {
+  margin-top: 3rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+  gap: 1.4rem;
+}
+.card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.85rem;
+  box-shadow: 0 2px 10px rgba(15,23,42,0.04);
+  transition: transform 0.28s var(--ease), box-shadow 0.28s var(--ease), border-color 0.28s;
+}
+.card:hover { transform: translateY(-4px); box-shadow: 0 22px 44px rgba(11,45,79,0.12); border-color: var(--blue-line); }
+.card-ico {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--blue-tint); color: var(--blue);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 1.1rem;
+}
+.card-ico svg { width: 21px; height: 21px; }
+.card h3 { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 0.5rem; }
+.card > p { font-size: 0.92rem; line-height: 1.55; color: var(--text-2); }
+.card-bullets { list-style: none; margin-top: 1rem; display: flex; flex-direction: column; gap: 0.45rem; }
+.card-bullets li {
+  font-size: 0.86rem;
+  line-height: 1.4;
+  color: var(--text-2);
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+}
+.card-bullets li svg { width: 14px; height: 14px; color: var(--blue); flex-shrink: 0; position: relative; top: 2px; }
+
+/* ── Why Belltower / value ───────────────────────────────── */
+.value-inner {
+  display: grid;
+  grid-template-columns: 1fr 0.85fr;
+  gap: 4rem;
+  align-items: center;
+}
+.value-blocks { margin-top: 2.25rem; display: flex; flex-direction: column; gap: 1.6rem; }
+.value-block { border-left: 3px solid var(--blue); padding-left: 1.25rem; }
+.value-block h3 { font-size: 1.02rem; font-weight: 700; color: var(--text); margin-bottom: 0.35rem; }
+.value-block p { font-size: 0.92rem; line-height: 1.6; color: var(--text-2); }
+
+.value-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1.1rem; }
+.stat-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.6rem 1.5rem;
+  box-shadow: 0 2px 10px rgba(15,23,42,0.04);
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: var(--blue);
+}
+.stat-num { font-size: 2.3rem; font-weight: 800; letter-spacing: -0.02em; color: var(--navy); line-height: 1; }
+.stat-label { font-size: 0.85rem; color: var(--text-2); margin-top: 0.55rem; line-height: 1.4; }
+
+/* ── CTA band ────────────────────────────────────────────── */
+.cta-band {
+  position: relative;
+  background: var(--navy-grad);
+  overflow: hidden;
+  text-align: center;
+}
+.cta-band::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(600px 300px at 50% -30%, rgba(245,158,11,0.14), transparent 70%);
+}
+.cta-inner { position: relative; z-index: 1; max-width: 620px; margin: 0 auto; }
+.cta-band h2 { font-size: 2.3rem; font-weight: 800; line-height: 1.15; color: #fff; letter-spacing: -0.015em; }
+.cta-band p { font-size: 1.05rem; line-height: 1.6; color: #cbd5e1; margin: 1rem 0 2rem; }
+.cta-band .hero-actions { justify-content: center; }
+
+/* ── Footer ──────────────────────────────────────────────── */
+footer {
+  background: var(--navy-900);
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding: 2.5rem 0;
+}
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.footer-inner img { height: 30px; width: auto; opacity: 0.95; }
+.footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+.footer-links a { color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.86rem; transition: color 0.18s; }
+.footer-links a:hover { color: #fff; }
+.footer-copy { color: rgba(255,255,255,0.4); font-size: 0.82rem; width: 100%; padding-top: 1.5rem; margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.08); }
+
+/* ── Modal ───────────────────────────────────────────────── */
+.modal {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(7,28,47,0.5);
+  backdrop-filter: blur(3px);
+  display: none; align-items: center; justify-content: center; padding: 1rem;
+}
+.modal.active { display: flex; }
+.modal-box {
+  background: #fff; border-radius: 18px; padding: 2rem; width: 100%; max-width: 440px;
+  box-shadow: 0 30px 70px rgba(7,28,47,0.35);
+  animation: modal-in 0.3s var(--ease);
+}
+@keyframes modal-in { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
+.modal-box h2 { font-size: 1.25rem; font-weight: 700; color: var(--text); margin-bottom: 0.25rem; }
+.modal-box .modal-lead { font-size: 0.9rem; color: var(--muted); margin-bottom: 0.5rem; }
+.modal-box label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--text-2); margin-top: 0.9rem; margin-bottom: 0.3rem; }
+.modal-box input, .modal-box textarea {
+  width: 100%; padding: 0.65rem 0.9rem; border-radius: 9px;
+  border: 1px solid var(--border); background: var(--bg-soft); color: var(--text);
+  font-size: 0.93rem; font-family: inherit; outline: none;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+}
+.modal-box input:focus, .modal-box textarea:focus {
+  border-color: var(--blue); background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+.modal-box input::placeholder, .modal-box textarea::placeholder { color: #94a3b8; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.5rem; padding-top: 1.1rem; border-top: 1px solid #f1f5f9; }
+.modal-actions button { padding: 0.6rem 1.25rem; border-radius: 9px; font-size: 0.9rem; font-weight: 600; font-family: inherit; cursor: pointer; border: none; transition: background 0.18s; }
+.cancel { background: #f1f5f9; color: var(--text-2); }
+.cancel:hover { background: #e2e8f0; }
+.submit { background: var(--cta-bg); color: #fff; }
+.submit:hover { background: var(--cta-bg-h); }
+
+/* ── Reveal ──────────────────────────────────────────────── */
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity 0.6s var(--ease), transform 0.6s var(--ease); }
+.reveal.visible { opacity: 1; transform: none; }
+body.no-anim .reveal { opacity: 1; transform: none; transition: none; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .nav-links a.text-link { display: none; }
+  .hero-a-grid { grid-template-columns: 1fr; gap: 2.5rem; }
+  .hero-a, .hero-b { padding: 3.5rem 0 4rem; }
+  .hero-a h1, .hero-b h1 { font-size: 2.4rem; }
+  .value-inner { grid-template-columns: 1fr; gap: 2.5rem; }
+  .modules-grid { grid-template-columns: repeat(2, 1fr); }
+  .section-title { font-size: 1.7rem; }
+  .cta-band h2 { font-size: 1.8rem; }
+}
+@media (max-width: 560px) {
+  .shell { padding: 0 1.25rem; }
+  section.block { padding: 4rem 0; }
+  .hero-a h1, .hero-b h1 { font-size: 2rem; }
+  .modules-grid { grid-template-columns: 1fr; }
+  .value-stats { grid-template-columns: 1fr 1fr; }
+  .float-chip { left: 0.75rem; bottom: 0.75rem; }
+  .nav-cta span { display: none; }
+}
+</style>
+</head>
+<body data-hero="a" data-accent="blue">
+
+<!-- ── Header ─────────────────────────────────────────────── -->
+<header>
+  <div class="shell header-inner">
+    <div class="logo">
+      <img src="images/belltower-logo.png" alt="Belltower" />
+    </div>
+    <nav class="nav-links">
+      <a class="text-link" href="#features">Features</a>
+      <a class="text-link" href="#why">Why Belltower</a>
+      <a class="text-link nav-login" href="app/login.html">Log in</a>
+      <button class="nav-cta" onclick="openModal('Request a Demo')">
+        <i data-lucide="calendar-check"></i><span>Request a Demo</span>
+      </button>
+    </nav>
+  </div>
+</header>
+
+<!-- ── Hero A — light split with photo ────────────────────── -->
+<section class="hero-a">
+  <div class="shell hero-a-grid">
+    <div class="reveal">
+      <span class="eyebrow"><span class="dot"></span> School Operations Platform</span>
+      <h1>Less logistics.<br>More learning.</h1>
+      <p class="hero-sub">
+        Belltower replaces the spreadsheets and email chains that slow schools down —
+        one connected platform, built specifically for how schools operate.
+      </p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="openModal('Request a Demo')">
+          <i data-lucide="calendar-check"></i> Request a Demo
+        </button>
+        <a class="btn btn-ghost" href="#features">
+          See what it does <i data-lucide="arrow-right"></i>
+        </a>
+      </div>
+      <div class="hero-trust">
+        <i data-lucide="lock"></i>
+        <span>Role-based access &amp; audit trails — <b>built for K–12</b></span>
+      </div>
+    </div>
+    <div class="hero-a-media reveal">
+      <img class="hero-photo" src="images/hero-belltower-wide.png" alt="A modern school commons" />
+      <div class="float-chip">
+        <span class="chip-ico"><i data-lucide="layout-grid"></i></span>
+        <span>
+          <span class="chip-title">7 modules, one login</span>
+          <span class="chip-sub">PTO · Subs · Carline · Compliance &amp; more</span>
+        </span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Hero B — navy band with product preview ────────────── -->
+<section class="hero-b">
+  <div class="hero-b-pattern"></div>
+  <div class="shell hero-b-inner">
+    <span class="eyebrow on-dark reveal"><span class="dot"></span> School Operations Platform</span>
+    <h1 class="reveal">Run your whole school from one place</h1>
+    <p class="hero-sub reveal">
+      Belltower replaces the spreadsheets and email chains that slow schools down.
+      PTO, substitutes, dismissal, compliance, and more — connected, and built for how schools actually operate.
+    </p>
+    <div class="hero-actions reveal">
+      <button class="btn btn-primary" onclick="openModal('Request a Demo')">
+        <i data-lucide="calendar-check"></i> Request a Demo
+      </button>
+      <a class="btn btn-ghost-dark" href="app/login.html">
+        <i data-lucide="log-in"></i> Log in
+      </a>
+    </div>
+    <div class="hero-trust reveal">
+      <i data-lucide="lock"></i>
+      <span>Role-based access &amp; audit trails — <b>built for K–12</b></span>
+    </div>
+    <div class="browser reveal">
+      <div class="browser-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="url"><i data-lucide="lock"></i> app.belltower.school/dashboard</span>
+      </div>
+      <img src="images/dashboard-preview.png" alt="Belltower admin dashboard" />
+    </div>
+  </div>
+</section>
+
+<!-- ── Modules strip ──────────────────────────────────────── -->
+<section class="block soft">
+  <div class="shell">
+    <div class="section-head center reveal">
+      <span class="eyebrow"><span class="dot"></span> One platform. Every operation.</span>
+      <h2 class="section-title">Eight modules that work as one</h2>
+    </div>
+    <div class="modules-grid reveal">
+      <div class="mod-pill"><span class="mod-ico"><i data-lucide="calendar"></i></span> PTO &amp; Leave</div>
+      <div class="mod-pill"><span class="mod-ico"><i data-lucide="repeat-2"></i></span> Substitute Assignment</div>
+      <div class="mod-pill"><span class="mod-ico"><i data-lucide="layout-dashboard"></i></span> School Administration</div>
+      <div class="mod-pill"><span class="mod-ico"><i data-lucide="car"></i></span> Carline Dismissal</div>
+      <div class="mod-pill"><span class="mod-ico"><i data-lucide="map"></i></span> Field Trips</div>
+      <div class="mod-pill"><span class="mod-ico"><i data-lucide="building-2"></i></span> Multi-Campus</div>
+      <div class="mod-pill"><span class="mod-ico"><i data-lucide="shield-check"></i></span> Volunteer Compliance</div>
+      <div class="mod-pill"><span class="mod-ico"><i data-lucide="badge-check"></i></span> Licensure Tracking</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ───────────────────────────────────────────── -->
+<section class="block" id="features">
+  <div class="shell">
+    <div class="section-head reveal">
+      <span class="eyebrow"><span class="dot"></span> What Belltower Does</span>
+      <h2 class="section-title">Purpose-built tools for the tasks that slow schools down</h2>
+      <p class="section-sub">
+        Every module targets a specific operational pain point. Together, they give administrators
+        a clear, connected picture of how the school runs day to day.
+      </p>
+    </div>
+
+    <div class="feature-grid">
+
+      <div class="card reveal">
+        <div class="card-ico"><i data-lucide="calendar"></i></div>
+        <h3>PTO &amp; Leave Management</h3>
+        <p>Staff submit requests online. Supervisors approve or deny in one click. Balances update automatically.</p>
+        <ul class="card-bullets">
+          <li><i data-lucide="check"></i> One-click email approval — no login required</li>
+          <li><i data-lucide="check"></i> Real-time balance tracking with full audit trail</li>
+          <li><i data-lucide="check"></i> Annual allotment policies per role</li>
+          <li><i data-lucide="check"></i> Automated notifications and calendar export</li>
+          <li><i data-lucide="check"></i> Payroll-ready PTO reports</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-ico"><i data-lucide="repeat-2"></i></div>
+        <h3>Substitute Assignment</h3>
+        <p>When staff call out, coverage gaps surface immediately and subs or internal staff are matched to open periods.</p>
+        <ul class="card-bullets">
+          <li><i data-lucide="check"></i> Triggered automatically by PTO approvals</li>
+          <li><i data-lucide="check"></i> Outside subs or internal staff coverage</li>
+          <li><i data-lucide="check"></i> Period-by-period coverage view</li>
+          <li><i data-lucide="check"></i> Double-booking conflict warnings</li>
+          <li><i data-lucide="check"></i> Assignment history with Excel export</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-ico"><i data-lucide="map"></i></div>
+        <h3>Field Trip Management</h3>
+        <p>Plan, staff, and track every field trip from chaperone sign-up through vehicle assignments and attendance.</p>
+        <ul class="card-bullets">
+          <li><i data-lucide="check"></i> Chaperone assignment with student groupings</li>
+          <li><i data-lucide="check"></i> Driver clearance requirements (MVR-linked)</li>
+          <li><i data-lucide="check"></i> Drag-and-drop vehicle assignment board</li>
+          <li><i data-lucide="check"></i> Payment tracking with installment support</li>
+          <li><i data-lucide="check"></i> Export trip rosters</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-ico"><i data-lucide="car"></i></div>
+        <h3>Carline Dismissal</h3>
+        <p>Staff enter family tag numbers on any device. Students are called on a live display as cars arrive.</p>
+        <ul class="card-bullets">
+          <li><i data-lucide="check"></i> Live call board for display screens</li>
+          <li><i data-lucide="check"></i> Audio announcements for each call</li>
+          <li><i data-lucide="check"></i> Real-time sync across all devices</li>
+          <li><i data-lucide="check"></i> All-call for remaining students</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-ico"><i data-lucide="layout-dashboard"></i></div>
+        <h3>School Administration</h3>
+        <p>Centralize student, family, guardian, and employee records in one searchable, filterable admin panel.</p>
+        <ul class="card-bullets">
+          <li><i data-lucide="check"></i> Students, families, guardians, and staff records</li>
+          <li><i data-lucide="check"></i> Tokenized guardian intake forms</li>
+          <li><i data-lucide="check"></i> Bulk upload and data export</li>
+          <li><i data-lucide="check"></i> Role-based access control</li>
+          <li><i data-lucide="check"></i> Year-end promotion and grade retention workflow</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-ico"><i data-lucide="shield-check"></i></div>
+        <h3>Volunteer Compliance</h3>
+        <p>Collect and track volunteer agreements, background checks, and driver clearances across your parent community.</p>
+        <ul class="card-bullets">
+          <li><i data-lucide="check"></i> Digital volunteer agreements with e-signature</li>
+          <li><i data-lucide="check"></i> Background check request and status tracking</li>
+          <li><i data-lucide="check"></i> Chaperone and driver clearance flags</li>
+          <li><i data-lucide="check"></i> Per-student compliance report for teachers</li>
+          <li><i data-lucide="check"></i> PDF export of signed agreements</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-ico"><i data-lucide="badge-check"></i></div>
+        <h3>Licensure Tracking</h3>
+        <p>Keep staff certifications and professional licenses current with expiration tracking and automated alerts.</p>
+        <ul class="card-bullets">
+          <li><i data-lucide="check"></i> License and certification records per staff member</li>
+          <li><i data-lucide="check"></i> Expiration alerts sent before licenses lapse</li>
+          <li><i data-lucide="check"></i> Admin view across all staff at a glance</li>
+          <li><i data-lucide="check"></i> Staff self-service license submission</li>
+        </ul>
+      </div>
+
+      <div class="card reveal">
+        <div class="card-ico"><i data-lucide="building-2"></i></div>
+        <h3>Multi-Campus Support</h3>
+        <p>Run independent operations per location while keeping reporting and records unified across your organization.</p>
+        <ul class="card-bullets">
+          <li><i data-lucide="check"></i> Independent carline sessions per campus</li>
+          <li><i data-lucide="check"></i> Filter reports and records by location</li>
+          <li><i data-lucide="check"></i> Home-campus assignment for staff and students</li>
+          <li><i data-lucide="check"></i> No extra configuration to get started</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Why Belltower ──────────────────────────────────────── -->
+<section class="block soft" id="why">
+  <div class="shell value-inner">
+    <div>
+      <div class="section-head reveal">
+        <span class="eyebrow"><span class="dot"></span> Why Belltower</span>
+        <h2 class="section-title">Designed for schools, not adapted for them</h2>
+        <p class="section-sub">
+          Generic HR and admin tools were not built with school workflows in mind. Belltower was —
+          from the way PTO balances are calculated to how dismissal runs across multiple campuses.
+        </p>
+      </div>
+      <div class="value-blocks reveal">
+        <div class="value-block">
+          <h3>Less coordination overhead</h3>
+          <p>PTO requests, sub assignments, and dismissal all generate the right notifications automatically. Staff spend their time on students, not chasing approvals or coverage.</p>
+        </div>
+        <div class="value-block">
+          <h3>Multi-campus from day one</h3>
+          <p>Run independent carline sessions, filter reports by location, and assign staff and students to their home campus without extra configuration.</p>
+        </div>
+        <div class="value-block">
+          <h3>Built to grow with you</h3>
+          <p>Modules activate when you need them. Start with PTO tracking and add dismissal when you're ready — nothing locked behind a configuration you can't control.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="value-stats reveal">
+      <div class="stat-card">
+        <div class="stat-num">8</div>
+        <div class="stat-label">Integrated operational modules</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">1</div>
+        <div class="stat-label">Login for your entire staff</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">Multi</div>
+        <div class="stat-label">Campus support, built in</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">K–12</div>
+        <div class="stat-label">Purpose-built school workflows</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA band ───────────────────────────────────────────── -->
+<section class="block cta-band">
+  <div class="shell cta-inner">
+    <span class="eyebrow on-dark reveal" style="justify-content:center;"><span class="dot"></span> Get Started</span>
+    <h2 class="reveal" style="margin-top:0.85rem;">Ready to see it in action?</h2>
+    <p class="reveal">Request a live demo and we'll walk through how Belltower fits your school's workflow.</p>
+    <div class="hero-actions reveal">
+      <button class="btn btn-primary" onclick="openModal('Request a Demo')">
+        <i data-lucide="calendar-check"></i> Request a Demo
+      </button>
+      <a class="btn btn-ghost-dark" href="app/login.html"><i data-lucide="log-in"></i> Log in</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ─────────────────────────────────────────────── -->
+<footer>
+  <div class="shell">
+    <div class="footer-inner">
+      <img src="images/belltower-logo.png" alt="Belltower" />
+      <div class="footer-links">
+        <a href="#features">Features</a>
+        <a href="#why">Why Belltower</a>
+        <a href="app/login.html">Log in</a>
+        <a href="#" onclick="openModal('Request a Demo'); return false;">Request a Demo</a>
+      </div>
+    </div>
+    <div class="footer-copy">© 2026 Belltower · All Rights Reserved</div>
+  </div>
+</footer>
+
+<!-- ── Modal ──────────────────────────────────────────────── -->
+<div class="modal" id="emailModal">
+  <div class="modal-box">
+    <h2 id="modalTitle">Request a Demo</h2>
+    <p class="modal-lead">Tell us a little about your school and we'll be in touch shortly.</p>
+    <label for="name">Name</label>
+    <input id="name" placeholder="Your name" />
+    <label for="email">Email</label>
+    <input id="email" placeholder="you@school.org" />
+    <label for="message">Message <span style="font-weight:400;color:#94a3b8;">(optional)</span></label>
+    <textarea id="message" rows="3" placeholder="What would you like to see?"></textarea>
+    <div class="modal-actions">
+      <button class="cancel" onclick="closeModal()">Cancel</button>
+      <button class="submit" onclick="sendEmail()">Send</button>
+    </div>
+  </div>
+</div>
+
+<div id="tweak-root"></div>
+
+<!-- ── Scripts ────────────────────────────────────────────── -->
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="app/tweaks-panel.jsx"></script>
+
+<script>
+let modalContext = "";
+function openModal(type) {
+  modalContext = type;
+  document.getElementById("modalTitle").textContent = type;
+  document.getElementById("emailModal").classList.add("active");
+}
+function closeModal() {
+  document.getElementById("emailModal").classList.remove("active");
+}
+function sendEmail() {
+  const body =
+    `Request Type: ${modalContext}\n` +
+    `Name: ${document.getElementById('name').value}\n` +
+    `Email: ${document.getElementById('email').value}\n\n` +
+    document.getElementById('message').value;
+  window.location.href =
+    `mailto:jksigmon@gmail.com?subject=${encodeURIComponent(modalContext)}&body=${encodeURIComponent(body)}`;
+  closeModal();
+}
+document.getElementById('emailModal').addEventListener('click', (e) => {
+  if (e.target.id === 'emailModal') closeModal();
+});
+
+// Icons
+lucide.createIcons();
+
+// Reveal on scroll
+const observer = new IntersectionObserver(
+  entries => entries.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
+  }),
+  { threshold: 0.12 }
+);
+document.querySelectorAll('.reveal').forEach(el => {
+  // Reveal immediately if already in view on load (e.g. the hero) so
+  // above-the-fold content never depends on a scroll event.
+  if (el.getBoundingClientRect().top < window.innerHeight) {
+    el.classList.add('visible');
+  } else {
+    observer.observe(el);
+  }
+});
+</script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "heroStyle": "a",
+  "ctaAccent": "blue",
+  "animate": true
+}/*EDITMODE-END*/;
+
+function LandingTweaks() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  React.useEffect(() => {
+    document.body.dataset.hero = t.heroStyle;
+    // newly-shown hero may contain un-rendered icons / hidden reveals
+    if (window.lucide) lucide.createIcons();
+    document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
+  }, [t.heroStyle]);
+
+  React.useEffect(() => {
+    document.body.dataset.accent = t.ctaAccent;
+  }, [t.ctaAccent]);
+
+  React.useEffect(() => {
+    document.body.classList.toggle('no-anim', !t.animate);
+  }, [t.animate]);
+
+  return (
+    <TweaksPanel>
+      <TweakSection label="Hero treatment" />
+      <TweakRadio
+        label="Style"
+        value={t.heroStyle}
+        options={[
+          { value: 'a', label: 'Photo split' },
+          { value: 'b', label: 'Product' },
+        ]}
+        onChange={(v) => setTweak('heroStyle', v)}
+      />
+      <TweakSection label="Accent" />
+      <TweakColor
+        label="Primary buttons"
+        value={t.ctaAccent === 'blue' ? '#2563eb' : '#f59e0b'}
+        options={['#2563eb', '#f59e0b']}
+        onChange={(hex) => setTweak('ctaAccent', hex === '#2563eb' ? 'blue' : 'amber')}
+      />
+      <TweakSection label="Motion" />
+      <TweakToggle
+        label="Entrance animation"
+        value={t.animate}
+        onChange={(v) => setTweak('animate', v)}
+      />
+    </TweaksPanel>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('tweak-root')).render(<LandingTweaks />);
+</script>
+
+</body>
+</html>

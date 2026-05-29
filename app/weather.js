@@ -29,22 +29,27 @@ export async function loadWeather(elementId, lat, lon, timezone = 'America/New_Y
   try {
     const tz  = encodeURIComponent(timezone || 'America/New_York');
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-      `&daily=temperature_2m_max,temperature_2m_min,weathercode` +
+      `&current=temperature_2m,weathercode` +
+      `&daily=temperature_2m_max,temperature_2m_min` +
       `&temperature_unit=fahrenheit&timezone=${tz}&forecast_days=1`;
 
     const res = await fetch(url);
     const json = await res.json();
 
-    const code = json.daily.weathercode[0];
-    const high = Math.round(json.daily.temperature_2m_max[0]);
-    const low  = Math.round(json.daily.temperature_2m_min[0]);
-    const [icon, label] = WMO[code] ?? ['🌡️', 'Unknown'];
-    const href = `https://forecast.weather.gov/MapClick.php?lat=${lat}&lon=${lon}`;
+    const code    = json.current.weathercode;
+    const current = Math.round(json.current.temperature_2m);
+    const high    = Math.round(json.daily.temperature_2m_max[0]);
+    const low     = Math.round(json.daily.temperature_2m_min[0]);
+    const [icon]  = WMO[code] ?? ['🌡️', 'Unknown'];
+    const href    = `https://forecast.weather.gov/MapClick.php?lat=${lat}&lon=${lon}`;
 
     el.innerHTML = `
-      <a href="${href}" target="_blank" rel="noopener" class="dash-weather-link">
-        <div class="dash-weather-main">${icon} ${label}</div>
-        <div class="dash-weather-range">H: ${high}° &nbsp; L: ${low}°</div>
+      <a href="${href}" target="_blank" rel="noopener" class="dash-header-weather">
+        <span class="dash-header-wx-icon">${icon}</span>
+        <span>
+          <span class="dash-header-wx-temp">${current}°</span>
+          <span class="dash-header-wx-range">H ${high}° · L ${low}°</span>
+        </span>
       </a>
     `;
   } catch {

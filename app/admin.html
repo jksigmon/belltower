@@ -26,9 +26,6 @@
     <button id="hamburgerBtn" class="hamburger-btn" aria-label="Open navigation">
       <span></span><span></span><span></span>
     </button>
-  </div>
-
-  <div class="page-header">
     <img
       src="/images/belltower-logo.png"
       alt="Belltower"
@@ -37,6 +34,7 @@
   </div>
 
   <div class="header-actions">
+    <div id="dashWeather"></div>
     <!-- School switcher — populated and shown by JS for superadmins only -->
     <div id="schoolSwitcherWrap" class="school-switcher-wrap" hidden>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -121,12 +119,19 @@
   <div class="dash-banner">
     <div class="dash-banner-inner">
       <div>
-        <div class="dash-banner-greeting" id="dashGreeting"></div>
+        <div class="dash-banner-greeting">
+          <span class="dash-banner-dot"></span>
+          <span id="dashGreeting"></span>
+        </div>
         <div class="dash-banner-name" id="dashboardUser"></div>
-        <div class="dash-banner-school" id="dashboardSchool"></div>
+        <div class="dash-banner-meta">
+          <span class="dash-banner-chip" id="dashboardSchool"><i data-lucide="building-2"></i></span>
+          <span class="dash-banner-chip" id="dashboardRole"><i data-lucide="shield-check"></i></span>
+        </div>
       </div>
-      <div class="dash-banner-date" id="dashBannerDate"></div>
-      <div class="dash-banner-weather" id="dashWeather"></div>
+      <div class="dash-banner-right">
+        <div class="dash-banner-date" id="dashBannerDate"></div>
+      </div>
     </div>
   </div>
 
@@ -134,13 +139,13 @@
 
   <!-- Quick Actions (JS-gated) -->
   <div class="dash-section" id="dashQuickActions" style="display:none;">
-    <div class="dash-section-title">Quick Actions</div>
+    <div class="dash-section-head"><span class="dash-section-eyebrow">Quick Actions</span><span class="dash-section-rule"></span></div>
     <div class="dash-actions-row" id="dashActionsRow"></div>
   </div>
 
   <!-- Today's Alerts (JS-gated) -->
   <div class="dash-section" id="dashAlertsSection" style="display:none;">
-    <div class="dash-section-title">Today's Alerts</div>
+    <div class="dash-section-head"><span class="dash-section-eyebrow">Today's Alerts</span><span class="dash-section-rule"></span></div>
     <div class="dash-alerts-panel">
       <div id="dashAlertsAllClear" class="dash-alert-clear" style="display:none;">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -152,122 +157,122 @@
 
   <!-- Needs Attention (JS-gated) — birthdays follow immediately below -->
   <div class="dash-section" id="dashAttention" style="display:none;">
-    <div class="dash-section-title">Needs Attention</div>
+    <div class="dash-section-head"><span class="dash-section-eyebrow">Needs Attention</span><span class="dash-section-rule"></span></div>
     <div class="stat-grid">
       <a href="/app/pto.html#pending" class="stat stat-alert" id="dashPtoPending" style="display:none;" data-accent="red">
-        <i data-lucide="calendar-clock" class="stat-icon"></i>
-        <strong id="statPtoPending">–</strong>
-        <span>Pending PTO</span>
+        <span class="stat-chip"><i data-lucide="calendar-clock"></i></span>
+        <strong id="statPtoPending" class="stat-num">–</strong>
+        <span class="stat-label">Pending PTO</span>
       </a>
       <a href="/app/pto.html#cancellations" class="stat stat-alert" id="dashPtoCancels" style="display:none;" data-accent="orange">
-        <i data-lucide="calendar-x" class="stat-icon"></i>
-        <strong id="statPtoCancels">–</strong>
-        <span>PTO Cancellations</span>
+        <span class="stat-chip"><i data-lucide="calendar-x"></i></span>
+        <strong id="statPtoCancels" class="stat-num">–</strong>
+        <span class="stat-label">PTO Cancellations</span>
       </a>
       <a href="/app/pto.html#calendar" class="stat stat-info" id="dashStaffOut" style="display:none;" data-accent="blue">
-        <i data-lucide="user-minus" class="stat-icon"></i>
-        <strong id="statStaffOut">–</strong>
-        <span>Staff Out Today</span>
+        <span class="stat-chip"><i data-lucide="user-minus"></i></span>
+        <strong id="statStaffOut" class="stat-num">–</strong>
+        <span class="stat-label">Staff Out Today</span>
       </a>
       <a href="/app/substitutes.html" class="stat stat-alert" id="dashSubUnassigned" style="display:none;" data-accent="red">
-        <i data-lucide="alert-triangle" class="stat-icon"></i>
-        <strong id="statSubUnassigned">–</strong>
-        <span>Unassigned Coverage</span>
+        <span class="stat-chip"><i data-lucide="alert-triangle"></i></span>
+        <strong id="statSubUnassigned" class="stat-num">–</strong>
+        <span class="stat-label">Unassigned Coverage</span>
       </a>
       <a href="/app/substitutes.html" class="stat stat-info" id="dashSubToday" style="display:none;" data-accent="blue">
-        <i data-lucide="user-check" class="stat-icon"></i>
-        <strong id="statSubToday">–</strong>
-        <span>Sub Assignments Today</span>
+        <span class="stat-chip"><i data-lucide="user-check"></i></span>
+        <strong id="statSubToday" class="stat-num">–</strong>
+        <span class="stat-label">Sub Assignments Today</span>
       </a>
       <a href="/app/substitutes.html#cancellations" class="stat stat-alert" id="dashSubCancellations" style="display:none;" data-accent="orange">
-        <i data-lucide="x-circle" class="stat-icon"></i>
-        <strong id="statSubCancellations">–</strong>
-        <span>Pending Sub Cancellations</span>
+        <span class="stat-chip"><i data-lucide="x-circle"></i></span>
+        <strong id="statSubCancellations" class="stat-num">–</strong>
+        <span class="stat-label">Pending Sub Cancellations</span>
       </a>
       <a href="/app/licensure.html" class="stat stat-alert" id="dashLicExpiring" style="display:none;" data-accent="amber">
-        <i data-lucide="shield-alert" class="stat-icon"></i>
-        <strong id="statLicExpiring">–</strong>
-        <span>Licenses Expiring (30d)</span>
+        <span class="stat-chip"><i data-lucide="shield-alert"></i></span>
+        <strong id="statLicExpiring" class="stat-num">–</strong>
+        <span class="stat-label">Licenses Expiring (30d)</span>
       </a>
       <a href="/app/compliance.html#bgchecks" class="stat stat-alert" id="dashBgPending" style="display:none;" data-accent="red">
-        <i data-lucide="user-check" class="stat-icon"></i>
-        <strong id="statBgPending">–</strong>
-        <span>Pending BG Checks</span>
+        <span class="stat-chip"><i data-lucide="user-check"></i></span>
+        <strong id="statBgPending" class="stat-num">–</strong>
+        <span class="stat-label">Pending BG Checks</span>
       </a>
       <a href="/app/compliance.html#agreements" class="stat stat-alert" id="dashAgreementsExpiring" style="display:none;" data-accent="amber">
-        <i data-lucide="file-warning" class="stat-icon"></i>
-        <strong id="statAgreementsExpiring">–</strong>
-        <span>Agreements Expiring (30d)</span>
+        <span class="stat-chip"><i data-lucide="file-warning"></i></span>
+        <strong id="statAgreementsExpiring" class="stat-num">–</strong>
+        <span class="stat-label">Agreements Expiring (30d)</span>
       </a>
     </div>
   </div>
 
   <div class="dash-section" id="dashBirthdays" style="display:none;">
-    <div class="dash-section-title">Upcoming Birthdays</div>
+    <div class="dash-section-head"><span class="dash-section-eyebrow">Upcoming Birthdays 🎂</span><span class="dash-section-rule"></span></div>
     <div id="dashBirthdayList" class="staff-dash-list"></div>
   </div>
 
   <!-- Status (JS-gated) -->
   <div class="dash-section" id="dashStatus" style="display:none;">
-    <div class="dash-section-title">Status</div>
+    <div class="dash-section-head"><span class="dash-section-eyebrow">Status</span><span class="dash-section-rule"></span></div>
     <div class="stat-grid">
-      <a href="/app/carline-input.html" class="stat" id="dashCarline" style="display:none;">
-        <i data-lucide="car" class="stat-icon"></i>
-        <strong id="statCarlineStatus">–</strong>
+      <a href="/app/carline-input.html" class="stat stat-wide" id="dashCarline" style="display:none;" data-accent="green">
+        <span class="stat-chip"><i data-lucide="car"></i></span>
+        <strong id="statCarlineStatus" class="stat-num">–</strong>
         <span id="statCarlineTime" class="stat-sub"></span>
         <span id="statCarlineDismissed" class="stat-sub"></span>
         <span id="statCarlineIssues" class="stat-sub"></span>
-        <span style="margin-top:6px;">Carline Today</span>
+        <span class="stat-label" style="margin-top:6px;">Carline Today</span>
       </a>
       <div class="stat" id="dashActiveStaff" style="display:none;" data-accent="blue">
-        <i data-lucide="users" class="stat-icon"></i>
-        <strong id="statActiveStaff">–</strong>
-        <span id="statActiveStaffSub"></span>
-        <span>Staff</span>
+        <span class="stat-chip"><i data-lucide="users"></i></span>
+        <strong id="statActiveStaff" class="stat-num">–</strong>
+        <span id="statActiveStaffSub" class="stat-sub-line"></span>
+        <span class="stat-label">Staff</span>
       </div>
     </div>
   </div>
 
   <!-- Directory counts -->
   <div class="dash-section">
-    <div class="dash-section-title">Directory</div>
+    <div class="dash-section-head"><span class="dash-section-eyebrow">Directory</span><span class="dash-section-rule"></span></div>
     <div class="stat-grid">
       <a href="#students" class="stat dash-stat-link" data-accent="blue">
-        <i data-lucide="graduation-cap" class="stat-icon"></i>
-        <strong id="statStudents" class="skeleton stat-skel"></strong>
-        <span>Students</span>
+        <span class="stat-chip"><i data-lucide="graduation-cap"></i></span>
+        <strong id="statStudents" class="stat-num skeleton stat-skel"></strong>
+        <span class="stat-label">Students</span>
       </a>
       <a href="#staff" class="stat dash-stat-link" data-accent="blue">
-        <i data-lucide="users" class="stat-icon"></i>
-        <strong id="statStaff" class="skeleton stat-skel"></strong>
-        <span id="statStaffLabel">Staff</span>
+        <span class="stat-chip"><i data-lucide="users"></i></span>
+        <strong id="statStaff" class="stat-num skeleton stat-skel"></strong>
+        <span class="stat-label" id="statStaffLabel">Staff</span>
       </a>
       <a href="#families" class="stat dash-stat-link" data-accent="blue">
-        <i data-lucide="home" class="stat-icon"></i>
-        <strong id="statFamilies" class="skeleton stat-skel"></strong>
-        <span>Families</span>
+        <span class="stat-chip"><i data-lucide="home"></i></span>
+        <strong id="statFamilies" class="stat-num skeleton stat-skel"></strong>
+        <span class="stat-label">Families</span>
       </a>
       <a href="#bus" class="stat dash-stat-link" data-accent="blue">
-        <i data-lucide="bus" class="stat-icon"></i>
-        <strong id="statBusGroups" class="skeleton stat-skel"></strong>
-        <span>Bus Groups</span>
+        <span class="stat-chip"><i data-lucide="bus"></i></span>
+        <strong id="statBusGroups" class="stat-num skeleton stat-skel"></strong>
+        <span class="stat-label">Bus Groups</span>
       </a>
     </div>
   </div>
 
   <!-- Data Health (JS-gated) -->
   <div class="dash-section" id="dashHealth" style="display:none;">
-    <div class="dash-section-title">Data Health</div>
+    <div class="dash-section-head"><span class="dash-section-eyebrow">Data Health</span><span class="dash-section-rule"></span></div>
     <div class="stat-grid">
       <a href="#students" class="stat stat-warn" id="dashNoFamily" style="display:none;" data-accent="amber">
-        <i data-lucide="user-x" class="stat-icon"></i>
-        <strong id="statNoFamily">–</strong>
-        <span>Students Without Family</span>
+        <span class="stat-chip"><i data-lucide="user-x"></i></span>
+        <strong id="statNoFamily" class="stat-num">–</strong>
+        <span class="stat-label">Students Without Family</span>
       </a>
       <a href="#staff" class="stat stat-warn" id="dashNoSupervisor" style="display:none;" data-accent="amber">
-        <i data-lucide="user-x" class="stat-icon"></i>
-        <strong id="statNoSupervisor">–</strong>
-        <span>Staff Without Supervisor</span>
+        <span class="stat-chip"><i data-lucide="user-x"></i></span>
+        <strong id="statNoSupervisor" class="stat-num">–</strong>
+        <span class="stat-label">Staff Without Supervisor</span>
       </a>
     </div>
   </div>
@@ -2304,7 +2309,7 @@
 <!-- =============================================
      REQUESTS DRAWERS
      ============================================= -->
-<div id="reqCatDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Request Form Editor">
+<div id="reqCatDrawer" class="drawer drawer-wide" role="dialog" aria-modal="true" aria-label="Request Form Editor">
   <div class="drawer-header">
     <span id="reqCatDrawerTitle" style="font-size:1.05rem;font-weight:700;">New Request Form</span>
     <button class="drawer-close" id="reqCatDrawerClose">✕</button>

@@ -47,14 +47,30 @@ const { data: profile, error } = await supabase
   document.getElementById('dashboardUser').textContent =
     currentProfile.display_name ?? currentProfile.email;
 
-  document.getElementById('dashboardSchool').textContent =
-    profile.schools?.name ?? '';
+  const schoolEl = document.getElementById('dashboardSchool');
+  if (schoolEl) {
+    const schoolName = profile.schools?.name ?? '';
+    schoolEl.innerHTML = `<i data-lucide="building-2"></i>${schoolName}`;
+    schoolEl.style.display = schoolName ? '' : 'none';
+  }
+
+  const roleEl = document.getElementById('dashboardRole');
+  if (roleEl) {
+    const roleLabel = profile.is_superadmin ? 'Super Admin'
+      : profile.role === 'admin' ? 'Administrator'
+      : profile.role === 'front office' ? 'Front Office'
+      : 'Staff';
+    roleEl.innerHTML = `<i data-lucide="shield-check"></i>${roleLabel}`;
+  }
+
+  if (window.lucide) lucide.createIcons({ el: document.querySelector('.dash-banner') });
 
   const bannerDateEl = document.getElementById('dashBannerDate');
   if (bannerDateEl) {
-    bannerDateEl.textContent = new Date().toLocaleDateString('en-US', {
-      weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
-    });
+    const now = new Date();
+    const dayName  = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const fullDate = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    bannerDateEl.innerHTML = `<span class="dash-banner-date-day">${dayName}</span><span class="dash-banner-date-full">${fullDate}</span>`;
   }
 
   loadWeather('dashWeather', profile.schools?.weather_lat, profile.schools?.weather_lon, profile.schools?.timezone);
@@ -238,17 +254,11 @@ async function loadDashboardStats() {
 
   const set  = (id, val) => { const el = document.getElementById(id); if (el) { el.textContent = val; el.classList.remove('skeleton', 'stat-skel'); } };
   const show = id => { const el = document.getElementById(id); if (el) el.style.display = ''; };
-  // For action-required cards: ✓ + green when 0, red when > 0
-  const setAlert = (statId, cardId, count) => {
-    const card = document.getElementById(cardId);
-    const num  = document.getElementById(statId);
+  const setAlert = (statId, _cardId, count) => {
+    const num = document.getElementById(statId);
     if (!num) return;
-    num.textContent = count > 0 ? count : '✓';
+    num.textContent = count;
     num.classList.remove('skeleton', 'stat-skel');
-    if (card) {
-      card.classList.toggle('stat-alert', count > 0);
-      card.classList.toggle('stat-ok',    count === 0);
-    }
   };
 
   // ── Build all queries synchronously based on capabilities ─────────
@@ -385,11 +395,11 @@ async function loadDashboardStats() {
   const isAdmin = p.is_superadmin || p.can_access_admin || p.can_manage_access;
   const row = document.getElementById('dashActionsRow');
   const actions = [];
-  if (isAdmin) actions.push({ label: 'Add Student', icon: 'user-plus', href: '#students', variant: 'primary' });
-  if (isAdmin) actions.push({ label: 'Add Staff',   icon: 'user-plus', href: '#staff',    variant: 'primary' });
-  if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: 'PTO', icon: 'calendar', href: '/app/pto.html', variant: 'secondary' });
+  if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: 'Start Carline', icon: 'car', href: '/app/carline-input.html', variant: 'amber' });
+  if (isAdmin) actions.push({ label: 'Add Student', icon: 'graduation-cap', href: '#students', variant: 'secondary' });
+  if (isAdmin) actions.push({ label: 'Add Staff',   icon: 'user-plus', href: '#staff',    variant: 'secondary' });
+  if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: 'Review PTO', icon: 'calendar-check', href: '/app/pto.html', variant: 'secondary' });
   if (moduleEnabled('substitutes') && p.can_manage_substitutes) actions.push({ label: 'Substitutes', icon: 'repeat-2', href: '/app/substitutes.html', variant: 'secondary' });
-  if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: 'Carline', icon: 'car', href: '/app/carline-input.html', variant: 'secondary' });
   if (row && actions.length) {
     row.innerHTML = '';
     actions.forEach(({ label, icon, href, variant }) => {
@@ -526,16 +536,19 @@ async function loadDashboardStats() {
       const buildLi = s => {
         const isToday    = s.daysLeft === 0;
         const when       = isToday ? 'Today!' : s.daysLeft === 1 ? 'Tomorrow' : `In ${s.daysLeft} days`;
-        const secondary  = s.type === 'student' ? `Turning ${s.age} — ${fmtBday(s.bday)}` : fmtBday(s.bday);
-        const badgeBg    = s.type === 'staff' ? '#dbeafe' : '#fef9c3';
-        const badgeColor = s.type === 'staff' ? '#1e40af' : '#713f12';
-        const prefix     = s.type === 'staff' ? 'Staff · ' : '';
+        const secondary  = s.type === 'student' ? `Turning ${s.age} · ${fmtBday(s.bday)}` : fmtBday(s.bday);
+        const initials   = s.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
+        const roleLabel  = s.type === 'staff' ? 'Staff' : `Student`;
         const li = document.createElement('li');
         li.className = 'staff-dash-request-row';
+        li.style.cssText = 'background:rgba(255,255,255,0.75);border-left:3px solid #f59e0b;border-radius:10px;';
         li.innerHTML = `
-          <span class="staff-dash-req-type">${esc(s.name)}</span>
-          <span class="staff-dash-req-dates">${secondary}</span>
-          <span class="staff-dash-req-badge${isToday ? ' bday-today' : ''}" style="background:${badgeBg};color:${badgeColor};">${prefix}${when}</span>
+          <span class="dash-bday-av">${esc(initials)}</span>
+          <span style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:0.875rem;color:#1e293b;">${esc(s.name)}</div>
+            <div style="font-size:0.75rem;color:#94a3b8;">${esc(roleLabel)} · ${esc(secondary)}</div>
+          </span>
+          <span class="staff-dash-req-badge${isToday ? ' bday-today' : ''}" style="background:#fef08a;color:#92400e;">${when}</span>
         `;
         return li;
       };
@@ -666,6 +679,7 @@ async function loadDashboardStats() {
       });
     });
 
+    const levelIcon = { red: 'alert-triangle', amber: 'shield-alert', blue: 'calendar-clock' };
     const list = document.getElementById('dashAlertsList');
     const allClear = document.getElementById('dashAlertsAllClear');
     if (alerts.length === 0) {
@@ -673,11 +687,12 @@ async function loadDashboardStats() {
     } else {
       list.innerHTML = alerts.map(a =>
         `<a href="${a.href}" class="dash-alert-item">` +
-        `<span class="dash-alert-dot dash-alert-dot--${a.level}"></span>` +
+        `<span class="dash-alert-icon dash-alert-icon--${a.level}"><i data-lucide="${levelIcon[a.level] || 'info'}"></i></span>` +
         `<span class="dash-alert-text">${a.text}</span>` +
         `<span class="dash-alert-link">View →</span>` +
         `</a>`
       ).join('');
+      if (window.lucide) lucide.createIcons({ el: list });
     }
     show('dashAlertsSection');
   }

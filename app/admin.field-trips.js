@@ -105,7 +105,7 @@ function showListView() {
   document.getElementById('ftListView').style.display  = '';
   document.getElementById('ftDetailView').style.display = 'none';
   currentTrip = null;
-  document.getElementById('pageSubtitle').textContent = 'Field Trips';
+  const _sub1 = document.getElementById('pageSubtitle'); if (_sub1) _sub1.textContent = 'Field Trips';
 }
 
 function showDetailView() {
@@ -269,7 +269,7 @@ async function openTrip(id) {
   currentTrip = trip;
 
   showDetailView();
-  document.getElementById('pageSubtitle').textContent = trip.name;
+  const _sub2 = document.getElementById('pageSubtitle'); if (_sub2) _sub2.textContent = trip.name;
 
   paymentsLoaded = false;
   paymentCache   = [];

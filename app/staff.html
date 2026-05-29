@@ -658,18 +658,15 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
      class="btn btn-admin back-to-admin" aria-label="Admin home">
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
   </a>
-</div>
-
-<div class="page-header">
   <img
     src="/images/belltower-logo.png"
     alt="Belltower"
     class="admin-logo"
   />
-  <div class="page-subtitle" id="pageSubtitle"></div>
 </div>
 
 <div class="header-actions">
+  <div id="staffDashWeather"></div>
   <div class="user-menu" id="userMenu">
     <button class="user-avatar" id="userAvatar" aria-label="Account menu" aria-expanded="false">
       <span id="userInitials"></span>
@@ -720,39 +717,46 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
     <div class="dash-banner">
       <div class="dash-banner-inner">
         <div>
-          <div class="dash-banner-greeting" id="staffDashGreeting"></div>
+          <div class="dash-banner-greeting">
+            <span class="dash-banner-dot"></span>
+            <span id="staffDashGreeting"></span>
+          </div>
           <div class="dash-banner-name" id="staffDashName"></div>
-          <div class="dash-banner-school" id="staffDashSchool"></div>
+          <div class="dash-banner-meta">
+            <span class="dash-banner-chip" id="staffDashSchool"><i data-lucide="building-2"></i></span>
+            <span class="dash-banner-chip" id="staffDashRole"><i data-lucide="shield-check"></i></span>
+          </div>
         </div>
-        <div class="dash-banner-date" id="staffDashDate"></div>
-        <div class="dash-banner-weather" id="staffDashWeather"></div>
+        <div class="dash-banner-right">
+          <div class="dash-banner-date" id="staffDashDate"></div>
+        </div>
       </div>
     </div>
 
     <div id="staffDashGrid">
 
       <div class="dash-section" id="staffDashActions" style="display:none;">
-        <div class="dash-section-title">Quick Actions</div>
+        <div class="dash-section-head"><span class="dash-section-eyebrow">Quick Actions</span><span class="dash-section-rule"></span></div>
         <div class="dash-actions-row" id="staffDashActionsRow"></div>
       </div>
 
       <div class="dash-section" id="staffDashBirthdays" style="display:none;">
-        <div class="dash-section-title">Upcoming Birthdays</div>
+        <div class="dash-section-head"><span class="dash-section-eyebrow">Upcoming Birthdays 🎂</span><span class="dash-section-rule"></span></div>
         <div id="staffDashBirthdayList" class="staff-dash-list"></div>
       </div>
 
       <div class="dash-section" id="staffDashBalances" style="display:none;">
-        <div class="dash-section-title">PTO Balances</div>
+        <div class="dash-section-head"><span class="dash-section-eyebrow">PTO Balances</span><span class="dash-section-rule"></span></div>
         <div class="stat-grid" id="staffDashBalanceGrid"></div>
       </div>
 
       <div class="dash-section" id="staffDashRequests" style="display:none;">
-        <div class="dash-section-title">Upcoming Requests</div>
+        <div class="dash-section-head"><span class="dash-section-eyebrow">Upcoming Requests</span><span class="dash-section-rule"></span></div>
         <div id="staffDashRequestList" class="staff-dash-list"></div>
       </div>
 
       <div class="dash-section" id="staffDashLicenses" style="display:none;">
-        <div class="dash-section-title">License Alerts</div>
+        <div class="dash-section-head"><span class="dash-section-eyebrow">License Alerts</span><span class="dash-section-rule"></span></div>
         <div id="staffDashLicenseList" class="staff-dash-list"></div>
       </div>
 
@@ -1338,10 +1342,29 @@ async function loadStaffDashboard() {
   const staffGreeting = staffHour < 12 ? 'Good morning,' : staffHour < 17 ? 'Good afternoon,' : 'Good evening,';
   document.getElementById('staffDashGreeting').textContent = staffGreeting;
   document.getElementById('staffDashName').textContent = p.display_name ?? p.email ?? '';
-  document.getElementById('staffDashSchool').textContent = p.schools?.name ?? '';
-  document.getElementById('staffDashDate').textContent = new Date().toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
-  });
+
+  const staffSchoolEl = document.getElementById('staffDashSchool');
+  if (staffSchoolEl) {
+    const sName = p.schools?.name ?? '';
+    staffSchoolEl.innerHTML = `<i data-lucide="building-2"></i>${sName}`;
+    staffSchoolEl.style.display = sName ? '' : 'none';
+  }
+  const staffRoleEl = document.getElementById('staffDashRole');
+  if (staffRoleEl) {
+    const rLabel = p.role === 'admin' ? 'Administrator'
+      : p.role === 'front office' ? 'Front Office'
+      : 'Staff';
+    staffRoleEl.innerHTML = `<i data-lucide="shield-check"></i>${rLabel}`;
+  }
+  if (window.lucide) lucide.createIcons({ el: document.querySelector('.dash-banner') });
+
+  const staffDateEl = document.getElementById('staffDashDate');
+  if (staffDateEl) {
+    const now = new Date();
+    const dayName  = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const fullDate = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    staffDateEl.innerHTML = `<span class="dash-banner-date-day">${dayName}</span><span class="dash-banner-date-full">${fullDate}</span>`;
+  }
 
   const in90 = new Date();
   in90.setDate(in90.getDate() + 90);
@@ -1513,17 +1536,19 @@ async function loadStaffDashboard() {
     if (upcoming.length > 0) {
       var fmtBday = function (d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
       document.getElementById('staffDashBirthdayList').innerHTML = upcoming.map(function (item) {
-        var when = item.daysLeft === 0 ? 'Today!' : item.daysLeft === 1 ? 'Tomorrow' : 'in ' + item.daysLeft + ' days';
+        var when = item.daysLeft === 0 ? 'Today!' : item.daysLeft === 1 ? 'Tomorrow' : 'In ' + item.daysLeft + ' days';
         var secondary = item.type === 'student'
-          ? 'Turning ' + item.age + ' — ' + fmtBday(item.bday)
+          ? 'Turning ' + item.age + ' · ' + fmtBday(item.bday)
           : fmtBday(item.bday);
-        var badgeBg    = item.type === 'staff' ? '#dbeafe' : '#fef9c3';
-        var badgeColor = item.type === 'staff' ? '#1e40af' : '#713f12';
-        var prefix     = item.type === 'staff' ? 'Staff · ' : '';
-        return '<div class="staff-dash-request-row">' +
-          '<span class="staff-dash-req-type">' + item.name + '</span>' +
-          '<span class="staff-dash-req-dates">' + secondary + '</span>' +
-          '<span class="staff-dash-req-badge' + (item.daysLeft === 0 ? ' bday-today' : '') + '" style="background:' + badgeBg + ';color:' + badgeColor + ';">' + prefix + when + '</span>' +
+        var roleLabel = item.type === 'staff' ? 'Staff' : 'Student';
+        var initials = item.name.split(' ').map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
+        return '<div class="staff-dash-request-row" style="background:rgba(255,255,255,0.75);border-left:3px solid #f59e0b;border-radius:10px;">' +
+          '<span class="dash-bday-av">' + initials + '</span>' +
+          '<span style="flex:1;min-width:0;">' +
+          '<div style="font-weight:600;font-size:0.875rem;color:#1e293b;">' + item.name + '</div>' +
+          '<div style="font-size:0.75rem;color:#94a3b8;">' + roleLabel + ' · ' + secondary + '</div>' +
+          '</span>' +
+          '<span class="staff-dash-req-badge' + (item.daysLeft === 0 ? ' bday-today' : '') + '" style="background:#fef08a;color:#92400e;">' + when + '</span>' +
           '</div>';
       }).join('');
       document.getElementById('staffDashBirthdays').style.display = '';
@@ -1634,13 +1659,15 @@ function setActive(hash) {
   history.replaceState(null, '', hash);
 
   const subtitle = document.getElementById('pageSubtitle');
-  if (hash === '#dashboard')          subtitle.textContent = '';
-  if (hash === '#pto')                subtitle.textContent = 'PTO & Leave';
-  if (hash === '#licensure')          subtitle.textContent = 'My Licenses';
-  if (hash === '#bg-checks')          subtitle.textContent = 'Background Checks';
-  if (hash === '#compliance-report')  subtitle.textContent = 'Compliance Report';
-  if (hash === '#access-request')     subtitle.textContent = 'Request Access';
-  if (hash === '#data-collection')    subtitle.textContent = 'Form Links';
+  if (subtitle) {
+    if (hash === '#dashboard')          subtitle.textContent = '';
+    if (hash === '#pto')                subtitle.textContent = 'PTO & Leave';
+    if (hash === '#licensure')          subtitle.textContent = 'My Licenses';
+    if (hash === '#bg-checks')          subtitle.textContent = 'Background Checks';
+    if (hash === '#compliance-report')  subtitle.textContent = 'Compliance Report';
+    if (hash === '#access-request')     subtitle.textContent = 'Request Access';
+    if (hash === '#data-collection')    subtitle.textContent = 'Form Links';
+  }
 
   document.querySelectorAll('nav a').forEach(function (a) {
     a.classList.toggle('active', a.getAttribute('href') === hash);
