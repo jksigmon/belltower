@@ -1581,8 +1581,9 @@ async function initStaff() {
   const backToAdmin = document.getElementById('backToAdmin');
   function cameFromAdminContext() {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('from') === 'admin') return true;
-    return window.location.hash.includes('from=admin');
+    if (params.get('from') === 'admin') { sessionStorage.setItem('bt_from_admin', '1'); return true; }
+    if (window.location.hash.includes('from=admin')) { sessionStorage.setItem('bt_from_admin', '1'); return true; }
+    return sessionStorage.getItem('bt_from_admin') === '1';
   }
   if (backToAdmin && cameFromAdminContext() && hasAdminAccess(currentProfile)) {
     backToAdmin.style.visibility = 'visible';
@@ -3090,6 +3091,7 @@ initStaff();
 
   
   document.getElementById('signOut')?.addEventListener('click', async () => {
+  sessionStorage.removeItem('bt_from_admin');
   await supabase.auth.signOut();
   window.location.href = '/login.html';
 });
