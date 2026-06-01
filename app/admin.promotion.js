@@ -168,7 +168,7 @@ async function loadPromotionPreview() {
 
   let query = supabase
     .from('students')
-    .select('id, first_name, last_name, grade_level, student_number')
+    .select('id, first_name, last_name, grade_level, student_number, is_retained')
     .eq('school_id', _profile.school_id)
     .eq('active', true)
     .order('last_name');
@@ -192,7 +192,8 @@ async function loadPromotionPreview() {
 
   _students.forEach(s => {
     if (!s.grade_level) return; // null-grade students get no default action — they'll be skipped
-    _actionMap[s.id] = isTerminalGrade(s.grade_level, _schoolConfig) ? 'graduate' : 'promote';
+    if (s.is_retained) _actionMap[s.id] = 'retain';
+    else _actionMap[s.id] = isTerminalGrade(s.grade_level, _schoolConfig) ? 'graduate' : 'promote';
   });
 
   // Update run button year label
@@ -458,11 +459,11 @@ async function runPromotion(year) {
     if (error) errors.push(error);
   }
 
-  // Retain
+  // Retain — set retained flag, clear the pre-flag so it doesn't carry into next year
   if (toRetain.length) {
     const { error } = await supabase
       .from('students')
-      .update({ retained: true })
+      .update({ retained: true, is_retained: false })
       .eq('school_id', _profile.school_id)
       .in('id', toRetain.map(s => s.id));
     if (error) errors.push(error);

@@ -4447,6 +4447,7 @@ a.staff-dash-request-row:hover {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  margin-top: 20px;
 }
 
 .confirm-modal-actions .btn-primary {

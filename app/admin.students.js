@@ -51,6 +51,7 @@ export async function initStudentsSection(profile) {
         family_id,
         active,
         is_retained,
+        retained,
         birthdate,
         withdrawn_at,
         withdrawal_reason,
@@ -180,7 +181,9 @@ function renderStudentRow(r) {
   const initials = `${r.first_name?.[0] ?? ''}${r.last_name?.[0] ?? ''}`.toUpperCase();
   const color    = getAvatarColor((r.first_name ?? '') + (r.last_name ?? ''));
   const inactive  = r.active ? '' : '<span class="staff-inactive-badge">Inactive</span>';
-  const retained  = r.is_retained ? '<span class="student-retained-badge">Retained</span>' : '';
+  const retained  = r.retained    ? '<span class="student-retained-badge">Retained</span>'
+                 : r.is_retained  ? '<span class="student-retained-badge">Retention Flagged</span>'
+                 : '';
 
   const familyLabel = r.families
     ? `${r.families.carline_tag_number ? '#' + r.families.carline_tag_number + ' · ' : ''}${r.families.family_name ?? ''}`
@@ -248,6 +251,8 @@ async function openEditStudentDrawer(r) {
   document.getElementById('estuNumber').value     = r.student_number ?? '';
   document.getElementById('estuBirthdate').value  = r.birthdate ?? '';
   document.getElementById('estuRetained').checked = !!r.is_retained;
+  const retainedNotice = document.getElementById('estuRetainedNotice');
+  if (retainedNotice) retainedNotice.hidden = !r.retained;
   document.getElementById('estuActive').checked   = !!r.active;
 
   // Withdrawal state

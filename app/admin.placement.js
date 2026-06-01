@@ -276,7 +276,7 @@ async function loadBoardData(sessionId) {
       ? supabase.from('employees').select('id, first_name, last_name').in('id', teacherIds)
       : Promise.resolve({ data: [] }),
     studentIds.length
-      ? supabase.from('students').select('id, first_name, last_name, student_number, homeroom_teacher_id').in('id', studentIds)
+      ? supabase.from('students').select('id, first_name, last_name, student_number, homeroom_teacher_id, is_retained').in('id', studentIds)
       : Promise.resolve({ data: [] }),
     studentIds.length
       ? supabase.from('student_placement_flags').select('student_id, flag_id').in('student_id', studentIds)
@@ -502,6 +502,7 @@ function buildCard(student) {
 
   card.innerHTML = `
     <div class="placement-card-name">${esc(student.last_name)}, ${esc(student.first_name)}</div>
+    ${student.is_retained ? `<span class="student-retained-badge">Retained</span>` : ''}
     ${homeroomName ? `<div class="placement-card-homeroom">${esc(homeroomName)}</div>` : ''}
     <div class="placement-card-footer">
       <div class="placement-flag-dots" data-dots-for="${student.id}"></div>
@@ -1030,13 +1031,23 @@ async function confirmUndoCommit() {
   if (!_session || _session.status !== 'committed') return;
 
   const placed = Object.values(_assignments).filter(v => v != null).length;
-  const confirmed = confirm(
-    `Undo commit for "${_session.label}"?\n\n` +
-    `This will restore the previous homeroom teacher for ${placed} student${placed !== 1 ? 's' : ''} and revert the session to Draft.\n\n` +
-    `Students who had no homeroom teacher before this commit will be set back to none.`
-  );
-  if (!confirmed) return;
-  await runUndoCommit();
+  const modal     = document.getElementById('undoCommitConfirmModal');
+  const body      = document.getElementById('undoCommitConfirmBody');
+  const okBtn     = document.getElementById('undoCommitConfirmOkBtn');
+  const cancelBtn = document.getElementById('undoCommitConfirmCancelBtn');
+
+  body.innerHTML =
+    `<p style="margin:0 0 10px;">This will restore the previous homeroom teacher for <strong>${placed} student${placed !== 1 ? 's' : ''}</strong> and revert <strong>${esc(_session.label)}</strong> to Draft.</p>` +
+    `<p style="margin:0;color:#6b7280;font-size:13px;">Students who had no homeroom teacher before this commit will be set back to none.</p>`;
+
+  modal.hidden = false;
+
+  const cleanup = () => { modal.hidden = true; okBtn.removeEventListener('click', onOk); cancelBtn.removeEventListener('click', onCancel); };
+  const onOk = async () => { cleanup(); await runUndoCommit(); };
+  const onCancel = () => cleanup();
+
+  okBtn.addEventListener('click', onOk);
+  cancelBtn.addEventListener('click', onCancel);
 }
 
 async function runUndoCommit() {
@@ -1260,51 +1271,81 @@ async function confirmCommit() {
   const unplaced = _students.length - placed;
   const warnings = validatePlacement();
 
-  const warningText = warnings.length
-    ? `\n⚠ Warnings:\n${warnings.map(w => `  • ${w}`).join('\n')}\n`
-    : '';
+  const modal   = document.getElementById('commitConfirmModal');
+  const body    = document.getElementById('commitConfirmBody');
+  const okBtn   = document.getElementById('commitConfirmOkBtn');
+  const cancelBtn = document.getElementById('commitConfirmCancelBtn');
 
-  const confirmed = confirm(
-    `Commit class placement for "${_session.label}"?\n\n` +
-    `  • ${placed} student${placed !== 1 ? 's' : ''} will have homeroom teacher updated\n` +
-    (unplaced > 0 ? `  • ${unplaced} student${unplaced !== 1 ? 's' : ''} left unplaced (no change)\n` : '') +
-    warningText +
-    `\nThis updates homeroom_teacher_id for all placed students.`
-  );
-  if (!confirmed) return;
+  let html = `<p style="margin:0 0 12px;">Commit homeroom assignments for <strong>${esc(_session.label)}</strong>?</p>`;
+  html += `<ul style="margin:0 0 12px;padding-left:20px;">`;
+  html += `<li>${placed} student${placed !== 1 ? 's' : ''} will be assigned to their new homeroom teacher</li>`;
+  if (unplaced > 0) {
+    html += `<li>${unplaced} student${unplaced !== 1 ? 's' : ''} left unplaced — no change will be made for them</li>`;
+  }
+  html += `</ul>`;
 
-  await runCommit();
+  if (warnings.length) {
+    html += `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:6px;padding:10px 12px;margin-top:4px;">`;
+    html += `<div style="font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#92400e;margin-bottom:6px;">Warnings</div>`;
+    html += `<ul style="margin:0;padding-left:18px;color:#78350f;font-size:13px;">`;
+    warnings.forEach(w => { html += `<li>${esc(w)}</li>`; });
+    html += `</ul></div>`;
+  }
+
+  body.innerHTML = html;
+  modal.hidden = false;
+
+  const cleanup = () => { modal.hidden = true; okBtn.removeEventListener('click', onOk); cancelBtn.removeEventListener('click', onCancel); };
+  const onOk = async () => { cleanup(); await runCommit(); };
+  const onCancel = () => cleanup();
+
+  okBtn.addEventListener('click', onOk);
+  cancelBtn.addEventListener('click', onCancel);
 }
 
 function validatePlacement() {
   const warnings = [];
 
-  // Unplaced students
-  const unplacedCount = _students.filter(s => _assignments[s.id] == null).length;
-  if (unplacedCount > 0) warnings.push(`${unplacedCount} student${unplacedCount !== 1 ? 's' : ''} unplaced`);
+  const realTeachers   = _teachers.filter(t => !t.isPlaceholder);
+  const placedStudents = _students.filter(s =>
+    _assignments[s.id] != null && !_placeholderColIds.has(_assignments[s.id])
+  );
 
-  // Class size vs target (real teachers only)
+  // Class size vs target
   if (_targetClassSize) {
-    _teachers.filter(t => !t.isPlaceholder).forEach(t => {
+    realTeachers.forEach(t => {
       const count = _students.filter(s => _assignments[s.id] === t.id).length;
       if (count > Math.ceil(_targetClassSize * 1.2))
-        warnings.push(`${t.last_name}'s class: ${count} students (target ${_targetClassSize})`);
+        warnings.push(`${t.last_name}'s class has ${count} students (target ${_targetClassSize})`);
       else if (count > 0 && count < Math.floor(_targetClassSize * 0.8))
-        warnings.push(`${t.last_name}'s class: only ${count} students (target ${_targetClassSize})`);
+        warnings.push(`${t.last_name}'s class has only ${count} students (target ${_targetClassSize})`);
     });
   }
 
-  // Flag separation: same flag applied to 2+ students in one teacher's column (real teachers only)
+  // Flag checks — distribution flags (Boy/Girl, >35% of class) use gender-balance warning;
+  // concentration flags (ELL, Behavior, EC, etc.) warn when 3+ land in one class
   const activeFlags = _flags.filter(f => !f.archived_at);
   activeFlags.forEach(flag => {
-    _teachers.filter(t => !t.isPlaceholder).forEach(t => {
-      const concentrated = _students.filter(s =>
-        _assignments[s.id] === t.id && _studentFlags[s.id]?.has(flag.id)
-      );
-      if (concentrated.length >= 2) {
+    const globalCount    = placedStudents.filter(s => _studentFlags[s.id]?.has(flag.id)).length;
+    const globalRate     = placedStudents.length > 0 ? globalCount / placedStudents.length : 0;
+    const isDistribution = globalRate > 0.35;
+
+    realTeachers.forEach(t => {
+      const classStudents = _students.filter(s => _assignments[s.id] === t.id);
+      if (classStudents.length < 5) return;
+      const withFlag = classStudents.filter(s => _studentFlags[s.id]?.has(flag.id));
+
+      if (isDistribution) {
+        const pct = withFlag.length / classStudents.length;
+        if (pct > 0.65) {
+          warnings.push(
+            `"${flag.label}": ${Math.round(pct * 100)}% of ${t.last_name}'s class (${withFlag.length}/${classStudents.length} students)`
+          );
+        }
+      } else if (withFlag.length >= 3) {
         warnings.push(
-          `Flag "${flag.label}": ${concentrated.length} students in ${t.last_name}'s class ` +
-          `(${concentrated.map(s => s.first_name).join(', ')})`
+          `"${flag.label}": ${withFlag.length} students in ${t.last_name}'s class ` +
+          `(${withFlag.map(s => s.first_name).join(', ')})`
         );
       }
     });

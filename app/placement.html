@@ -336,6 +336,30 @@
     </div>
   </div>
 
+  <!-- Undo commit confirmation modal -->
+  <div id="undoCommitConfirmModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:460px;width:100%;">
+      <h3 class="confirm-modal-title">Undo Commit</h3>
+      <div id="undoCommitConfirmBody" style="font-size:14px;line-height:1.6;color:#374151;"></div>
+      <div class="confirm-modal-actions">
+        <button id="undoCommitConfirmCancelBtn" class="btn btn-outline">Cancel</button>
+        <button id="undoCommitConfirmOkBtn" class="btn btn-primary">Undo Commit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Commit confirmation modal -->
+  <div id="commitConfirmModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:460px;width:100%;">
+      <h3 class="confirm-modal-title">Commit Class Placement</h3>
+      <div id="commitConfirmBody" style="font-size:14px;line-height:1.6;color:#374151;"></div>
+      <div class="confirm-modal-actions">
+        <button id="commitConfirmCancelBtn" class="btn btn-outline">Cancel</button>
+        <button id="commitConfirmOkBtn" class="btn btn-primary">Commit Placement</button>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /#appShell -->
 
 </div><!-- /.placement-main -->
