@@ -1,6 +1,6 @@
 // admin.access.js
 import { supabase } from './admin.supabase.js';
-import { esc } from './admin.shared.js';
+import { esc, getAvatarColor } from './admin.shared.js';
 
 let currentProfile;
 let currentModules = {};
@@ -179,14 +179,23 @@ async function loadAccessProfile(profileId) {
     return;
   }
 
+  const name = p.display_name ?? '—';
+  const initials = name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const avatarBg = getAvatarColor(name);
   document.getElementById('accessUserMeta').innerHTML = `
-    <strong>${esc(p.display_name ?? '—')}</strong><br>${esc(p.email)}
+    <div class="access-user-card">
+      <div class="access-user-avatar" style="background:${avatarBg}">${esc(initials)}</div>
+      <div>
+        <div class="access-user-name">${esc(name)}</div>
+        <div class="access-user-email">${esc(p.email)}</div>
+      </div>
+    </div>
   `;
 
   if (!p.user_id) {
     document.getElementById('accessUserMeta').innerHTML += `
-      <p style="margin-top:0.5rem;color:#f59e0b;">
-        This person has a profile but has not signed in yet. Access permissions can be assigned after their first login.
+      <p style="margin-top:10px;margin-bottom:0;color:#f59e0b;font-size:13px;">
+        This person has not signed in yet. Permissions can be assigned after their first login.
       </p>
     `;
     return;

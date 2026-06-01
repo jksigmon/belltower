@@ -378,51 +378,52 @@
   <!-- Real content -->
   <div class="admin-content fade-in">
 
-    <!-- User selection -->
-    <div class="panel panel-action">
-      <h3>User Access & Permissions</h3>
+    <!-- User selection + Account Status side by side -->
+    <div class="access-top-row">
 
-      <div class="admin-form-row compact">
-        <select id="accessUserSelect">
-          <option value="">Select staff member…</option>
-        </select>
+      <div class="panel panel-action">
+        <h3>User Access & Permissions</h3>
 
-        <select id="accessPreset">
-          <option value="">Apply role preset…</option>
-          <option value="teacher">Teacher</option>
-          <option value="office">Office</option>
-          <option value="admin">Admin</option>
-        </select>
+        <div class="admin-form-row compact">
+          <select id="accessUserSelect">
+            <option value="">Select staff member…</option>
+          </select>
+
+          <select id="accessPreset">
+            <option value="">Apply role preset…</option>
+            <option value="teacher">Teacher</option>
+            <option value="office">Office</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+
+        <div id="accessUserMeta"></div>
       </div>
 
-      <div id="accessUserMeta" class="muted" style="margin-top:8px;"></div>
-    </div>
+      <!-- Account Status (USER-SCOPED) -->
+      <div class="panel" id="accountStatusPanel" style="display:none;">
+        <h4><i data-lucide="circle-user"></i> Account Status</h4>
 
-    <!-- ✅ Account Status (USER-SCOPED) -->
-    <div class="panel" id="accountStatusPanel" style="display:none;">
-      <h4>Account Status</h4>
-
-      <label class="row">
         <select id="accessStatusSelect">
           <option value="active">Active</option>
           <option value="pending">Pending</option>
         </select>
-      </label>
+      </div>
 
     </div>
 
-    <!-- ✅ Permissions (USER-SCOPED) -->
+    <!-- Permissions (USER-SCOPED) -->
     <div id="accessPermissions" style="display:none;">
 
       <div class="panel">
-        <h4>Login & Portal Access</h4>
+        <h4><i data-lucide="lock"></i> Login & Portal Access</h4>
         <label><input type="checkbox" data-field="can_login"> Can log in</label>
         <label><input type="checkbox" data-field="can_access_admin"> Admin portal</label>
         <label><input type="checkbox" data-field="can_manage_access"> Manage access</label>
       </div>
 
       <div class="panel" data-module="pto">
-        <h4>PTO</h4>
+        <h4><i data-lucide="calendar-days"></i> PTO</h4>
         <label><input type="checkbox" data-field="can_view_pto_calendar"> View calendar</label>
         <label><input type="checkbox" data-field="can_review_pto"> Review history</label>
         <label><input type="checkbox" data-field="can_approve_pto"> Approve requests</label>
@@ -432,40 +433,40 @@
       </div>
 
       <div class="panel">
-        <h4>Operations</h4>
-         <div class="permission-grid">
-        <label data-module="carline"><input type="checkbox" data-field="can_view_carline"> View carline</label>
-        <label data-module="carline"><input type="checkbox" data-field="can_manage_carline"> Manage carline (start/close)</label>
-		<label data-module="staff"><input type="checkbox" data-field="can_manage_staff"> Manage staff</label>
-		<label data-module="students"><input type="checkbox" data-field="can_manage_students"> Manage students</label>
-		<label data-module="students"><input type="checkbox" data-field="can_manage_placement"> Class placement &amp; promotion</label>
-		<label data-module="families"><input type="checkbox" data-field="can_manage_families"> Manage families</label>
-		<label data-module="guardians"><input type="checkbox" data-field="can_manage_guardians"> Manage guardians</label>
-		<label data-module="bus_groups"><input type="checkbox" data-field="can_manage_bus_groups"> Manage bus groups</label>
-		<label data-module="carline"><input type="checkbox" data-field="can_manage_carpools"> Manage carpools</label>
-		<label data-module="substitutes"><input type="checkbox" data-field="can_manage_substitutes"> Manage substitutes</label>
-		<label><input type="checkbox" data-field="can_manage_campuses"> Manage campuses</label>
-		<label><input type="checkbox" data-field="can_bulk_upload"> Bulk upload</label>
-		<label><input type="checkbox" data-field="can_export_data"> Export data</label>
-		<label data-module="licensure"><input type="checkbox" data-field="can_manage_licensure"> Manage licensure</label>
-		<label data-module="compliance"><input type="checkbox" data-field="can_manage_compliance"> Manage compliance</label>
-		<label data-module="field_trips"><input type="checkbox" data-field="can_manage_field_trips"> Manage field trips (all trips)</label>
-</div>
+        <h4><i data-lucide="sliders-horizontal"></i> Operations</h4>
+        <div class="permission-grid">
+          <label data-module="carline"><input type="checkbox" data-field="can_view_carline"> View carline</label>
+          <label data-module="carline"><input type="checkbox" data-field="can_manage_carline"> Manage carline (start/close)</label>
+          <label data-module="staff"><input type="checkbox" data-field="can_manage_staff"> Manage staff</label>
+          <label data-module="students"><input type="checkbox" data-field="can_manage_students"> Manage students</label>
+          <label data-module="students"><input type="checkbox" data-field="can_manage_placement"> Class placement &amp; promotion</label>
+          <label data-module="families"><input type="checkbox" data-field="can_manage_families"> Manage families</label>
+          <label data-module="guardians"><input type="checkbox" data-field="can_manage_guardians"> Manage guardians</label>
+          <label data-module="bus_groups"><input type="checkbox" data-field="can_manage_bus_groups"> Manage bus groups</label>
+          <label data-module="carline"><input type="checkbox" data-field="can_manage_carpools"> Manage carpools</label>
+          <label data-module="substitutes"><input type="checkbox" data-field="can_manage_substitutes"> Manage substitutes</label>
+          <label><input type="checkbox" data-field="can_manage_campuses"> Manage campuses</label>
+          <label><input type="checkbox" data-field="can_bulk_upload"> Bulk upload</label>
+          <label><input type="checkbox" data-field="can_export_data"> Export data</label>
+          <label data-module="licensure"><input type="checkbox" data-field="can_manage_licensure"> Manage licensure</label>
+          <label data-module="compliance"><input type="checkbox" data-field="can_manage_compliance"> Manage compliance</label>
+          <label data-module="field_trips"><input type="checkbox" data-field="can_manage_field_trips"> Manage field trips (all trips)</label>
+        </div>
       </div>
 
     </div>
 
     <!-- Access Requests -->
-    <div class="panel" id="accessRequestsPanel" style="margin-top:16px;">
-      <h4>Access Requests</h4>
+    <div class="panel" id="accessRequestsPanel">
+      <h4><i data-lucide="inbox"></i> Access Requests</h4>
       <div id="accessRequestsBody" class="access-card-list">
         <p class="muted">Loading…</p>
       </div>
     </div>
 
     <!-- Pending Users -->
-    <div class="panel" id="pendingUsersPanel" style="margin-top:16px;">
-      <h4>Pending Users</h4>
+    <div class="panel" id="pendingUsersPanel">
+      <h4><i data-lucide="clock"></i> Pending Users</h4>
       <div id="pendingUsersTable" class="access-card-list">
         <p class="muted">Loading…</p>
       </div>

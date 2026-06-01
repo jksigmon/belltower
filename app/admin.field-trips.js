@@ -29,7 +29,7 @@ let GRADE_LEVELS = GRADE_ORDER;
 
 // ── Init ────────────────────────────────────────────────────────────────
 async function init() {
-  profile = await initPage({ requiredCap: 'can_manage_field_trips' });
+  profile = await initPage({ capRedirect: '/staff.html' });
   if (!profile) return;
 
   if (!profile.is_superadmin) {
@@ -40,7 +40,7 @@ async function init() {
       .eq('module', 'field_trips')
       .single();
     if (mod && mod.enabled === false) {
-      window.location.href = '/admin.html';
+      window.location.href = '/staff.html';
       return;
     }
   }
