@@ -32,6 +32,10 @@ async function init() {
   profile = await initPage({ capRedirect: '/staff.html' });
   if (!profile) return;
 
+  if (!profile.can_access_admin && !profile.is_superadmin) {
+    document.querySelector('.back-to-admin')?.remove();
+  }
+
   if (!profile.is_superadmin) {
     const { data: mod } = await supabase
       .from('school_modules')

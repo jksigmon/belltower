@@ -225,7 +225,7 @@ async function boot() {
 
   if (error || !p) { alert('Profile load failed: ' + (error?.message ?? 'not found')); return; }
   if (!p.can_view_carline && !p.is_superadmin) {
-    window.location.href = '/admin.html';
+    window.location.href = '/staff.html';
     return;
   }
   profile = p;

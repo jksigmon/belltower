@@ -36,6 +36,12 @@ const { data: profile, error } = await supabase
 
   currentProfile = profile;
   effectiveSchoolId = profile.school_id;
+
+  if (!currentProfile.can_access_admin && !currentProfile.is_superadmin) {
+    window.location.href = '/staff.html';
+    return;
+  }
+
   initUserMenu(profile.display_name ?? profile.email);
 
   currentModules = {};
