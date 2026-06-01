@@ -32,8 +32,8 @@
   --cl-recalled-hdr:    #b45309;
 
   --cl-header-bg:       linear-gradient(135deg, #0b2d4f 0%, #1a3a5c 55%, #0e3660 100%);
-  --cl-header-h:        60px;
-  --cl-bar-h:           48px;
+  --cl-header-h:        76px;
+  --cl-bar-h:           56px;
   --cl-bus-bar-h:       0px;
   --cl-radius:          10px;
   --cl-font: Inter, ui-sans-serif, system-ui, -apple-system,
@@ -135,7 +135,7 @@ html, body {
 }
 .cl-school-name {
   font-weight: 700;
-  font-size: 15px;
+  font-size: 18px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -181,8 +181,8 @@ html, body {
 .cl-icon-btn {
   background: rgba(255,255,255,0.1);
   border: none;
-  border-radius: 7px;
-  width: 36px; height: 36px;
+  border-radius: 9px;
+  width: 48px; height: 48px;
   display: flex; align-items: center; justify-content: center;
   font-size: 17px;
   cursor: pointer;
@@ -193,32 +193,33 @@ html, body {
 .cl-signout-btn {
   background: rgba(255,255,255,0.1);
   border: none;
-  border-radius: 7px;
-  height: 36px;
-  padding: 0 12px;
-  font-size: 13px;
+  border-radius: 9px;
+  height: 48px;
+  padding: 0 16px;
+  font-size: 14px;
   color: rgba(255,255,255,0.8);
   cursor: pointer;
   transition: background 120ms;
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 .cl-signout-btn:hover { background: rgba(255,255,255,0.22); }
 .cl-signout-btn svg { flex-shrink: 0; }
 
 .cl-dismiss-btn {
-  height: 36px;
-  padding: 0 12px;
+  height: 48px;
+  padding: 0 16px;
   border: none;
-  border-radius: 7px;
-  font-size: 12px;
+  border-radius: 9px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
   transition: background 120ms;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   line-height: 1;
 }
 .cl-dismiss-btn.start { background: #16a34a; color: #fff; }
@@ -230,17 +231,17 @@ html, body {
 .cl-input-link-btn {
   background: rgba(255,255,255,0.1);
   border: none;
-  border-radius: 7px;
-  height: 36px;
-  padding: 0 12px;
-  font-size: 12px;
+  border-radius: 9px;
+  height: 48px;
+  padding: 0 16px;
+  font-size: 14px;
   font-weight: 600;
   color: rgba(255,255,255,0.85);
   cursor: pointer;
   text-decoration: none;
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   white-space: nowrap;
   transition: background 120ms;
 }
@@ -276,8 +277,8 @@ html, body {
   color: var(--cl-primary);
   border: 1px solid rgba(37,99,235,0.2);
   border-radius: 99px;
-  padding: 5px 10px 5px 13px;
-  font-size: 12px;
+  padding: 7px 12px 7px 16px;
+  font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
@@ -300,8 +301,8 @@ html, body {
   background: transparent;
   border: 1.5px dashed var(--cl-border);
   border-radius: 99px;
-  padding: 4px 12px;
-  font-size: 12px;
+  padding: 7px 16px;
+  font-size: 14px;
   color: var(--cl-text-muted);
   cursor: pointer;
   white-space: nowrap;
@@ -322,10 +323,10 @@ html, body {
 }
 .cl-class-dropdown[hidden] { display: none; }
 .cl-dropdown-item {
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 15px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -333,7 +334,7 @@ html, body {
   color: var(--cl-text);
 }
 .cl-dropdown-item:hover { background: var(--cl-bg); }
-.cl-dropdown-item .item-count { font-size: 11px; color: var(--cl-text-muted); }
+.cl-dropdown-item .item-count { font-size: 13px; color: var(--cl-text-muted); }
 .cl-bar-spacer { flex: 1; }
 
 /* ---------- Bus arrival bar (display page) ---------- */
@@ -651,19 +652,19 @@ html, body {
 
 /* Clock in header */
 .cl-clock {
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 700;
   color: rgba(255,255,255,0.9);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
-  padding: 0 6px;
+  padding: 0 8px;
 }
 
 /* Font-size toggle button active state */
 .cl-icon-btn.active,
 .cl-icon-btn.cl-fontsize-btn {
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
