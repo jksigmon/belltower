@@ -1014,8 +1014,13 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>Class Placement is a visual drag-and-drop board for assigning students to teachers for the upcoming school year before Year-End Promotion runs. You create a placement <em>session</em> for a specific grade transition (e.g., 2nd → 3rd grade), drag students across teacher columns to build balanced classes, then <strong>Commit</strong> to write the assignments back to student records as homeroom teachers.</p>
-        <p>Placement sessions are drafts until committed, so you can adjust freely without affecting live data.</p>
+        <p>Class Placement is a visual drag-and-drop board for assigning students to teachers for the upcoming school year. You create a placement <em>session</em> for a specific grade (e.g., current 2nd graders who will be moving into 3rd grade), drag students across teacher columns to build balanced classes, then <strong>Commit</strong> to write the homeroom assignments back to student records.</p>
+        <p>Placement sessions are drafts until committed, so you can adjust freely without affecting live data. The recommended workflow is:</p>
+        <ol>
+          <li>Flag any students for retention in the Students directory (see <em>How do retained students work in placement?</em> below).</li>
+          <li>Complete and commit all class placement sessions.</li>
+          <li>Run Year-End Promotion — students advance to the next grade already assigned to their new homeroom.</li>
+        </ol>
       </div>
     </div>
 
@@ -1026,11 +1031,11 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <ol>
-          <li>Open <strong>Class Placement</strong> — it appears in the Staff Portal nav and Admin Panel nav for any user with the <strong>Manage Class Placement</strong> permission. Click the link to open the standalone Class Placement tool.</li>
+          <li>Open <strong>Class Placement</strong> — it appears in the Staff Portal nav and Admin Panel nav for any user with the <strong>Manage Class Placement</strong> permission.</li>
           <li>Click <strong>New Session</strong>.</li>
-          <li>Select the academic year and the <strong>incoming grade</strong> (the grade students are currently in, not the grade they're moving to).</li>
-          <li>Optionally enter a session label and a target class size.</li>
-          <li>Check the boxes for the teachers who will be receiving students.</li>
+          <li>Select the academic year and the <strong>incoming grade</strong> — this is the grade students are <em>currently in</em>, not the grade they're moving to. For example, select "2nd Grade" to plan the classes for students who will be entering 3rd grade next year.</li>
+          <li>Optionally enter a session label and a target class size. The target is used to flag classes that are significantly over or under-sized in the commit warnings.</li>
+          <li>Search and check the boxes for the teachers who will be <em>receiving</em> students next year.</li>
           <li>Click <strong>Create Session</strong>. All active students in that grade are automatically loaded onto the board as Unplaced.</li>
         </ol>
       </div>
@@ -1045,13 +1050,35 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <p>There are two ways:</p>
         <ul>
           <li><strong>Drag and drop:</strong> Drag a student card from one column and drop it onto another teacher's column.</li>
-          <li><strong>Click to move:</strong> Click a student card to select it (it highlights blue). Then click any column to move the selected student there. Hold <strong>Ctrl/Cmd</strong> or <strong>Shift</strong> while clicking to select multiple students and move them all at once.</li>
+          <li><strong>Click to move:</strong> Click a student card to select it (it highlights blue). Then click any column header to move the selected student there. Hold <strong>Ctrl/Cmd</strong> or <strong>Shift</strong> while clicking cards to select multiple students and move them all at once.</li>
         </ul>
-        <p>Use <strong>Ctrl+Z</strong> (or the Undo button) to reverse your last move.</p>
+        <p>Use <strong>Ctrl+Z</strong> (or the Undo button in the toolbar) to reverse your last move.</p>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          The <strong>Auto-Place</strong> button distributes unplaced students evenly across all teacher columns as a starting point. You can still rearrange after.
+          The <strong>Auto-Place</strong> button distributes all unplaced students evenly across teacher columns as a starting point. You can rearrange freely after.
         </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do retained students work in placement?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Students who are repeating a grade appear on the placement board with a <strong>Retained</strong> badge on their card, so you can identify them at a glance while planning.</p>
+        <p>Before building your placement sessions, flag any students who will be repeating their current grade:</p>
+        <ol>
+          <li>Go to the <strong>Students</strong> tab in the Admin Panel.</li>
+          <li>Open the student's record and check <strong>Flag for retention (will repeat current grade)</strong>.</li>
+          <li>Save the record. The student will appear in the Students list with a <strong>Retention Flagged</strong> label.</li>
+        </ol>
+        <p>Once flagged, these students will show up in the placement session for their current grade — since they're staying in that grade, they belong in that session alongside the incoming students. Place them in a teacher column just like everyone else. Their homeroom will be updated when you commit.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Flag students for retention <em>before</em> building placement sessions so the Retained badge appears on their cards from the start.
+        </div>
+        <p>When Year-End Promotion runs, students flagged for retention automatically default to the <strong>Retain</strong> action — you won't have to find and switch them manually in the promotion preview.</p>
       </div>
     </div>
 
@@ -1061,17 +1088,17 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>An <strong>Open Position</strong> column lets you plan class placement even when a teacher slot is unfilled — for example, if a 2nd-grade teacher is moving to a different role and you haven't hired their replacement yet. You can still distribute students across that column so you don't have to redo the whole board once the hire is made.</p>
-        <p>To add one, click <strong>+ Column</strong> in the board toolbar, select <strong>Open Position</strong>, and give the column a label (e.g. "Open Position — 2nd Grade"). The column appears with an amber header and an <strong>Assign Teacher</strong> prompt.</p>
+        <p>An <strong>Open Position</strong> column lets you plan class placement even when a teacher slot is unfilled — for example, if a 3rd-grade teacher is leaving and you haven't hired a replacement yet. You can still distribute students across that column and finalize the rest of the board without waiting on the hire.</p>
+        <p>To add one, click <strong>+ Column</strong> in the board toolbar, select <strong>Open Position</strong>, and give the column a label (e.g. "Open — 3rd Grade"). The column appears with an amber header and an <strong>Assign Teacher</strong> prompt.</p>
         <ul>
-          <li>Students can be moved into and out of placeholder columns just like real teacher columns.</li>
-          <li>The <strong>Commit Placement</strong> button is <em>blocked</em> as long as any students remain in a placeholder column — you must resolve all open positions first.</li>
-          <li>When the hire is made, click <strong>Assign Teacher</strong> on that column and select the new employee. All students in that column are immediately re-assigned to the real teacher and the commit block is lifted.</li>
+          <li>Students can be moved into and out of an Open Position column just like a real teacher column.</li>
+          <li>The <strong>Commit Placement</strong> button is <em>blocked</em> as long as any students remain in an Open Position column — you must resolve all open positions before committing.</li>
+          <li>When the hire is made, click <strong>Assign Teacher</strong> on that column and select the employee. All students in the column are immediately transferred to the real teacher and the commit block is lifted.</li>
           <li>When cloning a session to a new year, Open Position columns are not carried over — only real teacher columns are copied.</li>
         </ul>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          You can also add a new <strong>Real Teacher</strong> column mid-session via the same <strong>+ Column</strong> button, if a teacher joins after you've already started planning.
+          You can also add a new real teacher column mid-session via the same <strong>+ Column</strong> button if a teacher joins the team after planning has already started.
         </div>
       </div>
     </div>
@@ -1082,12 +1109,19 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>Flags are color-coded labels you can attach to individual students as placement notes — for example "Needs teacher with low student-teacher ratio," "Best friends — separate if possible," or "IEP." They appear as colored dots on each student card.</p>
+        <p>Flags are color-coded labels you can attach to individual students as placement planning notes — for example, "Behavior", "ELL", "EC", "IEP", "Best friends — separate," or gender labels like "Boy" / "Girl" to help balance classes. They appear as colored dots on each student card.</p>
         <ul>
-          <li>Click <strong>Manage Flags</strong> to create, edit, or archive flag types for your school.</li>
+          <li>Click <strong>Manage Flags</strong> in the toolbar to create, rename, recolor, or archive flag types for your school. Archived flags no longer appear in future sessions.</li>
           <li>Click the <strong>tag icon</strong> on any student card to assign or remove flags for that student.</li>
-          <li>A student's first flag color shows as a colored accent bar on the left side of their card so you can spot flagged students at a glance.</li>
+          <li>A student's first flag color shows as a colored accent bar on the left edge of their card so flagged students stand out at a glance.</li>
+          <li>Use the <strong>filter</strong> in the toolbar to show only students with a specific flag, making it easy to check distribution across classes.</li>
         </ul>
+        <p>When you commit, Belltower checks flag distribution and warns you about potential imbalances:</p>
+        <ul>
+          <li><strong>Balanced flags (e.g. Boy/Girl):</strong> warns if any class is more than 65% one gender.</li>
+          <li><strong>Concentration flags (e.g. ELL, Behavior, EC):</strong> warns if 3 or more students with the same flag are assigned to the same class.</li>
+        </ul>
+        <p>Warnings don't block the commit — they're informational so you can review before finalizing.</p>
       </div>
     </div>
 
@@ -1097,11 +1131,12 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>Committing writes the placement assignments to student records — each placed student's <strong>homeroom teacher</strong> field is updated to the teacher they're placed with. This is a permanent action visible across the system.</p>
-        <p>You can undo a commit using the <strong>Undo Commit</strong> button on a committed session. This restores every student's previous homeroom teacher (the one before the commit) and reverts the session to Draft status so you can make adjustments.</p>
+        <p>Committing writes the homeroom assignments from the board to each student's record. Only students you've placed in a teacher column are updated — students left in the <strong>Unplaced</strong> column are not changed. The session then shows as <strong>Committed</strong>.</p>
+        <p>Before committing, a confirmation dialog shows a summary of how many students will be assigned, how many will remain unplaced, and any flag or class-size warnings. You can review and cancel if anything looks off.</p>
+        <p>If you need to make changes after committing, click <strong>Undo Commit</strong> on the session. This restores every student's previous homeroom teacher and reverts the session to Draft so you can adjust and re-commit.</p>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Commit placement <em>before</em> running Year-End Promotion so students are moved with their new homeroom already set.
+          Always commit placements <em>before</em> running Year-End Promotion. That way students advance to the next grade already assigned to their new homeroom teacher.
         </div>
       </div>
     </div>
@@ -1112,7 +1147,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>Click the <strong>Clone</strong> icon on any session card. You'll be prompted for the new academic year; the same real teacher lineup carries over as a new Draft session with the current year's students loaded in. Note: <strong>Open Position</strong> placeholder columns are not cloned — only confirmed teacher columns are copied to the new session. Old sessions can be <strong>archived</strong> to keep the list tidy without deleting them.</p>
+        <p>Click the <strong>Clone</strong> icon on any session card. You'll be prompted to select the new academic year; the same teacher lineup carries over as a new Draft session with that year's students loaded in. Open Position columns are not cloned — only real teacher columns are copied. Old sessions can be <strong>archived</strong> from the session list to keep things tidy without permanently deleting them.</p>
       </div>
     </div>
 
@@ -1123,7 +1158,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <p>On an open board, click the <strong>Export CSV</strong> button in the board toolbar. The download includes each student's name, student number, incoming grade, and assigned teacher, sorted alphabetically by teacher then student last name.</p>
-        <p>Committed placements are also available from the Admin Panel under <strong>Exports</strong> as formatted rosters.</p>
+        <p>Committed placements are also available from the Admin Panel under <strong>Exports</strong> as formatted class rosters.</p>
       </div>
     </div>
   </div>
@@ -1141,13 +1176,47 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>Year-End Promotion advances each student's grade level in Belltower at the end of the school year. It runs in three modes per student:</p>
+        <p>Year-End Promotion updates every student's grade level in Belltower at the close of the school year. Each student is processed in one of three ways:</p>
         <ul>
-          <li><strong>Promote:</strong> moves the student to the next grade (default for all non-terminal grades).</li>
+          <li><strong>Promote:</strong> advances the student to the next grade (default for all students not at the terminal grade).</li>
           <li><strong>Retain:</strong> keeps the student in their current grade for another year.</li>
-          <li><strong>Graduate:</strong> marks the student as inactive (default for students at the terminal grade).</li>
+          <li><strong>Graduate:</strong> marks the student as inactive (default for students at the school's terminal grade).</li>
         </ul>
-        <p>This is found in the Admin Panel under <strong>Year-End Promotion</strong> (Settings section).</p>
+        <p>Year-End Promotion is an admin-only function found in the Admin Panel under the <strong>Settings</strong> section.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I handle students who need to repeat a grade?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>The best practice is to flag students for retention <em>before</em> running class placement, so the placement board reflects who is staying behind. Here's the full workflow:</p>
+        <ol>
+          <li>In the Admin Panel, go to the <strong>Students</strong> tab and open the student's record.</li>
+          <li>Check <strong>Flag for retention (will repeat current grade)</strong> and save. The student will show a <strong>Retention Flagged</strong> label in the Students list.</li>
+          <li>When you build the placement session for that student's grade, they will appear on the board with a <strong>Retained</strong> badge. Place them in a teacher column for the coming year — they're staying in the same grade, so they belong in that grade's session.</li>
+          <li>Commit the placement session.</li>
+          <li>When you run Year-End Promotion and load the preview, flagged students automatically default to the <strong>Retain</strong> action. You don't need to find and switch them manually.</li>
+          <li>Run Promotion. Each retained student stays in their current grade with their newly assigned homeroom teacher.</li>
+        </ol>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          You can also change any student's action directly in the promotion preview — just switch Promote to Retain for a student even if they were never pre-flagged.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What happens to a retained student's record after promotion runs?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>After Year-End Promotion runs, any student who was retained will show a <strong>Retained</strong> label on their record in the Students directory for that school year. This is a one-year status marker — it serves as a reminder that this student repeated their grade.</p>
+        <p>The <strong>Retained</strong> label is automatically cleared the next time Year-End Promotion runs, so you never have to manually remove it. It will not cause a student to be retained again the following year — only explicitly setting a student to Retain in the promotion preview does that.</p>
+        <p>The pre-promotion <strong>Retention Flagged</strong> label (the one you set in the student's record) is also cleared as soon as promotion runs, so there's no cleanup needed after the process completes.</p>
       </div>
     </div>
 
@@ -1158,15 +1227,16 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <ol>
+          <li>Complete and commit all <strong>Class Placement</strong> sessions first (see the Class Placement section above).</li>
           <li>Go to <strong>Year-End Promotion</strong> in the Admin Panel.</li>
-          <li>Select the target academic year and (optionally) a campus.</li>
-          <li>Click <strong>Load Preview</strong>. Every active student loads in a table showing their current grade and default action.</li>
-          <li>Review and override any individual students — change Promote to Retain for held-back students, or vice versa.</li>
-          <li>When satisfied, click <strong>Run Promotion</strong> to apply the changes to all student records.</li>
+          <li>Select the target academic year and, if applicable, a campus.</li>
+          <li>Click <strong>Load Preview</strong>. Every active student loads in a table showing their current grade and default action. Students flagged for retention will already show <strong>Retain</strong>; all others default to <strong>Promote</strong> (or <strong>Graduate</strong> at the terminal grade).</li>
+          <li>Review the list and override any individual students as needed — use the action dropdown to change Promote to Retain, or Retain to Promote.</li>
+          <li>When the preview looks correct, click <strong>Run Promotion</strong> to apply all changes.</li>
         </ol>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Run <strong>Class Placement</strong> and commit it before running promotion. That way students advance to the next grade already assigned to their new homeroom teacher.
+          Promotion cannot be undone from within Belltower. Double-check the preview before clicking Run Promotion, especially for any students you've manually set to Retain or Graduate.
         </div>
       </div>
     </div>
@@ -1177,8 +1247,8 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>No — the promotion tool saves a <strong>draft</strong> automatically while you're working. If you leave and come back, a banner will offer to <strong>Restore Draft</strong> (reloads your previous preview with all overrides intact) or <strong>Discard</strong> to start fresh.</p>
-        <p>Drafts are saved per campus and per school. If you switch campuses, a separate draft is saved for each.</p>
+        <p>No — the promotion tool saves your work as a <strong>draft</strong> automatically while you're working. If you leave and come back, a banner will offer to <strong>Restore Draft</strong> (reloads your previous preview with all overrides intact) or <strong>Discard</strong> to start fresh.</p>
+        <p>Drafts are saved per campus and per school, so if you switch campuses a separate draft is kept for each.</p>
       </div>
     </div>
 
@@ -1188,7 +1258,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>Students with a blank grade level appear in the preview with no default action and are skipped when promotion runs. Review them manually in the Students directory and assign a grade level before running promotion if they should be included.</p>
+        <p>Students with no grade level appear in the preview with no default action and are skipped when promotion runs. Go to the <strong>Students</strong> directory in the Admin Panel, open the student's record, and assign a grade level before running promotion if they should be included.</p>
       </div>
     </div>
   </div>
