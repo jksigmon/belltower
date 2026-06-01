@@ -1130,7 +1130,12 @@ async function saveTrip() {
         const { error: mgrErr } = await supabase.from('field_trip_managers').insert(
           toAdd.map(m => ({ field_trip_id: id, profile_id: m.profile_id, added_by: profile.id }))
         );
-        if (mgrErr) console.error('manager insert failed:', mgrErr);
+        if (mgrErr) {
+          showToast('Trip saved, but manager assignments could not be updated. Please reopen the trip and try again.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Save Trip';
+          return;
+        }
       }
       if (toRemove.length) {
         await supabase.from('field_trip_managers').delete()

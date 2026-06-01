@@ -157,7 +157,7 @@ async function loadBgChecks() {
 
     bgCheckCache = data ?? [];
     if (bgCheckCache.length === 1000) {
-      console.warn('BG check list hit the 1000-record cap — some records may not be shown.');
+      showToast('Warning: only the first 1,000 background check records are shown. Contact support if you need to view older records.', 'warn', 8000);
     }
     populateRequestorFilter(bgCheckCache.filter(r => !r.archived_at));
     renderBgStats();
@@ -331,14 +331,25 @@ function renderExpiryAlerts() {
 }
 
 function wireFilters() {
+  let bgSearchTimer;
   const resetBg = () => { bgPage = 1; loadBgChecks(); };
   document.getElementById('bgStatusFilter')?.addEventListener('change', resetBg);
   document.getElementById('bgRequestorFilter')?.addEventListener('change', resetBg);
-  document.getElementById('bgSearch')?.addEventListener('input', resetBg);
+  // Debounced: cache is client-side so this just prevents thrashing 1000-row DOM renders
+  document.getElementById('bgSearch')?.addEventListener('input', () => {
+    clearTimeout(bgSearchTimer);
+    bgSearchTimer = setTimeout(resetBg, 280);
+  });
   document.getElementById('bgShowArchived')?.addEventListener('change', () => { bgPage = 1; bgCheckCache = []; loadBgChecks(); });
 
+  // resetAgr clears the server-side filter cache — only use it for server-filtered fields
   const resetAgr = () => { agrPage = 1; resetAgreementCache(); loadAgreements(); };
-  document.getElementById('agreementSearch')?.addEventListener('input', resetAgr);
+  let agrSearchTimer;
+  // agreementSearch is client-side text filter — must NOT call resetAgreementCache() or it fires a DB query per keystroke
+  document.getElementById('agreementSearch')?.addEventListener('input', () => {
+    clearTimeout(agrSearchTimer);
+    agrSearchTimer = setTimeout(() => { agrPage = 1; loadAgreements(); }, 280);
+  });
   document.getElementById('agreementTemplateFilter')?.addEventListener('change', resetAgr);
   document.getElementById('agreementLinkFilter')?.addEventListener('change', resetAgr);
   document.getElementById('agrShowArchived')?.addEventListener('change', resetAgr);
@@ -869,7 +880,7 @@ async function loadAgreements() {
 
     agreementCache = data ?? [];
     if (agreementCache.length === 1000) {
-      console.warn('Agreements list hit the 1000-record cap — some records may not be shown.');
+      showToast('Warning: only the first 1,000 signed agreements are shown. Use filters to narrow results or contact support to view older records.', 'warn', 8000);
     }
     lastAgreementTemplateFilter = templateVal;
     lastAgreementLinkFilter = linkVal;

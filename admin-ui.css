@@ -2839,7 +2839,7 @@ nav a[data-cap-group] {
 
 .dash-banner-inner {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
@@ -6124,3 +6124,193 @@ select.admin-input {
   flex-shrink: 0;
 }
 .toast-close:hover { color: #374151; }
+
+/* ══════════════════════════════════════════════════════════════
+   SCHOOL CALENDAR STRIP
+   Banner chip + slide-in drawer shared by admin + staff pages
+══════════════════════════════════════════════════════════════ */
+
+/* ── Banner chip ─────────────────────────────────────────── */
+.cal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.5;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  color: rgba(255, 255, 255, 0.78);
+  white-space: nowrap;
+  transition: background 0.15s;
+  max-width: 240px;
+  overflow: hidden;
+}
+.cal-chip:hover { background: rgba(255, 255, 255, 0.15); }
+.cal-chip-icon  { flex-shrink: 0; opacity: 0.7; }
+.cal-chip-text  {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-chip-badge {
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  padding: 1px 7px;
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ── Drawer overlay ──────────────────────────────────────── */
+.cal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: var(--z-drawer-overlay);
+}
+.cal-overlay.open { display: block; }
+
+/* ── Drawer panel ────────────────────────────────────────── */
+.cal-drawer {
+  position: fixed;
+  top: 0;
+  right: -380px;
+  width: 360px;
+  height: 100dvh;
+  background: #fff;
+  box-shadow: -6px 0 32px rgba(0, 0, 0, 0.13);
+  z-index: var(--z-drawer);
+  display: flex;
+  flex-direction: column;
+  transition: right 0.24s ease;
+}
+.cal-drawer.open { right: 0; }
+
+.cal-drawer-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.cal-drawer-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.cal-drawer-close {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 7px;
+  border-radius: 6px;
+  line-height: 1;
+}
+.cal-drawer-close:hover {
+  background: var(--app-bg);
+  color: var(--text-primary);
+}
+
+.cal-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.cal-loading {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 32px 0;
+  margin: 0;
+}
+
+.cal-drawer-ft {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.cal-pdf-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  box-sizing: border-box;
+}
+.cal-pdf-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #eff6ff;
+}
+
+/* ── Event cards ─────────────────────────────────────────── */
+.cal-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  background: var(--app-bg);
+  border: 1px solid var(--border);
+}
+.cal-card-bar {
+  width: 4px;
+  min-height: 38px;
+  align-self: stretch;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.cal-card-info { flex: 1; min-width: 0; }
+.cal-card-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-card-date {
+  font-size: 0.71rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.cal-card-badge {
+  font-size: 0.67rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Mobile: hide chip (date is already hidden); full-width drawer ─ */
+@media (max-width: 640px) {
+  .cal-chip   { display: none; }
+  .cal-drawer { width: 100vw; right: -100vw; }
+}

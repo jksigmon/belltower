@@ -440,7 +440,7 @@ async function loadPto() {
     .eq('status', 'PENDING')
     .eq('school_id', currentProfile.school_id)
     .order('submitted_at', { ascending: true })
-    .limit(50);
+    .limit(500);
 
   if (error) {
     console.error(error);
@@ -508,11 +508,11 @@ async function loadPto() {
         showToast('You are not authorized to approve PTO requests.', 'error');
         return;
       }
-      updatePtoStatus(r.id, 'APPROVED');
+      updatePtoStatus(r.id, 'APPROVED', tr);
     });
 
     tr.querySelector('.btn-deny').addEventListener('click', () => {
-      denyInitialPto(r);
+      denyInitialPto(r, tr);
     });
 
     tbody.appendChild(tr);
@@ -708,7 +708,7 @@ async function approveCancellation(r) {
   ptoCalendar?.refetchEvents();
 }
 
-function denyInitialPto(r) {
+function denyInitialPto(r, rowEl = null) {
   if (!currentProfile.can_approve_pto) {
     showToast('You are not authorized to deny PTO requests.', 'error');
     return;
@@ -745,8 +745,14 @@ function denyInitialPto(r) {
         return;
       }
 
+      if (rowEl) {
+        rowEl.remove();
+        selectedPendingIds.delete(String(r.id));
+        updatePendingBulkBar();
+      } else {
+        loadPto();
+      }
       await loadPtoRequestCounts();
-      loadPto();
       ptoCalendar?.refetchEvents();
     }
   );
@@ -801,7 +807,7 @@ function denyCancellation(r) {
   );
 }
 
-async function updatePtoStatus(requestId, newStatus) {
+async function updatePtoStatus(requestId, newStatus, rowEl = null) {
   if (!currentProfile.can_approve_pto) {
     showToast('You are not authorized to approve or deny PTO requests.', 'error');
     return;
@@ -830,8 +836,14 @@ async function updatePtoStatus(requestId, newStatus) {
     return;
   }
 
+  if (rowEl) {
+    rowEl.remove();
+    selectedPendingIds.delete(String(requestId));
+    updatePendingBulkBar();
+  } else {
+    loadPto();
+  }
   await loadPtoRequestCounts();
-  loadPto();
   ptoCalendar?.refetchEvents();
 }
 

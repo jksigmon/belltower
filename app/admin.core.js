@@ -2,6 +2,7 @@ import { supabase } from './admin.supabase.js';
 import { initUserMenu } from './user-menu.js';
 import { esc } from './admin.shared.js';
 import { loadWeather } from './weather.js';
+import { initCalendarStrip } from './calendar-strip.js';
 
 let currentProfile = null;
 let currentModules = {}; // { pto: true, substitutes: false, ... }
@@ -72,6 +73,8 @@ const { data: profile, error } = await supabase
     const fullDate = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     bannerDateEl.innerHTML = `<span class="dash-banner-date-day">${dayName}</span><span class="dash-banner-date-full">${fullDate}</span>`;
   }
+
+  initCalendarStrip(supabase, effectiveSchoolId, document.getElementById('dashCalChip'));
 
   loadWeather('dashWeather', profile.schools?.weather_lat, profile.schools?.weather_lon, profile.schools?.timezone);
 

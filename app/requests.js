@@ -175,6 +175,7 @@ async function handleSubmit(e) {
 
   // Insert responses (file fields are uploaded first, then URL stored as value)
   const responseRows = [];
+  let fileUploadFailed = false;
   for (const f of catFields) {
     let value = '';
     if (f.field_type === 'file') {
@@ -187,6 +188,7 @@ async function handleSubmit(e) {
           .from('request-attachments')
           .upload(path, file, { upsert: true });
         if (upErr) {
+          fileUploadFailed = true;
           showToast(`File upload failed: ${upErr.message}`, 'error', 7000);
         } else {
           const { data: urlData } = supabase.storage
@@ -203,6 +205,15 @@ async function handleSubmit(e) {
       value = el ? el.value.trim() : '';
     }
     responseRows.push({ request_id: newReq.id, field_id: f.id, value: value || null });
+  }
+
+  if (fileUploadFailed) {
+    // Roll back the request row so the user can try again cleanly
+    await supabase.from('staff_requests').delete().eq('id', newReq.id);
+    if (errEl) { errEl.textContent = 'One or more file uploads failed. Your request was not submitted. Please try again.'; errEl.style.display = ''; }
+    btn.disabled = false;
+    btn.textContent = 'Submit Request';
+    return;
   }
 
   if (responseRows.length) {

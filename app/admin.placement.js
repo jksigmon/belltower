@@ -872,9 +872,10 @@ function openFlagPopover(studentId, card) {
   } else {
     const active = _studentFlags[studentId] || new Set();
     activeFlags.forEach(f => {
+      const safeColor = /^#[0-9a-fA-F]{3,6}$/.test(f.color) ? f.color : '#cccccc';
       const btn = document.createElement('button');
       btn.className = 'placement-flag-toggle' + (active.has(f.id) ? ' active' : '');
-      btn.innerHTML = `<span class="placement-flag-dot" style="background:${f.color};width:10px;height:10px;display:inline-block;border-radius:50%;flex-shrink:0;"></span>${esc(f.label)}`;
+      btn.innerHTML = `<span class="placement-flag-dot" style="background:${safeColor};width:10px;height:10px;display:inline-block;border-radius:50%;flex-shrink:0;"></span>${esc(f.label)}`;
       btn.addEventListener('click', async e => {
         e.stopPropagation();
         await toggleFlag(studentId, f.id);
