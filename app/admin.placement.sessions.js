@@ -6,6 +6,7 @@ let _profile      = null;
 let _schoolConfig = null;
 let _showArchived = false;
 let _formEmployees = [];
+let _selectedTeacherIds = new Set();
 
 function showPlacementView(id) {
   ['placementSessionListView', 'placementCreateFormView', 'placementBoardView'].forEach(v => {
@@ -248,6 +249,7 @@ export async function showCreateForm() {
   showPlacementView('placementCreateFormView');
   populateCreateFormYears();
   populateIncomingGradeSelect();
+  _selectedTeacherIds = new Set();
   const searchEl = document.getElementById('placementStaffSearch');
   if (searchEl) searchEl.value = '';
   await loadEmployeesForForm();
@@ -370,21 +372,22 @@ function renderEmployeeCheckboxes(campusId) {
     return;
   }
 
-  const checked = new Set(
-    Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value)
-  );
-
   container.innerHTML = '';
   filtered.forEach(emp => {
     const label = document.createElement('label');
     label.className = 'placement-teacher-check';
     label.innerHTML = `
-      <input type="checkbox" value="${emp.id}" data-name="${esc(emp.first_name + ' ' + emp.last_name)}"${checked.has(emp.id) ? ' checked' : ''}>
+      <input type="checkbox" value="${emp.id}" data-name="${esc(emp.first_name + ' ' + emp.last_name)}"${_selectedTeacherIds.has(emp.id) ? ' checked' : ''}>
       <div class="placement-teacher-check-info">
         <span class="placement-teacher-check-name">${esc(emp.last_name)}, ${esc(emp.first_name)}</span>
         ${emp.position ? `<span class="placement-teacher-check-type">${esc(emp.position)}</span>` : ''}
       </div>
     `;
+    const cb = label.querySelector('input[type="checkbox"]');
+    cb.addEventListener('change', () => {
+      if (cb.checked) _selectedTeacherIds.add(emp.id);
+      else _selectedTeacherIds.delete(emp.id);
+    });
     container.appendChild(label);
   });
 }
@@ -402,9 +405,9 @@ export async function submitCreateForm() {
   const target = nextGrade(incoming, _schoolConfig);
   const label  = labelInput || `${gradeLabel(incoming)} → ${target ? gradeLabel(target) : 'Graduate'}`;
 
-  const checked = Array.from(
-    document.querySelectorAll('#placementTeacherCheckboxes input[type="checkbox"]:checked')
-  ).map((cb, i) => ({ id: cb.value, name: cb.dataset.name, sort_order: i }));
+  const checked = _formEmployees
+    .filter(e => _selectedTeacherIds.has(e.id))
+    .map((e, i) => ({ id: e.id, name: `${e.first_name} ${e.last_name}`, sort_order: i }));
 
   if (checked.length === 0) {
     alert('Please select at least one teacher for the board.');

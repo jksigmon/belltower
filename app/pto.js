@@ -97,7 +97,7 @@ function hasAdminAccess(profile) {
 
 const backToAdmin = document.getElementById('backToAdmin');
 if (backToAdmin && hasAdminAccess(currentProfile)) {
-  backToAdmin.style.visibility = 'visible';
+  backToAdmin.style.display = 'inline-flex';
 }
 
 /* =============================================
