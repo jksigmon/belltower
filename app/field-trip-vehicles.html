@@ -128,10 +128,14 @@
 
     /* ── Print ── */
     @media print {
+      html, body {
+        height: auto !important;
+        overflow: visible !important;
+        background: #fff !important;
+      }
       .veh-toolbar, .veh-board { display: none !important; }
       .print-roster { display: block !important; }
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      body { background: #fff; }
     }
     .print-roster { display: none; padding: 24px; }
     .print-roster h1 {
