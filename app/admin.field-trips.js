@@ -32,8 +32,9 @@ async function init() {
   profile = await initPage({ capRedirect: '/staff.html' });
   if (!profile) return;
 
-  if (!profile.can_access_admin && !profile.is_superadmin) {
-    document.querySelector('.back-to-admin')?.remove();
+  if (profile.can_access_admin || profile.is_superadmin) {
+    const btn = document.querySelector('.back-to-admin');
+    if (btn) btn.style.display = 'inline-flex';
   }
 
   if (!profile.is_superadmin) {

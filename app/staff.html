@@ -1615,7 +1615,7 @@ async function initStaff() {
     return sessionStorage.getItem('bt_from_admin') === '1';
   }
   if (backToAdmin && cameFromAdminContext() && hasAdminAccess(currentProfile)) {
-    backToAdmin.style.visibility = 'visible';
+    backToAdmin.style.display = 'inline-flex';
   }
 
   applyModuleNavVisibility();

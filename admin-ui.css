@@ -2214,8 +2214,7 @@ strong.stat-skel {
 
 
 #backToAdmin {
-  display: inline-flex;      /* ✅ force layout participation */
-  visibility: hidden;        /* ✅ hide content only */
+  display: none;
 }
 
 
