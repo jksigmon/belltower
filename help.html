@@ -1342,6 +1342,48 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <p>If your school has the <strong>Require MVR for Drivers</strong> setting enabled, volunteers flagged as drivers who don't have a valid MVR on file will appear highlighted in the compliance dashboard.</p>
       </div>
     </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        Where do I enter a volunteer's driver's license and car insurance expiration dates?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Driver's license and insurance expiration dates are stored on the guardian's record, not the background check itself. To enter them:</p>
+        <ol>
+          <li>Go to <strong>Compliance → Background Checks</strong> and open the person's background check record.</li>
+          <li>Scroll to the bottom of the drawer — a <strong>Guardian</strong> section will load automatically, showing the linked guardian record.</li>
+          <li>Enter the <strong>DL expires</strong> and <strong>Insurance expires</strong> dates, then click <strong>Save Changes</strong>.</li>
+        </ol>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          The Guardian section matches the record by email first, then by first and last name as a fallback. If it doesn't appear, make sure the background check record and the guardian record share a consistent email address or spelling.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        Who can run the Compliance Report, and how do I grant a TA or staff member access?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>The <strong>Compliance Report</strong> (in the staff portal under <strong>Compliance Report</strong>) shows guardian form-signing status by homeroom. Access works in three tiers:</p>
+        <ul>
+          <li><strong>Compliance managers</strong> (users with the <em>Manage compliance</em> permission) can see all homerooms school-wide.</li>
+          <li><strong>Homeroom teachers</strong> can see their own homeroom automatically — no extra setup needed.</li>
+          <li><strong>Other staff</strong> (e.g. a grade-level TA managing field trips) can be granted access to specific teachers' homerooms by a compliance manager.</li>
+        </ul>
+        <p>To grant a staff member report access:</p>
+        <ol>
+          <li>Go to <strong>Compliance → Settings</strong>.</li>
+          <li>In the <strong>Compliance Report Access</strong> section, click <strong>New Grant</strong>.</li>
+          <li>Search for the staff member by name or email and click <strong>Select</strong>.</li>
+          <li>Choose which teacher's homeroom they should be able to see, then click <strong>Save Grant</strong>.</li>
+        </ol>
+        <p>You can add multiple grants for the same person (one per teacher). Grants can be revoked at any time from the same Settings page.</p>
+      </div>
+    </div>
   </div>
 
   <!-- ══════════ FIELD TRIPS ══════════ -->
@@ -1415,6 +1457,34 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           The compliance summary strip at the top of the Chaperones tab gives you a quick count of cleared, action-needed, and blocked chaperones.
         </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        A chaperone shows "No record" for their background check but I know they have one — why?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>The chaperone list links background check records to guardians by <strong>email address first</strong>, then falls back to matching by first and last name. "No record" means neither match succeeded — the most common causes are:</p>
+        <ul>
+          <li>The background check record was created without an email address entered.</li>
+          <li>The email on the guardian record doesn't match the email on the background check record.</li>
+          <li>There's a spelling difference between the name on the guardian record and the name on the background check record.</li>
+        </ul>
+        <p>Hover over the <strong>No record</strong> chip to see a reminder of what to check. To fix it, make sure the guardian's email in the Admin Panel matches the email on their background check record in Compliance. If no email is on file for either, ensure the name is spelled identically in both places.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        A chaperone's background check or MVR shows as expired or "Needed" but their record looks valid — why?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Compliance status on a trip is checked against the <strong>trip date</strong>, not today's date. A background check or MVR that is valid right now will still show as expired or needed if its expiration date falls before the trip date.</p>
+        <p>For example, if a chaperone's background check expires in September 2026 but the trip is in April 2027, the system correctly flags it — their check will need to be renewed before the trip.</p>
+        <p>Hover over the status chip to see the specific reason (e.g. <em>"BG check expired by trip date"</em> or <em>"MVR expired by trip date"</em>). Once a renewed check is entered in the Compliance module with an expiration date that covers the trip, the status will update automatically.</p>
       </div>
     </div>
 
