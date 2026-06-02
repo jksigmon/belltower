@@ -608,9 +608,15 @@ function renderChaperoneTable() {
       if (!chap.is_driver) {
         mvrCell = `<td><span class="muted" style="font-size:12px;">N/A</span></td>`;
       } else {
-        const tripEnd = new Date(tripDate + 'T12:00:00');
-        const mvrOk   = bg?.mvr_cleared_at && (!bg.mvr_expires_at || new Date(bg.mvr_expires_at + 'T12:00:00') >= tripEnd);
-        mvrCell = `<td><span class="comp-chip ${mvrOk ? 'comp-cleared' : 'comp-action'}">${mvrOk ? 'Cleared' : 'Needed'}</span></td>`;
+        const tripEnd  = new Date(tripDate + 'T12:00:00');
+        const mvrExp   = bg?.mvr_expires_at ? new Date(bg.mvr_expires_at + 'T12:00:00') : null;
+        const mvrOk    = bg?.mvr_cleared_at && (!mvrExp || mvrExp >= tripEnd);
+        let mvrTooltip = '';
+        if (!mvrOk) {
+          if (!bg || !bg.mvr_cleared_at) mvrTooltip = 'No MVR on file for this driver.';
+          else if (mvrExp && mvrExp < tripEnd) mvrTooltip = 'MVR expired by trip date.';
+        }
+        mvrCell = `<td><span class="comp-chip ${mvrOk ? 'comp-cleared' : 'comp-action'}" title="${esc(mvrTooltip)}">${mvrOk ? 'Cleared' : 'Needed'}</span></td>`;
       }
     }
 
