@@ -296,10 +296,10 @@ function wireExpireAutoFill(clearedId, expiresId) {
   if (!clearedEl || !expiresEl) return;
   clearedEl.addEventListener('change', () => {
     if (expiresEl.value) return; // don't overwrite a date the user already set
-    if (!clearedEl.value) return;
-    const d = new Date(clearedEl.value + 'T12:00:00');
-    d.setFullYear(d.getFullYear() + 1);
-    expiresEl.value = d.toISOString().slice(0, 10);
+    const val = clearedEl.value; // always YYYY-MM-DD from <input type="date">
+    if (!val) return;
+    const [y, m, d] = val.split('-');
+    expiresEl.value = `${parseInt(y, 10) + 1}-${m}-${d}`;
   });
 }
 
