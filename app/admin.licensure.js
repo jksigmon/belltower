@@ -185,8 +185,8 @@ async function loadLicenses() {
 
   const { data, error } = await query;
   if (error) {
-    const tbody = document.getElementById('licenseTableBody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="11" class="lic-empty" style="color:#dc2626;">Failed to load licenses. Please try again.</td></tr>`;
+    const container = document.getElementById('licenseTableBody');
+    if (container) container.innerHTML = `<div class="lic-empty" style="color:#dc2626;">Failed to load licenses. Please try again.</div>`;
     console.error(error);
     return;
   }
@@ -207,42 +207,71 @@ async function loadLicenses() {
 }
 
 function renderLicenseTable(rows) {
-  const tbody = document.getElementById('licenseTableBody');
+  const container = document.getElementById('licenseTableBody');
   const today = new Date().toISOString().slice(0, 10);
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="lic-empty">No licenses found.</td></tr>';
+    container.innerHTML = '<div class="lic-empty">No licenses found.</div>';
     return;
   }
 
-  tbody.innerHTML = '';
+  container.innerHTML = '';
   rows.forEach(lic => {
-    const tr = document.createElement('tr');
-    const daysLeft = lic.expiration_date ? daysBetween(today, lic.expiration_date) : null;
+    const daysLeft   = lic.expiration_date ? daysBetween(today, lic.expiration_date) : null;
+    const isExpired  = daysLeft !== null && daysLeft < 0;
+    const isUrgent   = !isExpired && daysLeft !== null && daysLeft <= 30;
+    const isWarn     = !isExpired && !isUrgent && daysLeft !== null && daysLeft <= 90;
 
-    tr.innerHTML = `
-      <td>${esc(employeeLookup[lic.employee_id] ?? '—')}</td>
-      <td>${esc(lic.license_number ?? '—')}</td>
-      <td>${esc(lic.license_type)}${lic.license_class ? ` <small style="color:#6b7280;">(${esc(lic.license_class)})</small>` : ''}</td>
-      <td>${esc(lic.license_area ?? '—')}</td>
-      <td>${esc(lic.grade_authorization ?? '—')}</td>
-      <td>${formatDate(lic.expiration_date)}${daysLeft !== null ? `<br><small style="color:${daysLeft < 0 ? '#dc2626' : daysLeft <= 30 ? '#dc2626' : daysLeft <= 60 ? '#ea580c' : '#9ca3af'}">${daysLeft < 0 ? Math.abs(daysLeft) + 'd overdue' : daysLeft + 'd'}</small>` : ''}</td>
-      <td>${statusBadge(lic.status)}</td>
-      <td>${lic.is_provisional ? '<span class="badge badge-provisional">Yes</span>' : '—'}</td>
-      <td>${renewalBadge(lic.renewal_status)}</td>
-      <td>${lic.verified ? '<span class="verified-check" title="Verified">✓</span>' : '<span class="unverified-x">—</span>'}</td>
-      <td style="white-space:nowrap;">
-        <button class="btn editLicBtn" data-id="${lic.id}">Edit</button>
-        <button class="btn danger deleteLicBtn" data-id="${lic.id}">Delete</button>
-      </td>
+    const borderCls  = isExpired ? 'lic-card-expired' : isUrgent ? 'lic-card-urgent' : isWarn ? 'lic-card-warn' : 'lic-card-ok';
+    const daysCls    = isExpired ? 'lic-days-expired' : isUrgent ? 'lic-days-urgent' : isWarn ? 'lic-days-warn' : 'lic-days-ok';
+    const daysLabel  = daysLeft === null ? '' : isExpired ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d away`;
+
+    const nameParts  = (employeeLookup[lic.employee_id] ?? '').split(',');
+    const initials   = [nameParts[1]?.trim()[0], nameParts[0]?.trim()[0]].filter(Boolean).join('').toUpperCase() || '?';
+
+    const meta = [
+      lic.license_type + (lic.license_class ? ` (${lic.license_class})` : ''),
+      lic.license_area,
+      lic.grade_authorization,
+      lic.license_number ? `#${lic.license_number}` : null,
+    ].filter(Boolean).join(' · ');
+
+    const flags = [
+      lic.verified        ? `<span class="lic-flag lic-flag-ok">✓ Verified</span>` : '',
+      lic.is_provisional  ? `<span class="lic-flag lic-flag-warn">Provisional</span>` : '',
+      lic.alert_muted     ? `<span class="lic-flag lic-flag-muted">Muted</span>` : '',
+    ].filter(Boolean).join('');
+
+    const card = document.createElement('div');
+    card.className = `lic-card ${borderCls}`;
+    card.innerHTML = `
+      <div class="lic-card-av">${esc(initials)}</div>
+      <div class="lic-card-body">
+        <div class="lic-card-name">${esc(employeeLookup[lic.employee_id] ?? '—')}</div>
+        <div class="lic-card-meta">${esc(meta) || '—'}</div>
+        ${flags ? `<div class="lic-card-flags">${flags}</div>` : ''}
+      </div>
+      <div class="lic-card-expiry">
+        <div class="lic-card-date">${formatDate(lic.expiration_date)}</div>
+        ${daysLabel ? `<div class="lic-card-days ${daysCls}">${esc(daysLabel)}</div>` : ''}
+      </div>
+      <div class="lic-card-status">${statusBadge(lic.status)}</div>
+      <div class="lic-card-actions">
+        <button class="lic-btn-icon editLicBtn" data-id="${lic.id}" title="Edit">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="lic-btn-icon lic-btn-danger deleteLicBtn" data-id="${lic.id}" title="Delete">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
+      </div>
     `;
-    tbody.appendChild(tr);
+    container.appendChild(card);
   });
 
-  tbody.querySelectorAll('.editLicBtn').forEach(btn =>
+  container.querySelectorAll('.editLicBtn').forEach(btn =>
     btn.addEventListener('click', () => openEditModal(btn.dataset.id))
   );
-  tbody.querySelectorAll('.deleteLicBtn').forEach(btn =>
+  container.querySelectorAll('.deleteLicBtn').forEach(btn =>
     btn.addEventListener('click', () => deleteLicense(btn.dataset.id))
   );
 }
