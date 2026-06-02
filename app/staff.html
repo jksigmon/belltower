@@ -2789,18 +2789,23 @@ async function initComplianceReport() {
   if (compReportInitialized) return;
   compReportInitialized = true;
 
-  // Use the prefetch if it exists; if it errored (e.g. auth race at boot),
-  // discard it and make a fresh call now when the session is stable.
+  // Use the prefetch if it fired. Only retry on network/timeout errors — if the
+  // prefetch returned a real HTTP error (e.g. 403), retrying will get the same result.
   let result = compReportPrefetch ? await compReportPrefetch : null;
   compReportPrefetch = null;
-  if (!result || result.error) {
+  if (!result || (result.error && result.error.name !== 'FunctionsHttpError')) {
     result = await supabase.functions.invoke('compliance_report', { body: {} });
   }
   const { data: init, error: initErr } = result;
 
   if (initErr || init?.error) {
-    document.getElementById('compReportMsg').textContent =
-      init?.error ?? initErr?.message ?? 'Error loading report setup.';
+    // FunctionsHttpError.message is always the generic "Edge Function returned a non-2xx
+    // status code"; the real message from the function body is in error.context.error.
+    const msg = init?.error
+      ?? (initErr?.context && typeof initErr.context === 'object' ? initErr.context.error : null)
+      ?? initErr?.message
+      ?? 'Error loading report setup.';
+    document.getElementById('compReportMsg').textContent = msg;
     return;
   }
   const teachers   = init.teachers   ?? [];

@@ -30,15 +30,20 @@ CREATE POLICY "compliance managers manage grants"
   USING (
     school_id IN (
       SELECT p.school_id FROM public.profiles p
-      WHERE p.id = auth.uid() AND p.can_manage_compliance = true
+      WHERE p.user_id = auth.uid() AND p.can_manage_compliance = true
     )
   );
 
 -- Grantees can read their own grants
+-- Note: grantee_id references profiles.id (not auth.uid() directly)
 CREATE POLICY "grantees read own grants"
   ON public.compliance_report_grants
   FOR SELECT
-  USING (grantee_id = auth.uid());
+  USING (
+    grantee_id IN (
+      SELECT p.id FROM public.profiles p WHERE p.user_id = auth.uid()
+    )
+  );
 
 -- ── compliance_agreements: submitted_data_reviewed flag ───────────────
 -- Tracks whether admin has reviewed submitted phone/relationship hints
