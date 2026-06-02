@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js';
-import { loadFamilyOptions, esc, getAvatarColor, cloneSelectOptions, debounce, dbError } from './admin.shared.js';
+import { loadFamilyOptions, searchFamilies, getFamilyById, esc, getAvatarColor, debounce, dbError } from './admin.shared.js';
 import { createDirectory } from './admin.directory.js';
 
 let currentProfile;
@@ -15,7 +15,9 @@ let editingGuardianId = null;
 export async function initGuardiansSection(profile) {
   currentProfile = profile;
 
-  await loadFamilyOptions(['#guardianFamily'], currentProfile.school_id);
+  await loadFamilyOptions([], currentProfile.school_id); // warms the cache
+  initFamilyCombo('guardianFamilyInput', 'guardianFamily', 'guardianFamilyList');
+  initFamilyCombo('egFamilyInput',       'egFamily',       'egFamilyList');
 
   if (!guardiansDirectory) {
     guardiansDirectory = createDirectory({
@@ -68,6 +70,90 @@ export async function initGuardiansSection(profile) {
    HELPERS
 ================================ */
 
+function familyLabel(f) {
+  return f.carline_tag_number
+    ? `${f.carline_tag_number} – ${f.family_name ?? '(no name)'}`
+    : (f.family_name ?? '(no name)');
+}
+
+function initFamilyCombo(inputId, hiddenId, listId) {
+  const input  = document.getElementById(inputId);
+  const hidden = document.getElementById(hiddenId);
+  const list   = document.getElementById(listId);
+  if (!input || !hidden || !list) return;
+
+  let focusedIndex = -1;
+
+  function renderList(term) {
+    const results = searchFamilies(currentProfile.school_id, term);
+    list.innerHTML = '';
+    focusedIndex = -1;
+
+    if (!results.length) {
+      list.innerHTML = '<div style="padding:10px 12px;color:#9ca3af;font-size:0.88rem;">No families found</div>';
+    } else {
+      results.forEach(f => {
+        const label = familyLabel(f);
+        const div   = document.createElement('div');
+        div.className    = 'family-combo-item';
+        div.dataset.id    = f.id;
+        div.dataset.label = label;
+        div.textContent  = label;
+        div.addEventListener('mousedown', e => {
+          e.preventDefault(); // keep focus on input long enough to register click
+          selectItem(f.id, label);
+        });
+        list.appendChild(div);
+      });
+    }
+    list.classList.add('open');
+  }
+
+  function selectItem(id, label) {
+    hidden.value = id;
+    input.value  = label;
+    list.classList.remove('open');
+    focusedIndex = -1;
+  }
+
+  function getItems() { return list.querySelectorAll('.family-combo-item'); }
+
+  input.addEventListener('input',  () => renderList(input.value));
+  input.addEventListener('focus',  () => renderList(input.value));
+  input.addEventListener('blur',   () => setTimeout(() => list.classList.remove('open'), 150));
+
+  input.addEventListener('keydown', e => {
+    const items = getItems();
+    if (!items.length) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      focusedIndex = Math.min(focusedIndex + 1, items.length - 1);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      focusedIndex = Math.max(focusedIndex - 1, 0);
+    } else if (e.key === 'Enter' && focusedIndex >= 0) {
+      e.preventDefault();
+      const item = items[focusedIndex];
+      selectItem(item.dataset.id, item.dataset.label);
+      return;
+    } else if (e.key === 'Escape') {
+      list.classList.remove('open');
+      return;
+    } else { return; }
+    items.forEach((item, i) => item.classList.toggle('focused', i === focusedIndex));
+    items[focusedIndex]?.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+function setFamilyCombo(inputId, hiddenId, familyId) {
+  const input  = document.getElementById(inputId);
+  const hidden = document.getElementById(hiddenId);
+  if (!input || !hidden) return;
+  hidden.value = familyId ?? '';
+  if (!familyId) { input.value = ''; return; }
+  const f = getFamilyById(currentProfile.school_id, familyId);
+  input.value = f ? familyLabel(f) : '';
+}
 
 /* ===============================
    RENDER ROW
@@ -130,7 +216,7 @@ function openEditGuardianDrawer(g) {
   document.getElementById('egTitle').textContent    = `${g.first_name} ${g.last_name}`;
   document.getElementById('egSubtitle').textContent = g.families?.family_name ?? '';
 
-  cloneSelectOptions('#guardianFamily', document.getElementById('egFamily'), g.family_id);
+  setFamilyCombo('egFamilyInput', 'egFamily', g.family_id);
   document.getElementById('egFirst').value    = g.first_name ?? '';
   document.getElementById('egLast').value     = g.last_name ?? '';
   document.getElementById('egEmail').value    = g.email ?? '';
@@ -227,7 +313,7 @@ async function createGuardian() {
   ['guardianFirst', 'guardianLast', 'guardianEmail', 'guardianPhone'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
-  const fam = document.getElementById('guardianFamily'); if (fam) fam.value = '';
+  setFamilyCombo('guardianFamilyInput', 'guardianFamily', null);
   const pri = document.getElementById('guardianPrimary'); if (pri) pri.checked = false;
 
   window.closeDrawer?.('guardianDrawer');

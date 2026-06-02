@@ -285,7 +285,7 @@ function openBgDrawer(id) {
   }
 
   openDrawer('bg');
-  if (row.subject_email) loadBgGuardianSection(row.subject_email);
+  loadBgGuardianSection(row);
 }
 
 export async function saveBgCheck() {
@@ -356,19 +356,28 @@ async function archiveBgCheck(id, archive) {
   await loadBgChecks();
 }
 
-async function loadBgGuardianSection(email) {
+async function loadBgGuardianSection(row) {
   const section = document.getElementById('bgGuardianSection');
   if (!section) return;
   activeBgGuardianId = null;
   section.innerHTML = '<p class="muted" style="font-size:12px;">Looking up guardian record…</p>';
 
-  const { data: guardians } = await supabase
+  let query = supabase
     .from('guardians')
     .select('id, first_name, last_name, dl_expires_at, insurance_expires_at, can_chaperone, can_drive')
     .eq('school_id', _profile.school_id)
     .eq('active', true)
-    .ilike('email', email)
     .limit(1);
+
+  if (row.subject_email) {
+    query = query.ilike('email', row.subject_email);
+  } else {
+    query = query
+      .ilike('first_name', row.subject_first_name ?? '')
+      .ilike('last_name',  row.subject_last_name  ?? '');
+  }
+
+  const { data: guardians } = await query;
 
   const g = guardians?.[0];
   if (!g) {

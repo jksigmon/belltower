@@ -1718,9 +1718,11 @@
   <div class="drawer-body">
     <div class="drawer-field">
       <label>Family <span class="required">*</span></label>
-      <select id="guardianFamily" class="form-input">
-        <option value="">Select family…</option>
-      </select>
+      <div class="family-combo">
+        <input type="text" id="guardianFamilyInput" class="form-input" placeholder="Search by name or #…" autocomplete="off" spellcheck="false">
+        <input type="hidden" id="guardianFamily">
+        <div class="family-combo-list" id="guardianFamilyList"></div>
+      </div>
     </div>
     <div class="drawer-row-2">
       <div class="drawer-field">
@@ -1770,7 +1772,11 @@
   <div class="drawer-body">
     <div class="drawer-field">
       <label>Family <span class="required">*</span></label>
-      <select id="egFamily" class="form-input"></select>
+      <div class="family-combo">
+        <input type="text" id="egFamilyInput" class="form-input" placeholder="Search by name or #…" autocomplete="off" spellcheck="false">
+        <input type="hidden" id="egFamily">
+        <div class="family-combo-list" id="egFamilyList"></div>
+      </div>
     </div>
     <div class="drawer-row-2">
       <div class="drawer-field">

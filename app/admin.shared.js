@@ -131,6 +131,10 @@ export function searchFamilies(schoolId, term) {
   ).slice(0, 8);
 }
 
+export function getFamilyById(schoolId, id) {
+  return (familyCache[schoolId] ?? []).find(f => f.id === id) ?? null;
+}
+
 export function invalidateBusGroupCache(schoolId) {
   if (schoolId) delete busGroupCache[schoolId];
   else Object.keys(busGroupCache).forEach(k => delete busGroupCache[k]);

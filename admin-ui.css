@@ -1319,6 +1319,34 @@ table tr:hover {
 }
 .drawer-field small { font-size: 0.78rem; color: #9ca3af; }
 
+/* ── Family combobox ── */
+.family-combo { position: relative; }
+.family-combo-list {
+  position: absolute;
+  top: calc(100% - 1px);
+  left: 0; right: 0;
+  background: #fff;
+  border: 1px solid #0b2d4f;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 200;
+  display: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+}
+.family-combo-list.open { display: block; }
+.family-combo-item {
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 0.92rem;
+  color: #0f172a;
+  border-bottom: 1px solid #f3f4f6;
+}
+.family-combo-item:last-child { border-bottom: none; }
+.family-combo-item:hover,
+.family-combo-item.focused { background: #f0f9ff; }
+
 .drawer-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
