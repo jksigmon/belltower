@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js';
 import { initPage } from './admin.auth.js';
-import { debounce, esc } from './admin.shared.js';
+import { debounce, esc, showToast } from './admin.shared.js';
 
 /* ─────────────────────────────────────────────────────
    STATE
@@ -437,13 +437,13 @@ async function saveLicense() {
     ? allLicenses.find(l => l.id === editingId)?.employee_id
     : document.getElementById('licStaff').value;
 
-  if (!employeeId) { alert('Please select a staff member.'); return; }
+  if (!employeeId) { showToast('Please select a staff member.', 'warn'); return; }
 
   const licType = document.getElementById('licType').value;
-  if (!licType) { alert('License type is required.'); return; }
+  if (!licType) { showToast('License type is required.', 'warn'); return; }
 
   const expDate = document.getElementById('licExpDate').value;
-  if (!expDate) { alert('Expiration date is required.'); return; }
+  if (!expDate) { showToast('Expiration date is required.', 'warn'); return; }
 
   const roleChecks = [...document.querySelectorAll('.role-checks input[type=checkbox]')]
     .filter(cb => cb.checked).map(cb => cb.value);
@@ -478,7 +478,7 @@ async function saveLicense() {
     const old = allLicenses.find(l => l.id === editingId);
     const changes = diffObjects(old, payload);
     const { error } = await supabase.from('staff_licenses').update(payload).eq('id', editingId);
-    if (error) { console.error(error); alert('Failed to save license.'); return; }
+    if (error) { console.error(error); showToast('Failed to save license.', 'error'); return; }
 
     // When expiration_date changes (renewal), clear the alert log so the new
     // expiration cycle sends fresh threshold alerts.
@@ -493,7 +493,7 @@ async function saveLicense() {
   } else {
     payload.created_by = currentProfile.user_id;
     const { data, error } = await supabase.from('staff_licenses').insert(payload).select().single();
-    if (error) { console.error(error); alert('Failed to save license.'); return; }
+    if (error) { console.error(error); showToast('Failed to save license.', 'error'); return; }
     await writeHistory(data.id, schoolId, 'created', null);
     licenseId = data.id;
   }
@@ -509,11 +509,16 @@ async function saveLicense() {
 }
 
 async function deleteLicense(id) {
-  if (!confirm('Delete this license record? This cannot be undone.')) return;
   const lic = allLicenses.find(l => l.id === id);
+  const name = lic ? (employeeLookup[lic.employee_id] ?? 'this staff member') : 'this record';
+  const confirmed = await showConfirm(
+    'Delete License',
+    `Delete the ${lic?.license_type ?? 'license'} record for ${name}? This cannot be undone.`
+  );
+  if (!confirmed) return;
   if (lic) await writeHistory(id, currentProfile.school_id, 'deleted', null);
   const { error } = await supabase.from('staff_licenses').delete().eq('id', id);
-  if (error) { console.error(error); alert('Failed to delete license.'); return; }
+  if (error) { console.error(error); showToast('Failed to delete license.', 'error'); return; }
   await loadLicenses();
 }
 
@@ -553,7 +558,7 @@ async function uploadLicenseFile(licenseId, file) {
 
   if (uploadError) {
     console.error('File upload failed', uploadError);
-    alert('File upload failed: ' + uploadError.message);
+    showToast('File upload failed: ' + uploadError.message, 'error');
     return;
   }
 
@@ -630,7 +635,7 @@ async function renderFileSection(files) {
    EXPORT
 ───────────────────────────────────────────────────── */
 function exportLicenses() {
-  if (!allLicenses.length) { alert('No licenses to export.'); return; }
+  if (!allLicenses.length) { showToast('No licenses to export.', 'warn'); return; }
 
   const today = new Date().toISOString().slice(0, 10);
   const rows = allLicenses.map(l => ({
@@ -840,6 +845,27 @@ function renewalBadge(status) {
 
 function changeTypeBadge(type) {
   return { created: 'active', updated: 'pending', deleted: 'expired', renewed: 'active', verified: 'pending' }[type] ?? 'pending';
+}
+
+function showConfirm(title, message, okLabel = 'Delete') {
+  return new Promise(resolve => {
+    const modal  = document.getElementById('licConfirmModal');
+    const okBtn  = document.getElementById('licConfirmOk');
+    const canBtn = document.getElementById('licConfirmCancel');
+    document.getElementById('licConfirmTitle').textContent = title;
+    document.getElementById('licConfirmMsg').textContent   = message;
+    okBtn.textContent = okLabel;
+    modal.classList.add('open');
+
+    const done = result => {
+      modal.classList.remove('open');
+      resolve(result);
+    };
+
+    okBtn.addEventListener('click',  () => done(true),  { once: true });
+    canBtn.addEventListener('click', () => done(false), { once: true });
+    modal.addEventListener('click',  e => { if (e.target === modal) done(false); }, { once: true });
+  });
 }
 
 function diffObjects(oldObj, newObj) {

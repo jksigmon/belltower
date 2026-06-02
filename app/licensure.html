@@ -191,6 +191,46 @@
       padding: 1px 5px;
     }
 
+    /* ── Danger button ── */
+    .btn-danger {
+      background: #dc2626;
+      color: #fff;
+      border-color: #dc2626;
+    }
+    .btn-danger:hover { background: #b91c1c; border-color: #b91c1c; }
+
+    /* ── Delete confirm modal ── */
+    .lic-confirm-box {
+      background: #fff;
+      border-radius: 16px;
+      padding: 32px 28px 24px;
+      max-width: 400px;
+      width: 100%;
+      margin: 0 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.18);
+      text-align: center;
+    }
+    .lic-confirm-icon {
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: #fee2e2;
+      color: #dc2626;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+    }
+    .lic-confirm-title {
+      font-size: 1.05rem; font-weight: 700;
+      color: #0f172a; margin: 0 0 8px;
+    }
+    .lic-confirm-msg {
+      font-size: 0.875rem; color: #6b7280;
+      line-height: 1.5; margin: 0 0 24px;
+    }
+    .lic-confirm-actions {
+      display: flex; gap: 10px; justify-content: center;
+    }
+    .lic-confirm-actions .btn { min-width: 90px; justify-content: center; }
+
     /* ── License card list ── */
     .lic-card-list {
       display: flex;
@@ -480,6 +520,23 @@
   </main>
 </div>
 
+
+<!-- ══════════════════════════════════════════════════
+     DELETE CONFIRM MODAL
+══════════════════════════════════════════════════ -->
+<div id="licConfirmModal" class="modal">
+  <div class="lic-confirm-box">
+    <div class="lic-confirm-icon">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+    </div>
+    <h3 id="licConfirmTitle" class="lic-confirm-title">Delete License</h3>
+    <p id="licConfirmMsg" class="lic-confirm-msg"></p>
+    <div class="lic-confirm-actions">
+      <button id="licConfirmCancel" class="btn">Cancel</button>
+      <button id="licConfirmOk" class="btn btn-danger">Delete</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════════
      DRAWER OVERLAY + LICENSE DRAWER
