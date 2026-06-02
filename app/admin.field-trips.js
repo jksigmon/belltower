@@ -11,8 +11,10 @@ let currentTrip          = null;
 let chaperoneList        = [];
 let studentList          = [];
 let bgCheckMap           = new Map(); // email (lower) -> bg check row
+let bgCheckNameMap       = new Map(); // "first|last" (lower) -> bg check row (fallback when no email on record)
 let requiredFormTemplates = [];        // school-level, loaded once on init
 let agreementsMap        = new Map(); // email (lower) -> Set<templateId>
+let agreementsGuardianMap = new Map(); // guardian_id -> Set<templateId> (fallback when guardian has no email)
 let selectedGuardian     = null;
 let activeTab            = 'chaperones';
 let drawerManagers       = [];   // { profile_id, name, email } — pending in drawer
@@ -386,10 +388,9 @@ async function loadChaperones() {
 
   chaperoneList = data ?? [];
 
-  const emails = chaperoneList.map(c => (c.guardian?.email ?? '').toLowerCase()).filter(Boolean);
   await Promise.all([
-    loadBgChecksByEmail(emails),
-    loadAgreementsByEmail(emails),
+    loadBgChecks(chaperoneList),
+    loadAgreements(chaperoneList),
   ]);
 
   renderChaperoneTable();
@@ -417,50 +418,105 @@ async function loadRequiredForms() {
   document.getElementById('thForms').style.display = requiredFormTemplates.length ? '' : 'none';
 }
 
-async function loadAgreementsByEmail(emails) {
+async function loadAgreements(chaperones) {
   agreementsMap.clear();
-  if (!emails.length || !requiredFormTemplates.length) return;
+  agreementsGuardianMap.clear();
+  if (!chaperones.length || !requiredFormTemplates.length) return;
 
-  const { data } = await supabase
-    .from('compliance_agreements')
-    .select('signer_email, template_id')
-    .eq('school_id', profile.school_id)
-    .in('signer_email', emails)
-    .in('template_id', requiredFormTemplates.map(t => t.id))
-    .is('voided_at', null);
+  const templateIds  = requiredFormTemplates.map(t => t.id);
+  const emails       = chaperones.map(c => (c.guardian?.email ?? '').toLowerCase()).filter(Boolean);
+  const guardianIds  = chaperones.map(c => c.guardian?.id).filter(Boolean);
 
-  (data ?? []).forEach(row => {
-    const key = (row.signer_email ?? '').toLowerCase();
-    if (!agreementsMap.has(key)) agreementsMap.set(key, new Set());
-    agreementsMap.get(key).add(row.template_id);
+  const queries = [];
+  if (emails.length) {
+    queries.push(
+      supabase.from('compliance_agreements')
+        .select('signer_email, guardian_id, template_id')
+        .eq('school_id', profile.school_id)
+        .in('signer_email', emails)
+        .in('template_id', templateIds)
+        .is('voided_at', null)
+    );
+  }
+  if (guardianIds.length) {
+    queries.push(
+      supabase.from('compliance_agreements')
+        .select('signer_email, guardian_id, template_id')
+        .eq('school_id', profile.school_id)
+        .in('guardian_id', guardianIds)
+        .in('template_id', templateIds)
+        .is('voided_at', null)
+    );
+  }
+
+  const results = await Promise.all(queries);
+  results.forEach(({ data }) => {
+    (data ?? []).forEach(row => {
+      if (row.signer_email) {
+        const key = row.signer_email.toLowerCase();
+        if (!agreementsMap.has(key)) agreementsMap.set(key, new Set());
+        agreementsMap.get(key).add(row.template_id);
+      }
+      if (row.guardian_id) {
+        if (!agreementsGuardianMap.has(row.guardian_id)) agreementsGuardianMap.set(row.guardian_id, new Set());
+        agreementsGuardianMap.get(row.guardian_id).add(row.template_id);
+      }
+    });
   });
 }
 
-async function loadBgChecksByEmail(emails) {
+async function loadBgChecks(chaperones) {
   bgCheckMap.clear();
-  if (!emails.length) return;
+  bgCheckNameMap.clear();
+  if (!chaperones.length) return;
 
+  // Fetch all active bg checks for the school — small dataset, avoids email-only lookup
+  // which fails when the bg check record was created without a subject_email.
   const { data } = await supabase
     .from('compliance_bg_check_requests')
-    .select('id, subject_email, status, cleared_at, expires_at, mvr_cleared_at, mvr_expires_at')
+    .select('id, subject_email, subject_first_name, subject_last_name, status, cleared_at, expires_at, mvr_cleared_at, mvr_expires_at')
     .eq('school_id', profile.school_id)
-    .in('subject_email', emails)
     .in('status', ['cleared', 'submitted', 'pending', 'expired']);
 
   if (!data) return;
-  // Keep most recent cleared record per email; fall back to any record
+
   data.forEach(row => {
-    const key = (row.subject_email ?? '').toLowerCase();
-    const existing = bgCheckMap.get(key);
-    if (!existing || (row.status === 'cleared' && existing.status !== 'cleared')) {
-      bgCheckMap.set(key, row);
+    // Primary index: by email
+    if (row.subject_email) {
+      const key = row.subject_email.toLowerCase();
+      const existing = bgCheckMap.get(key);
+      if (!existing || (row.status === 'cleared' && existing.status !== 'cleared')) {
+        bgCheckMap.set(key, row);
+      }
+    }
+    // Fallback index: by name (for records created without an email)
+    if (row.subject_first_name && row.subject_last_name) {
+      const key = `${row.subject_first_name.toLowerCase()}|${row.subject_last_name.toLowerCase()}`;
+      const existing = bgCheckNameMap.get(key);
+      if (!existing || (row.status === 'cleared' && existing.status !== 'cleared')) {
+        bgCheckNameMap.set(key, row);
+      }
     }
   });
 }
 
-function getMissingForms(email) {
+function getBgCheck(guardian) {
+  if (!guardian) return null;
+  const email = (guardian.email ?? '').toLowerCase();
+  if (email) {
+    const byEmail = bgCheckMap.get(email);
+    if (byEmail) return byEmail;
+  }
+  const nameKey = `${(guardian.first_name ?? '').toLowerCase()}|${(guardian.last_name ?? '').toLowerCase()}`;
+  return bgCheckNameMap.get(nameKey) ?? null;
+}
+
+function getMissingForms(guardian) {
   if (!requiredFormTemplates.length) return [];
-  const signed = agreementsMap.get((email ?? '').toLowerCase()) ?? new Set();
+  const email  = (guardian?.email ?? '').toLowerCase();
+  const byEmail = email ? agreementsMap.get(email) ?? new Set() : new Set();
+  const byGid   = guardian?.id ? agreementsGuardianMap.get(guardian.id) ?? new Set() : new Set();
+  const signed  = new Set([...byEmail, ...byGid]);
   return requiredFormTemplates.filter(t => !signed.has(t.id));
 }
 
@@ -486,7 +542,7 @@ function computeComplianceStatus(guardian, bgCheck, tripDate, isDriver) {
     if (mvrExp && mvrExp < trip) return { status: 'action', detail: 'MVR expired by trip date' };
   }
 
-  const missingForms = getMissingForms((guardian?.email ?? '').toLowerCase());
+  const missingForms = getMissingForms(guardian);
   if (missingForms.length) {
     return { status: 'action', detail: `Missing: ${missingForms.map(t => t.title).join(', ')}` };
   }
@@ -501,7 +557,7 @@ function renderBgChip(status, bgCheck, tripDate, isDriver, detail = '') {
 
   let tooltip = detail;
   if (!bgCheck) {
-    tooltip = 'No background check on file';
+    tooltip = 'No matching background check found. Verify the email on the guardian record matches the bg check record, and check for name spelling differences.';
   } else if (s === 'blocked') {
     const bgExp = bgCheck.expires_at ? new Date(bgCheck.expires_at + 'T12:00:00') : null;
     const trip  = new Date(tripDate + 'T12:00:00');
@@ -511,8 +567,8 @@ function renderBgChip(status, bgCheck, tripDate, isDriver, detail = '') {
   return `<span class="comp-chip ${cls[s]}" title="${esc(tooltip)}">${labels[s]}</span>`;
 }
 
-function renderFormsChip(email) {
-  const missing = getMissingForms(email);
+function renderFormsChip(guardian) {
+  const missing = getMissingForms(guardian);
   if (!missing.length) return `<span class="comp-chip comp-cleared">All signed</span>`;
   const names = missing.map(t => t.title).join(', ');
   const label = missing.length === 1 ? `Missing: ${missing[0].title}` : `${missing.length} forms missing`;
@@ -539,7 +595,7 @@ function renderChaperoneTable() {
   chaperoneList.forEach(chap => {
     const g      = chap.guardian ?? {};
     const email  = (g.email ?? '').toLowerCase();
-    const bg                = bgCheckMap.get(email) ?? null;
+    const bg                = getBgCheck(g);
     const { status, detail } = computeComplianceStatus(g, bg, tripDate, chap.is_driver);
 
     const students = (g.family?.students ?? [])
@@ -559,7 +615,7 @@ function renderChaperoneTable() {
     }
 
     const formsCell = formsRequired
-      ? `<td>${renderFormsChip(email)}</td>`
+      ? `<td>${renderFormsChip(g)}</td>`
       : '';
 
     const tr = document.createElement('tr');
@@ -588,7 +644,7 @@ function renderComplianceStats() {
   let cleared = 0, action = 0, blocked = 0;
   chaperoneList.forEach(chap => {
     const g  = chap.guardian ?? {};
-    const bg = bgCheckMap.get((g.email ?? '').toLowerCase()) ?? null;
+    const bg = getBgCheck(g);
     const { status: s } = computeComplianceStatus(g, bg, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
     if (s === 'cleared')  cleared++;
     else if (s === 'action') action++;
@@ -930,8 +986,7 @@ function exportChaperoneCSV() {
 
   const rows = chaperoneList.map(chap => {
     const g     = chap.guardian ?? {};
-    const email = (g.email ?? '').toLowerCase();
-    const bg    = bgCheckMap.get(email) ?? null;
+    const bg    = getBgCheck(g);
     const { status: s } = computeComplianceStatus(g, bg, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
     const kids  = (g.family?.students ?? []).map(k => `${k.first_name} ${k.last_name}`).join('; ');
     const row = [
@@ -946,8 +1001,8 @@ function exportChaperoneCSV() {
       row.push(bg?.mvr_cleared_at ? 'Yes' : 'No', bg?.mvr_expires_at ?? '');
     }
     if (requiredFormTemplates.length) {
-      const signed  = agreementsMap.get(email) ?? new Set();
-      const missing = getMissingForms(g.email);
+      const missing = getMissingForms(g);
+      const signed  = new Set(requiredFormTemplates.map(t => t.id).filter(id => !missing.find(m => m.id === id)));
       requiredFormTemplates.forEach(t => row.push(signed.has(t.id) ? 'Signed' : 'Not signed'));
       row.push(missing.map(t => t.title).join('; ') || 'None');
     }
