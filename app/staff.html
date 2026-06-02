@@ -1618,12 +1618,6 @@ async function initStaff() {
     backToAdmin.style.display = 'inline-flex';
   }
 
-  // Pre-warm the compliance_report edge function in the background so the
-  // teacher dropdown is instant when the user navigates to Compliance Report.
-  if (window.staffModules?.compliance) {
-    compReportPrefetch = supabase.functions.invoke('compliance_report', { body: {} });
-  }
-
   applyModuleNavVisibility();
   document.getElementById('staffNav')?.classList.remove('hidden');
   setActive('#dashboard');
@@ -1634,6 +1628,12 @@ async function initStaff() {
     loadSchoolSettings(currentProfile.school_id),
     loadStaffDashboard()
   ]);
+
+  // Pre-warm the compliance_report edge function AFTER the dashboard loads so
+  // the auth session is fully settled before the edge function call goes out.
+  if (window.staffModules?.compliance) {
+    compReportPrefetch = supabase.functions.invoke('compliance_report', { body: {} });
+  }
 }
 
 let selectedStartDate = null;
@@ -2789,11 +2789,14 @@ async function initComplianceReport() {
   if (compReportInitialized) return;
   compReportInitialized = true;
 
-  // Fetch allowed teachers + active templates (no filters = discovery call).
-  // compReportPrefetch was fired at boot time so this await is usually instant.
-  const { data: init, error: initErr } = await (compReportPrefetch
-    ?? supabase.functions.invoke('compliance_report', { body: {} }));
+  // Use the prefetch if it exists; if it errored (e.g. auth race at boot),
+  // discard it and make a fresh call now when the session is stable.
+  let result = compReportPrefetch ? await compReportPrefetch : null;
   compReportPrefetch = null;
+  if (!result || result.error) {
+    result = await supabase.functions.invoke('compliance_report', { body: {} });
+  }
+  const { data: init, error: initErr } = result;
 
   if (initErr || init?.error) {
     document.getElementById('compReportMsg').textContent =
