@@ -285,7 +285,22 @@ function openBgDrawer(id) {
   }
 
   openDrawer('bg');
+  wireExpireAutoFill('bgDrawerClearedAt',    'bgDrawerExpiresAt');
+  wireExpireAutoFill('bgDrawerMvrClearedAt', 'bgDrawerMvrExpiresAt');
   loadBgGuardianSection(row);
+}
+
+function wireExpireAutoFill(clearedId, expiresId) {
+  const clearedEl = document.getElementById(clearedId);
+  const expiresEl = document.getElementById(expiresId);
+  if (!clearedEl || !expiresEl) return;
+  clearedEl.addEventListener('change', () => {
+    if (expiresEl.value) return; // don't overwrite a date the user already set
+    if (!clearedEl.value) return;
+    const d = new Date(clearedEl.value + 'T12:00:00');
+    d.setFullYear(d.getFullYear() + 1);
+    expiresEl.value = d.toISOString().slice(0, 10);
+  });
 }
 
 export async function saveBgCheck() {
