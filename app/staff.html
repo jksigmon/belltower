@@ -150,12 +150,15 @@
   font-weight: 600;
 }
 
-/* 3-column grid for type / duration / date */
+/* 2-column grid for type / duration; date spans full width below */
 .pto-fields-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1.3fr;
+  grid-template-columns: 1fr 1fr;
   gap: 14px;
   width: 100%;
+}
+.pto-fields-grid .pto-field:nth-child(3) {
+  grid-column: 1 / -1;
 }
 
 /* Custom hours conditional panel */
@@ -186,15 +189,22 @@
 
 /* Balance tracking notice */
 .pto-balance-warning {
-  background: #f0fdf4;
-  border: 1px solid #86efac;
-  color: #065f46;
+  background: #eff6ff;
+  border: 1px solid #93c5fd;
+  color: #1e40af;
   font-size: 13px;
   padding: 10px 14px;
   border-radius: 8px;
   white-space: normal;
   width: 100%;
   box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.pto-balance-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 
 /* ─── Field Trips ─────────────────────────────────── */
@@ -272,6 +282,8 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   gap: 12px;
   width: 100%;
   flex-wrap: wrap;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 14px;
 }
 .pto-form-message {
   font-size: 13px;
@@ -423,9 +435,6 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
 /* ── Mid-range ── */
 @media (min-width: 768px) and (max-width: 1100px) {
-  .pto-fields-grid {
-    grid-template-columns: 1fr 1fr;
-  }
   .pto-form-row-conditional {
     grid-template-columns: 1fr 1fr;
   }
@@ -450,12 +459,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   .pto-form { gap: 12px; }
 
   .pto-fields-grid {
-    grid-template-columns: 1fr 1fr;
     gap: 10px;
-  }
-  /* Date spans full width on mobile since it needs room */
-  .pto-fields-grid .pto-field:nth-child(3) {
-    grid-column: 1 / -1;
   }
 
   .pto-form-row-conditional {
@@ -872,7 +876,8 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
   <!-- Balance tracking notice -->
   <div id="ptoBalanceHelper" class="pto-balance-warning" style="display:none;">
-    📝 <strong>Tracking only</strong> — This leave type is for record-keeping purposes and will <strong>not count against your PTO balance</strong>.
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span><strong>Tracking only</strong> — This leave type is for record-keeping purposes and will <strong>not count against your PTO balance</strong>.</span>
   </div>
 
   <!-- Submit -->
