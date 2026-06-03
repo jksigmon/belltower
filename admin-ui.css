@@ -4328,6 +4328,103 @@ a.staff-dash-request-row:hover {
   width: fit-content;
 }
 
+/* Placement flag chips — drawer toggle UI */
+.student-flags-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.student-flag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  background: transparent;
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s, opacity 0.12s;
+  line-height: 1;
+}
+.student-flag-chip .flag-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--flag-color, #9ca3af);
+}
+.student-flag-chip.active {
+  background: color-mix(in srgb, var(--flag-color, #6b7280) 15%, white);
+  border-color: color-mix(in srgb, var(--flag-color, #6b7280) 40%, white);
+  color: color-mix(in srgb, var(--flag-color, #6b7280) 80%, black);
+}
+.student-flag-chip.inactive {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  color: #9ca3af;
+}
+.student-flag-chip.inactive .flag-dot {
+  background: #d1d5db;
+}
+.student-flag-chip.archived {
+  background: #f9fafb;
+  border-color: #e5e7eb;
+  color: #9ca3af;
+  cursor: default;
+}
+.student-flag-chip:not(:disabled):hover.active {
+  opacity: 0.8;
+}
+.student-flag-chip:not(:disabled):hover.inactive {
+  border-color: #d1d5db;
+  color: #6b7280;
+}
+.student-flag-chip:disabled {
+  cursor: default;
+}
+.student-flag-chip .flag-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  background: #d1d5db;
+  color: #6b7280;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+  font-family: inherit;
+  transition: background 0.1s;
+}
+.student-flag-chip .flag-remove:hover {
+  background: #9ca3af;
+  color: #fff;
+}
+
+/* Placement flag dots — directory row indicators */
+.student-flags-row-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+.student-flag-row-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* Position pill */
 .staff-position-badge {
   display: inline-block;

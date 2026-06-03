@@ -9,6 +9,7 @@ let initialized = false;
 let studentsDirectory;
 let selectedFamilyId = null;
 let editingStudentId = null;
+let schoolFlags = []; // { id, label, color, sort_order, archived_at }
 
 /* ===============================
    ENTRY POINT
@@ -31,7 +32,8 @@ export async function initStudentsSection(profile) {
     loadFamilyOptions([], currentProfile.school_id),
     loadBusGroupOptions('#studentBusGroup', currentProfile.school_id),
     usesHomerooms ? loadHomeroomOptions() : Promise.resolve(),
-    loadCampusOptions()
+    loadCampusOptions(),
+    loadSchoolPlacementFlags()
   ]);
 
   if (!studentsDirectory) {
@@ -58,7 +60,8 @@ export async function initStudentsSection(profile) {
         families!inner(carline_tag_number, family_name),
         employees!left(id, first_name, last_name),
         bus_groups(id, name),
-        campuses(id, name)
+        campuses(id, name),
+        student_placement_flags(flag_id)
       `,
 
       searchFields: ['first_name', 'last_name', 'student_number'],
@@ -168,6 +171,15 @@ async function loadCampusOptions() {
   });
 }
 
+async function loadSchoolPlacementFlags() {
+  const { data } = await supabase
+    .from('placement_flags')
+    .select('id, label, color, sort_order, archived_at')
+    .eq('school_id', currentProfile.school_id)
+    .order('sort_order');
+  schoolFlags = data ?? [];
+}
+
 /* ===============================
    HELPERS
 ================================ */
@@ -197,6 +209,17 @@ function renderStudentRow(r) {
     ? `<span class="grade-badge">${esc(r.grade_level)}</span>`
     : '<span class="staff-cell-muted">—</span>';
 
+  const flagDots = schoolFlags.length
+    ? (r.student_placement_flags ?? [])
+        .map(sf => schoolFlags.find(f => f.id === sf.flag_id))
+        .filter(Boolean)
+        .map(f => `<span class="student-flag-row-dot" style="background:${esc(f.color)}" title="${esc(f.label)}"></span>`)
+        .join('')
+    : '';
+  const flagDotsHtml = flagDots
+    ? `<div class="student-flags-row-dots">${flagDots}</div>`
+    : '';
+
   const tr = document.createElement('tr');
   tr.className = 'dir-row-link';
   tr.innerHTML = `
@@ -206,6 +229,7 @@ function renderStudentRow(r) {
         <div class="staff-name-group">
           <span class="staff-fullname">${esc(r.first_name)} ${esc(r.last_name)}</span>
           ${retained}${inactive}
+          ${flagDotsHtml}
         </div>
       </div>
     </td>
@@ -283,6 +307,7 @@ async function openEditStudentDrawer(r) {
   saveBtn.textContent = 'Save Changes';
 
   loadDrawerGuardians(r.family_id);
+  loadStudentFlagsSection(r.id);
 
   window.openDrawer?.('editStudentDrawer');
 }
@@ -398,6 +423,105 @@ async function loadDrawerGuardians(familyId) {
       ${g.phone ? `<a class="guardian-chip-phone" href="tel:${esc(g.phone)}">${esc(g.phone)}</a>` : ''}
     </div>
   `).join('');
+}
+
+/* ===============================
+   PLACEMENT FLAGS
+================================ */
+
+async function loadStudentFlagsSection(studentId) {
+  const section   = document.getElementById('estuFlagsSection');
+  const container = document.getElementById('estuFlagsContainer');
+  if (!section || !container) return;
+
+  const activeFlags   = schoolFlags.filter(f => !f.archived_at);
+  const archivedFlags = schoolFlags.filter(f => !!f.archived_at);
+
+  // If school has no flags at all, hide the section
+  if (schoolFlags.length === 0) { section.hidden = true; return; }
+
+  // Load this student's current flag assignments
+  const { data } = await supabase
+    .from('student_placement_flags')
+    .select('flag_id')
+    .eq('student_id', studentId);
+
+  const activeFlagIds = new Set((data ?? []).map(r => r.flag_id));
+
+  // Archived flags the student currently has (can only be removed, not added back)
+  const archivedAssigned = archivedFlags.filter(f => activeFlagIds.has(f.id));
+
+  // Hide section if there's nothing to show
+  if (activeFlags.length === 0 && archivedAssigned.length === 0) {
+    section.hidden = true;
+    return;
+  }
+
+  section.hidden = false;
+  container.innerHTML = '';
+  const canManage = !!currentProfile?.can_manage_placement;
+
+  // Active flags — full toggle chips
+  activeFlags.forEach(flag => {
+    const isOn = activeFlagIds.has(flag.id);
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = `student-flag-chip ${isOn ? 'active' : 'inactive'}`;
+    chip.style.setProperty('--flag-color', flag.color);
+    chip.innerHTML = `<span class="flag-dot"></span>${esc(flag.label)}`;
+    chip.title = flag.label;
+    chip.disabled = !canManage;
+    if (canManage) {
+      chip.addEventListener('click', () => toggleStudentFlag(chip, studentId, flag.id, activeFlagIds));
+    }
+    container.appendChild(chip);
+  });
+
+  // Archived flags the student has — remove-only
+  archivedAssigned.forEach(flag => {
+    const chip = document.createElement('span');
+    chip.className = 'student-flag-chip archived';
+    chip.innerHTML = `<span class="flag-dot"></span>${esc(flag.label)}`;
+    chip.title = `${flag.label} (archived)`;
+    if (canManage) {
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'flag-remove';
+      removeBtn.textContent = '×';
+      removeBtn.title = 'Remove flag';
+      removeBtn.addEventListener('click', async () => {
+        removeBtn.disabled = true;
+        await supabase.from('student_placement_flags')
+          .delete()
+          .eq('student_id', studentId)
+          .eq('flag_id', flag.id);
+        activeFlagIds.delete(flag.id);
+        chip.remove();
+      });
+      chip.appendChild(removeBtn);
+    }
+    container.appendChild(chip);
+  });
+}
+
+async function toggleStudentFlag(chip, studentId, flagId, activeFlagIds) {
+  chip.disabled = true;
+  if (activeFlagIds.has(flagId)) {
+    const { error } = await supabase.from('student_placement_flags')
+      .delete().eq('student_id', studentId).eq('flag_id', flagId);
+    if (!error) {
+      activeFlagIds.delete(flagId);
+      chip.classList.replace('active', 'inactive');
+    }
+  } else {
+    const { error } = await supabase.from('student_placement_flags')
+      .upsert({ student_id: studentId, flag_id: flagId });
+    if (!error) {
+      activeFlagIds.add(flagId);
+      chip.classList.replace('inactive', 'active');
+    }
+  }
+  chip.disabled = false;
 }
 
 /* ===============================
