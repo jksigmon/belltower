@@ -404,6 +404,8 @@ $$;
 
 CREATE FUNCTION public.enforce_supervisor_is_pto_approver() RETURNS trigger
     LANGUAGE plpgsql
+    SECURITY DEFINER
+    SET search_path = public
     AS $$
 begin
   -- Allow null supervisor
@@ -2570,6 +2572,26 @@ CREATE POLICY bus_groups_update_admin ON public.bus_groups FOR UPDATE USING ((EX
 
 
 --
+-- Name: bus_groups bus_groups_insert_manage_bus_groups; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY bus_groups_insert_manage_bus_groups ON public.bus_groups FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = bus_groups.school_id) AND (p.can_manage_bus_groups = true)))));
+
+
+--
+-- Name: bus_groups bus_groups_update_manage_bus_groups; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY bus_groups_update_manage_bus_groups ON public.bus_groups FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = bus_groups.school_id) AND (p.can_manage_bus_groups = true))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = bus_groups.school_id) AND (p.can_manage_bus_groups = true)))));
+
+
+--
 -- Name: carline_calls; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -2790,6 +2812,26 @@ CREATE POLICY families_update_admin ON public.families FOR UPDATE USING ((EXISTS
   WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = families.school_id))))))) WITH CHECK ((EXISTS ( SELECT 1
    FROM public.profiles p
   WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = families.school_id)))))));
+
+
+--
+-- Name: families families_insert_manage_families; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY families_insert_manage_families ON public.families FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = families.school_id) AND (p.can_manage_families = true)))));
+
+
+--
+-- Name: families families_update_manage_families; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY families_update_manage_families ON public.families FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = families.school_id) AND (p.can_manage_families = true))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = families.school_id) AND (p.can_manage_families = true)))));
 
 
 --
