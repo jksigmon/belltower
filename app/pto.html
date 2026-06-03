@@ -20,6 +20,9 @@
 
   <style>
 
+#confirmModal .confirm-modal-dialog { max-width: 460px; }
+#confirmModal .confirm-modal-body   { white-space: pre-line; }
+
 /* --- Annual Allotments section --- */
 .allotment-divider {
   display: flex;
@@ -898,6 +901,20 @@
     <div class="confirm-modal-actions">
       <button id="ptoDenyCancel" class="btn">Cancel</button>
       <button id="ptoDenyConfirm" class="btn danger">Deny</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     GENERAL CONFIRM MODAL
+============================================= -->
+<div id="confirmModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title" id="confirmModalTitle"></h3>
+    <p class="confirm-modal-body" id="confirmModalBody"></p>
+    <div class="confirm-modal-actions">
+      <button id="confirmModalCancel" class="btn">Cancel</button>
+      <button id="confirmModalConfirm" class="btn btn-primary">Confirm</button>
     </div>
   </div>
 </div>

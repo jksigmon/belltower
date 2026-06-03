@@ -26,6 +26,42 @@ const selectedPendingIds = new Set();
 let _denyCallback = null;
 
 /* =============================================
+   CONFIRM MODAL UTILITY
+============================================= */
+function showConfirm({ title = 'Confirm', body = '', confirmText = 'Confirm', cancelText = 'Cancel', danger = false } = {}) {
+  return new Promise(resolve => {
+    const modal      = document.getElementById('confirmModal');
+    const titleEl    = document.getElementById('confirmModalTitle');
+    const bodyEl     = document.getElementById('confirmModalBody');
+    const confirmBtn = document.getElementById('confirmModalConfirm');
+    const cancelBtn  = document.getElementById('confirmModalCancel');
+
+    titleEl.textContent    = title;
+    bodyEl.textContent     = body;
+    confirmBtn.textContent = confirmText;
+    cancelBtn.textContent  = cancelText;
+    confirmBtn.className   = danger ? 'btn danger' : 'btn btn-primary';
+
+    modal.hidden = false;
+
+    function finish(result) {
+      modal.hidden = true;
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      modal.removeEventListener('click', onOverlay);
+      resolve(result);
+    }
+    function onConfirm() { finish(true); }
+    function onCancel()  { finish(false); }
+    function onOverlay(e) { if (e.target === modal) finish(false); }
+
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click',  onCancel);
+    modal.addEventListener('click', onOverlay);
+  });
+}
+
+/* =============================================
    AUTH + PROFILE
 ============================================= */
 const _session = await requireAuth();
@@ -231,7 +267,11 @@ function clearPendingSelection() {
 async function bulkApprovePending() {
   if (!selectedPendingIds.size) return;
   const ids = [...selectedPendingIds];
-  if (!confirm(`Approve ${ids.length} PTO request${ids.length !== 1 ? 's' : ''}?`)) return;
+  if (!await showConfirm({
+    title: `Approve ${ids.length} Request${ids.length !== 1 ? 's' : ''}`,
+    body: `Approve ${ids.length} PTO request${ids.length !== 1 ? 's' : ''}?`,
+    confirmText: 'Approve'
+  })) return;
 
   const { error } = await supabase
     .from('pto_requests')
@@ -668,12 +708,17 @@ async function approveCancellation(r) {
   }
 
   if (r.status === 'RESCIND_REQUESTED') {
-    const confirmed = confirm(
-      `Approve PTO Rescind?\n\nThis PTO was approved for past dates.\nBy approving this rescind, you confirm that the employee did NOT take this time off.\n\n✔ PTO hours will be credited back\n✔ Ledger and balance will be updated\n✔ This action is audit-logged`
-    );
-    if (!confirmed) return;
+    if (!await showConfirm({
+      title: 'Approve PTO Rescind',
+      body: 'This PTO was approved for past dates.\nBy approving this rescind, you confirm that the employee did NOT take this time off.\n\n✔ PTO hours will be credited back\n✔ Ledger and balance will be updated\n✔ This action is audit-logged',
+      confirmText: 'Approve Rescind'
+    })) return;
   } else {
-    if (!confirm('Approve this PTO cancellation and credit time back?')) return;
+    if (!await showConfirm({
+      title: 'Approve Cancellation',
+      body: 'Approve this PTO cancellation and credit time back?',
+      confirmText: 'Approve'
+    })) return;
   }
 
   const { error } = await supabase
@@ -813,12 +858,12 @@ async function updatePtoStatus(requestId, newStatus, rowEl = null) {
     return;
   }
 
-  const confirmMsg =
-    newStatus === 'APPROVED'
-      ? 'Approve this PTO request?'
-      : 'Deny this PTO request?';
-
-  if (!confirm(confirmMsg)) return;
+  if (!await showConfirm({
+    title: newStatus === 'APPROVED' ? 'Approve PTO Request' : 'Deny PTO Request',
+    body:  newStatus === 'APPROVED' ? 'Approve this PTO request?' : 'Deny this PTO request?',
+    confirmText: newStatus === 'APPROVED' ? 'Approve' : 'Deny',
+    danger: newStatus !== 'APPROVED'
+  })) return;
 
   const { error } = await supabase
     .from('pto_requests')
@@ -2235,15 +2280,11 @@ document.getElementById('applyAnnualAllotmentsBulk')
       else willApply++;
     }
 
-    const confirmRun = confirm(
-      `Annual PTO Allotment Preview (${year})\n\n` +
-      `PTO Type: ${ptoType}\n\n` +
-      `✅ Will Apply: ${willApply}\n` +
-      `⏭️ Will Skip: ${willSkip}\n\n` +
-      `Proceed with applying allotments?`
-    );
-
-    if (!confirmRun) return;
+    if (!await showConfirm({
+      title: `Annual PTO Allotment (${year})`,
+      body: `PTO Type: ${ptoType}\n\n✅ Will Apply: ${willApply}\n⏭️ Will Skip: ${willSkip}\n\nProceed with applying allotments?`,
+      confirmText: 'Apply Allotments'
+    })) return;
 
     const toApply = policies.filter(p => !appliedSet.has(p.employee_id) && p.annual_hours > 0);
     const skipped = policies.length - toApply.length;
@@ -2617,16 +2658,12 @@ async function commitRollover() {
   const totalPayout    = toProcess.reduce((s, r) => s + r.payout, 0);
   const workdayHours   = toProcess[0]?.workdayHours ?? 8;
 
-  const confirmed = confirm(
-    `Year-End Rollover Commit (${year})\n\n` +
-    `Leave type: ${ptoType}\n` +
-    `Employees affected: ${toProcess.length}\n\n` +
-    `Total rollover to ROLLOVER balance: ${totalRollover} hrs\n` +
-    `Total payout (handle in payroll): ${totalPayout} hrs (${(totalPayout / workdayHours).toFixed(2)} days)\n\n` +
-    `This will debit the ${ptoType} balance and credit ROLLOVER for each employee.\n\nProceed?`
-  );
-
-  if (!confirmed) return;
+  if (!await showConfirm({
+    title: `Year-End Rollover Commit (${year})`,
+    body: `Leave type: ${ptoType}\nEmployees affected: ${toProcess.length}\n\nTotal rollover to ROLLOVER balance: ${totalRollover} hrs\nTotal payout (handle in payroll): ${totalPayout} hrs (${(totalPayout / workdayHours).toFixed(2)} days)\n\nThis will debit the ${ptoType} balance and credit ROLLOVER for each employee.`,
+    confirmText: 'Commit Rollover',
+    danger: true
+  })) return;
 
   const btn = document.getElementById('commitRolloverBtn');
   btn.disabled = true;
@@ -2734,11 +2771,12 @@ async function checkLastRolloverRun() {
     const formatted = lastRunDate.toLocaleDateString('en-US', {
       year: 'numeric', month: 'long', day: 'numeric'
     });
-    return confirm(
-      `Year-end rollover was last committed on ${formatted}.\n\n` +
-      `Running it again within 11 months may result in duplicate rollover credits.\n\n` +
-      `Are you sure you want to continue?`
-    );
+    return await showConfirm({
+      title: 'Warning: Recent Rollover',
+      body: `Year-end rollover was last committed on ${formatted}.\n\nRunning it again within 11 months may result in duplicate rollover credits.\n\nAre you sure you want to continue?`,
+      confirmText: 'Continue Anyway',
+      danger: true
+    });
   }
 
   return true;
