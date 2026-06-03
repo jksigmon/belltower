@@ -2729,6 +2729,26 @@ CREATE POLICY employees_update_admin ON public.employees FOR UPDATE USING ((EXIS
 
 
 --
+-- Name: employees employees_insert_manage_staff; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY employees_insert_manage_staff ON public.employees FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = employees.school_id) AND (p.can_manage_staff = true)))));
+
+
+--
+-- Name: employees employees_update_manage_staff; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY employees_update_manage_staff ON public.employees FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = employees.school_id) AND (p.can_manage_staff = true))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = employees.school_id) AND (p.can_manage_staff = true)))));
+
+
+--
 -- Name: families; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -3180,6 +3200,26 @@ CREATE POLICY students_update_admin ON public.students FOR UPDATE USING ((EXISTS
   WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = students.school_id))))))) WITH CHECK ((EXISTS ( SELECT 1
    FROM public.profiles p
   WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = students.school_id)))))));
+
+
+--
+-- Name: students students_insert_manage_students; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY students_insert_manage_students ON public.students FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = students.school_id) AND (p.can_manage_students = true)))));
+
+
+--
+-- Name: students students_update_manage_students; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY students_update_manage_students ON public.students FOR UPDATE USING ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = students.school_id) AND (p.can_manage_students = true))))) WITH CHECK ((EXISTS ( SELECT 1
+   FROM public.profiles p
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND (p.school_id = students.school_id) AND (p.can_manage_students = true)))));
 
 
 --
