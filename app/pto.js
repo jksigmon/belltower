@@ -1594,9 +1594,10 @@ async function loadPtoAdjustStaff() {
 }
 
 async function updateAnnualAllotmentUI() {
+  const btn = document.getElementById('applyAnnualAllotmentBtn');
+  if (!btn) return; // allotment section removed for deduction-only users
   const employeeId = document.getElementById('ptoAdjustStaff').value;
   const ptoType = document.getElementById('ptoAdjustType').value;
-  const btn = document.getElementById('applyAnnualAllotmentBtn');
   const status = document.getElementById('annualAllotmentStatus');
 
   status.style.display = 'none';
@@ -1616,6 +1617,7 @@ async function updateAnnualAllotmentUI() {
 
 function populateBulkAnnualPtoTypes() {
   const select = document.getElementById('bulkAnnualPtoType');
+  if (!select) return; // allotment section removed for deduction-only users
   select.innerHTML = '<option value="">Select PTO type…</option>';
   currentSchoolPtoTypes.forEach(type => {
     const opt = document.createElement('option');
@@ -2213,7 +2215,7 @@ document.getElementById('applyPtoAdjustment')
    ANNUAL ALLOTMENT (SINGLE)
 ============================================= */
 document.getElementById('applyAnnualAllotmentBtn')
-  .addEventListener('click', async () => {
+  ?.addEventListener('click', async () => {
     if (!_canManagePtoBalances) {
       showToast('You are not authorized to apply PTO allotments.', 'error');
       return;
@@ -2266,7 +2268,7 @@ document.getElementById('applyAnnualAllotmentBtn')
    ANNUAL ALLOTMENT (BULK)
 ============================================= */
 document.getElementById('applyAnnualAllotmentsBulk')
-  .addEventListener('click', async () => {
+  ?.addEventListener('click', async () => {
     if (!_canManagePtoBalances) {
       showToast('You are not authorized to perform bulk PTO changes.', 'error');
       return;
@@ -2461,7 +2463,7 @@ document.getElementById('ptoAdjustStaff').addEventListener('change', e => {
 });
 
 document.getElementById('ptoAdjustType').addEventListener('change', updateAnnualAllotmentUI);
-document.getElementById('bulkAnnualPtoType').addEventListener('change', updateBulkAllotmentStatus);
+document.getElementById('bulkAnnualPtoType')?.addEventListener('change', updateBulkAllotmentStatus);
 
 /* =============================================
    YEAR-END ROLLOVER
