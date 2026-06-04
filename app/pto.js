@@ -509,18 +509,18 @@ async function loadPto() {
 
   if (error) {
     console.error(error);
-    if (table) table.hidden = true;
+    if (table) table.style.display = 'none';
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
   if (!data || data.length === 0) {
-    if (table) table.hidden = true;
+    if (table) table.style.display = 'none';
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
-  if (table) table.hidden = false;
+  if (table) table.style.display = '';
   if (emptyState) emptyState.hidden = true;
 
   data.forEach(r => {
@@ -642,18 +642,18 @@ async function loadPtoCancellationRequests() {
 
   if (error) {
     console.error(error);
-    if (table) table.hidden = true;
+    if (table) table.style.display = 'none';
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
   if (!data || data.length === 0) {
-    if (table) table.hidden = true;
+    if (table) table.style.display = 'none';
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
-  if (table) table.hidden = false;
+  if (table) table.style.display = '';
   if (emptyState) emptyState.hidden = true;
 
   data.forEach(r => {
