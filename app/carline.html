@@ -66,6 +66,15 @@
       <button class="cl-add-class-btn" id="btnAddClass">+ Add Class</button>
       <div class="cl-class-dropdown" id="classDropdown" hidden></div>
     </div>
+    <div class="cl-add-class-wrap">
+      <button class="cl-add-class-btn cl-add-student-btn" id="btnAddStudent" title="Add individual student">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>Add Student
+      </button>
+      <div class="cl-student-search-panel" id="studentSearchPanel" hidden>
+        <input type="text" id="studentSearchInput" class="cl-student-search-input" placeholder="Search by name…" autocomplete="off" spellcheck="false" />
+        <div id="studentSearchResults"></div>
+      </div>
+    </div>
     <div class="cl-bar-spacer"></div>
   </div>
 
@@ -227,6 +236,76 @@
     transition: background 120ms;
   }
   #campusPickerCancel:hover { background: var(--cl-bg); }
+
+  /* ── Individual student pills ── */
+  .cl-pinned-student-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(124,58,237,0.1);
+    color: #7c3aed;
+    border: 1px solid rgba(124,58,237,0.25);
+    border-radius: 99px;
+    padding: 7px 12px 7px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  [data-theme="dark"] .cl-pinned-student-pill {
+    background: rgba(139,92,246,0.18);
+    color: #a78bfa;
+    border-color: rgba(139,92,246,0.3);
+  }
+  .cl-pinned-student-pill .cl-pill-remove {
+    background: rgba(124,58,237,0.15);
+    color: #7c3aed;
+  }
+  .cl-pinned-student-pill .cl-pill-remove:hover { background: rgba(124,58,237,0.3); }
+  [data-theme="dark"] .cl-pinned-student-pill .cl-pill-remove { color: #a78bfa; }
+  .cl-add-student-btn { color: #7c3aed !important; border-color: rgba(124,58,237,0.3) !important; }
+  .cl-add-student-btn:hover { border-color: #7c3aed !important; }
+
+  /* ── Student typeahead panel ── */
+  .cl-student-search-panel {
+    position: fixed;
+    background: var(--cl-surface);
+    border: 1px solid var(--cl-border);
+    border-radius: var(--cl-radius);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.2);
+    z-index: 200;
+    width: 290px;
+    padding: 8px;
+  }
+  .cl-student-search-panel[hidden] { display: none !important; }
+  .cl-student-search-input {
+    width: 100%;
+    border: 1.5px solid var(--cl-border);
+    border-radius: 7px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: var(--cl-text);
+    background: var(--cl-bg);
+    outline: none;
+    font-family: var(--cl-font);
+    margin-bottom: 4px;
+    display: block;
+  }
+  .cl-student-search-input:focus { border-color: #7c3aed; }
+  #studentSearchResults { max-height: 260px; overflow-y: auto; }
+  .cl-search-hint {
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--cl-text-muted);
+    text-align: center;
+  }
+  .cl-dropdown-item .item-sub {
+    font-size: 11px;
+    color: var(--cl-text-muted);
+    font-weight: 400;
+    display: block;
+    margin-top: 1px;
+  }
 </style>
 
 <script type="module">
@@ -253,8 +332,9 @@ let familyTagMap  = new Map(); // family_id → tag_number
 let callStatus    = new Map(); // student_id → status string
 let calledAt      = new Map(); // student_id → ISO string
 let callLog       = [];        // { name, status, time } newest-first
-let activeTeacherIds = new Set();
-let teacherNameMap   = new Map(); // employee_id → "First Last"
+let activeTeacherIds   = new Set();
+let pinnedStudentIds   = new Set();
+let teacherNameMap     = new Map(); // employee_id → "First Last"
 let realtimeChannel  = null;
 let eventPollTimer   = null;
 let callsPollTimer   = null;
@@ -611,6 +691,26 @@ function renderClassBar() {
     });
     wrap.appendChild(pill);
   });
+
+  pinnedStudentIds.forEach(sid => {
+    const student = allStudents.find(s => s.id === sid);
+    if (!student) { pinnedStudentIds.delete(sid); return; }
+    const pill = document.createElement('div');
+    pill.className = 'cl-pinned-student-pill';
+    const name  = `${student.preferred_name || student.first_name} ${student.last_name}`;
+    const grade = student.grade_level ? ` · ${student.grade_level}` : '';
+    pill.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>${esc(name)}${grade ? `<span style="font-weight:400;opacity:0.7">${esc(grade)}</span>` : ''}</span>
+      <button class="cl-pill-remove" title="Remove student">×</button>
+    `;
+    pill.querySelector('.cl-pill-remove').addEventListener('click', () => {
+      pinnedStudentIds.delete(sid);
+      renderClassBar();
+      renderColumns();
+    });
+    wrap.appendChild(pill);
+  });
 }
 
 function openClassDropdown() {
@@ -652,10 +752,69 @@ function openClassDropdown() {
   dd.hidden = false;
 }
 
+// ─── Student typeahead ────────────────────────────────────────────────
+function openStudentTypeahead() {
+  const panel = document.getElementById('studentSearchPanel');
+  const input = document.getElementById('studentSearchInput');
+  const btn   = document.getElementById('btnAddStudent');
+  const rect  = btn.getBoundingClientRect();
+  panel.style.top  = (rect.bottom + 6) + 'px';
+  panel.style.left = rect.left + 'px';
+  panel.hidden = false;
+  input.value = '';
+  renderStudentSearchResults('');
+  // Small delay so the global click listener doesn't immediately close it
+  setTimeout(() => input.focus(), 0);
+}
+
+function renderStudentSearchResults(query) {
+  const results = document.getElementById('studentSearchResults');
+  const q = query.trim().toLowerCase();
+
+  if (!q) {
+    results.innerHTML = '<div class="cl-search-hint">Type a student name to search</div>';
+    return;
+  }
+
+  const matches = allStudents
+    .filter(s => {
+      if (pinnedStudentIds.has(s.id)) return false;
+      const full = `${s.last_name} ${s.first_name} ${s.preferred_name || ''}`.toLowerCase();
+      return full.includes(q);
+    })
+    .slice(0, 8);
+
+  if (!matches.length) {
+    results.innerHTML = '<div class="cl-search-hint">No matching students</div>';
+    return;
+  }
+
+  results.innerHTML = '';
+  matches.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'cl-dropdown-item';
+    const displayName = `${s.preferred_name || s.first_name} ${s.last_name}`;
+    const subParts = [s.grade_level, s.homeroom_teacher_id ? (teacherNameMap.get(s.homeroom_teacher_id) || '') : ''].filter(Boolean);
+    item.innerHTML = `
+      <span>${esc(displayName)}${subParts.length ? `<span class="item-sub">${esc(subParts.join(' · '))}</span>` : ''}</span>
+    `;
+    item.addEventListener('click', e => {
+      e.stopPropagation();
+      pinnedStudentIds.add(s.id);
+      document.getElementById('studentSearchPanel').hidden = true;
+      renderClassBar();
+      renderColumns();
+    });
+    results.appendChild(item);
+  });
+}
+
 // ─── 3-column rendering ───────────────────────────────────────────────
 function getVisibleStudents() {
-  if (activeTeacherIds.size === 0) return [];
-  return allStudents.filter(s => activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__'));
+  if (activeTeacherIds.size === 0 && pinnedStudentIds.size === 0) return [];
+  return allStudents.filter(s =>
+    activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__') || pinnedStudentIds.has(s.id)
+  );
 }
 
 function colEmpty(bodyId, msg) {
@@ -666,7 +825,7 @@ function colEmpty(bodyId, msg) {
 }
 
 function renderColumns() {
-  if (activeTeacherIds.size === 0) {
+  if (activeTeacherIds.size === 0 && pinnedStudentIds.size === 0) {
     const pf = document.getElementById('waitingProgressFill');
     if (pf) pf.style.width = '0%';
     colEmpty('bodyWaiting',  '+ Add Class to get started');
@@ -833,8 +992,8 @@ function setupRealtime() {
           renderLog();
         }
       }
-      if (r.status === 'CALLED' && changed && r.call_type !== 'ALL_CALL') { playCallSound(); if (isMobile()) setActiveTab('called'); }
-      if (r.status === 'RECALLED' && changed) { playRecallSound(); if (isMobile()) setActiveTab('recalled'); }
+      if (r.status === 'CALLED' && changed && r.call_type !== 'ALL_CALL' && isStudentVisible(r.student_id)) { playCallSound(); if (isMobile()) setActiveTab('called'); }
+      if (r.status === 'RECALLED' && changed && isStudentVisible(r.student_id)) { playRecallSound(); if (isMobile()) setActiveTab('recalled'); }
 
       renderColumns();
       if (r.student_id) flashCard(`card-${r.student_id}`, r.status);
@@ -850,8 +1009,8 @@ function setupRealtime() {
         if (changed) {
           const student = allStudents.find(s => s.id === c.student_id);
           if (student) callLog.unshift({ name: `${student.preferred_name || student.first_name} ${student.last_name}`, status: c.status, time: c.called_at || new Date().toISOString() });
-          if (c.status === 'CALLED'   && c.call_type !== 'ALL_CALL') shouldPlayCall   = true;
-          if (c.status === 'RECALLED')                                shouldPlayRecall = true;
+          if (c.status === 'CALLED'   && c.call_type !== 'ALL_CALL' && isStudentVisible(c.student_id)) shouldPlayCall   = true;
+          if (c.status === 'RECALLED' && isStudentVisible(c.student_id))                               shouldPlayRecall = true;
         }
       });
       renderLog();
@@ -988,6 +1147,13 @@ function flashCard(id, status) {
 }
 
 // ─── Sound ────────────────────────────────────────────────────────────
+function isStudentVisible(studentId) {
+  if (pinnedStudentIds.has(studentId)) return true;
+  if (activeTeacherIds.size === 0) return false;
+  const s = allStudents.find(s => s.id === studentId);
+  return s ? activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__') : false;
+}
+
 function getCtx() {
   if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -1164,10 +1330,25 @@ function wireEvents() {
   document.getElementById('btnAddClass').addEventListener('click', e => {
     e.stopPropagation();
     const dd = document.getElementById('classDropdown');
+    document.getElementById('studentSearchPanel').hidden = true;
     if (dd.hidden) openClassDropdown(); else dd.hidden = true;
   });
+  document.getElementById('btnAddStudent').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel = document.getElementById('studentSearchPanel');
+    document.getElementById('classDropdown').hidden = true;
+    if (panel.hidden) openStudentTypeahead(); else panel.hidden = true;
+  });
+  document.getElementById('studentSearchInput').addEventListener('input', e => {
+    renderStudentSearchResults(e.target.value);
+  });
+  document.getElementById('studentSearchInput').addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.getElementById('studentSearchPanel').hidden = true;
+  });
+  document.getElementById('studentSearchPanel').addEventListener('click', e => e.stopPropagation());
   document.addEventListener('click', () => {
     document.getElementById('classDropdown').hidden = true;
+    document.getElementById('studentSearchPanel').hidden = true;
   });
   document.getElementById('btnDismissAllCall').addEventListener('click', () => {
     document.getElementById('allCallBanner').hidden = true;
