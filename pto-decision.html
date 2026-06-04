@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>PTO Decision Complete</title>
+  <title>Leave Decision Complete</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
@@ -45,7 +45,7 @@
 
 <body>
   <div class="card">
-    <h1 id="title">PTO Request</h1>
+    <h1 id="title">Leave Request</h1>
     <p id="message">The request has been processed.</p>
     <p class="muted">You may now close this window.</p>
   </div>
@@ -61,35 +61,35 @@
 
   switch (status) {
     case "APPROVED":
-      title.textContent = "✅ PTO Approved";
+      title.textContent = "✅ Leave Approved";
       title.className = "approved";
       message.textContent =
-        "The PTO request has been approved successfully.";
+        "The leave request has been approved successfully.";
       break;
 
     case "DENIED":
-      title.textContent = "❌ PTO Denied";
+      title.textContent = "❌ Leave Denied";
       title.className = "denied";
       message.textContent =
-        "The PTO request has been denied.";
+        "The leave request has been denied.";
       break;
 
     case "CANCELLED":
-      title.textContent = "ℹ️ PTO Cancelled";
+      title.textContent = "ℹ️ Leave Cancelled";
       message.textContent =
-        "The approved PTO has been cancelled.";
+        "The approved leave has been cancelled.";
       break;
 
     case "RESCINDED":
-      title.textContent = "ℹ️ PTO Rescinded";
+      title.textContent = "ℹ️ Leave Rescinded";
       message.textContent =
-        "The previously approved PTO has been rescinded. PTO hours will be credited back.";
+        "The previously approved leave has been rescinded. Leave hours will be credited back.";
       break;
 
     default:
-      title.textContent = "PTO Request Processed";
+      title.textContent = "Leave Request Processed";
       message.textContent =
-        "This PTO request has been processed.";
+        "This leave request has been processed.";
   }
 </script>
 

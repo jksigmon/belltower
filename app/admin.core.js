@@ -407,7 +407,7 @@ async function loadDashboardStats() {
   if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: 'Start Carline', icon: 'car', href: '/app/carline-input.html', variant: 'amber' });
   if (isAdmin) actions.push({ label: 'Add Student', icon: 'graduation-cap', href: '#students', variant: 'secondary' });
   if (isAdmin) actions.push({ label: 'Add Staff',   icon: 'user-plus', href: '#staff',    variant: 'secondary' });
-  if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: 'Review PTO', icon: 'calendar-check', href: '/app/pto.html', variant: 'secondary' });
+  if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: 'Review Leave', icon: 'calendar-check', href: '/app/pto.html', variant: 'secondary' });
   if (moduleEnabled('substitutes') && p.can_manage_substitutes) actions.push({ label: 'Substitutes', icon: 'repeat-2', href: '/app/substitutes.html', variant: 'secondary' });
   if (row && actions.length) {
     row.innerHTML = '';
@@ -627,7 +627,7 @@ async function loadDashboardStats() {
     (r.alertSubCancellations?.data ?? []).forEach(row => {
       alerts.push({
         level: 'amber',
-        text: `${row.out_first_name} ${row.out_last_name}'s PTO was cancelled — sub assignment on ${fmtDate(row.coverage_date)} still needs to be cancelled`,
+        text: `${row.out_first_name} ${row.out_last_name}'s leave was cancelled — sub assignment on ${fmtDate(row.coverage_date)} still needs to be cancelled`,
         href: '/app/substitutes.html#cancellations'
       });
     });
@@ -658,7 +658,7 @@ async function loadDashboardStats() {
       const action = req.status === 'RESCIND_REQUESTED' ? 'rescind' : 'cancel';
       alerts.push({
         level: 'amber',
-        text: `${fullName(req.employees)} has requested to ${action} approved PTO`,
+        text: `${fullName(req.employees)} has requested to ${action} approved leave`,
         href: '/app/pto.html#cancellations'
       });
     });
@@ -668,7 +668,7 @@ async function loadDashboardStats() {
       const n = r.ptoPending.count;
       alerts.push({
         level: 'amber',
-        text: `${n} PTO request${n === 1 ? '' : 's'} awaiting approval`,
+        text: `${n} leave request${n === 1 ? '' : 's'} awaiting approval`,
         href: '/app/pto.html#pending'
       });
     }

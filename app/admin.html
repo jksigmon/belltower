@@ -74,7 +74,7 @@
         Operations <i data-lucide="chevron-down" class="nav-chevron"></i>
       </button>
       <div class="nav-group" id="navGroup-operations">
-        <a href="/pto.html?from=admin" data-cap-group="pto" data-module="pto"><i data-lucide="calendar"></i> PTO Management</a>
+        <a href="/pto.html?from=admin" data-cap-group="pto" data-module="pto"><i data-lucide="calendar"></i> Leave Management</a>
         <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes"><i data-lucide="repeat-2"></i> Substitutes</a>
         <a href="/carline.html" data-cap-group="carline" data-module="carline"><i data-lucide="car"></i> Carline</a>
         <a href="#requests" data-cap="can_access_admin" data-module="requests"><i data-lucide="inbox"></i> Requests</a>
@@ -163,12 +163,12 @@
       <a href="/app/pto.html#pending" class="stat stat-alert" id="dashPtoPending" style="display:none;" data-accent="red">
         <span class="stat-chip"><i data-lucide="calendar-clock"></i></span>
         <strong id="statPtoPending" class="stat-num">–</strong>
-        <span class="stat-label">Pending PTO</span>
+        <span class="stat-label">Pending Leave</span>
       </a>
       <a href="/app/pto.html#cancellations" class="stat stat-alert" id="dashPtoCancels" style="display:none;" data-accent="orange">
         <span class="stat-chip"><i data-lucide="calendar-x"></i></span>
         <strong id="statPtoCancels" class="stat-num">–</strong>
-        <span class="stat-label">PTO Cancellations</span>
+        <span class="stat-label">Leave Cancellations</span>
       </a>
       <a href="/app/pto.html#calendar" class="stat stat-info" id="dashStaffOut" style="display:none;" data-accent="blue">
         <span class="stat-chip"><i data-lucide="user-minus"></i></span>
@@ -423,7 +423,7 @@
       </div>
 
       <div class="panel" data-module="pto">
-        <h4><i data-lucide="calendar-days"></i> PTO</h4>
+        <h4><i data-lucide="calendar-days"></i> Leave</h4>
         <label><input type="checkbox" data-field="can_view_pto_calendar"> View calendar</label>
         <label><input type="checkbox" data-field="can_review_pto"> Review history</label>
         <label><input type="checkbox" data-field="can_approve_pto"> Approve requests</label>
@@ -938,7 +938,7 @@
             <th>Day Start</th>
             <th>Day End</th>
             <th>Workday Hrs</th>
-            <th>PTO Increment</th>
+            <th>Leave Increment</th>
             <th></th>
           </tr>
         </thead>
@@ -1273,7 +1273,7 @@
       <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Check this to make them available as a homeroom teacher for students.</small>
     </div>
     <div class="drawer-field">
-      <label>Supervisor / PTO Approver</label>
+      <label>Supervisor / Leave Approver</label>
       <select id="staffSupervisor" class="form-input"></select>
     </div>
     <div class="drawer-row-2">
@@ -1345,7 +1345,7 @@
       <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Check this to make them available as a homeroom teacher for students.</small>
     </div>
     <div class="drawer-field">
-      <label>Supervisor / PTO Approver</label>
+      <label>Supervisor / Leave Approver</label>
       <select id="esSupervisor" class="form-input"></select>
     </div>
     <div class="drawer-row-2">
@@ -1375,7 +1375,7 @@
     </div>
     <hr class="drawer-divider">
     <div class="drawer-field">
-      <label>PTO Balances</label>
+      <label>Leave Balances</label>
       <div id="esPtoBalances" class="staff-info-chips"></div>
     </div>
     <div class="drawer-field" style="margin-top:8px;">
@@ -2080,7 +2080,7 @@
         <input id="campusHours" type="number" step="0.5" class="form-input" placeholder="e.g. 7.5" />
       </div>
       <div class="drawer-field">
-        <label>PTO Increment (min)</label>
+        <label>Leave Increment (min)</label>
         <input id="campusIncrement" type="number" step="5" class="form-input" placeholder="e.g. 30" />
       </div>
     </div>
@@ -2126,7 +2126,7 @@
         <input id="ecHours" type="number" step="0.5" class="form-input" placeholder="e.g. 7.5" />
       </div>
       <div class="drawer-field">
-        <label>PTO Increment (min)</label>
+        <label>Leave Increment (min)</label>
         <input id="ecIncrement" type="number" step="5" class="form-input" placeholder="e.g. 30" />
       </div>
     </div>
@@ -2220,7 +2220,7 @@
     <div class="drawer-field">
       <label>Enable Modules</label>
       <div class="module-check-grid">
-        <label><input type="checkbox" id="addMod_pto"> PTO Management</label>
+        <label><input type="checkbox" id="addMod_pto"> Leave Management</label>
         <label><input type="checkbox" id="addMod_substitutes"> Substitute Assignment</label>
         <label><input type="checkbox" id="addMod_carline"> Carline Dismissal</label>
         <label><input type="checkbox" id="addMod_licensure"> Licensure Tracking</label>
@@ -2308,7 +2308,7 @@
     <div class="drawer-field">
       <label>Modules</label>
       <div class="module-check-grid">
-        <label><input type="checkbox" id="editMod_pto"> PTO Management</label>
+        <label><input type="checkbox" id="editMod_pto"> Leave Management</label>
         <label><input type="checkbox" id="editMod_substitutes"> Substitute Assignment</label>
         <label><input type="checkbox" id="editMod_carline"> Carline Dismissal</label>
         <label><input type="checkbox" id="editMod_licensure"> Licensure Tracking</label>

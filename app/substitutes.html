@@ -392,7 +392,7 @@
 
       <div id="pendingCoverageEmpty" class="empty-state" hidden>
         <div class="empty-title">No pending coverage</div>
-        <div class="empty-text">All approved coverage-needed PTO days are assigned.</div>
+        <div class="empty-text">All approved coverage-needed leave days are assigned.</div>
       </div>
     </section>
 
@@ -416,7 +416,7 @@
 
       <div id="pendingCancelEmpty" class="empty-state" hidden>
         <div class="empty-title">No pending cancellations</div>
-        <div class="empty-text">There are no future cancelled PTO days with active coverage.</div>
+        <div class="empty-text">There are no future cancelled leave days with active coverage.</div>
       </div>
     </section>
 
@@ -558,7 +558,7 @@
 
     <div class="field">
       <label>Reason</label>
-      <input id="assignReason" placeholder="PTO, sick, training…" />
+      <input id="assignReason" placeholder="Leave, sick, training…" />
     </div>
 
     <div class="modal-actions">
@@ -852,7 +852,7 @@ async function openAssignFromPending(row) {
   setTimePicker(assignStartTimeFp, row.start_time);
   setTimePicker(assignEndTimeFp, row.end_time);
 
-  assignReason.value = `PTO: ${row.out_first_name} ${row.out_last_name}`;
+  assignReason.value = `Leave: ${row.out_first_name} ${row.out_last_name}`;
 
   // Store the PTO request id on the save button so we can write it to substitute_assignments
   const saveBtn = document.getElementById('saveAssignBtn');
@@ -1049,7 +1049,7 @@ async function openEditAssignmentModal(event) {
     // PTO-linked: read-only covered/out
     if (selWrap) selWrap.style.display = 'none';
     if (roWrap) roWrap.style.display = 'block';
-    if (roText) roText.value = a.out_name ?? 'PTO-linked';
+    if (roText) roText.value = a.out_name ?? 'Leave-linked';
 
     saveBtn.dataset.ptoRequestId = a.pto_request_id;
     if (coveredSel) coveredSel.value = '';

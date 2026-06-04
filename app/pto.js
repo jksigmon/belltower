@@ -165,7 +165,7 @@ if (backToAdmin && hasAdminAccess(currentProfile)) {
 ============================================= */
 const ptoModule = currentProfile.schools?.school_modules?.find(r => r.module === 'pto');
 if (!ptoModule?.enabled) {
-  showToast('PTO is not enabled for your school.', 'error');
+  showToast('Leave is not enabled for your school.', 'error');
   window.location.href = '/admin.html';
   throw new Error('PTO disabled');
 }
@@ -293,7 +293,7 @@ async function bulkApprovePending() {
   const ids = [...selectedPendingIds];
   if (!await showConfirm({
     title: `Approve ${ids.length} Request${ids.length !== 1 ? 's' : ''}`,
-    body: `Approve ${ids.length} PTO request${ids.length !== 1 ? 's' : ''}?`,
+    body: `Approve ${ids.length} leave request${ids.length !== 1 ? 's' : ''}?`,
     confirmText: 'Approve'
   })) return;
 
@@ -476,6 +476,7 @@ async function loadSchoolPtoTypes() {
 ============================================= */
 async function loadPto() {
   const tbody = document.querySelector('#ptoTable tbody');
+  const table = document.getElementById('ptoTable');
   const emptyState = document.getElementById('pendingEmpty');
   if (!currentProfile.can_approve_pto) return;
   if (!tbody) return;
@@ -508,15 +509,18 @@ async function loadPto() {
 
   if (error) {
     console.error(error);
+    if (table) table.hidden = true;
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
   if (!data || data.length === 0) {
+    if (table) table.hidden = true;
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
+  if (table) table.hidden = false;
   if (emptyState) emptyState.hidden = true;
 
   data.forEach(r => {
@@ -569,7 +573,7 @@ async function loadPto() {
 
     tr.querySelector('.btn-approve').addEventListener('click', () => {
       if (!currentProfile.can_approve_pto) {
-        showToast('You are not authorized to approve PTO requests.', 'error');
+        showToast('You are not authorized to approve leave requests.', 'error');
         return;
       }
       updatePtoStatus(r.id, 'APPROVED', tr);
@@ -608,6 +612,7 @@ async function loadPtoCancellationRequests() {
   if (!currentProfile.can_approve_pto) return;
 
   const tbody = document.querySelector('#ptoCancelTable tbody');
+  const table = document.getElementById('ptoCancelTable');
   const emptyState = document.getElementById('cancellationsEmpty');
   if (!tbody) return;
 
@@ -637,15 +642,18 @@ async function loadPtoCancellationRequests() {
 
   if (error) {
     console.error(error);
+    if (table) table.hidden = true;
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
   if (!data || data.length === 0) {
+    if (table) table.hidden = true;
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
+  if (table) table.hidden = false;
   if (emptyState) emptyState.hidden = true;
 
   data.forEach(r => {
@@ -688,7 +696,7 @@ async function loadPtoCancellationRequests() {
 
     tr.querySelector('.btn-approve').addEventListener('click', () => {
       if (!currentProfile.can_approve_pto) {
-        showToast('You are not authorized to approve PTO cancellations.', 'error');
+        showToast('You are not authorized to approve leave cancellations.', 'error');
         return;
       }
       approveCancellation(r);
@@ -696,7 +704,7 @@ async function loadPtoCancellationRequests() {
 
     tr.querySelector('.btn-deny').addEventListener('click', () => {
       if (!currentProfile.can_approve_pto) {
-        showToast('You are not authorized to deny PTO cancellations.', 'error');
+        showToast('You are not authorized to deny leave cancellations.', 'error');
         return;
       }
       denyCancellation(r);
@@ -708,7 +716,7 @@ async function loadPtoCancellationRequests() {
 
 function renderCancelBadge(status, startDate) {
   if (status === 'RESCIND_REQUESTED') {
-    return '<span class="badge badge-warn">Rescind (Past PTO)</span>';
+    return '<span class="badge badge-warn">Rescind (Past Leave)</span>';
   }
   return '<span class="badge badge-muted">Future Cancel</span>';
 }
@@ -727,20 +735,20 @@ function formatStatus(status) {
 ============================================= */
 async function approveCancellation(r) {
   if (!currentProfile.can_approve_pto) {
-    showToast('You are not authorized to approve PTO cancellations.', 'error');
+    showToast('You are not authorized to approve leave cancellations.', 'error');
     return;
   }
 
   if (r.status === 'RESCIND_REQUESTED') {
     if (!await showConfirm({
-      title: 'Approve PTO Rescind',
-      body: 'This PTO was approved for past dates.\nBy approving this rescind, you confirm that the employee did NOT take this time off.\n\n✔ PTO hours will be credited back\n✔ Ledger and balance will be updated\n✔ This action is audit-logged',
+      title: 'Approve Leave Rescind',
+      body: 'This leave was approved for past dates.\nBy approving this rescind, you confirm that the employee did NOT take this time off.\n\n✔ Leave hours will be credited back\n✔ Ledger and balance will be updated\n✔ This action is audit-logged',
       confirmText: 'Approve Rescind'
     })) return;
   } else {
     if (!await showConfirm({
       title: 'Approve Cancellation',
-      body: 'Approve this PTO cancellation and credit time back?',
+      body: 'Approve this leave cancellation and credit time back?',
       confirmText: 'Approve'
     })) return;
   }
@@ -779,7 +787,7 @@ async function approveCancellation(r) {
 
 function denyInitialPto(r, rowEl = null) {
   if (!currentProfile.can_approve_pto) {
-    showToast('You are not authorized to deny PTO requests.', 'error');
+    showToast('You are not authorized to deny leave requests.', 'error');
     return;
   }
 
@@ -791,7 +799,7 @@ function denyInitialPto(r, rowEl = null) {
     : `${r.start_date} → ${r.end_date}`;
 
   openDenyModal(
-    'Deny PTO Request',
+    'Deny Leave Request',
     `${emp} — ${r.pto_type} (${dateRange})`,
     async (reason) => {
       const updatedNotes = r.notes
@@ -810,7 +818,7 @@ function denyInitialPto(r, rowEl = null) {
 
       if (error) {
         console.error(error);
-        showToast('Failed to deny PTO request.', 'error');
+        showToast('Failed to deny leave request.', 'error');
         return;
       }
 
@@ -829,7 +837,7 @@ function denyInitialPto(r, rowEl = null) {
 
 function denyCancellation(r) {
   if (!currentProfile.can_approve_pto) {
-    showToast('You are not authorized to deny PTO requests.', 'error');
+    showToast('You are not authorized to deny leave requests.', 'error');
     return;
   }
 
@@ -878,13 +886,13 @@ function denyCancellation(r) {
 
 async function updatePtoStatus(requestId, newStatus, rowEl = null) {
   if (!currentProfile.can_approve_pto) {
-    showToast('You are not authorized to approve or deny PTO requests.', 'error');
+    showToast('You are not authorized to approve or deny leave requests.', 'error');
     return;
   }
 
   if (!await showConfirm({
-    title: newStatus === 'APPROVED' ? 'Approve PTO Request' : 'Deny PTO Request',
-    body:  newStatus === 'APPROVED' ? 'Approve this PTO request?' : 'Deny this PTO request?',
+    title: newStatus === 'APPROVED' ? 'Approve Leave Request' : 'Deny Leave Request',
+    body:  newStatus === 'APPROVED' ? 'Approve this leave request?' : 'Deny this leave request?',
     confirmText: newStatus === 'APPROVED' ? 'Approve' : 'Deny',
     danger: newStatus !== 'APPROVED'
   })) return;
@@ -901,7 +909,7 @@ async function updatePtoStatus(requestId, newStatus, rowEl = null) {
 
   if (error) {
     console.error(error);
-    showToast('Failed to update PTO request.', 'error');
+    showToast('Failed to update leave request.', 'error');
     return;
   }
 
@@ -1300,7 +1308,7 @@ async function applyAnnualPto(employeeId, ptoType, hours) {
     .limit(1);
 
   if (existing && existing.length > 0) {
-    showToast('Annual PTO has already been applied for this year.', 'warn');
+    showToast('Annual leave has already been applied for this year.', 'warn');
     return;
   }
 
@@ -1317,11 +1325,11 @@ async function applyAnnualPto(employeeId, ptoType, hours) {
 
   if (error) {
     console.error(error);
-    showToast('Failed to apply annual PTO allotment.', 'error');
+    showToast('Failed to apply annual leave allotment.', 'error');
     return;
   }
 
-  showToast(`Annual PTO allotment (${hours} hrs) applied.`, 'success');
+  showToast(`Annual leave allotment (${hours} hrs) applied.`, 'success');
 }
 
 /* =============================================
@@ -1369,7 +1377,7 @@ async function loadPtoPolicies() {
   policiesPolicyMap = policyMap;
 
   const bulkTypeSelect = document.getElementById('policyBulkType');
-  bulkTypeSelect.innerHTML = '<option value="">PTO type…</option>';
+  bulkTypeSelect.innerHTML = '<option value="">Leave type…</option>';
   currentSchoolPtoTypes.forEach(type => bulkTypeSelect.appendChild(new Option(type, type)));
 
   const distinctMonths = [...new Set(policiesEmployees.map(e => e.employment_months).filter(Boolean))].sort((a, b) => a - b);
@@ -1412,7 +1420,7 @@ async function bulkSetPolicies(fillBlankOnly) {
   const monthsFilter = document.getElementById('policyBulkMonths').value;
   const statusEl = document.getElementById('policyBulkStatus');
 
-  if (!ptoType) { showToast('Select a PTO type.', 'warn'); return; }
+  if (!ptoType) { showToast('Select a leave type.', 'warn'); return; }
   if (hoursRaw === '' || isNaN(Number(hoursRaw))) { showToast('Enter a valid number of hours.', 'warn'); return; }
   const hours = parseFloat(hoursRaw);
   if (hours < 0) { showToast('Hours must be 0 or greater.', 'warn'); return; }
@@ -1466,7 +1474,7 @@ async function promptForPtoType() {
   // This function is retained for legacy compatibility but is not used in primary flows.
   // Primary flows use dedicated UI dropdowns (#ptoAdjustType, #bulkAnnualPtoType).
   if (!currentSchoolPtoTypes || currentSchoolPtoTypes.length === 0) {
-    showToast('No PTO types are enabled for this school.', 'warn');
+    showToast('No leave types are enabled for this school.', 'warn');
     return null;
   }
   if (currentSchoolPtoTypes.length === 1) return currentSchoolPtoTypes[0];
@@ -1618,7 +1626,7 @@ async function updateAnnualAllotmentUI() {
 function populateBulkAnnualPtoTypes() {
   const select = document.getElementById('bulkAnnualPtoType');
   if (!select) return; // allotment section removed for deduction-only users
-  select.innerHTML = '<option value="">Select PTO type…</option>';
+  select.innerHTML = '<option value="">Select leave type…</option>';
   currentSchoolPtoTypes.forEach(type => {
     const opt = document.createElement('option');
     opt.value = type;
@@ -1830,19 +1838,19 @@ const ptoTabs = document.querySelectorAll('#ptoTabs .tab');
 
 async function setPtoView(view) {
   if (view === 'history' && !currentProfile.can_review_pto && !_canManagePtoBalances) {
-    showToast('You are not authorized to view staff PTO history.', 'error');
+    showToast('You are not authorized to view staff leave history.', 'error');
     return;
   }
   if (view === 'adjust' && !_canAdjustPto) {
-    showToast('You are not authorized to adjust PTO balances.', 'error');
+    showToast('You are not authorized to adjust leave balances.', 'error');
     return;
   }
   if (view === 'policies' && !_canManagePtoBalances) {
-    showToast('You are not authorized to modify PTO policies.', 'error');
+    showToast('You are not authorized to modify leave policies.', 'error');
     return;
   }
   if (view === 'reports' && !currentProfile.can_generate_pto_reports) {
-    showToast('You are not authorized to generate PTO reports.', 'error');
+    showToast('You are not authorized to generate leave reports.', 'error');
     return;
   }
   if (view === 'rollover' && !_canManagePtoBalances) {
@@ -1985,23 +1993,23 @@ let reportsFlatpickrInitializedFlag = false;
 const REPORT_META = {
   transactions: {
     needsDates: true,
-    description: 'All PTO ledger entries (approvals, adjustments, allotments) within the selected date range.'
+    description: 'All leave ledger entries (approvals, adjustments, allotments) within the selected date range.'
   },
   balances: {
     needsDates: false,
-    description: 'Current PTO balance snapshot for all active employees as of today.'
+    description: 'Current leave balance snapshot for all active employees as of today.'
   },
   payroll: {
     needsDates: true,
-    description: 'Approved PTO hours used per employee within the selected date range, for payroll processing.'
+    description: 'Approved leave hours used per employee within the selected date range, for payroll processing.'
   },
   negative_balances: {
     needsDates: false,
-    description: 'All employees currently carrying a negative PTO balance — use before payroll to identify pay deductions needed.'
+    description: 'All employees currently carrying a negative leave balance — use before payroll to identify pay deductions needed.'
   },
   year_end_summary: {
     needsDates: true,
-    description: 'Full-year PTO summary per employee: allotted, used, adjusted, rollover credited, and current balance. Select your fiscal year start and end dates.'
+    description: 'Full-year leave summary per employee: allotted, used, adjusted, rollover credited, and current balance. Select your fiscal year start and end dates.'
   }
 };
 
@@ -2058,7 +2066,7 @@ async function initPtoReportsView() {
 
 async function handlePtoExport() {
   if (!currentProfile.can_generate_pto_reports) {
-    showToast('You are not authorized to generate PTO reports.', 'error');
+    showToast('You are not authorized to generate leave reports.', 'error');
     return;
   }
 
@@ -2176,7 +2184,7 @@ document.getElementById('applyPtoAdjustment')
     }
 
     if (!_canManagePtoBalances && hours > 0) {
-      showToast('You can only deduct PTO hours. Enter a negative value (e.g. -0.5).', 'error');
+      showToast('You can only deduct leave hours. Enter a negative value (e.g. -0.5).', 'error');
       return;
     }
 
@@ -2200,11 +2208,11 @@ document.getElementById('applyPtoAdjustment')
 
     if (error) {
       console.error(error);
-      showToast('Failed to apply PTO adjustment', 'error');
+      showToast('Failed to apply leave adjustment', 'error');
       return;
     }
 
-    showToast('PTO adjustment applied', 'success');
+    showToast('Leave adjustment applied', 'success');
     document.getElementById('ptoAdjustHours').value = '';
     document.getElementById('ptoAdjustReason').value = '';
     loadAdjustPtoBalances(employeeId);
@@ -2217,7 +2225,7 @@ document.getElementById('applyPtoAdjustment')
 document.getElementById('applyAnnualAllotmentBtn')
   ?.addEventListener('click', async () => {
     if (!_canManagePtoBalances) {
-      showToast('You are not authorized to apply PTO allotments.', 'error');
+      showToast('You are not authorized to apply leave allotments.', 'error');
       return;
     }
 
@@ -2225,7 +2233,7 @@ document.getElementById('applyAnnualAllotmentBtn')
     const ptoType    = document.getElementById('ptoAdjustType').value;
 
     if (!employeeId || !ptoType) {
-      showToast('Select staff member and PTO type first.', 'warn');
+      showToast('Select staff member and leave type first.', 'warn');
       return;
     }
 
@@ -2239,7 +2247,7 @@ document.getElementById('applyAnnualAllotmentBtn')
       .single();
 
     if (error || !policy) {
-      showToast('No annual PTO policy configured for this employee and PTO type.', 'warn');
+      showToast('No annual leave policy configured for this employee and leave type.', 'warn');
       return;
     }
 
@@ -2270,13 +2278,13 @@ document.getElementById('applyAnnualAllotmentBtn')
 document.getElementById('applyAnnualAllotmentsBulk')
   ?.addEventListener('click', async () => {
     if (!_canManagePtoBalances) {
-      showToast('You are not authorized to perform bulk PTO changes.', 'error');
+      showToast('You are not authorized to perform bulk leave changes.', 'error');
       return;
     }
 
     const ptoType = document.getElementById('bulkAnnualPtoType').value;
     if (!ptoType) {
-      showToast('Please select a PTO type.', 'warn');
+      showToast('Please select a leave type.', 'warn');
       return;
     }
 
@@ -2294,7 +2302,7 @@ document.getElementById('applyAnnualAllotmentsBulk')
 
     if (error) {
       console.error(error);
-      showToast('Failed to load PTO policies.', 'error');
+      showToast('Failed to load leave policies.', 'error');
       return;
     }
 
@@ -2316,8 +2324,8 @@ document.getElementById('applyAnnualAllotmentsBulk')
     }
 
     if (!await showConfirm({
-      title: `Annual PTO Allotment (${year})`,
-      body: `PTO Type: ${ptoType}\n\n✅ Will Apply: ${willApply}\n⏭️ Will Skip: ${willSkip}\n\nProceed with applying allotments?`,
+      title: `Annual Leave Allotment (${year})`,
+      body: `Leave Type: ${ptoType}\n\n✅ Will Apply: ${willApply}\n⏭️ Will Skip: ${willSkip}\n\nProceed with applying allotments?`,
       confirmText: 'Apply Allotments'
     })) return;
 
@@ -2411,8 +2419,8 @@ if (openExportBtn && exportModal) {
           if (error) {
             console.error(error);
             const status = error.context?.status;
-            if (status === 401)      showToast('You must be signed in to export PTO reports.', 'error');
-            else if (status === 403) showToast('You are not authorized to export PTO reports.', 'error');
+            if (status === 401)      showToast('You must be signed in to export leave reports.', 'error');
+            else if (status === 403) showToast('You are not authorized to export leave reports.', 'error');
             else                     showToast('Failed to generate export.', 'error');
             return;
           }

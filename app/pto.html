@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>PTO Management</title>
+  <title>Leave Management</title>
   <link rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
@@ -465,7 +465,7 @@
 
  <nav>
    
-<a href="/pto.html#calendar"><i data-lucide="calendar"></i> PTO Calendar</a>
+<a href="/pto.html#calendar"><i data-lucide="calendar"></i> Leave Calendar</a>
 <a href="/pto.html#pending">
   <i data-lucide="clock"></i> Pending Requests
   <span class="badge-count" id="pendingCount"></span>
@@ -474,11 +474,11 @@
   <i data-lucide="x-circle"></i> Cancellations
   <span class="badge-count" id="cancelCount"></span>
 </a>
-<a href="/pto.html#history" id="navPtoHistory"><i data-lucide="book-open"></i> Staff PTO History</a>
-<a href="/pto.html#adjust" id="navPtoAdjust"><i data-lucide="sliders-horizontal"></i> Adjust PTO</a>
-<a href="/pto.html#reports"><i data-lucide="bar-chart-2"></i> PTO Reports</a>
+<a href="/pto.html#history" id="navPtoHistory"><i data-lucide="book-open"></i> Staff Leave History</a>
+<a href="/pto.html#adjust" id="navPtoAdjust"><i data-lucide="sliders-horizontal"></i> Adjust Leave</a>
+<a href="/pto.html#reports"><i data-lucide="bar-chart-2"></i> Leave Reports</a>
 <a href="/pto.html#rollover" id="navPtoRollover"><i data-lucide="refresh-cw"></i> Year-End Rollover</a>
-<a href="/pto.html#policies" id="navPtoPolicies"><i data-lucide="file-text"></i> PTO Policies</a>
+<a href="/pto.html#policies" id="navPtoPolicies"><i data-lucide="file-text"></i> Leave Policies</a>
 
   </nav>
 
@@ -490,7 +490,7 @@
 <section id="pto-calendar" class="admin-section">
   <div class="admin-content fade-in">
     <div class="panel panel-history">
-      <h3>PTO Calendar</h3>
+      <h3>Leave Calendar</h3>
       <div id="pto-calendar"></div>
     </div>
   </div>
@@ -498,7 +498,7 @@
 <section id="pto-pending" class="admin-section">
   <div class="admin-content fade-in">
     <div class="panel panel-history">
-      <h3>Pending PTO Requests</h3>
+      <h3>Pending Leave Requests</h3>
 
       <!-- Bulk action bar (shown when rows are selected) -->
       <div id="ptoBulkBar" class="bulk-action-bar" hidden>
@@ -527,7 +527,7 @@
      <div id="pendingEmpty" class="empty-state" hidden>
   <div class="empty-title">No pending requests</div>
   <div class="empty-text">
-    All PTO requests have been processed.
+    All leave requests have been processed.
   </div>
 </div>
 
@@ -537,7 +537,7 @@
 <section id="pto-cancellations" class="admin-section">
    <div class="admin-content fade-in">
     <div class="panel panel-history">
-      <h3>PTO Cancellation Requests</h3>
+      <h3>Leave Cancellation Requests</h3>
   
       <table id="ptoCancelTable">
         <thead>
@@ -558,7 +558,7 @@
 <div id="cancellationsEmpty" class="empty-state" hidden>
   <div class="empty-title">No cancellation requests</div>
   <div class="empty-text">
-    There are no pending PTO cancellation requests.
+    There are no pending leave cancellation requests.
   </div>
 </div>
 
@@ -577,7 +577,7 @@
 
       <!-- Toolbar -->
       <div class="history-toolbar">
-        <h3>Staff PTO History</h3>
+        <h3>Staff Leave History</h3>
         <div class="history-actions" id="historyActionsWrap" hidden>
           <button id="historyAdjustBtn" class="btn btn-sm btn-outline">
             <i data-lucide="sliders-horizontal" style="width:14px;height:14px;"></i> Adjust Balance
@@ -640,8 +640,8 @@
         </table>
 
         <div id="ptoHistoryEmpty" class="empty-state" hidden>
-          <div class="empty-title">No PTO history</div>
-          <div class="empty-text">This employee hasn’t submitted any PTO requests.</div>
+          <div class="empty-title">No leave history</div>
+          <div class="empty-text">This employee hasn’t submitted any leave requests.</div>
         </div>
       </div>
 
@@ -650,7 +650,7 @@
       <!-- Ledger (collapsible) -->
       <div class="ledger-block">
         <button class="ledger-toggle-btn" id="ledgerToggleBtn">
-          <span>PTO Ledger Adjustments</span>
+          <span>Leave Ledger Adjustments</span>
           <i data-lucide="chevron-right" id="ledgerChevronIcon" style="width:16px;height:16px;transition:transform .2s;"></i>
         </button>
         <div id="ledgerContent" hidden>
@@ -668,7 +668,7 @@
           </table>
           <div id="ptoLedgerEmpty" class="empty-state empty-ledger" hidden>
             <div class="empty-title">No ledger adjustments</div>
-            <div class="empty-text">This employee has no manual PTO balance changes.</div>
+            <div class="empty-text">This employee has no manual leave balance changes.</div>
           </div>
         </div>
       </div>
@@ -682,7 +682,7 @@
 
   <div class="admin-content fade-in">
     <div class="panel panel-action">
-      <h3>Adjust PTO Balance</h3>
+      <h3>Adjust Leave Balance</h3>
 
       <div class="admin-form-row compact">
         <select id="ptoAdjustStaff">
@@ -711,7 +711,7 @@
 
 
       <p id="adjustHintText" class="muted" style="margin:8px 0 0; font-size:12px;">
-        Positive hours grant PTO. Negative hours subtract PTO. All adjustments are recorded.
+        Positive hours grant leave time. Negative hours subtract leave time. All adjustments are recorded.
       </p>
 
       <div id="adjustAllotmentsWrap">
@@ -722,7 +722,7 @@
         <div class="allotment-card">
           <div class="allotment-card-label">Individual</div>
           <p class="allotment-card-desc">
-            Credits the configured annual hours for the staff member and PTO type selected above. Skips automatically if already applied this year.
+            Credits the configured annual hours for the staff member and leave type selected above. Skips automatically if already applied this year.
           </p>
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <button id="applyAnnualAllotmentBtn" class="btn">Apply Allotment</button>
@@ -737,7 +737,7 @@
           </p>
           <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <select id="bulkAnnualPtoType" style="flex:1; min-width:130px;">
-              <option value="">Select PTO type…</option>
+              <option value="">Select leave type…</option>
             </select>
             <button id="applyAnnualAllotmentsBulk" class="btn warn">Apply to All Staff</button>
           </div>
@@ -752,15 +752,15 @@
 <section id="pto-reports" class="admin-section">
    <div class="admin-content fade-in">
     <div class="panel panel-action">
-      <h3>Export PTO Reports</h3>
+      <h3>Export Leave Reports</h3>
 
  
 <div class="row export-controls">
   <select id="exportReportType">
     <option value="">Select report…</option>
-    <option value="transactions">PTO Transactions</option>
-    <option value="balances">PTO Balances Snapshot</option>
-    <option value="payroll">Payroll PTO Usage</option>
+    <option value="transactions">Leave Transactions</option>
+    <option value="balances">Leave Balances Snapshot</option>
+    <option value="payroll">Payroll Leave Usage</option>
     <option value="negative_balances">Negative Balances</option>
     <option value="year_end_summary">Year-End Summary</option>
   </select>
@@ -791,7 +791,7 @@
     <div class="panel panel-history">
       <h3>Year-End Rollover &amp; Payout</h3>
       <div class="muted" style="margin-bottom:16px;">
-        Select the leave type to analyze. Rollover credits go to the <strong>ROLLOVER</strong> PTO type. Payout amounts are for reference only — apply in payroll externally.
+        Select the leave type to analyze. Rollover credits go to the <strong>ROLLOVER</strong> leave type. Payout amounts are for reference only — apply in payroll externally.
       </div>
 
       <div class="row" style="gap:8px; margin-bottom:16px; align-items:center;">
@@ -856,15 +856,15 @@
 
   <div class="admin-content fade-in">
     <div class="panel panel-history">
-      <h3>PTO Policies</h3>
+      <h3>Leave Policies</h3>
 
       <div class="muted" style="margin-bottom:12px;">
-        Configure annual PTO hours per employee and PTO type. Use the bulk setter to fill a whole group at once, then override individual cells as needed.
+        Configure annual leave hours per employee and leave type. Use the bulk setter to fill a whole group at once, then override individual cells as needed.
       </div>
 
       <div id="policiesBulkBar" class="policy-bulk-bar" style="display:none;">
         <strong style="font-size:13px; white-space:nowrap;">Bulk set:</strong>
-        <select id="policyBulkType"><option value="">PTO type…</option></select>
+        <select id="policyBulkType"><option value="">Leave type…</option></select>
         <input type="number" id="policyBulkHours" placeholder="Hours" min="0" step="0.5" style="width:80px;" />
         <select id="policyBulkMonths"><option value="">All staff</option></select>
         <button id="policyBulkSetAll" class="btn btn-primary">Set All</button>

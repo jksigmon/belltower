@@ -163,7 +163,7 @@ function buildPhases(school, modules, c) {
         !hasTimezone ? 'warning' : 'complete',
         hasName ? `${school.name}${school.timezone ? ` · ${school.timezone}` : ''}` : null,
         !hasName     ? 'School name is missing. Contact Belltower support to set it.' :
-        !hasTimezone ? 'Timezone is not set — PTO calendars and email notifications will show incorrect times.' : null,
+        !hasTimezone ? 'Timezone is not set — Leave calendars and email notifications will show incorrect times.' : null,
         sup ? 'admin.html#schools' : null,
         sup ? 'Edit in Schools' : null,
       ),
@@ -279,23 +279,23 @@ function buildPhases(school, modules, c) {
     const allBalsSet  = c.ptoBalance > 0 && c.ptoBalance >= c.employee;
     const someBalsSet = c.ptoBalance > 0 && c.ptoBalance < c.employee;
     phases.push({
-      title: 'PTO Setup',
+      title: 'Leave Setup',
       icon: 'calendar',
       steps: [
         mkStep(
-          'PTO allotments applied',
+          'Leave allotments applied',
           allBalsSet  ? 'complete' :
           someBalsSet ? 'warning'  : 'error',
           c.ptoBalance > 0
-            ? `${c.ptoBalance} of ${c.employee} employee${c.employee !== 1 ? 's' : ''} have PTO balances initialized`
+            ? `${c.ptoBalance} of ${c.employee} employee${c.employee !== 1 ? 's' : ''} have leave balances initialized`
             : null,
           c.ptoBalance === 0
-            ? 'No PTO balances set. Go to PTO Management → Adjust Balances → Annual Allotments and run allotments for all staff.'
+            ? 'No leave balances set. Go to Leave Management → Adjust Balances → Annual Allotments and run allotments for all staff.'
             : someBalsSet
-            ? `${c.employee - c.ptoBalance} employee${c.employee - c.ptoBalance !== 1 ? 's' : ''} may not have PTO balances yet. Run Annual Allotments or add balances individually.`
+            ? `${c.employee - c.ptoBalance} employee${c.employee - c.ptoBalance !== 1 ? 's' : ''} may not have leave balances yet. Run Annual Allotments or add balances individually.`
             : null,
           '/pto.html',
-          'Go to PTO',
+          'Go to Leave',
         ),
       ],
     });
@@ -396,7 +396,7 @@ function plural(n, singular, plural) {
 }
 
 const MODULE_LABELS = {
-  pto:         'PTO',
+  pto:         'Leave',
   substitutes: 'Substitutes',
   carline:     'Carline',
   licensure:   'Licensure',

@@ -288,9 +288,9 @@ td strong { color: #111827; }
       <li>Whether school uses homeroom teacher assignments</li>
       <li>Staff roster spreadsheet: first name, last name, email, position</li>
       <li>Student/family roster: student names, grades, family names, carline tag numbers</li>
-      <li>Which Belltower modules they need (PTO, Carline, Compliance, Licensure, Field Trips, Substitutes)</li>
+      <li>Which Belltower modules they need (Leave, Carline, Compliance, Licensure, Field Trips, Substitutes)</li>
       <li>If using carline: bus group names and which students ride each bus</li>
-      <li>If using PTO: workday hours (e.g. 8), annual PTO allotment per employee type</li>
+      <li>If using Leave: workday hours (e.g. 8), annual leave allotment per employee type</li>
     </ul>
     <div class="pitfall">
       <span class="pitfall-icon">⚠</span>
@@ -313,7 +313,7 @@ td strong { color: #111827; }
           <li><strong>Name</strong> — full school name</li>
           <li><strong>Short name</strong> — abbreviation used in tight UI spaces</li>
           <li><strong>Email domain</strong> — staff Google account domain, e.g. <code>lincoln.edu</code></li>
-          <li><strong>Timezone</strong> — e.g. <code>America/New_York</code>. Affects PTO calendar and email notification times.</li>
+          <li><strong>Timezone</strong> — e.g. <code>America/New_York</code>. Affects leave calendar and email notification times.</li>
           <li><strong>Weather lat/lon</strong> — optional, enables weather widget on admin dashboard</li>
         </ul>
         <div class="pitfall">
@@ -349,7 +349,7 @@ td strong { color: #111827; }
         <span class="step-where">Admin Panel → Settings → Schools → Edit school → Module toggles</span>
         <p>Toggle on only the modules this school is using. Unused modules clutter the nav for their staff. You can enable more later. Modules available:</p>
         <ul>
-          <li><strong>PTO</strong> — PTO requests, approvals, balances, substitutes trigger</li>
+          <li><strong>Leave</strong> — leave requests, approvals, balances, substitutes trigger</li>
           <li><strong>Substitutes</strong> — substitute assignment board</li>
           <li><strong>Carline</strong> — dismissal screen, carline input, bus groups, carpools in nav</li>
           <li><strong>Licensure</strong> — staff license tracking and expiry alerts</li>
@@ -504,19 +504,19 @@ td strong { color: #111827; }
     <div class="step no-break">
       <div class="step-num">11</div>
       <div class="step-body">
-        <div class="step-title">PTO setup — only if PTO module is enabled</div>
-        <span class="step-where">PTO Management → Adjust Balances → Annual Allotments</span>
-        <p>Before staff can use PTO, allotments must be applied:</p>
+        <div class="step-title">Leave setup — only if Leave module is enabled</div>
+        <span class="step-where">Leave Management → Adjust Balances → Annual Allotments</span>
+        <p>Before staff can use leave, allotments must be applied:</p>
         <ol>
-          <li>Go to PTO Management (staff portal, admin view).</li>
+          <li>Go to Leave Management (staff portal, admin view).</li>
           <li>Under <strong>Adjust Balances</strong>, find the <strong>Annual Allotments</strong> section.</li>
-          <li>Set the allotment hours per PTO type for each employee (or run bulk allotment for all staff at once).</li>
+          <li>Set the allotment hours per leave type for each employee (or run bulk allotment for all staff at once).</li>
         </ol>
         <div class="pitfall">
           <span class="pitfall-icon">⚠</span>
           <p><strong>If allotments are skipped, staff see a $0 balance and think something is broken.</strong> This is the most common source of confusion on day one. Do this before staff start logging in.</p>
         </div>
-        <p>Also verify <strong>PTO types</strong> are configured correctly — which types count against balance vs. tracking only (Jury Duty, Bereavement, Professional are typically tracking-only).</p>
+        <p>Also verify <strong>leave types</strong> are configured correctly — which types count against balance vs. tracking only (Jury Duty, Bereavement, Professional are typically tracking-only).</p>
       </div>
     </div>
 
@@ -563,7 +563,7 @@ td strong { color: #111827; }
       <div>
         <table>
           <tr><th>Item</th><th>Where</th></tr>
-          <tr><td><strong>Existing PTO balances</strong><br><span style="color:#9ca3af;font-size:11px;">For schools with carry-over from a previous system</span></td><td>PTO Mgmt → Adjust Balances</td></tr>
+          <tr><td><strong>Existing leave balances</strong><br><span style="color:#9ca3af;font-size:11px;">For schools with carry-over from a previous system</span></td><td>Leave Mgmt → Adjust Balances</td></tr>
           <tr><td><strong>Background check records</strong><br><span style="color:#9ca3af;font-size:11px;">Historical checks already on file</span></td><td>Compliance → Background Checks</td></tr>
           <tr><td><strong>Staff licenses</strong><br><span style="color:#9ca3af;font-size:11px;">Existing licensure on file</span></td><td>Admin → Licensure → Add License</td></tr>
           <tr><td><strong>Substitute directory</strong><br><span style="color:#9ca3af;font-size:11px;">External subs not in employee roster</span></td><td>Substitutes → Directory</td></tr>
@@ -574,7 +574,7 @@ td strong { color: #111827; }
           <tr><th>Item</th><th>Where</th></tr>
           <tr><td><strong>Carpool groups</strong><br><span style="color:#9ca3af;font-size:11px;">Families that share a pickup tag</span></td><td>Admin → Directory → Carpools</td></tr>
           <tr><td><strong>Guardian records</strong><br><span style="color:#9ca3af;font-size:11px;">Or use Guardian Intake campaigns</span></td><td>Admin → Directory → Guardians</td></tr>
-          <tr><td><strong>Employee PTO policies</strong><br><span style="color:#9ca3af;font-size:11px;">Per-person allotment overrides</span></td><td>PTO Mgmt → Adjust Balances</td></tr>
+          <tr><td><strong>Employee leave policies</strong><br><span style="color:#9ca3af;font-size:11px;">Per-person allotment overrides</span></td><td>Leave Mgmt → Adjust Balances</td></tr>
           <tr><td><strong>Homeroom teacher assignments</strong><br><span style="color:#9ca3af;font-size:11px;">Assign students to teachers for carline/class placement</span></td><td>Admin → Students → Edit student</td></tr>
         </table>
       </div>
@@ -608,11 +608,11 @@ td strong { color: #111827; }
       <tr><td><code>can_manage_bus_groups</code></td><td>Bus Groups tab.</td></tr>
       <tr><td><code>can_manage_carpools</code></td><td>Carpools tab.</td></tr>
       <tr><td><code>can_manage_campuses</code></td><td>Campuses tab.</td></tr>
-      <tr><td><code>can_view_pto_calendar</code></td><td>PTO calendar view — see who is out on what days.</td></tr>
-      <tr><td><code>can_review_pto</code></td><td>PTO pending requests tab — see requests awaiting decision.</td></tr>
-      <tr><td><code>can_approve_pto</code></td><td>Approve or deny PTO requests and handle cancellations/rescind requests.</td></tr>
-      <tr><td><code>can_adjust_pto</code></td><td>Adjust Balances tab — add/subtract hours and run allotments.</td></tr>
-      <tr><td><code>can_generate_pto_reports</code></td><td>PTO Reports tab — export PTO summaries and ledgers.</td></tr>
+      <tr><td><code>can_view_pto_calendar</code></td><td>Leave calendar view — see who is out on what days.</td></tr>
+      <tr><td><code>can_review_pto</code></td><td>Leave pending requests tab — see requests awaiting decision.</td></tr>
+      <tr><td><code>can_approve_pto</code></td><td>Approve or deny leave requests and handle cancellations/rescind requests.</td></tr>
+      <tr><td><code>can_adjust_pto</code></td><td>Adjust Balances tab — add/subtract leave hours and run allotments.</td></tr>
+      <tr><td><code>can_generate_pto_reports</code></td><td>Leave Reports tab — export leave summaries and ledgers.</td></tr>
       <tr><td><code>can_manage_substitutes</code></td><td>Substitute Management — assign subs, manage substitute directory.</td></tr>
       <tr><td><code>can_view_carline</code></td><td>View the carline display screen (read-only).</td></tr>
       <tr><td><code>can_manage_carline</code></td><td>Operate the carline input screen — call students, record loads.</td></tr>
@@ -620,7 +620,7 @@ td strong { color: #111827; }
       <tr><td><code>can_manage_compliance</code></td><td>Compliance tab — background checks, form templates, agreements.</td></tr>
       <tr><td><code>can_manage_field_trips</code></td><td>Admin-level field trip access — see <em>all</em> school trips. Without this, staff only see trips they are managing teachers on.</td></tr>
       <tr><td><code>can_manage_placement</code></td><td>Class Placement standalone tool — the link appears in both the <strong>Staff Portal nav</strong> and the Admin Panel nav. Grant this to teachers during placement season so they can access the board without needing full admin access. Year-End Promotion is separate and remains admin-only in the Admin Panel.</td></tr>
-      <tr><td><code>is_fallback_approver</code></td><td>Receives PTO approval notifications when a staff member has no supervisor assigned.</td></tr>
+      <tr><td><code>is_fallback_approver</code></td><td>Receives leave approval notifications when a staff member has no supervisor assigned.</td></tr>
     </table>
 
     <div style="margin-top:12px;">
@@ -642,7 +642,7 @@ td strong { color: #111827; }
       <tr><th style="width:18%;">Module key</th><th>Nav items unlocked</th><th>Required permission(s)</th></tr>
       <tr>
         <td><code>pto</code></td>
-        <td>PTO Management (admin), PTO &amp; Leave (staff portal)</td>
+        <td>Leave Management (admin), Leave (staff portal)</td>
         <td>can_view_pto_calendar, can_review_pto, can_approve_pto, or can_generate_pto_reports</td>
       </tr>
       <tr>
@@ -710,9 +710,9 @@ td strong { color: #111827; }
         <td>Fix grade_level on the student record to match exactly. Can bulk-fix in Supabase table editor with a SQL UPDATE if widespread.</td>
       </tr>
       <tr>
-        <td>Staff see $0 PTO balance on day one</td>
+        <td>Staff see $0 leave balance on day one</td>
         <td>Annual allotments were never run</td>
-        <td>PTO Management → Adjust Balances → Annual Allotments → run for all staff</td>
+        <td>Leave Management → Adjust Balances → Annual Allotments → run for all staff</td>
       </tr>
       <tr>
         <td>Admin nav link doesn't appear for a user</td>
@@ -735,7 +735,7 @@ td strong { color: #111827; }
         <td>In Supabase <code>profiles</code> table: update <code>school_id</code> to the correct school UUID</td>
       </tr>
       <tr>
-        <td>PTO calendar times are wrong (off by hours)</td>
+        <td>Leave calendar times are wrong (off by hours)</td>
         <td>Timezone not set on the school record</td>
         <td>Edit school in Schools tab, set the correct IANA timezone string (e.g. <code>America/Chicago</code>)</td>
       </tr>
@@ -768,7 +768,7 @@ td strong { color: #111827; }
           <tr><td><code>employees</code></td><td>Staff records, email, position, active flag</td></tr>
           <tr><td><code>students</code></td><td>Student records, grade_level, family_id, campus_id</td></tr>
           <tr><td><code>families</code></td><td>Family records, carline_tag_number (must be unique)</td></tr>
-          <tr><td><code>pto_balances</code></td><td>Current PTO balance per employee per type</td></tr>
+          <tr><td><code>pto_balances</code></td><td>Current leave balance per employee per type</td></tr>
           <tr><td><code>campuses</code></td><td>Campus records — required for carline</td></tr>
         </table>
       </div>
@@ -820,7 +820,7 @@ td strong { color: #111827; }
       <li>Set up bus groups and assigned students (only if carline is enabled)</li>
       <li>School admin signed in with Google (creates pending account)</li>
       <li>Activated school admin account and granted full permissions</li>
-      <li>Applied PTO allotments for all staff (only if PTO is enabled)</li>
+      <li>Applied leave allotments for all staff (only if Leave is enabled)</li>
       <li>Created compliance form templates (only if Compliance is enabled)</li>
       <li>Ran Setup Checklist — all items green</li>
       <li>School admin can log in and see correct data</li>

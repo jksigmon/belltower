@@ -138,7 +138,7 @@ function populateAddStaffSupervisorSelect() {
   select.innerHTML = '';
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = 'Supervisor / PTO Approver (optional)';
+  placeholder.textContent = 'Supervisor / Leave Approver (optional)';
   placeholder.selected = true;
   placeholder.disabled = true;
   select.appendChild(placeholder);

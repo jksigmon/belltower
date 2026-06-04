@@ -6,7 +6,7 @@ let currentProfile;
 let initialized = false;
 
 const MODULES = [
-  { key: 'pto',         label: 'PTO Management' },
+  { key: 'pto',         label: 'Leave Management' },
   { key: 'substitutes', label: 'Substitute Assignment' },
   { key: 'carline',     label: 'Carline Dismissal' },
   { key: 'licensure',   label: 'Licensure Tracking' },

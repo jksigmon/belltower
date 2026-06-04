@@ -700,7 +700,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
 <nav id="staffNav" class="nav hidden">
   <a href="#dashboard"><i data-lucide="home"></i> Home</a>
-  <a href="#pto"        data-module="pto"><i data-lucide="calendar"></i> PTO</a>
+  <a href="#pto"        data-module="pto"><i data-lucide="calendar"></i> Leave</a>
   <a href="/carline.html" data-module="carline"><i data-lucide="car"></i> Carline</a>
   <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
   <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
@@ -751,7 +751,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       </div>
 
       <div class="dash-section" id="staffDashBalances" style="display:none;">
-        <div class="dash-section-head"><span class="dash-section-eyebrow">PTO Balances</span><span class="dash-section-rule"></span></div>
+        <div class="dash-section-head"><span class="dash-section-eyebrow">Leave Balances</span><span class="dash-section-rule"></span></div>
         <div class="stat-grid" id="staffDashBalanceGrid"></div>
       </div>
 
@@ -773,7 +773,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
   <!-- Balances -->
   <div class="panel staff-balance-panel" style="margin-top:12px;">
-    <h3>PTO Balances</h3>
+    <h3>Leave Balances</h3>
 
     <!-- Stats + balance chips unified strip -->
     <div class="staff-balance-strip">
@@ -802,9 +802,9 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   </div>
 
 
-<!-- PTO Request Form-->
+<!-- Leave Request Form-->
 <div class="panel" style="margin-top:12px;">
-  <h3>Request PTO</h3>
+  <h3>Request Leave</h3>
 
 <div class="pto-form">
 
@@ -835,9 +835,9 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <!-- Main fields: Type / Duration / Date -->
   <div class="pto-fields-grid">
     <div class="pto-field">
-      <span class="pto-field-label">PTO Type <span style="color:#dc2626;">*</span></span>
+      <span class="pto-field-label">Leave Type <span style="color:#dc2626;">*</span></span>
       <select id="ptoType">
-        <option value="">Select PTO Type</option>
+        <option value="">Select Leave Type</option>
       </select>
     </div>
     <div class="pto-field">
@@ -877,7 +877,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <!-- Balance tracking notice -->
   <div id="ptoBalanceHelper" class="pto-balance-warning" style="display:none;">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    <span><strong>Tracking only</strong> — This leave type is for record-keeping purposes and will <strong>not count against your PTO balance</strong>.</span>
+    <span><strong>Tracking only</strong> — This leave type is for record-keeping purposes and will <strong>not count against your leave balance</strong>.</span>
   </div>
 
   <!-- Submit -->
@@ -891,7 +891,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
   <!-- Request History -->
   <div class="panel panel-history" style="margin-top:12px;">
-    <h3>PTO Request History</h3>
+    <h3>Leave Request History</h3>
     <table id="ptoHistoryTable" style="width:100%; border-collapse:collapse;">
       <thead>
         <tr>
@@ -927,7 +927,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
     Your school does not currently have any staff modules enabled.
   </p>
   <p class="muted">
-    Please contact an administrator to enable PTO, Carline, or other services.
+    Please contact an administrator to enable Leave, Carline, or other services.
   </p>
 </section>
 
@@ -1171,10 +1171,10 @@ function openCancelModal({ type, request }) {
   reasonInput.value = '';
 
   if (type === 'RESCIND') {
-    titleEl.textContent = 'Request PTO Rescind (Past Dates)';
+    titleEl.textContent = 'Request Leave Rescind (Past Dates)';
     descEl.innerHTML = `
       <p class="muted">
-        This PTO was <strong>approved for past dates</strong>.
+        This leave was <strong>approved for past dates</strong>.
       </p>
       <p class="muted">
         Use this only if you <strong>did not take the approved time off</strong>.
@@ -1184,10 +1184,10 @@ function openCancelModal({ type, request }) {
     confirmBtn.textContent = 'Request Rescind';
     confirmBtn.classList.add('warn');
   } else {
-    titleEl.textContent = 'Cancel PTO Request';
+    titleEl.textContent = 'Cancel Leave Request';
     descEl.innerHTML = `
       <p class="muted">
-        Please provide a reason for cancelling this PTO request.
+        Please provide a reason for cancelling this leave request.
       </p>
     `;
     confirmBtn.textContent = 'Confirm Cancel';
@@ -1265,7 +1265,7 @@ document.getElementById('cancelModalConfirm').onclick = async () => {
   closeCancelModal();
 
   if (error) {
-    alert('Failed to submit PTO cancellation.');
+    alert('Failed to submit leave cancellation.');
     return;
   }
 
@@ -1430,7 +1430,7 @@ async function loadStaffDashboard() {
   const actionsRow = document.getElementById('staffDashActionsRow');
   const actions = [];
   if (window.staffModules['pto'] === true)
-    actions.push({ label: 'Submit PTO', icon: 'calendar-plus', href: '#pto' });
+    actions.push({ label: 'Submit Leave', icon: 'calendar-plus', href: '#pto' });
   if (window.staffModules['carline'] === true && p.can_view_carline)
     actions.push({ label: 'Carline', icon: 'car', href: '/carline.html' });
   if (window.staffModules['licensure'] === true)
@@ -1676,7 +1676,7 @@ function setActive(hash) {
   const subtitle = document.getElementById('pageSubtitle');
   if (subtitle) {
     if (hash === '#dashboard')          subtitle.textContent = '';
-    if (hash === '#pto')                subtitle.textContent = 'PTO & Leave';
+    if (hash === '#pto')                subtitle.textContent = 'Leave';
     if (hash === '#licensure')          subtitle.textContent = 'My Licenses';
     if (hash === '#bg-checks')          subtitle.textContent = 'Background Checks';
     if (hash === '#compliance-report')  subtitle.textContent = 'Compliance Report';
@@ -1909,7 +1909,7 @@ async function loadPtoStats() {
 
 async function loadStaffPtoTypes() {
   const select = document.getElementById('ptoType');
-  select.innerHTML = '<option value="">Select PTO Type</option>';
+  select.innerHTML = '<option value="">Select Leave Type</option>';
 
   const { data, error } = await supabase
     .from('school_pto_types')
@@ -2002,7 +2002,7 @@ if (!data || data.length === 0) {
       <td colspan="7" style="text-align:center; padding:40px 24px;">
         <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <span style="font-size:13px;color:#9ca3af;font-weight:500;">No PTO requests yet</span>
+          <span style="font-size:13px;color:#9ca3af;font-weight:500;">No leave requests yet</span>
         </div>
       </td>
     </tr>
@@ -2059,7 +2059,7 @@ let actionButton = '';
 if (canCancelFuture) {
   actionButton = '<button class="pto-action-btn cancel" title="Cancel this request"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Cancel</button>';
 } else if (canRescindPast) {
-  actionButton = '<button class="pto-action-btn rescind" title="Request to rescind this approved PTO"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg> Rescind</button>';
+  actionButton = '<button class="pto-action-btn rescind" title="Request to rescind this approved leave"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg> Rescind</button>';
 }
 
 const typeMap = { VACATION:'badge-pto-vacation', SICK:'badge-pto-sick', PERSONAL:'badge-pto-personal', PROFESSIONAL:'badge-pto-professional' };
@@ -2169,7 +2169,7 @@ function normalizeEndTime(value) {
 async function submitPtoRequest() {
 
   if (!currentProfile?.employee_id) {
-    alert('PTO requests must be submitted from a staff account.');
+    alert('Leave requests must be submitted from a staff account.');
     return;
   }
 
@@ -2177,7 +2177,7 @@ async function submitPtoRequest() {
   const message = document.getElementById('ptoRequestMessage');
 
   if (!selectedStartDate || !selectedEndDate) {
-    message.textContent = 'Please select PTO date(s).';
+    message.textContent = 'Please select leave date(s).';
     return;
   }
 
@@ -2195,12 +2195,12 @@ async function submitPtoRequest() {
   message.textContent = '';
 
   if (!type) {
-    message.textContent = 'Please select PTO type.';
+    message.textContent = 'Please select leave type.';
     return;
   }
 
   if (isMultiDay && startDate === endDate) {
-    message.textContent = 'Please select a date range for multi-day PTO.';
+    message.textContent = 'Please select a date range for multi-day leave.';
     return;
   }
 
@@ -2288,7 +2288,7 @@ const needsSubCoverage = subChoice === 'yes';
 
   if (error) {
     console.error(error);
-    message.textContent = 'Failed to submit PTO request.';
+    message.textContent = 'Failed to submit leave request.';
     return;
   }
 
@@ -2314,7 +2314,7 @@ if (msg) msg.style.display = 'none';
 if (err) err.style.display = 'none';
 
 
-  showToast('✅ PTO request submitted successfully');
+  showToast('✅ Leave request submitted successfully');
   message.textContent = '';
 
   await loadPtoHistory();
@@ -2369,7 +2369,7 @@ function closeCancelModal() {
 
   if (error) {
     console.error(error);
-    alert('Failed to submit PTO cancellation.');
+    alert('Failed to submit leave cancellation.');
     return;
   }
 
@@ -2996,8 +2996,8 @@ function exportComplianceReportCsv() {
 /* ── Access Requests ── */
 
 const ACCESS_REQUEST_OPTIONS = [
-  { label: 'PTO Calendar',                          module: 'pto' },
-  { label: 'PTO Approval (review & approve)',       module: 'pto' },
+  { label: 'Leave Calendar',                         module: 'pto' },
+  { label: 'Leave Approval (review & approve)',      module: 'pto' },
   { label: 'View Carline',                          module: 'carline' },
   { label: 'Manage Carline (start/close sessions)', module: 'carline' },
   { label: 'Manage Substitutes',                    module: 'substitutes' },
@@ -3206,7 +3206,7 @@ if (past) {
   closeCancelModal();
 
   if (error) {
-    alert('Failed to submit PTO change.');
+    alert('Failed to submit leave change.');
     return;
   }
 
@@ -3221,7 +3221,7 @@ if (past) {
 <div id="cancelModal" class="modal modal-sm">
   <div class="modal-content">
     <div class="modal-header">
-      <h3 id="cancelModalTitle">Cancel PTO Request</h3>
+      <h3 id="cancelModalTitle">Cancel Leave Request</h3>
       <span class="modal-close" id="cancelModalClose">&times;</span>
     </div>
 
