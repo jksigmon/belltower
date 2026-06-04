@@ -94,9 +94,9 @@ if (profErr || !currentProfile) {
 initUserMenu(currentProfile.display_name ?? currentProfile.email);
 
 // PTO permission helpers — evaluated once after profile load
+// Driven entirely by explicit flags; role alone does not grant access.
 const _canManagePtoBalances =
   currentProfile.can_manage_pto_balances === true ||
-  currentProfile.role === 'admin' ||
   currentProfile.is_superadmin === true;
 const _canAdjustPto = currentProfile.can_adjust_pto === true || _canManagePtoBalances;
 
