@@ -476,9 +476,11 @@ async function loadSchoolPtoTypes() {
 ============================================= */
 async function loadPto() {
   const tbody = document.querySelector('#ptoTable tbody');
-  const table = document.getElementById('ptoTable');
   const emptyState = document.getElementById('pendingEmpty');
-  if (!currentProfile.can_approve_pto) return;
+  if (!currentProfile.can_approve_pto) {
+    if (emptyState) emptyState.hidden = false;
+    return;
+  }
   if (!tbody) return;
 
   clearPendingSelection();
@@ -509,18 +511,15 @@ async function loadPto() {
 
   if (error) {
     console.error(error);
-    if (table) table.style.display = 'none';
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
   if (!data || data.length === 0) {
-    if (table) table.style.display = 'none';
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
-  if (table) table.style.display = '';
   if (emptyState) emptyState.hidden = true;
 
   data.forEach(r => {
@@ -609,11 +608,12 @@ async function loadPto() {
    CANCELLATIONS TABLE
 ============================================= */
 async function loadPtoCancellationRequests() {
-  if (!currentProfile.can_approve_pto) return;
-
   const tbody = document.querySelector('#ptoCancelTable tbody');
-  const table = document.getElementById('ptoCancelTable');
   const emptyState = document.getElementById('cancellationsEmpty');
+  if (!currentProfile.can_approve_pto) {
+    if (emptyState) emptyState.hidden = false;
+    return;
+  }
   if (!tbody) return;
 
   tbody.innerHTML = '';
@@ -642,18 +642,15 @@ async function loadPtoCancellationRequests() {
 
   if (error) {
     console.error(error);
-    if (table) table.style.display = 'none';
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
   if (!data || data.length === 0) {
-    if (table) table.style.display = 'none';
     if (emptyState) emptyState.hidden = false;
     return;
   }
 
-  if (table) table.style.display = '';
   if (emptyState) emptyState.hidden = true;
 
   data.forEach(r => {
@@ -2363,8 +2360,17 @@ document.getElementById('applyAnnualAllotmentsBulk')
 /* =============================================
    HASH ROUTING
 ============================================= */
+function getDefaultPtoView() {
+  if (currentProfile.can_approve_pto) return 'pending';
+  if (currentProfile.can_view_pto_calendar) return 'calendar';
+  if (currentProfile.can_review_pto || _canManagePtoBalances) return 'history';
+  if (_canAdjustPto) return 'adjust';
+  if (currentProfile.can_generate_pto_reports) return 'reports';
+  return 'pending';
+}
+
 function handlePtoRoute() {
-  const view = location.hash.replace('#', '') || 'pending';
+  const view = location.hash.replace('#', '') || getDefaultPtoView();
   setPtoView(view);
 }
 
