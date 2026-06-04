@@ -93,6 +93,13 @@ if (profErr || !currentProfile) {
 
 initUserMenu(currentProfile.display_name ?? currentProfile.email);
 
+// PTO permission helpers — evaluated once after profile load
+const _canManagePtoBalances =
+  currentProfile.can_manage_pto_balances === true ||
+  currentProfile.role === 'admin' ||
+  currentProfile.is_superadmin === true;
+const _canAdjustPto = currentProfile.can_adjust_pto === true || _canManagePtoBalances;
+
 if (!currentProfile.can_view_pto_calendar) {
   document.getElementById('ptoTabCalendar')?.remove();
 }
@@ -102,17 +109,33 @@ if (!currentProfile.can_approve_pto) {
   document.getElementById('ptoTabCancellations')?.remove();
 }
 
-if (!currentProfile.can_review_pto) {
-  document.querySelector('#ptoTabs [data-view="history"]')?.remove();
+if (!currentProfile.can_review_pto && !_canManagePtoBalances) {
+  document.getElementById('navPtoHistory')?.remove();
 }
 
-if (!currentProfile.can_adjust_pto) {
-  document.getElementById('ptoTabAdjust')?.remove();
-  document.getElementById('ptoTabPolicies')?.remove();
+if (!_canAdjustPto) {
+  document.getElementById('navPtoAdjust')?.remove();
+}
+
+if (!_canManagePtoBalances) {
+  document.getElementById('navPtoRollover')?.remove();
+  document.getElementById('navPtoPolicies')?.remove();
 }
 
 if (!currentProfile.can_generate_pto_reports) {
   document.getElementById('ptoTabReports')?.remove();
+}
+
+// Deduction-only mode: strip allotment UI and tighten hint text
+if (_canAdjustPto && !_canManagePtoBalances) {
+  document.getElementById('adjustAllotmentsWrap')?.remove();
+  const hoursInput = document.getElementById('ptoAdjustHours');
+  if (hoursInput) {
+    hoursInput.placeholder = 'Hours (negative to deduct)';
+    hoursInput.setAttribute('max', '0');
+  }
+  const hint = document.getElementById('adjustHintText');
+  if (hint) hint.textContent = 'Enter a negative number to deduct time (e.g. -0.5 for 30 min). Use this for early departures or unexpected absences. All deductions are recorded in the employee ledger.';
 }
 
 const ptoTabsEl = document.querySelector('.pto-tabs');
@@ -127,6 +150,7 @@ function hasAdminAccess(profile) {
     profile.can_manage_access === true ||
     profile.can_approve_pto === true ||
     profile.can_adjust_pto === true ||
+    profile.can_manage_pto_balances === true ||
     profile.can_bulk_upload === true
   );
 }
@@ -1259,7 +1283,7 @@ async function loadStaffPtoLedger(employeeId) {
    ANNUAL PTO ALLOTMENT
 ============================================= */
 async function applyAnnualPto(employeeId, ptoType, hours) {
-  if (!currentProfile.can_adjust_pto) {
+  if (!_canManagePtoBalances) {
     showToast('Not authorized', 'error');
     return;
   }
@@ -1371,7 +1395,7 @@ async function loadPtoPolicies() {
             class="pto-policy-input"
             data-employee="${emp.id}"
             data-type="${type}"
-            ${currentProfile.can_adjust_pto ? '' : 'disabled'} />
+            ${_canManagePtoBalances ? '' : 'disabled'} />
           <span class="save-indicator"></span>
         </div>
       `;
@@ -1803,19 +1827,23 @@ document.addEventListener('click', (e) => {
 const ptoTabs = document.querySelectorAll('#ptoTabs .tab');
 
 async function setPtoView(view) {
-  if (view === 'history' && !currentProfile.can_review_pto) {
+  if (view === 'history' && !currentProfile.can_review_pto && !_canManagePtoBalances) {
     showToast('You are not authorized to view staff PTO history.', 'error');
     return;
   }
-  if ((view === 'adjust' || view === 'policies') && !currentProfile.can_adjust_pto) {
-    showToast('You are not authorized to modify PTO policies or balances.', 'error');
+  if (view === 'adjust' && !_canAdjustPto) {
+    showToast('You are not authorized to adjust PTO balances.', 'error');
+    return;
+  }
+  if (view === 'policies' && !_canManagePtoBalances) {
+    showToast('You are not authorized to modify PTO policies.', 'error');
     return;
   }
   if (view === 'reports' && !currentProfile.can_generate_pto_reports) {
     showToast('You are not authorized to generate PTO reports.', 'error');
     return;
   }
-  if (view === 'rollover' && !currentProfile.can_adjust_pto) {
+  if (view === 'rollover' && !_canManagePtoBalances) {
     showToast('You are not authorized to run year-end rollover.', 'error');
     return;
   }
@@ -2130,7 +2158,7 @@ document.addEventListener('change', async e => {
 ============================================= */
 document.getElementById('applyPtoAdjustment')
   .addEventListener('click', async () => {
-    if (!currentProfile?.can_adjust_pto) {
+    if (!_canAdjustPto) {
       showToast('Not authorized', 'error');
       return;
     }
@@ -2140,8 +2168,13 @@ document.getElementById('applyPtoAdjustment')
     const hours      = Number(document.getElementById('ptoAdjustHours').value);
     const reasonInput = document.getElementById('ptoAdjustReason').value.trim();
 
-    if (!employeeId || !hours) {
+    if (!employeeId || hours === 0 || isNaN(hours)) {
       showToast('Select staff and enter hours', 'warn');
+      return;
+    }
+
+    if (!_canManagePtoBalances && hours > 0) {
+      showToast('You can only deduct PTO hours. Enter a negative value (e.g. -0.5).', 'error');
       return;
     }
 
@@ -2181,7 +2214,7 @@ document.getElementById('applyPtoAdjustment')
 ============================================= */
 document.getElementById('applyAnnualAllotmentBtn')
   .addEventListener('click', async () => {
-    if (!currentProfile.can_adjust_pto) {
+    if (!_canManagePtoBalances) {
       showToast('You are not authorized to apply PTO allotments.', 'error');
       return;
     }
@@ -2234,7 +2267,7 @@ document.getElementById('applyAnnualAllotmentBtn')
 ============================================= */
 document.getElementById('applyAnnualAllotmentsBulk')
   .addEventListener('click', async () => {
-    if (!currentProfile.can_adjust_pto) {
+    if (!_canManagePtoBalances) {
       showToast('You are not authorized to perform bulk PTO changes.', 'error');
       return;
     }
@@ -2622,7 +2655,7 @@ function renderRolloverReport(rows, ptoType, workdayHours) {
 }
 
 async function commitRollover() {
-  if (!currentProfile.can_adjust_pto) {
+  if (!_canManagePtoBalances) {
     showToast('Not authorized.', 'error');
     return;
   }

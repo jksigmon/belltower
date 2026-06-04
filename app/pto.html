@@ -474,11 +474,11 @@
   <i data-lucide="x-circle"></i> Cancellations
   <span class="badge-count" id="cancelCount"></span>
 </a>
-<a href="/pto.html#history"><i data-lucide="book-open"></i> Staff PTO History</a>
-<a href="/pto.html#adjust"><i data-lucide="sliders-horizontal"></i> Adjust PTO</a>
+<a href="/pto.html#history" id="navPtoHistory"><i data-lucide="book-open"></i> Staff PTO History</a>
+<a href="/pto.html#adjust" id="navPtoAdjust"><i data-lucide="sliders-horizontal"></i> Adjust PTO</a>
 <a href="/pto.html#reports"><i data-lucide="bar-chart-2"></i> PTO Reports</a>
-<a href="/pto.html#rollover"><i data-lucide="refresh-cw"></i> Year-End Rollover</a>
-<a href="/pto.html#policies"><i data-lucide="file-text"></i> PTO Policies</a>
+<a href="/pto.html#rollover" id="navPtoRollover"><i data-lucide="refresh-cw"></i> Year-End Rollover</a>
+<a href="/pto.html#policies" id="navPtoPolicies"><i data-lucide="file-text"></i> PTO Policies</a>
 
   </nav>
 
@@ -710,10 +710,11 @@
 
 
 
-      <p class="muted" style="margin:8px 0 0; font-size:12px;">
+      <p id="adjustHintText" class="muted" style="margin:8px 0 0; font-size:12px;">
         Positive hours grant PTO. Negative hours subtract PTO. All adjustments are recorded.
       </p>
 
+      <div id="adjustAllotmentsWrap">
       <div class="allotment-divider">Annual Allotments</div>
 
       <div class="allotment-grid">
@@ -744,6 +745,7 @@
         </div>
 
       </div>
+      </div><!-- /adjustAllotmentsWrap -->
     </div>
   </div>
 </section>

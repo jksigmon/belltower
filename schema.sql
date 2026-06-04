@@ -962,6 +962,7 @@ CREATE TABLE public.profiles (
     can_approve_pto boolean DEFAULT false NOT NULL,
     is_fallback_approver boolean DEFAULT false NOT NULL,
     can_adjust_pto boolean DEFAULT false NOT NULL,
+    can_manage_pto_balances boolean DEFAULT false NOT NULL,
     can_bulk_upload boolean DEFAULT false NOT NULL,
     can_manage_guardians boolean DEFAULT false NOT NULL,
     can_login boolean DEFAULT false NOT NULL,
