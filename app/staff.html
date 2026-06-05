@@ -870,8 +870,9 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
   <!-- Notes -->
   <div class="pto-field">
-    <span class="pto-field-label">Notes</span>
+    <span class="pto-field-label">Notes <span id="ptoNotesRequiredMark" style="display:none;color:#dc2626;">*</span></span>
     <textarea id="ptoNotes" placeholder="Add context for this request (optional)"></textarea>
+    <span id="ptoNotesRequiredHint" style="display:none;font-size:12px;color:#dc2626;margin-top:4px;">Notes are required for this leave type.</span>
   </div>
 
   <!-- Balance tracking notice -->
@@ -1311,19 +1312,24 @@ const ptoBalanceHelper = document.getElementById('ptoBalanceHelper');
 
 ptoTypeSelect.addEventListener('change', () => {
   const type = ptoTypeSelect.value;
+  const meta = schoolPtoTypeMeta[type];
 
   if (!type) {
     ptoBalanceHelper.style.display = 'none';
+    document.getElementById('ptoNotesRequiredMark').style.display = 'none';
+    document.getElementById('ptoNotesRequiredHint').style.display = 'none';
+    document.getElementById('ptoNotes').placeholder = 'Add context for this request (optional)';
     return;
   }
 
-  const meta = schoolPtoTypeMeta[type];
+  ptoBalanceHelper.style.display = (meta && meta.countsAgainstBalance === false) ? 'block' : 'none';
 
-  if (meta && meta.countsAgainstBalance === false) {
-    ptoBalanceHelper.style.display = 'block';
-  } else {
-    ptoBalanceHelper.style.display = 'none';
-  }
+  const notesReq = meta?.notesRequired === true;
+  document.getElementById('ptoNotesRequiredMark').style.display = notesReq ? 'inline' : 'none';
+  document.getElementById('ptoNotesRequiredHint').style.display = 'none';
+  document.getElementById('ptoNotes').placeholder = notesReq
+    ? 'Required for this leave type — please explain the reason.'
+    : 'Add context for this request (optional)';
 });
 
 let ptoSectionLoaded = false;
@@ -1913,7 +1919,7 @@ async function loadStaffPtoTypes() {
 
   const { data, error } = await supabase
     .from('school_pto_types')
-    .select('pto_type, counts_against_balance')
+    .select('pto_type, counts_against_balance, notes_required')
     .eq('school_id', currentProfile.school_id)
     .eq('enabled', true);
 
@@ -1940,9 +1946,9 @@ async function loadStaffPtoTypes() {
     opt.textContent = r.pto_type;
     select.appendChild(opt);
 
-    // ✅ Save metadata keyed by PTO type
     schoolPtoTypeMeta[r.pto_type] = {
-      countsAgainstBalance: r.counts_against_balance
+      countsAgainstBalance: r.counts_against_balance,
+      notesRequired: r.notes_required
     };
   });
 }
@@ -2196,6 +2202,13 @@ async function submitPtoRequest() {
 
   if (!type) {
     message.textContent = 'Please select leave type.';
+    return;
+  }
+
+  if (schoolPtoTypeMeta[type]?.notesRequired && !notes) {
+    message.textContent = 'Notes are required for this leave type.';
+    document.getElementById('ptoNotesRequiredHint').style.display = 'block';
+    document.getElementById('ptoNotes').focus();
     return;
   }
 

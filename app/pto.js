@@ -1,12 +1,13 @@
 import { supabase } from '/app/admin.supabase.js';
 import { initUserMenu } from '/app/user-menu.js';
 import { requireAuth } from '/app/admin.auth.js';
-import { showToast } from '/app/admin.shared.js';
+import { showToast, esc } from '/app/admin.shared.js';
 
 /* =============================================
    STATE
 ============================================= */
 let currentSchoolPtoTypes = [];
+let currentSchoolPtoTypeMeta = {};
 let lastPendingPtoCount = 0;
 let lastCancelPtoCount = 0;
 let currentPtoHistoryEmployeeId = null;
@@ -460,7 +461,7 @@ function exportHistoryToCsv(employeeId, employeeName) {
 async function loadSchoolPtoTypes() {
   const { data, error } = await supabase
     .from('school_pto_types')
-    .select('pto_type')
+    .select('pto_type, counts_against_balance, notes_required')
     .eq('school_id', currentProfile.school_id)
     .eq('enabled', true);
 
@@ -469,6 +470,13 @@ async function loadSchoolPtoTypes() {
     return;
   }
   currentSchoolPtoTypes = data.map(r => r.pto_type);
+  currentSchoolPtoTypeMeta = {};
+  data.forEach(r => {
+    currentSchoolPtoTypeMeta[r.pto_type] = {
+      countsAgainstBalance: r.counts_against_balance,
+      notesRequired: r.notes_required
+    };
+  });
 }
 
 /* =============================================
@@ -1330,10 +1338,84 @@ async function applyAnnualPto(employeeId, ptoType, hours) {
 }
 
 /* =============================================
+   PTO TYPE SETTINGS
+============================================= */
+async function loadPtoTypeSettings() {
+  const tbody = document.querySelector('#ptoTypeSettingsTable tbody');
+  if (!tbody) return;
+
+  const { data, error } = await supabase
+    .from('school_pto_types')
+    .select('pto_type, enabled, counts_against_balance, notes_required')
+    .eq('school_id', currentProfile.school_id)
+    .order('pto_type');
+
+  if (error || !data) return;
+
+  const dis = _canManagePtoBalances ? '' : 'disabled';
+  tbody.innerHTML = '';
+  data.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="font-weight:500;">${esc(row.pto_type)}</td>
+      <td style="text-align:center;">
+        <input type="checkbox" data-type="${esc(row.pto_type)}" data-field="enabled"
+          ${row.enabled ? 'checked' : ''} ${dis} />
+      </td>
+      <td style="text-align:center;">
+        <input type="checkbox" data-type="${esc(row.pto_type)}" data-field="counts_against_balance"
+          ${row.counts_against_balance ? 'checked' : ''} ${dis} />
+      </td>
+      <td style="text-align:center;">
+        <input type="checkbox" data-type="${esc(row.pto_type)}" data-field="notes_required"
+          ${row.notes_required ? 'checked' : ''} ${dis} />
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', () => savePtoTypeFlag(cb));
+  });
+}
+
+async function savePtoTypeFlag(cb) {
+  const type = cb.dataset.type;
+  const field = cb.dataset.field;
+
+  const { error } = await supabase
+    .from('school_pto_types')
+    .update({ [field]: cb.checked })
+    .eq('school_id', currentProfile.school_id)
+    .eq('pto_type', type);
+
+  if (error) {
+    showToast('Failed to save leave type setting.', 'error');
+    cb.checked = !cb.checked;
+    return;
+  }
+
+  // Keep in-memory meta in sync
+  if (currentSchoolPtoTypeMeta[type]) {
+    if (field === 'notes_required') currentSchoolPtoTypeMeta[type].notesRequired = cb.checked;
+    if (field === 'counts_against_balance') currentSchoolPtoTypeMeta[type].countsAgainstBalance = cb.checked;
+  }
+  if (field === 'enabled') {
+    if (cb.checked) {
+      if (!currentSchoolPtoTypes.includes(type)) currentSchoolPtoTypes.push(type);
+    } else {
+      currentSchoolPtoTypes = currentSchoolPtoTypes.filter(t => t !== type);
+    }
+  }
+}
+
+/* =============================================
    PTO POLICIES
 ============================================= */
 async function loadPtoPolicies() {
   if (!currentProfile || !currentProfile.school_id) return;
+
+  await loadPtoTypeSettings();
 
   const tbody = document.querySelector('#ptoPoliciesTable tbody');
   const headerRow = document.getElementById('ptoPoliciesHeader');

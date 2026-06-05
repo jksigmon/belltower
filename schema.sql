@@ -1134,7 +1134,8 @@ CREATE TABLE public.school_pto_types (
     school_id uuid NOT NULL,
     pto_type text NOT NULL,
     enabled boolean DEFAULT true NOT NULL,
-    counts_against_balance boolean DEFAULT true NOT NULL
+    counts_against_balance boolean DEFAULT true NOT NULL,
+    notes_required boolean DEFAULT false NOT NULL
 );
 
 
