@@ -417,42 +417,42 @@
     <div id="accessPermissions" style="display:none;">
 
       <div class="panel">
-        <h4><i data-lucide="lock"></i> Login & Portal Access</h4>
-        <label><input type="checkbox" data-field="can_login"> Can log in</label>
-        <label><input type="checkbox" data-field="can_access_admin"> Admin portal</label>
-        <label><input type="checkbox" data-field="can_manage_access"> Manage access</label>
+        <h4><i data-lucide="lock"></i> Login &amp; Portal Access</h4>
+        <label><input type="checkbox" data-field="can_login"><span class="perm-name">Can log in</span><span class="perm-desc">Allows this person to sign into Belltower. Disabling immediately blocks all access.</span></label>
+        <label><input type="checkbox" data-field="can_access_admin"><span class="perm-name">Admin portal</span><span class="perm-desc">Grants access to the admin panel. Required for most management tasks below.</span></label>
+        <label><input type="checkbox" data-field="can_manage_access"><span class="perm-name">Manage access</span><span class="perm-desc">Can add, remove, and change permissions for other staff members. Grant with care.</span></label>
       </div>
 
       <div class="panel" data-module="pto">
         <h4><i data-lucide="calendar-days"></i> Leave</h4>
-        <label><input type="checkbox" data-field="can_view_pto_calendar"> View calendar</label>
-        <label><input type="checkbox" data-field="can_review_pto"> Review history</label>
-        <label><input type="checkbox" data-field="can_approve_pto"> Approve requests</label>
-        <label><input type="checkbox" data-field="is_fallback_approver"> Fallback approver (receives all requests)</label>
-        <label><input type="checkbox" data-field="can_adjust_pto"> Deduct/dock time (emergency leave)</label>
-        <label><input type="checkbox" data-field="can_manage_pto_balances"> Manage balances (add hours, allotments, policies, rollover)</label>
-        <label><input type="checkbox" data-field="can_generate_pto_reports"> Reports</label>
+        <label><input type="checkbox" data-field="can_view_pto_calendar"><span class="perm-name">View calendar</span><span class="perm-desc">Can see the school-wide leave calendar showing all approved time off.</span></label>
+        <label><input type="checkbox" data-field="can_review_pto"><span class="perm-name">Review history</span><span class="perm-desc">Can view leave history and current balances for any staff member.</span></label>
+        <label><input type="checkbox" data-field="can_approve_pto"><span class="perm-name">Approve requests</span><span class="perm-desc">Can approve or deny leave requests submitted by staff.</span></label>
+        <label><input type="checkbox" data-field="is_fallback_approver"><span class="perm-name">Fallback approver</span><span class="perm-desc">Receives all leave requests when no specific approver is assigned to an employee.</span></label>
+        <label><input type="checkbox" data-field="can_adjust_pto"><span class="perm-name">Deduct/dock time</span><span class="perm-desc">Can deduct leave hours from a staff member's balance — intended for emergency or last-minute absences.</span></label>
+        <label><input type="checkbox" data-field="can_manage_pto_balances"><span class="perm-name">Manage balances</span><span class="perm-desc">Full leave management: add hours, set annual allotments, configure policies, run year-end rollover, and view full ledger history for any employee.</span></label>
+        <label><input type="checkbox" data-field="can_generate_pto_reports"><span class="perm-name">Reports</span><span class="perm-desc">Can export leave reports for payroll, auditing, or compliance purposes.</span></label>
       </div>
 
       <div class="panel">
         <h4><i data-lucide="sliders-horizontal"></i> Operations</h4>
         <div class="permission-grid">
-          <label data-module="carline"><input type="checkbox" data-field="can_view_carline"> View carline</label>
-          <label data-module="carline"><input type="checkbox" data-field="can_manage_carline"> Manage carline (start/close)</label>
-          <label data-module="staff"><input type="checkbox" data-field="can_manage_staff"> Manage staff</label>
-          <label data-module="students"><input type="checkbox" data-field="can_manage_students"> Manage students</label>
-          <label data-module="students"><input type="checkbox" data-field="can_manage_placement"> Class placement &amp; promotion</label>
-          <label data-module="families"><input type="checkbox" data-field="can_manage_families"> Manage families</label>
-          <label data-module="guardians"><input type="checkbox" data-field="can_manage_guardians"> Manage guardians</label>
-          <label data-module="bus_groups"><input type="checkbox" data-field="can_manage_bus_groups"> Manage bus groups</label>
-          <label data-module="carline"><input type="checkbox" data-field="can_manage_carpools"> Manage carpools</label>
-          <label data-module="substitutes"><input type="checkbox" data-field="can_manage_substitutes"> Manage substitutes</label>
-          <label><input type="checkbox" data-field="can_manage_campuses"> Manage campuses</label>
-          <label><input type="checkbox" data-field="can_bulk_upload"> Bulk upload</label>
-          <label><input type="checkbox" data-field="can_export_data"> Export data</label>
-          <label data-module="licensure"><input type="checkbox" data-field="can_manage_licensure"> Manage licensure</label>
-          <label data-module="compliance"><input type="checkbox" data-field="can_manage_compliance"> Manage compliance</label>
-          <label data-module="field_trips"><input type="checkbox" data-field="can_manage_field_trips"> Manage field trips (all trips)</label>
+          <label data-module="carline"><input type="checkbox" data-field="can_view_carline"><span class="perm-name">View carline</span><span class="perm-desc">Can view the dismissal queue on carline days.</span></label>
+          <label data-module="carline"><input type="checkbox" data-field="can_manage_carline"><span class="perm-name">Manage carline</span><span class="perm-desc">Can start, run, and close a carline session.</span></label>
+          <label data-module="staff"><input type="checkbox" data-field="can_manage_staff"><span class="perm-name">Manage staff</span><span class="perm-desc">Can add, edit, and deactivate staff records.</span></label>
+          <label data-module="students"><input type="checkbox" data-field="can_manage_students"><span class="perm-name">Manage students</span><span class="perm-desc">Can add, edit, and manage student records.</span></label>
+          <label data-module="students"><input type="checkbox" data-field="can_manage_placement"><span class="perm-name">Class placement &amp; promotion</span><span class="perm-desc">Can assign students to classrooms and run year-end grade promotion.</span></label>
+          <label data-module="families"><input type="checkbox" data-field="can_manage_families"><span class="perm-name">Manage families</span><span class="perm-desc">Can add and edit family household records.</span></label>
+          <label data-module="guardians"><input type="checkbox" data-field="can_manage_guardians"><span class="perm-name">Manage guardians</span><span class="perm-desc">Can add and edit guardian contacts linked to students.</span></label>
+          <label data-module="bus_groups"><input type="checkbox" data-field="can_manage_bus_groups"><span class="perm-name">Manage bus groups</span><span class="perm-desc">Can create and manage student bus route groups.</span></label>
+          <label data-module="carline"><input type="checkbox" data-field="can_manage_carpools"><span class="perm-name">Manage carpools</span><span class="perm-desc">Can manage student carpool pickup assignments.</span></label>
+          <label data-module="substitutes"><input type="checkbox" data-field="can_manage_substitutes"><span class="perm-name">Manage substitutes</span><span class="perm-desc">Can assign substitute teachers to cover approved leave absences.</span></label>
+          <label><input type="checkbox" data-field="can_manage_campuses"><span class="perm-name">Manage campuses</span><span class="perm-desc">Can add and edit school campus locations and their settings.</span></label>
+          <label><input type="checkbox" data-field="can_bulk_upload"><span class="perm-name">Bulk upload</span><span class="perm-desc">Can import students, staff, and other records in bulk via CSV.</span></label>
+          <label><input type="checkbox" data-field="can_export_data"><span class="perm-name">Export data</span><span class="perm-desc">Can export student, staff, and other records to spreadsheets.</span></label>
+          <label data-module="licensure"><input type="checkbox" data-field="can_manage_licensure"><span class="perm-name">Manage licensure</span><span class="perm-desc">Can view and update staff license records and expiry notifications.</span></label>
+          <label data-module="compliance"><input type="checkbox" data-field="can_manage_compliance"><span class="perm-name">Manage compliance</span><span class="perm-desc">Can manage volunteer agreement forms and background check tracking.</span></label>
+          <label data-module="field_trips"><input type="checkbox" data-field="can_manage_field_trips"><span class="perm-name">Manage field trips</span><span class="perm-desc">Can create and manage all field trips across the school.</span></label>
         </div>
       </div>
 
