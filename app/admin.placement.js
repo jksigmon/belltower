@@ -91,6 +91,8 @@ function wireGlobalEvents() {
     ?.addEventListener('click', e => { e.stopPropagation(); toggleColorPicker('newFlagColorPickerEl', _newFlagColor, c => { _newFlagColor = c; document.getElementById('newFlagColorDot').style.background = c; }); });
   document.getElementById('autoPlacementBtn')
     ?.addEventListener('click', autoPlaceStudents);
+  document.getElementById('removeFromBoardBtn')
+    ?.addEventListener('click', removeSelectedFromBoard);
   document.getElementById('syncPlacementStudentsBtn')
     ?.addEventListener('click', openSyncStudentsModal);
   document.getElementById('syncStudentsConfirmBtn')
@@ -640,6 +642,8 @@ function updateSelectionDisplay() {
     badge.textContent = n > 1 ? `${n} selected` : '';
     badge.hidden = n <= 1;
   }
+  const removeBtn = document.getElementById('removeFromBoardBtn');
+  if (removeBtn) removeBtn.hidden = n === 0;
 }
 
 /* ── Surgical DOM helpers ── */
@@ -1964,6 +1968,45 @@ async function submitAssignTeacher() {
   btn.textContent = 'Assign';
   closeAssignTeacherModal();
   renderBoard();
+}
+
+/* ── Remove Students from Board ── */
+
+async function removeSelectedFromBoard() {
+  const ids = [..._selectedStudentIds];
+  if (!ids.length) return;
+
+  const names = ids
+    .map(id => {
+      const s = _students.find(s => s.id === id);
+      return s ? `${s.last_name}, ${s.first_name}` : id;
+    })
+    .join('\n  ');
+
+  const confirmed = confirm(
+    `Remove ${ids.length} student${ids.length !== 1 ? 's' : ''} from this board?\n\n  ${names}\n\nThey can be re-added later using Sync Students. This does not affect their record in the student directory.`
+  );
+  if (!confirmed) return;
+
+  const { error } = await supabase
+    .from('placement_assignments')
+    .delete()
+    .eq('session_id', _currentSessionId)
+    .in('student_id', ids);
+
+  if (error) { showToast('Failed to remove student(s).', 'error'); return; }
+
+  // Remove from in-memory state
+  ids.forEach(id => {
+    delete _assignments[id];
+    delete _savedAssignments[id];
+    delete _studentFlags[id];
+  });
+  _students = _students.filter(s => !ids.includes(s.id));
+
+  clearSelection();
+  renderBoard();
+  showToast(`${ids.length} student${ids.length !== 1 ? 's' : ''} removed from board.`, 'success');
 }
 
 /* ── Sync Students ── */
