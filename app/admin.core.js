@@ -296,9 +296,9 @@ async function loadDashboardStats() {
       .select('id, status, employees!pto_requests_employee_id_fkey(first_name, last_name)')
       .eq('school_id', schoolId).in('status', ['CANCEL_REQUESTED', 'RESCIND_REQUESTED']).limit(8);
     queries.alertStaffOut = supabase.from('pto_requests')
-      .select('id, pto_type, employees!pto_requests_employee_id_fkey(first_name, last_name)')
+      .select('id, pto_type, employees!pto_requests_employee_id_fkey(first_name, last_name, staff_group_id, staff_groups(name, sort_order))')
       .eq('school_id', schoolId).eq('status', 'APPROVED')
-      .lte('start_date', today).gte('end_date', today).limit(8);
+      .lte('start_date', today).gte('end_date', today);
   }
 
   if (moduleEnabled('substitutes') && p.can_manage_substitutes) {
@@ -429,7 +429,27 @@ async function loadDashboardStats() {
   if (r.ptoPending !== undefined) {
     setAlert('statPtoPending', 'dashPtoPending', r.ptoPending.count ?? 0); show('dashPtoPending');
     setAlert('statPtoCancels', 'dashPtoCancels', r.ptoCancels.count ?? 0); show('dashPtoCancels');
-    set('statStaffOut', r.staffOut.count ?? 0); show('dashStaffOut');
+    set('statStaffOut', r.staffOut.count ?? 0);
+    // Per-group breakdown (only shown when staff groups are configured)
+    const staffOutRows = r.alertStaffOut?.data ?? [];
+    const groupCounts = {};
+    staffOutRows.forEach(req => {
+      const grp = req.employees?.staff_groups;
+      if (!grp) return;
+      const key = grp.name;
+      if (!groupCounts[key]) groupCounts[key] = { count: 0, sort_order: grp.sort_order ?? 99 };
+      groupCounts[key].count++;
+    });
+    const groupEntries = Object.entries(groupCounts)
+      .sort((a, b) => a[1].sort_order - b[1].sort_order);
+    const breakdownEl = document.getElementById('statStaffOutBreakdown');
+    const cardEl = document.getElementById('dashStaffOut');
+    if (groupEntries.length > 0 && breakdownEl) {
+      breakdownEl.textContent = groupEntries.map(([name, g]) => `${name}: ${g.count}`).join(' · ');
+      breakdownEl.style.display = '';
+      if (cardEl) cardEl.classList.add('stat-wide');
+    }
+    show('dashStaffOut');
     show('dashAttention');
   }
 
@@ -684,7 +704,7 @@ async function loadDashboardStats() {
     });
 
     // 🔵 Staff out today (informational)
-    (r.alertStaffOut?.data ?? []).forEach(req => {
+    (r.alertStaffOut?.data ?? []).slice(0, 8).forEach(req => {
       alerts.push({
         level: 'blue',
         text: `${fullName(req.employees)} is out today — ${req.pto_type}`,

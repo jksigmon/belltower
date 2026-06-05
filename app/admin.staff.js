@@ -7,6 +7,7 @@ import { esc, getAvatarColor, debounce, dbError } from './admin.shared.js';
 let currentProfile;
 let supervisorLookup = {};
 let campusLookup = {};
+let staffGroupLookup = {};
 let initialized = false;
 let lookupsLoaded = false;
 let staffDirectory;
@@ -21,9 +22,10 @@ export async function initStaffSection(profile) {
   currentProfile = profile;
 
   if (!lookupsLoaded) {
-    await Promise.all([loadSupervisorLookup(), loadCampusLookup()]);
+    await Promise.all([loadSupervisorLookup(), loadCampusLookup(), loadStaffGroupLookup()]);
     populateAddStaffSupervisorSelect();
     populateAddStaffCampusSelect();
+    populateAddStaffGroupSelect();
     lookupsLoaded = true;
   }
 
@@ -42,6 +44,7 @@ export async function initStaffSection(profile) {
         active,
         supervisor_id,
         campus_id,
+        staff_group_id,
         employment_months,
         birthdate
       `,
@@ -130,6 +133,32 @@ async function loadCampusLookup() {
       filterSelect.appendChild(opt);
     });
   }
+}
+
+async function loadStaffGroupLookup() {
+  const { data, error } = await supabase
+    .from('staff_groups')
+    .select('id, name')
+    .eq('school_id', currentProfile.school_id)
+    .order('sort_order')
+    .order('name');
+
+  if (error) { console.error('Failed to load staff groups', error); return; }
+
+  staffGroupLookup = {};
+  (data || []).forEach(g => { staffGroupLookup[g.id] = g.name; });
+}
+
+function populateAddStaffGroupSelect() {
+  const select = document.getElementById('staffGroupAdd');
+  if (!select) return;
+  select.innerHTML = '<option value="">Division (optional)</option>';
+  Object.entries(staffGroupLookup).forEach(([id, name]) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = name;
+    select.appendChild(opt);
+  });
 }
 
 function populateAddStaffSupervisorSelect() {
@@ -244,6 +273,10 @@ function openEditStaffDrawer(emp) {
   const camSel = document.getElementById('esCampus');
   populateCampusSelect(camSel, emp.campus_id);
 
+  // Division dropdown
+  const grpSel = document.getElementById('esStaffGroup');
+  populateStaffGroupSelect(grpSel, emp.staff_group_id);
+
   // Reset save button state
   const saveBtn = document.getElementById('esSaveBtn');
   saveBtn.disabled    = false;
@@ -269,6 +302,7 @@ async function saveEditStaff() {
     position:          document.getElementById('esPosition').value.trim(),
     supervisor_id:     document.getElementById('esSupervisor').value || null,
     campus_id:         document.getElementById('esCampus').value || null,
+    staff_group_id:    document.getElementById('esStaffGroup').value || null,
     employment_months: empMonthsVal ? parseInt(empMonthsVal) : null,
     birthdate:         document.getElementById('esBirthdate').value || null,
     active:            document.getElementById('esActive').checked,
@@ -520,6 +554,22 @@ function populateCampusSelect(select, selectedId) {
   });
 }
 
+function populateStaffGroupSelect(select, selectedId) {
+  select.innerHTML = '';
+  const none = document.createElement('option');
+  none.value = '';
+  none.textContent = '— None —';
+  if (!selectedId) none.selected = true;
+  select.appendChild(none);
+  Object.entries(staffGroupLookup).forEach(([id, name]) => {
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = name;
+    if (id === selectedId) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
+
 
 /* ===============================
    CREATE STAFF
@@ -538,6 +588,8 @@ async function createStaff() {
 
   if (!first || !last) { alert('First and last name required'); return; }
 
+  const staffGroupId = document.getElementById('staffGroupAdd')?.value || null;
+
   const { error } = await supabase.from('employees').insert({
     school_id:         currentProfile.school_id,
     first_name:        first,
@@ -546,6 +598,7 @@ async function createStaff() {
     position,
     supervisor_id:     supervisorId,
     campus_id:         campusId,
+    staff_group_id:    staffGroupId,
     employment_months: employmentMonths,
     birthdate,
     active:            true,
@@ -560,6 +613,7 @@ async function createStaff() {
   const itEl = document.getElementById('staffIsTeacher'); if (itEl) itEl.checked = false;
   const sup = document.getElementById('staffSupervisor'); if (sup) sup.value = '';
   const cam = document.getElementById('staffCampusAdd');  if (cam) cam.value = '';
+  const grp = document.getElementById('staffGroupAdd');   if (grp) grp.value = '';
   const mos = document.getElementById('staffEmploymentMonths'); if (mos) mos.value = '';
   const bdt = document.getElementById('staffBirthdate');  if (bdt) bdt.value = '';
 

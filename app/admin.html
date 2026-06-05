@@ -173,6 +173,7 @@
       <a href="/app/pto.html#calendar" class="stat stat-info" id="dashStaffOut" style="display:none;" data-accent="blue">
         <span class="stat-chip"><i data-lucide="user-minus"></i></span>
         <strong id="statStaffOut" class="stat-num">–</strong>
+        <span id="statStaffOutBreakdown" class="stat-sub-line" style="display:none;font-size:11px;"></span>
         <span class="stat-label">Staff Out Today</span>
       </a>
       <a href="/app/substitutes.html" class="stat stat-alert" id="dashSubUnassigned" style="display:none;" data-accent="red">
@@ -944,6 +945,32 @@
         </thead>
         <tbody></tbody>
       </table>
+
+      <hr class="drawer-divider" style="margin:28px 0;">
+
+      <h3 style="margin-bottom:4px;">Staff Groups</h3>
+      <p class="muted" style="font-size:13px;margin-bottom:16px;">
+        Reporting divisions for staff (e.g. Elementary, Middle, High). Used for the per-division breakdown on the dashboard. Independent of physical campuses.
+      </p>
+      <div class="directory-actions" style="justify-content:flex-end; margin-bottom:12px;">
+        <button class="btn btn-primary" onclick="openDrawer('staffGroupDrawer')">+ Add Group</button>
+      </div>
+      <p id="staffGroupEmpty" class="muted" hidden>No staff groups configured yet.</p>
+      <table id="staffGroupTable" style="display:none">
+        <colgroup>
+          <col style="width:60%">
+          <col style="width:30%">
+          <col style="width:10%">
+        </colgroup>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Sort Order</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 </section>
@@ -1284,14 +1311,20 @@
         </select>
       </div>
       <div class="drawer-field">
-        <label>Employment Months</label>
-        <select id="staffEmploymentMonths" class="form-input">
-          <option value="">—</option>
-          <option value="10">10-month</option>
-          <option value="11">11-month</option>
-          <option value="12">12-month</option>
+        <label>Division</label>
+        <select id="staffGroupAdd" class="form-input">
+          <option value="">Division (optional)</option>
         </select>
       </div>
+    </div>
+    <div class="drawer-field">
+      <label>Employment Months</label>
+      <select id="staffEmploymentMonths" class="form-input">
+        <option value="">—</option>
+        <option value="10">10-month</option>
+        <option value="11">11-month</option>
+        <option value="12">12-month</option>
+      </select>
     </div>
     <div class="drawer-field">
       <label>Birthday</label>
@@ -1354,6 +1387,12 @@
         <select id="esCampus" class="form-input"></select>
       </div>
       <div class="drawer-field">
+        <label>Division</label>
+        <select id="esStaffGroup" class="form-input"></select>
+      </div>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
         <label>Contract Type</label>
         <select id="esMonths" class="form-input">
           <option value="">— Not set —</option>
@@ -1362,6 +1401,7 @@
           <option value="12">12-Month</option>
         </select>
       </div>
+      <div class="drawer-field"></div>
     </div>
     <div class="drawer-field">
       <label>Birthday</label>
@@ -2148,6 +2188,70 @@
     <div class="confirm-modal-actions">
       <button id="deleteCampusCancel" class="btn">Cancel</button>
       <button id="deleteCampusConfirm" class="btn danger">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     ADD STAFF GROUP DRAWER
+     ============================================= -->
+<div id="staffGroupDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Staff Group">
+  <div class="drawer-header">
+    <h3>Add Staff Group</h3>
+    <button class="drawer-close" onclick="closeDrawer('staffGroupDrawer')" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Group Name <span class="required">*</span></label>
+      <input id="sgName" class="form-input" placeholder="e.g. Elementary, Middle School, High School" />
+    </div>
+    <div class="drawer-field">
+      <label>Sort Order</label>
+      <input id="sgSortOrder" class="form-input" type="number" min="1" value="99" style="width:100px;" />
+      <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Lower numbers appear first on the dashboard.</small>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" onclick="closeDrawer('staffGroupDrawer')">Cancel</button>
+    <button id="addStaffGroup" class="btn btn-primary">Add Group</button>
+  </div>
+</div>
+
+<!-- =============================================
+     EDIT STAFF GROUP DRAWER
+     ============================================= -->
+<div id="editStaffGroupDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Edit Staff Group">
+  <div class="drawer-header">
+    <h3>Edit Staff Group</h3>
+    <button class="drawer-close" id="esgCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Group Name <span class="required">*</span></label>
+      <input id="esgName" class="form-input" />
+    </div>
+    <div class="drawer-field">
+      <label>Sort Order</label>
+      <input id="esgSortOrder" class="form-input" type="number" min="1" style="width:100px;" />
+      <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Lower numbers appear first on the dashboard.</small>
+    </div>
+  </div>
+  <div class="drawer-footer-split">
+    <button id="esgDeleteBtn" class="btn danger">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button id="esgCancelBtn" class="btn">Cancel</button>
+      <button id="esgSaveBtn" class="btn btn-primary">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div id="deleteStaffGroupModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title">Delete Staff Group?</h3>
+    <p class="confirm-modal-body" id="deleteStaffGroupMsg"></p>
+    <div class="confirm-modal-actions">
+      <button id="deleteStaffGroupCancel" class="btn">Cancel</button>
+      <button id="deleteStaffGroupConfirm" class="btn danger">Delete</button>
     </div>
   </div>
 </div>

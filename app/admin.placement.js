@@ -91,6 +91,12 @@ function wireGlobalEvents() {
     ?.addEventListener('click', e => { e.stopPropagation(); toggleColorPicker('newFlagColorPickerEl', _newFlagColor, c => { _newFlagColor = c; document.getElementById('newFlagColorDot').style.background = c; }); });
   document.getElementById('autoPlacementBtn')
     ?.addEventListener('click', autoPlaceStudents);
+  document.getElementById('syncPlacementStudentsBtn')
+    ?.addEventListener('click', openSyncStudentsModal);
+  document.getElementById('syncStudentsConfirmBtn')
+    ?.addEventListener('click', executeSyncStudents);
+  document.getElementById('syncStudentsCancelBtn')
+    ?.addEventListener('click', () => { document.getElementById('syncStudentsModal').hidden = true; });
   document.getElementById('addPlacementColumnBtn')
     ?.addEventListener('click', openAddColumnModal);
   document.getElementById('cancelAddColumnBtn')
@@ -1957,5 +1963,145 @@ async function submitAssignTeacher() {
   btn.disabled = false;
   btn.textContent = 'Assign';
   closeAssignTeacherModal();
+  renderBoard();
+}
+
+/* ── Sync Students ── */
+
+let _syncNewStudents    = [];  // students in grade not yet in session
+let _syncDepartedIds    = [];  // student IDs in session no longer active/in grade
+
+async function openSyncStudentsModal() {
+  if (!_session) return;
+
+  const modal    = document.getElementById('syncStudentsModal');
+  const bodyEl   = document.getElementById('syncStudentsBody');
+  const newList  = document.getElementById('syncStudentsNewList');
+  const newNames = document.getElementById('syncStudentsNewNames');
+  const depList  = document.getElementById('syncStudentsDepartedList');
+  const depNames = document.getElementById('syncStudentsDepartedNames');
+  const confirmBtn = document.getElementById('syncStudentsConfirmBtn');
+  const removeCb   = document.getElementById('syncRemoveDeparted');
+
+  // Reset state
+  _syncNewStudents = [];
+  _syncDepartedIds = [];
+  newList.hidden = true;
+  depList.hidden = true;
+  confirmBtn.disabled = true;
+  if (removeCb) removeCb.checked = false;
+  bodyEl.textContent = 'Checking roster…';
+  modal.hidden = false;
+
+  // Fetch the full active roster for this grade
+  const { data: gradeRoster, error: rErr } = await supabase
+    .from('students')
+    .select('id, first_name, last_name, student_number')
+    .eq('school_id', _profile.school_id)
+    .eq('active', true)
+    .eq('grade_level', _session.incoming_grade);
+
+  if (rErr) {
+    bodyEl.textContent = 'Failed to load student roster.';
+    return;
+  }
+
+  // Current session student IDs
+  const sessionStudentIds = new Set(_students.map(s => s.id));
+  const rosterIds         = new Set((gradeRoster || []).map(s => s.id));
+
+  // New: in roster but not in session
+  _syncNewStudents = (gradeRoster || []).filter(s => !sessionStudentIds.has(s.id));
+
+  // Departed: in session but not in active roster for this grade
+  _syncDepartedIds = _students
+    .filter(s => !rosterIds.has(s.id))
+    .map(s => s.id);
+
+  const hasChanges = _syncNewStudents.length > 0 || _syncDepartedIds.length > 0;
+
+  if (!hasChanges) {
+    bodyEl.textContent = 'The board is already in sync — no new students and no departed students found.';
+    confirmBtn.disabled = true;
+    return;
+  }
+
+  bodyEl.textContent = '';
+
+  if (_syncNewStudents.length > 0) {
+    newNames.innerHTML = _syncNewStudents
+      .map(s => `<div>${esc(s.last_name)}, ${esc(s.first_name)}${s.student_number ? ` <span style="color:#9ca3af;">#${esc(s.student_number)}</span>` : ''}</div>`)
+      .join('');
+    newList.hidden = false;
+  }
+
+  if (_syncDepartedIds.length > 0) {
+    const departedStudents = _students.filter(s => _syncDepartedIds.includes(s.id));
+    depNames.innerHTML = departedStudents
+      .map(s => `<div>${esc(s.last_name)}, ${esc(s.first_name)}</div>`)
+      .join('');
+    depList.hidden = false;
+  }
+
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = _syncNewStudents.length > 0
+    ? `Add ${_syncNewStudents.length} Student${_syncNewStudents.length !== 1 ? 's' : ''}`
+    : 'Apply Changes';
+}
+
+async function executeSyncStudents() {
+  const confirmBtn  = document.getElementById('syncStudentsConfirmBtn');
+  const removeCb    = document.getElementById('syncRemoveDeparted');
+  const shouldRemove = removeCb?.checked && _syncDepartedIds.length > 0;
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Applying…';
+
+  // 1. Insert new students as unassigned — existing placements are NOT touched
+  if (_syncNewStudents.length > 0) {
+    const maxSort = _students.length;
+    const inserts = _syncNewStudents.map((s, i) => ({
+      session_id: _currentSessionId,
+      student_id: s.id,
+      teacher_id: null,
+      sort_order:  maxSort + i,
+    }));
+
+    const { error: insErr } = await supabase
+      .from('placement_assignments')
+      .insert(inserts);
+
+    if (insErr) {
+      showToast('Failed to add new students.', 'error');
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = 'Apply Changes';
+      return;
+    }
+  }
+
+  // 2. Remove departed students only if admin explicitly checked the box
+  if (shouldRemove) {
+    const { error: delErr } = await supabase
+      .from('placement_assignments')
+      .delete()
+      .eq('session_id', _currentSessionId)
+      .in('student_id', _syncDepartedIds);
+
+    if (delErr) {
+      showToast('New students added but failed to remove departed students.', 'error');
+    }
+  }
+
+  document.getElementById('syncStudentsModal').hidden = true;
+
+  const added   = _syncNewStudents.length;
+  const removed = shouldRemove ? _syncDepartedIds.length : 0;
+  const parts   = [];
+  if (added)   parts.push(`${added} student${added !== 1 ? 's' : ''} added`);
+  if (removed) parts.push(`${removed} removed`);
+  showToast(parts.join(', ') + '.', 'success');
+
+  // Reload the board — preserves all existing placements, just adds/removes rows
+  await loadBoardData(_currentSessionId);
   renderBoard();
 }
