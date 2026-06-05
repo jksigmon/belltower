@@ -1921,7 +1921,9 @@ async function loadStaffPtoTypes() {
     .from('school_pto_types')
     .select('pto_type, counts_against_balance, notes_required')
     .eq('school_id', currentProfile.school_id)
-    .eq('enabled', true);
+    .eq('enabled', true)
+    .order('sort_order')
+    .order('pto_type');
 
   if (error) {
     console.error('Failed to load PTO types:', error);
@@ -1929,16 +1931,6 @@ async function loadStaffPtoTypes() {
   }
 
   schoolPtoTypeMeta = {};
-
-  const typeOrder = ['PERSONAL', 'ROLLOVER', 'PROFESSIONAL', 'JURY DUTY'];
-  data.sort((a, b) => {
-    const ai = typeOrder.indexOf(a.pto_type.toUpperCase());
-    const bi = typeOrder.indexOf(b.pto_type.toUpperCase());
-    if (ai === -1 && bi === -1) return a.pto_type.localeCompare(b.pto_type);
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
 
   data.forEach(r => {
     const opt = document.createElement('option');

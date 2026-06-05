@@ -461,9 +461,11 @@ function exportHistoryToCsv(employeeId, employeeName) {
 async function loadSchoolPtoTypes() {
   const { data, error } = await supabase
     .from('school_pto_types')
-    .select('pto_type, counts_against_balance, notes_required')
+    .select('pto_type, counts_against_balance, notes_required, sort_order')
     .eq('school_id', currentProfile.school_id)
-    .eq('enabled', true);
+    .eq('enabled', true)
+    .order('sort_order')
+    .order('pto_type');
 
   if (error) {
     console.error('Failed to load PTO types:', error);
@@ -1346,8 +1348,9 @@ async function loadPtoTypeSettings() {
 
   const { data, error } = await supabase
     .from('school_pto_types')
-    .select('pto_type, enabled, counts_against_balance, notes_required')
+    .select('pto_type, enabled, counts_against_balance, notes_required, sort_order')
     .eq('school_id', currentProfile.school_id)
+    .order('sort_order')
     .order('pto_type');
 
   if (error || !data) return;
@@ -1370,12 +1373,22 @@ async function loadPtoTypeSettings() {
         <input type="checkbox" data-type="${esc(row.pto_type)}" data-field="notes_required"
           ${row.notes_required ? 'checked' : ''} ${dis} />
       </td>
+      <td style="text-align:center;">
+        <input type="number" min="1" step="1" value="${row.sort_order}"
+          style="width:54px; text-align:center;"
+          data-type="${esc(row.pto_type)}"
+          ${_canManagePtoBalances ? '' : 'disabled'} />
+      </td>
     `;
     tbody.appendChild(tr);
   });
 
   tbody.querySelectorAll('input[type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', () => savePtoTypeFlag(cb));
+  });
+
+  tbody.querySelectorAll('input[type="number"]').forEach(input => {
+    input.addEventListener('change', () => savePtoTypeSortOrder(input));
   });
 }
 
@@ -1407,6 +1420,24 @@ async function savePtoTypeFlag(cb) {
       currentSchoolPtoTypes = currentSchoolPtoTypes.filter(t => t !== type);
     }
   }
+}
+
+async function savePtoTypeSortOrder(input) {
+  const type = input.dataset.type;
+  const val = parseInt(input.value, 10);
+  if (isNaN(val) || val < 1) { showToast('Order must be 1 or greater.', 'warn'); return; }
+
+  const { error } = await supabase
+    .from('school_pto_types')
+    .update({ sort_order: val })
+    .eq('school_id', currentProfile.school_id)
+    .eq('pto_type', type);
+
+  if (error) {
+    showToast('Failed to save leave type order.', 'error');
+    return;
+  }
+  showToast('Order saved. Reload to see updated column order.', 'success');
 }
 
 /* =============================================
