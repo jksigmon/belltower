@@ -1067,6 +1067,12 @@ async function openEditAssignmentModal(event) {
   openModal('assignModal');
 }
 
+function subsCalToolbar() {
+  return window.innerWidth <= 767
+    ? { left: 'prev,next', center: 'title', right: 'today' }
+    : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' };
+}
+
 function initCalendar() {
   calendar = new FullCalendar.Calendar(
     document.getElementById('subs-calendar'),
@@ -1075,11 +1081,11 @@ function initCalendar() {
       initialView: 'dayGridMonth',
       fixedWeekCount: false,
 
-      // ✅ Header controls (like PTO calendar)
-      headerToolbar: {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'dayGridMonth,timeGridWeek,timeGridDay'
+      // ✅ Header controls
+      headerToolbar: subsCalToolbar(),
+
+      windowResize() {
+        calendar.setOption('headerToolbar', subsCalToolbar());
       },
 
       // ✅ Make week/day views usable

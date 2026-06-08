@@ -75,6 +75,35 @@
     .badge-blue  { background: #dbeafe; color: #1e40af; }
     .badge-green { background: #d1fae5; color: #065f46; }
 
+    @media (max-width: 767px) {
+      .data-table { min-width: 0 !important; width: 100% !important; border-collapse: separate; border-spacing: 0 10px; }
+      .data-table thead { display: none; }
+      .data-table tbody tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+          "form   status"
+          "date   date"
+          "notes  notes";
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 12px 14px;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      }
+      .data-table tbody tr td {
+        display: block;
+        padding: 2px 0;
+        border: none !important;
+        font-size: 13px;
+      }
+      .data-table tbody tr td:nth-child(1) { grid-area: form;   font-weight: 600; font-size: 14px; }
+      .data-table tbody tr td:nth-child(2) { grid-area: date;   color: #6b7280; font-size: 12px; }
+      .data-table tbody tr td:nth-child(3) { grid-area: status; display: flex; justify-content: flex-end; align-items: flex-start; }
+      .data-table tbody tr td:nth-child(4) { grid-area: notes;  color: #6b7280; font-size: 12px; }
+      .data-table tbody tr td:nth-child(4):not(:empty) { margin-top: 4px; padding-top: 4px; border-top: 1px solid #f3f4f6 !important; }
+    }
+
     /* Form inputs */
     .form-control {
       width: 100%; height: 40px; padding: 0 12px; box-sizing: border-box;

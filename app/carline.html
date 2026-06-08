@@ -758,8 +758,18 @@ function openStudentTypeahead() {
   const input = document.getElementById('studentSearchInput');
   const btn   = document.getElementById('btnAddStudent');
   const rect  = btn.getBoundingClientRect();
-  panel.style.top  = (rect.bottom + 6) + 'px';
-  panel.style.left = rect.left + 'px';
+  const vw    = window.innerWidth;
+  const gap   = 8;
+
+  // On narrow screens stretch panel to fit; otherwise use fixed width
+  const panelW = Math.min(290, vw - gap * 2);
+  panel.style.width = panelW + 'px';
+
+  const top  = rect.bottom + 6;
+  const left = Math.min(rect.left, vw - panelW - gap);
+  panel.style.top  = Math.max(gap, top)  + 'px';
+  panel.style.left = Math.max(gap, left) + 'px';
+
   panel.hidden = false;
   input.value = '';
   renderStudentSearchResults('');

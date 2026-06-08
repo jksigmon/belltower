@@ -23,6 +23,12 @@
 #confirmModal .confirm-modal-dialog { max-width: 460px; }
 #confirmModal .confirm-modal-body   { white-space: pre-line; }
 
+/* Prevent policy table headers from wrapping and bleeding into adjacent cells */
+#ptoPoliciesTable th,
+#ptoTypeSettingsTable th {
+  white-space: nowrap;
+}
+
 /* --- Annual Allotments section --- */
 .allotment-divider {
   display: flex;
@@ -412,6 +418,31 @@
   #ptoLedgerAdminTable tbody tr td:nth-child(3)::before { content: "Reason"; }
   #ptoLedgerAdminTable tbody tr td:nth-child(4)::before { content: "Date"; }
   #ptoLedgerAdminTable tbody tr td:nth-child(5)::before { content: "Balance After"; }
+
+  /* ── Leave Policies: bulk bar → vertical stack on mobile ── */
+  #policiesBulkBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  #policiesBulkBar select,
+  #policiesBulkBar input[type="number"] {
+    width: 100%;
+    max-width: 100%;
+    height: 40px;
+    font-size: 16px; /* prevent iOS zoom */
+  }
+
+  #policiesBulkBar button {
+    width: 100%;
+  }
+
+  /* ── History filters: full-width on mobile ── */
+  .history-filters select {
+    min-width: 0;
+    max-width: 100%;
+    font-size: 16px; /* prevent iOS zoom */
+  }
 }
 
   </style>
@@ -862,18 +893,20 @@
       <div style="margin-bottom:24px;">
         <h4 style="margin:0 0 8px;">Leave Type Settings</h4>
         <div class="muted" style="margin-bottom:10px; font-size:13px;">Configure behavior flags per leave type.</div>
-        <table id="ptoTypeSettingsTable" style="width:auto; min-width:500px;">
-          <thead>
-            <tr>
-              <th style="text-align:left;">Type</th>
-              <th style="text-align:center; width:100px;">Enabled</th>
-              <th style="text-align:center; width:160px;">Counts Against Balance</th>
-              <th style="text-align:center; width:140px;">Notes Required</th>
-              <th style="text-align:center; width:80px;">Order</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        <div class="table-scroll-wrap">
+          <table id="ptoTypeSettingsTable" style="width:auto; min-width:500px;">
+            <thead>
+              <tr>
+                <th style="text-align:left;">Type</th>
+                <th style="text-align:center; width:100px;">Enabled</th>
+                <th style="text-align:center; width:160px;">Counts Against Balance</th>
+                <th style="text-align:center; width:140px;">Notes Required</th>
+                <th style="text-align:center; width:80px;">Order</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
 
       <h4 style="margin:0 0 8px;">Annual Hours</h4>
@@ -891,15 +924,17 @@
         <span id="policyBulkStatus" class="muted" style="font-size:12px;"></span>
       </div>
 
-      <table id="ptoPoliciesTable">
-        <thead>
-          <tr id="ptoPoliciesHeader">
-            <th>Employee</th>
-            <!-- PTO type columns injected dynamically -->
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <div class="table-scroll-wrap">
+        <table id="ptoPoliciesTable">
+          <thead>
+            <tr id="ptoPoliciesHeader">
+              <th>Employee</th>
+              <!-- PTO type columns injected dynamically -->
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </section>

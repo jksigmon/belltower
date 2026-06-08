@@ -1768,6 +1768,11 @@ select {
   width: 100%;
 }
 
+.table-scroll-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 #pto,
 #carline,
 #requests {
@@ -2392,6 +2397,21 @@ nav a[data-cap-group] {
   flex: 1;
   min-width: 160px;
   max-width: 260px;
+  height: 40px;
+  padding: 0 36px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: #ffffff;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.history-filters select:focus {
+  outline: none;
+  border-color: #0b2d4f;
+  box-shadow: 0 0 0 3px rgba(11, 45, 79, 0.08);
 }
 
 /* Stat chips row */
@@ -3817,6 +3837,11 @@ a.staff-dash-request-row:hover {
   }
 
   header .muted {
+    display: none;
+  }
+
+  /* Weather: hide H/L range, keep icon + current temp */
+  .dash-header-wx-range {
     display: none;
   }
 
@@ -6614,8 +6639,14 @@ select.admin-input {
   flex-shrink: 0;
 }
 
-/* ── Mobile: hide chip (date is already hidden); full-width drawer ─ */
-@media (max-width: 640px) {
-  .cal-chip   { display: none; }
+/* ── Mobile: icon-only chip; full-width drawer ─ */
+@media (max-width: 767px) {
+  .cal-chip {
+    margin-top: 0;
+    padding: 6px 8px;
+  }
+  .cal-chip-text,
+  .cal-chip-badge { display: none; }
+  .cal-chip-icon  { opacity: 1; }
   .cal-drawer { width: 100vw; right: -100vw; }
 }

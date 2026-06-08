@@ -151,6 +151,107 @@
       border-color: #0b2d4f;
       box-shadow: 0 0 0 3px rgba(11, 45, 79, 0.08);
     }
+
+    @media (max-width: 767px) {
+      /* ── Background Check table → card layout ── */
+      #bgCheckTableBody tr td { white-space: normal; }
+
+      .admin-table:has(#bgCheckTableBody) {
+        min-width: 0 !important;
+        width: 100% !important;
+        border-collapse: separate;
+        border-spacing: 0 10px;
+      }
+      .admin-table:has(#bgCheckTableBody) thead { display: none; }
+
+      #bgCheckTableBody tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+          "name    status"
+          "email   email"
+          "reqby   reqby"
+          "roles   roles"
+          "cleared cleared"
+          "expires expires"
+          "action  action";
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 12px 14px;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      }
+      #bgCheckTableBody tr td {
+        display: block;
+        padding: 2px 0;
+        border: none !important;
+        font-size: 13px;
+      }
+      /* Subject(1) Email(2) ReqBy(3) Roles(4) Status(5) Cleared(6) Expires(7) Requested(8) Action(9) */
+      #bgCheckTableBody tr td:nth-child(1) { grid-area: name;    font-size: 14px; }
+      #bgCheckTableBody tr td:nth-child(2) { grid-area: email;   color: #6b7280; font-size: 12px; }
+      #bgCheckTableBody tr td:nth-child(3) { grid-area: reqby;   color: #6b7280; font-size: 12px; }
+      #bgCheckTableBody tr td:nth-child(4) { grid-area: roles;   font-size: 12px; }
+      #bgCheckTableBody tr td:nth-child(5) { grid-area: status;  display: flex; justify-content: flex-end; align-items: flex-start; }
+      #bgCheckTableBody tr td:nth-child(6) { grid-area: cleared; color: #6b7280; font-size: 12px; }
+      #bgCheckTableBody tr td:nth-child(7) { grid-area: expires; color: #6b7280; font-size: 12px; }
+      #bgCheckTableBody tr td:nth-child(8) { display: none; }
+      #bgCheckTableBody tr td:nth-child(9) { grid-area: action;  margin-top: 8px; }
+      #bgCheckTableBody tr td:nth-child(9) .btn { width: 100%; }
+
+      /* Micro-labels */
+      #bgCheckTableBody tr td:nth-child(3)::before { content: "REQUESTED BY · "; font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
+      #bgCheckTableBody tr td:nth-child(6)::before { content: "CLEARED · ";  font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
+      #bgCheckTableBody tr td:nth-child(7)::before { content: "EXPIRES · ";  font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
+
+      /* ── Signed Agreements table → card layout ── */
+      .admin-table:has(#agreementTableBody) {
+        min-width: 0 !important;
+        width: 100% !important;
+        border-collapse: separate;
+        border-spacing: 0 10px;
+      }
+      .admin-table:has(#agreementTableBody) thead { display: none; }
+
+      #agreementTableBody tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+          "name    status"
+          "email   email"
+          "form    form"
+          "signed  expires"
+          "link    data"
+          "action  action";
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 12px 14px;
+        background: #ffffff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      }
+      #agreementTableBody tr td {
+        display: block;
+        padding: 2px 0;
+        border: none !important;
+        font-size: 13px;
+      }
+      /* Signer(1) Email(2) Form(3) Signed(4) Expires(5) Status(6) Link(7) Data(8) Actions(9) */
+      #agreementTableBody tr td:nth-child(1) { grid-area: name;   font-size: 14px; font-weight: 600; }
+      #agreementTableBody tr td:nth-child(2) { grid-area: email;  color: #6b7280; font-size: 12px; }
+      #agreementTableBody tr td:nth-child(3) { grid-area: form;   color: #374151; font-size: 12px; }
+      #agreementTableBody tr td:nth-child(4) { grid-area: signed; color: #6b7280; font-size: 12px; }
+      #agreementTableBody tr td:nth-child(5) { grid-area: expires; color: #6b7280; font-size: 12px; }
+      #agreementTableBody tr td:nth-child(6) { grid-area: status; display: flex; justify-content: flex-end; align-items: flex-start; }
+      #agreementTableBody tr td:nth-child(7) { grid-area: link;   font-size: 12px; }
+      #agreementTableBody tr td:nth-child(8) { grid-area: data;   display: flex; justify-content: flex-end; font-size: 12px; }
+      #agreementTableBody tr td:nth-child(9) { grid-area: action; margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+      #agreementTableBody tr td:nth-child(9) .btn { flex: 1; margin-left: 0 !important; }
+
+      /* Micro-labels */
+      #agreementTableBody tr td:nth-child(3)::before  { content: "FORM · ";    font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
+      #agreementTableBody tr td:nth-child(4)::before  { content: "SIGNED · ";  font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
+      #agreementTableBody tr td:nth-child(5)::before  { content: "EXPIRES · "; font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
+    }
   </style>
 </head>
 

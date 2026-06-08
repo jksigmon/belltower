@@ -1759,6 +1759,12 @@ function populateAdjustPtoTypes() {
 /* =============================================
    CALENDAR
 ============================================= */
+function calToolbar() {
+  return window.innerWidth <= 767
+    ? { left: 'prev,next', center: 'title', right: 'today' }
+    : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay' };
+}
+
 async function initPtoCalendar() {
   const calendarEl = document.getElementById('pto-calendar');
 
@@ -1767,10 +1773,10 @@ async function initPtoCalendar() {
     height: 'auto',
     fixedWeekCount: false,
     dayMaxEvents: 3,
-    headerToolbar: {
-      left:   'prev,next today',
-      center: 'title',
-      right:  'dayGridMonth,timeGridWeek,timeGridDay'
+    headerToolbar: calToolbar(),
+
+    windowResize() {
+      ptoCalendar.setOption('headerToolbar', calToolbar());
     },
 
     events: async (info, success, failure) => {
