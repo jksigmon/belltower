@@ -1200,6 +1200,49 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <p>Committed placements are also available from the Admin Panel under <strong>Exports</strong> as formatted class rosters.</p>
       </div>
     </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I handle new incoming students who are enrolling for the first time?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Placement boards work by pulling in all students whose current grade matches the board's incoming grade. New students enrolling for the first time don't have a "previous" grade — so the trick is to <strong>upload them one grade below where they're going</strong>. This puts them on the right board without any special handling.</p>
+
+        <table style="width:100%;border-collapse:collapse;font-size:13px;margin:10px 0 16px;">
+          <thead>
+            <tr style="background:#f3f4f6;">
+              <th style="text-align:left;padding:6px 10px;border:1px solid #e5e7eb;">Student entering…</th>
+              <th style="text-align:left;padding:6px 10px;border:1px solid #e5e7eb;">Upload with grade</th>
+              <th style="text-align:left;padding:6px 10px;border:1px solid #e5e7eb;">Appears on board</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:5px 10px;border:1px solid #e5e7eb;">Kindergarten</td><td style="padding:5px 10px;border:1px solid #e5e7eb;">PK (Pre-K)</td><td style="padding:5px 10px;border:1px solid #e5e7eb;">Pre-K → K</td></tr>
+            <tr style="background:#f9fafb;"><td style="padding:5px 10px;border:1px solid #e5e7eb;">1st grade</td><td style="padding:5px 10px;border:1px solid #e5e7eb;">K</td><td style="padding:5px 10px;border:1px solid #e5e7eb;">K → 1st</td></tr>
+            <tr><td style="padding:5px 10px;border:1px solid #e5e7eb;">2nd grade</td><td style="padding:5px 10px;border:1px solid #e5e7eb;">1</td><td style="padding:5px 10px;border:1px solid #e5e7eb;">1st → 2nd</td></tr>
+            <tr style="background:#f9fafb;"><td style="padding:5px 10px;border:1px solid #e5e7eb;">3rd–8th grade</td><td style="padding:5px 10px;border:1px solid #e5e7eb;">One grade below target</td><td style="padding:5px 10px;border:1px solid #e5e7eb;">That grade's board</td></tr>
+          </tbody>
+        </table>
+
+        <p>Once uploaded, the full workflow is:</p>
+        <ol>
+          <li><strong>Upload new students</strong> via Bulk Upload with the grade one below their target. Leave family and homeroom teacher blank — those can be filled in later.</li>
+          <li><strong>Open the placement board</strong> for the relevant grade (e.g. Pre-K → K for incoming Kindergarteners).</li>
+          <li>Click <strong>Sync Students</strong>. The new students appear in the "New students to add" list alongside any existing students already in that grade. Confirm to add them.</li>
+          <li><strong>Place them</strong> into teacher columns just like any other student.</li>
+          <li><strong>Commit</strong> the board. Each student's homeroom teacher is written to their record.</li>
+          <li>After all boards are committed, run <strong>Year-End Promotion</strong>. Every student advances one grade — including your new incoming students, who move from their upload grade up to their actual target grade. Retained students stay put automatically.</li>
+        </ol>
+
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          For incoming Kindergarteners, make sure <strong>PK</strong> is added to your school's grade list before uploading (Admin Panel → Schools → edit your school). PK is already a recognized grade in Belltower — it just needs to be enabled for your school.
+        </div>
+
+        <p>If a placement board for a grade already exists and is in progress when you upload new students, they will appear the next time someone clicks <strong>Sync Students</strong> on that board — they won't be added automatically, giving you control over when they join the board.</p>
+      </div>
+    </div>
   </div>
 
   <!-- ══════════ YEAR-END PROMOTION ══════════ -->
