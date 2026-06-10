@@ -237,6 +237,20 @@ function renderPreview(result) {
     return;
   }
 
+  // Warn if any student inserts have no family assigned
+  const noFamilyCount = (result.details?.Students ?? [])
+    .filter(r => r.action === 'insert' && !r.data?.family_id && !r.family_tag).length;
+  if (noFamilyCount > 0) {
+    const warn = document.createElement('div');
+    warn.style.cssText = 'background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#92400e;display:flex;gap:10px;align-items:flex-start;';
+    warn.innerHTML = `
+      <span style="font-size:16px;flex-shrink:0;">⚠️</span>
+      <div><strong>${noFamilyCount} student${noFamilyCount !== 1 ? 's' : ''} have no family assigned.</strong>
+      These students will be added successfully, but carline and dismissal will not work for them until a family number is linked. Make sure to assign families as soon as possible.</div>
+    `;
+    container.appendChild(warn);
+  }
+
   Object.entries(result.summary ?? {}).forEach(([sheet, counts]) => {
     const div = document.createElement('div');
     div.style.marginBottom = '12px';

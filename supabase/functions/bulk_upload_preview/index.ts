@@ -20,6 +20,13 @@ function generateStudentNumber() {
 function parseDate(val: any): string | null {
   if (val === null || val === undefined || val === "") return null;
   if (val instanceof Date) return isNaN(val.getTime()) ? null : val.toISOString().slice(0, 10);
+  // Excel serial number — XLSX returns unformatted date cells as numbers (e.g. 43089 = Jan 3, 2018).
+  // new Date("43089") produces year 43089 which Postgres rejects outright.
+  const num = typeof val === "number" ? val : (typeof val === "string" && /^\d+(\.\d+)?$/.test(val.trim()) ? Number(val) : NaN);
+  if (!isNaN(num) && num > 0 && num < 2958466) {
+    const d = new Date(Math.round((num - 25569) * 86400 * 1000));
+    return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+  }
   const s = String(val).trim();
   if (!s) return null;
   const d = new Date(s);

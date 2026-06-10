@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js';
-import { loadFamilyOptions, loadBusGroupOptions, searchFamilies, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER, todayISO, dbError } from './admin.shared.js';
+import { loadFamilyOptions, loadBusGroupOptions, searchFamilies, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER, todayISO, dbError, showToast } from './admin.shared.js';
 import { createDirectory } from './admin.directory.js';
 
 let currentProfile;
@@ -57,7 +57,7 @@ export async function initStudentsSection(profile) {
         birthdate,
         withdrawn_at,
         withdrawal_reason,
-        families!inner(carline_tag_number, family_name),
+        families(carline_tag_number, family_name),
         employees!left(id, first_name, last_name),
         bus_groups(id, name),
         campuses(id, name),
@@ -668,4 +668,8 @@ async function createStudent() {
 
   window.closeDrawer?.('studentDrawer');
   studentsDirectory.load();
+
+  if (!student.family_id) {
+    showToast('Student added — no family assigned. Carline and dismissal will not work until a family number is linked.', 'warn', 8000);
+  }
 }
