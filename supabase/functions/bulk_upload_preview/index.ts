@@ -601,22 +601,12 @@ const birthdate = parseDate(row.birthdate);
 
 
 
-      if (!familyTag) {
-        table.push({
-          row: i + 2,
-          action: "error",
-          error: "Missing family_carline_tag_number"
-        });
-        result.blockingErrors = true;
-        continue;
-      }
+      const fromPreview = familyTag ? previewFamiliesByTag.has(familyTag) : false;
+      const familyId = familyTag
+        ? (fromPreview ? null : existingFamiliesByTag.get(familyTag)?.id ?? null)
+        : null;
 
-      const fromPreview = previewFamiliesByTag.has(familyTag);
-      const familyId = fromPreview
-        ? null  // real UUID resolved at commit time via family_tag field
-        : existingFamiliesByTag.get(familyTag)?.id ?? null;
-
-      if (!familyId && !fromPreview) {
+      if (familyTag && !familyId && !fromPreview) {
         table.push({
           row: i + 2,
           action: "error",
@@ -709,7 +699,7 @@ const birthdate = parseDate(row.birthdate);
 
       // ✅ UPDATE
       if (existing && allow_updates) {
-        if (existing.family_id !== familyId) {
+        if (familyTag && familyId && existing.family_id !== familyId) {
           table.push({
             row: i + 2,
             action: "error",
@@ -786,7 +776,7 @@ const birthdate = parseDate(row.birthdate);
           action: "update",
           existing_id: existing.id,
           data: {
-            family_id: familyId,
+            ...(familyTag ? { family_id: familyId } : {}),
             first_name: firstName,
             last_name: lastName,
             preferred_name: preferredName,

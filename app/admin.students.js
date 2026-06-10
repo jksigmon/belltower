@@ -653,8 +653,8 @@ async function createStudent() {
     active:              true
   };
 
-  if (!student.first_name || !student.last_name || !student.family_id) {
-    alert('First name, last name, and family are required.');
+  if (!student.first_name || !student.last_name) {
+    alert('First name and last name are required.');
     return;
   }
 
