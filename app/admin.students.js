@@ -317,8 +317,8 @@ async function saveEditStudent() {
 
   const first = document.getElementById('estuFirst').value.trim();
   const last  = document.getElementById('estuLast').value.trim();
-  const family = document.getElementById('estuFamily').value;
-  if (!first || !last || !family) { alert('First name, last name, and family are required.'); return; }
+  const family = document.getElementById('estuFamily').value || null;
+  if (!first || !last) { alert('First name and last name are required.'); return; }
 
   const updated = {
     first_name:          first,
@@ -347,6 +347,10 @@ async function saveEditStudent() {
   if (error) { dbError(error, 'Failed to save student'); return; }
   window.closeDrawer?.('editStudentDrawer');
   studentsDirectory.load();
+
+  if (!family) {
+    showToast('Changes saved — no family assigned. Carline and dismissal will not work until a family number is linked.', 'warn', 8000);
+  }
 }
 
 function openWithdrawModal() {
