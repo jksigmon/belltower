@@ -2108,6 +2108,11 @@ async function addStudentToBoard(student) {
 
   if (error) { showToast('Failed to add student to board.', 'error'); return; }
 
+  const { data: flagData } = await supabase
+    .from('student_placement_flags')
+    .select('flag_id')
+    .eq('student_id', student.id);
+
   _students.push({
     id:                  student.id,
     first_name:          student.first_name,
@@ -2119,7 +2124,7 @@ async function addStudentToBoard(student) {
   _students.sort((a, b) => a.last_name.localeCompare(b.last_name));
   _assignments[student.id]      = null;
   _savedAssignments[student.id] = null;
-  _studentFlags[student.id]     = new Set();
+  _studentFlags[student.id]     = new Set((flagData || []).map(f => f.flag_id));
   _manuallyAddedIds.add(student.id);
 
   document.getElementById('addStudentModal').hidden = true;

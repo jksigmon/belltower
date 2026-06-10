@@ -1073,12 +1073,51 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
           <li>Open the student's record and check <strong>Flag for retention (will repeat current grade)</strong>.</li>
           <li>Save the record. The student will appear in the Students list with a <strong>Retention Flagged</strong> label.</li>
         </ol>
-        <p>Once flagged, these students will show up in the placement session for their current grade — since they're staying in that grade, they belong in that session alongside the incoming students. Place them in a teacher column just like everyone else. Their homeroom will be updated when you commit.</p>
+        <p>Once flagged, these students will show up on the placement board that matches their <em>current</em> grade — but that creates a board conflict you need to handle manually. See <em>A retained student is showing up on the wrong board — what do I do?</em> below.</p>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           Flag students for retention <em>before</em> building placement sessions so the Retained badge appears on their cards from the start.
         </div>
         <p>When Year-End Promotion runs, students flagged for retention automatically default to the <strong>Retain</strong> action — you won't have to find and switch them manually in the promotion preview.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        A retained student is showing up on the wrong board — what do I do?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Each placement board automatically pulls in all students whose current grade matches the board's incoming grade. This means a retained 1st grader will auto-appear on the <strong>1st → 2nd</strong> board — but they're not going to 2nd grade, so they don't belong there. They also won't appear on the <strong>K → 1st</strong> board because their grade is still 1st, not K.</p>
+        <p>The recommended workflow is:</p>
+        <ol>
+          <li>On the <strong>1st → 2nd board</strong>, select the retained student's card and click <strong>Remove from Board</strong> in the toolbar. This takes them off that board entirely and keeps the column totals accurate.</li>
+          <li>Open the <strong>K → 1st board</strong> and click <strong>Add Student</strong> in the toolbar.</li>
+          <li>Search for the retained student by name or student number and click their row to add them. They'll appear in the Unplaced column with a blue <strong>Added</strong> badge so it's clear they were placed here manually.</li>
+          <li>Drag them to the appropriate 1st grade teacher column just like any other student.</li>
+        </ol>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          If you forget to remove a retained student from the higher board and leave them unplaced there, committing that board will <em>not</em> affect their teacher assignment — unplaced students are always skipped during commit. However, removing them is still recommended to keep column counts clean and avoid confusion.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I add a student to a board who isn't in the rising grade?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Use the <strong>Add Student</strong> button in the board toolbar. This lets you add any active student from your school to the board regardless of their current grade — the most common use case is placing a retained student on a lower board (see above), but it also works for mid-year transfers or other exceptions.</p>
+        <ol>
+          <li>Open the placement board and click <strong>Add Student</strong>.</li>
+          <li>Type the student's name or student number in the search box.</li>
+          <li>Click the student's row to add them. Students already on the board won't appear in results.</li>
+          <li>The student appears in the <strong>Unplaced</strong> column with a blue <strong>Added</strong> badge to distinguish them from the rising-grade roster.</li>
+          <li>Drag them to a teacher column to assign them.</li>
+        </ol>
+        <p>Manually added students are protected from the <strong>Sync Students</strong> routine — because their grade doesn't match the board's incoming grade, Sync would normally flag them as "departed." The system recognizes them as manually added and leaves them alone.</p>
       </div>
     </div>
 
