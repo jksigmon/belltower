@@ -4369,6 +4369,17 @@ a.staff-dash-request-row:hover {
   font-weight: 600;
   width: fit-content;
 }
+.student-manual-badge {
+  display: inline-block;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-size: 0.67rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  width: fit-content;
+}
 
 /* Placement flag chips — drawer toggle UI */
 .student-flags-chips {

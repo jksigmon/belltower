@@ -198,6 +198,9 @@
               <button class="btn btn-outline btn-sm" id="togglePlacementFullscreen" title="Expand board">
                 <i data-lucide="expand" style="width:15px;height:15px;"></i>
               </button>
+              <button class="btn btn-outline btn-sm" id="addStudentToBoardBtn" title="Add an individual student not in the rising grade (e.g. a retained student)">
+                <i data-lucide="user-plus" style="width:15px;height:15px;"></i> Add Student
+              </button>
               <button class="btn btn-outline btn-sm" id="syncPlacementStudentsBtn" title="Add newly enrolled students or remove departed ones">
                 <i data-lucide="refresh-cw" style="width:15px;height:15px;"></i> Sync Students
               </button>
@@ -349,6 +352,19 @@
       <div class="confirm-modal-actions">
         <button class="btn btn-primary" id="syncStudentsConfirmBtn" disabled>Apply Changes</button>
         <button class="btn" id="syncStudentsCancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Student to Board modal -->
+  <div id="addStudentModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:460px;width:100%;">
+      <h3 class="confirm-modal-title">Add Student to Board</h3>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 14px;">Add a student who isn't in the rising grade — for example, a retained student being placed in a different class for next year.</p>
+      <input type="search" id="addStudentSearch" class="form-input" placeholder="Search by name or student #…" style="width:100%;margin-bottom:10px;" autocomplete="off">
+      <div id="addStudentResults" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:#fafafa;min-height:52px;"></div>
+      <div class="confirm-modal-actions" style="margin-top:16px;">
+        <button class="btn" id="cancelAddStudentBtn">Close</button>
       </div>
     </div>
   </div>

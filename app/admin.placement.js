@@ -29,6 +29,7 @@ let _draggingColumnTeacherId = null;
 let _managingColId = null;
 let _placeholderColIds = new Set(); // PST row IDs that are placeholder columns
 let _resolvingColId = null;         // col ID being resolved in Assign Teacher modal
+let _manuallyAddedIds = new Set(); // student IDs added via "Add Student" (not the rising grade)
 
 /* ── Entry point ── */
 export async function initPlacementSection(profile) {
@@ -93,6 +94,15 @@ function wireGlobalEvents() {
     ?.addEventListener('click', autoPlaceStudents);
   document.getElementById('removeFromBoardBtn')
     ?.addEventListener('click', removeSelectedFromBoard);
+  document.getElementById('addStudentToBoardBtn')
+    ?.addEventListener('click', openAddStudentModal);
+  document.getElementById('cancelAddStudentBtn')
+    ?.addEventListener('click', () => { document.getElementById('addStudentModal').hidden = true; });
+  document.getElementById('addStudentSearch')
+    ?.addEventListener('input', e => {
+      clearTimeout(_addStudentDebounce);
+      _addStudentDebounce = setTimeout(() => runAddStudentSearch(e.target.value.trim()), 250);
+    });
   document.getElementById('syncPlacementStudentsBtn')
     ?.addEventListener('click', openSyncStudentsModal);
   document.getElementById('syncStudentsConfirmBtn')
@@ -180,6 +190,7 @@ async function showBoard(sessionId) {
   _undoStack = [];
   _boardSearchTerm = '';
   _placeholderColIds = new Set();
+  _manuallyAddedIds = new Set();
   const searchEl = document.getElementById('placementBoardSearch');
   if (searchEl) searchEl.value = '';
   showView('placementBoardView');
@@ -226,7 +237,7 @@ async function loadBoardData(sessionId) {
       .select('id, teacher_id, placeholder_name, sort_order')
       .eq('session_id', sessionId).order('sort_order'),
     supabase.from('placement_assignments')
-      .select('student_id, teacher_id, assigned_col_id, sort_order')
+      .select('student_id, teacher_id, assigned_col_id, sort_order, manually_added')
       .eq('session_id', sessionId).order('sort_order'),
     supabase.from('placement_flags')
       .select('id, label, color, sort_order')
@@ -265,6 +276,7 @@ async function loadBoardData(sessionId) {
 
   const teacherIds = realTeacherRows.map(r => r.teacher_id);
   _assignments = {};
+  _manuallyAddedIds = new Set();
   const studentIds = [];
   (assignments || []).forEach(a => {
     if (a.teacher_id) {
@@ -275,6 +287,7 @@ async function loadBoardData(sessionId) {
       _assignments[a.student_id] = null;
     }
     studentIds.push(a.student_id);
+    if (a.manually_added) _manuallyAddedIds.add(a.student_id);
   });
   _savedAssignments = { ..._assignments };
 
@@ -508,9 +521,11 @@ function buildCard(student) {
     ? (_homeroomTeacherNames[student.homeroom_teacher_id] ?? null)
     : null;
 
+  const isManuallyAdded = _manuallyAddedIds.has(student.id);
   card.innerHTML = `
     <div class="placement-card-name">${esc(student.last_name)}, ${esc(student.first_name)}</div>
     ${student.is_retained ? `<span class="student-retained-badge">Retained</span>` : ''}
+    ${isManuallyAdded ? `<span class="student-manual-badge">Added</span>` : ''}
     ${homeroomName ? `<div class="placement-card-homeroom">${esc(homeroomName)}</div>` : ''}
     <div class="placement-card-footer">
       <div class="placement-flag-dots" data-dots-for="${student.id}"></div>
@@ -2001,12 +2016,115 @@ async function removeSelectedFromBoard() {
     delete _assignments[id];
     delete _savedAssignments[id];
     delete _studentFlags[id];
+    _manuallyAddedIds.delete(id);
   });
   _students = _students.filter(s => !ids.includes(s.id));
 
   clearSelection();
   renderBoard();
   showToast(`${ids.length} student${ids.length !== 1 ? 's' : ''} removed from board.`, 'success');
+}
+
+/* ── Add Individual Student to Board ── */
+
+let _addStudentDebounce = null;
+
+async function openAddStudentModal() {
+  if (!_session) return;
+  const modal     = document.getElementById('addStudentModal');
+  const searchEl  = document.getElementById('addStudentSearch');
+  const resultsEl = document.getElementById('addStudentResults');
+  searchEl.value = '';
+  resultsEl.innerHTML = '<p style="padding:12px;font-size:13px;color:#9ca3af;text-align:center;">Type a name or student # to search…</p>';
+  modal.hidden = false;
+  searchEl.focus();
+}
+
+async function runAddStudentSearch(term) {
+  const resultsEl = document.getElementById('addStudentResults');
+  if (!term) {
+    resultsEl.innerHTML = '<p style="padding:12px;font-size:13px;color:#9ca3af;text-align:center;">Type a name or student # to search…</p>';
+    return;
+  }
+
+  resultsEl.innerHTML = '<p style="padding:12px;font-size:13px;color:#9ca3af;text-align:center;">Searching…</p>';
+
+  const currentIds = new Set(_students.map(s => s.id));
+
+  const { data, error } = await supabase
+    .from('students')
+    .select('id, first_name, last_name, student_number, grade_level, is_retained, homeroom_teacher_id')
+    .eq('school_id', _profile.school_id)
+    .eq('active', true)
+    .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,student_number.ilike.%${term}%`)
+    .order('last_name')
+    .limit(20);
+
+  if (error) {
+    resultsEl.innerHTML = '<p style="padding:12px;font-size:13px;color:#dc2626;text-align:center;">Search failed. Please try again.</p>';
+    return;
+  }
+
+  const available = (data || []).filter(s => !currentIds.has(s.id));
+
+  if (!available.length) {
+    resultsEl.innerHTML = '<p style="padding:12px;font-size:13px;color:#9ca3af;text-align:center;">No students found (already on board or no match).</p>';
+    return;
+  }
+
+  resultsEl.innerHTML = available.map(s => `
+    <div class="add-student-result-row" data-student-id="${esc(s.id)}"
+         style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;cursor:pointer;border-bottom:1px solid #f3f4f6;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:13px;font-weight:500;">${esc(s.last_name)}, ${esc(s.first_name)}</span>
+        ${s.student_number ? `<span style="font-size:12px;color:#9ca3af;">#${esc(String(s.student_number))}</span>` : ''}
+        ${s.is_retained ? `<span class="student-retained-badge">Retained</span>` : ''}
+      </div>
+      <span style="font-size:12px;color:#9ca3af;flex-shrink:0;margin-left:8px;">${s.grade_level ? gradeLabel(s.grade_level) : ''}</span>
+    </div>
+  `).join('');
+
+  resultsEl.querySelectorAll('.add-student-result-row').forEach(row => {
+    row.addEventListener('mouseover', () => { row.style.background = '#f0f7ff'; });
+    row.addEventListener('mouseout',  () => { row.style.background = ''; });
+    row.addEventListener('click', () => {
+      const student = available.find(s => s.id === row.dataset.studentId);
+      if (student) addStudentToBoard(student);
+    });
+  });
+}
+
+async function addStudentToBoard(student) {
+  const maxSort = _students.length;
+  const { error } = await supabase
+    .from('placement_assignments')
+    .insert({
+      session_id:     _currentSessionId,
+      student_id:     student.id,
+      teacher_id:     null,
+      sort_order:     maxSort,
+      manually_added: true,
+    });
+
+  if (error) { showToast('Failed to add student to board.', 'error'); return; }
+
+  _students.push({
+    id:                  student.id,
+    first_name:          student.first_name,
+    last_name:           student.last_name,
+    student_number:      student.student_number ?? null,
+    homeroom_teacher_id: student.homeroom_teacher_id ?? null,
+    is_retained:         student.is_retained ?? false,
+  });
+  _students.sort((a, b) => a.last_name.localeCompare(b.last_name));
+  _assignments[student.id]      = null;
+  _savedAssignments[student.id] = null;
+  _studentFlags[student.id]     = new Set();
+  _manuallyAddedIds.add(student.id);
+
+  document.getElementById('addStudentModal').hidden = true;
+  renderBoard();
+  showToast(`${student.first_name} ${student.last_name} added to board.`, 'success');
 }
 
 /* ── Sync Students ── */
@@ -2056,9 +2174,10 @@ async function openSyncStudentsModal() {
   // New: in roster but not in session
   _syncNewStudents = (gradeRoster || []).filter(s => !sessionStudentIds.has(s.id));
 
-  // Departed: in session but not in active roster for this grade
+  // Departed: in session but not in active roster for this grade.
+  // Exclude manually-added students — they're intentionally off-grade.
   _syncDepartedIds = _students
-    .filter(s => !rosterIds.has(s.id))
+    .filter(s => !rosterIds.has(s.id) && !_manuallyAddedIds.has(s.id))
     .map(s => s.id);
 
   const hasChanges = _syncNewStudents.length > 0 || _syncDepartedIds.length > 0;
