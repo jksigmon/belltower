@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js';
-import { esc, GRADE_ORDER, nextGrade, gradeLabel } from './admin.shared.js';
+import { esc, GRADE_ORDER, gradeLabel } from './admin.shared.js';
 
 let _profile      = null;
 let _schoolConfig = null;
@@ -105,9 +105,7 @@ export async function renderSessionList() {
           <div class="placement-session-label">${esc(s.label)}</div>
           <div class="placement-session-meta">
             <span class="placement-year-chip">${esc(s.academic_year.replace('-','–'))}</span>
-            <span class="placement-grade-chip placement-grade-chip--from">${gradeLabel(s.incoming_grade)}</span>
-            <span class="placement-grade-arrow">→</span>
-            <span class="placement-grade-chip placement-grade-chip--to">${gradeLabel(s.target_grade)}</span>
+            <span class="placement-grade-chip placement-grade-chip--to">${gradeLabel(s.incoming_grade)}</span>
             ${archived ? '<span class="placement-grade-chip" style="background:#f1f5f9;color:#64748b;">Archived</span>' : ''}
           </div>
         </div>
@@ -201,7 +199,7 @@ async function cloneSession(original) {
       school_id:         _profile.school_id,
       academic_year:     newYear.trim(),
       incoming_grade:    original.incoming_grade,
-      target_grade:      original.target_grade,
+      target_grade:      original.incoming_grade,
       label:             original.label,
       status:            'draft',
       target_class_size: original.target_class_size ?? null,
@@ -248,7 +246,7 @@ function nextAcademicYear(year) {
 export async function showCreateForm() {
   showPlacementView('placementCreateFormView');
   populateCreateFormYears();
-  populateIncomingGradeSelect();
+  populateGradeSelect();
   _selectedTeacherIds = new Set();
   const searchEl = document.getElementById('placementStaffSearch');
   if (searchEl) searchEl.value = '';
@@ -268,13 +266,14 @@ function populateCreateFormYears() {
   }
 }
 
-function populateIncomingGradeSelect() {
+function populateGradeSelect() {
   const sel = document.getElementById('placementIncomingGrade');
   if (!sel) return;
+  // The board manages a single grade: the students' actual (post-promotion)
+  // grade level. Every configured grade is selectable, including the top grade.
   const grades = _schoolConfig?.grade_levels ?? GRADE_ORDER;
   sel.innerHTML = '<option value="">— Select grade —</option>';
   grades.forEach(g => {
-    if (nextGrade(g, _schoolConfig) === null) return;
     const opt = document.createElement('option');
     opt.value = g;
     opt.textContent = gradeLabel(g);
@@ -394,16 +393,15 @@ function renderEmployeeCheckboxes(campusId) {
 
 export async function submitCreateForm() {
   const year     = document.getElementById('placementYear')?.value;
-  const incoming = document.getElementById('placementIncomingGrade')?.value;
+  const grade    = document.getElementById('placementIncomingGrade')?.value;
   const labelInput = document.getElementById('placementLabel')?.value.trim();
 
-  if (!year || !incoming) {
-    alert('Please select a year and incoming grade.');
+  if (!year || !grade) {
+    alert('Please select a year and grade.');
     return;
   }
 
-  const target = nextGrade(incoming, _schoolConfig);
-  const label  = labelInput || `${gradeLabel(incoming)} → ${target ? gradeLabel(target) : 'Graduate'}`;
+  const label  = labelInput || `${gradeLabel(grade)} Placement`;
 
   const checked = _formEmployees
     .filter(e => _selectedTeacherIds.has(e.id))
@@ -426,8 +424,8 @@ export async function submitCreateForm() {
     .insert({
       school_id:         _profile.school_id,
       academic_year:     year,
-      incoming_grade:    incoming,
-      target_grade:      target,
+      incoming_grade:    grade,
+      target_grade:      grade,
       label,
       status:            'draft',
       target_class_size: targetClassSize,
@@ -459,7 +457,7 @@ export async function submitCreateForm() {
     .select('id')
     .eq('school_id', _profile.school_id)
     .eq('active', true)
-    .eq('grade_level', incoming);
+    .eq('grade_level', grade);
 
   if (gradeStudents && gradeStudents.length > 0) {
     const { error: assignErr } = await supabase.from('placement_assignments').insert(

@@ -29,7 +29,7 @@ let _draggingColumnTeacherId = null;
 let _managingColId = null;
 let _placeholderColIds = new Set(); // PST row IDs that are placeholder columns
 let _resolvingColId = null;         // col ID being resolved in Assign Teacher modal
-let _manuallyAddedIds = new Set(); // student IDs added via "Add Student" (not the rising grade)
+let _manuallyAddedIds = new Set(); // student IDs added via "Add Student" (not auto-pulled by grade)
 
 /* ── Entry point ── */
 export async function initPlacementSection(profile) {
@@ -253,7 +253,7 @@ async function loadBoardData(sessionId) {
   const commitBtn = document.getElementById('commitPlacementBtn');
   if (titleEl && session) titleEl.textContent = session.label;
   if (metaEl && session) {
-    metaEl.textContent = `${session.academic_year.replace('-', '–')} · ${gradeLabel(session.incoming_grade)} → ${gradeLabel(session.target_grade)}`;
+    metaEl.textContent = `${session.academic_year.replace('-', '–')} · ${gradeLabel(session.incoming_grade)}`;
   }
   const isCommitted = session?.status === 'committed';
   if (commitBtn) {
@@ -1014,7 +1014,7 @@ function updateSaveStatus(msg) {
 /* ── Export ── */
 function exportPlacement() {
   if (!_session) return;
-  const rows = [['Last Name', 'First Name', 'Student Number', 'Incoming Grade', 'Assigned Teacher']];
+  const rows = [['Last Name', 'First Name', 'Student Number', 'Grade', 'Assigned Teacher']];
   _students
     .slice()
     .sort((a, b) => {
