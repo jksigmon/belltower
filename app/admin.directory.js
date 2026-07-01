@@ -118,60 +118,65 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
 
   function renderPagination(totalCount) {
     if (!paginationContainer) return;
-    const container = document.querySelector(paginationContainer);
-    if (!container) return;
-    container.innerHTML = '';
+    const topContainer = document.querySelector(paginationContainer);
+    if (!topContainer) return;
 
     const totalPages = Math.ceil(totalCount / pageSize);
-
-    // Record count label (always shown)
     const from = Math.min((state.page - 1) * pageSize + 1, totalCount);
     const to   = Math.min(state.page * pageSize, totalCount);
-    const info = document.createElement('span');
-    info.className = 'pagination-info';
-    info.textContent = totalCount === 0
-      ? 'No results'
-      : totalPages <= 1
-        ? `${totalCount} record${totalCount !== 1 ? 's' : ''}`
-        : `${from}–${to} of ${totalCount}`;
-    container.appendChild(info);
 
-    if (totalPages <= 1) return;
+    function buildInto(container, scrollToTop = false) {
+      container.innerHTML = '';
 
-    const controls = document.createElement('div');
-    controls.className = 'pagination-controls';
+      const info = document.createElement('span');
+      info.className = 'pagination-info';
+      info.textContent = totalCount === 0
+        ? 'No results'
+        : totalPages <= 1
+          ? `${totalCount} record${totalCount !== 1 ? 's' : ''}`
+          : `${from}–${to} of ${totalCount}`;
+      container.appendChild(info);
 
-    function makeBtn(label, page, disabled = false, ariaLabel = '') {
-      const btn = document.createElement('button');
-      btn.innerHTML = label;
-      btn.className = 'pagination-btn' + (page === state.page ? ' pagination-active' : '');
-      btn.disabled = disabled;
-      if (ariaLabel) btn.setAttribute('aria-label', ariaLabel);
-      if (!disabled && page !== state.page) {
-        btn.onclick = () => { state.page = page; load(); };
+      if (totalPages <= 1) return;
+
+      const controls = document.createElement('div');
+      controls.className = 'pagination-controls';
+
+      function makeBtn(label, page, disabled = false, ariaLabel = '') {
+        const btn = document.createElement('button');
+        btn.innerHTML = label;
+        btn.className = 'pagination-btn' + (page === state.page ? ' pagination-active' : '');
+        btn.disabled = disabled;
+        if (ariaLabel) btn.setAttribute('aria-label', ariaLabel);
+        if (!disabled && page !== state.page) {
+          btn.onclick = () => {
+            state.page = page;
+            load();
+            if (scrollToTop) window.scrollTo({ top: 0, behavior: 'smooth' });
+          };
+        }
+        return btn;
       }
-      return btn;
+
+      controls.appendChild(makeBtn('&#8249;', state.page - 1, state.page === 1, 'Previous page'));
+      getPageRange(state.page, totalPages).forEach(p => {
+        if (p === '…') {
+          const el = document.createElement('span');
+          el.className = 'pagination-ellipsis';
+          el.textContent = '…';
+          controls.appendChild(el);
+        } else {
+          controls.appendChild(makeBtn(p, p));
+        }
+      });
+      controls.appendChild(makeBtn('&#8250;', state.page + 1, state.page === totalPages, 'Next page'));
+      container.appendChild(controls);
     }
 
-    // Prev
-    controls.appendChild(makeBtn('&#8249;', state.page - 1, state.page === 1, 'Previous page'));
+    buildInto(topContainer);
 
-    // Page numbers with ellipsis
-    getPageRange(state.page, totalPages).forEach(p => {
-      if (p === '…') {
-        const el = document.createElement('span');
-        el.className = 'pagination-ellipsis';
-        el.textContent = '…';
-        controls.appendChild(el);
-      } else {
-        controls.appendChild(makeBtn(p, p));
-      }
-    });
-
-    // Next
-    controls.appendChild(makeBtn('&#8250;', state.page + 1, state.page === totalPages, 'Next page'));
-
-    container.appendChild(controls);
+    const bottomContainer = document.querySelector(paginationContainer + 'Bottom');
+    if (bottomContainer) buildInto(bottomContainer, true);
   }
 
   function getPageRange(current, total) {
