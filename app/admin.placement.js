@@ -297,7 +297,7 @@ async function loadBoardData(sessionId) {
       ? supabase.from('employees').select('id, first_name, last_name').in('id', teacherIds)
       : Promise.resolve({ data: [] }),
     studentIds.length
-      ? supabase.from('students').select('id, first_name, last_name, student_number, grade_level, homeroom_teacher_id, is_retained').in('id', studentIds)
+      ? supabase.from('students').select('id, first_name, last_name, student_number, grade_level, homeroom_teacher_id, is_retained, retained').in('id', studentIds)
       : Promise.resolve({ data: [] }),
     studentIds.length
       ? supabase.from('student_placement_flags').select('student_id, flag_id').in('student_id', studentIds)
@@ -537,7 +537,7 @@ function buildCard(student) {
   const isOffGrade = boardGrade != null && student.grade_level !== boardGrade;
   card.innerHTML = `
     <div class="placement-card-name">${esc(student.last_name)}, ${esc(student.first_name)}</div>
-    ${student.is_retained ? `<span class="student-retained-badge">Retained</span>` : ''}
+    ${(student.retained || student.is_retained) ? `<span class="student-retained-badge">Retained</span>` : ''}
     ${isManuallyAdded ? `<span class="student-manual-badge">Added</span>` : ''}
     ${homeroomName ? `<div class="placement-card-homeroom">${esc(homeroomName)}</div>` : ''}
     <div class="placement-card-footer">
