@@ -149,9 +149,9 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
         btn.disabled = disabled;
         if (ariaLabel) btn.setAttribute('aria-label', ariaLabel);
         if (!disabled && page !== state.page) {
-          btn.onclick = () => {
+          btn.onclick = async () => {
             state.page = page;
-            load();
+            await load();
             if (scrollToTop) window.scrollTo({ top: 0, behavior: 'smooth' });
           };
         }
