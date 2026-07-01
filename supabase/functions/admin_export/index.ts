@@ -2,6 +2,22 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import * as XLSX from "https://esm.sh/xlsx@0.18.5";
 
+// Canonical grade sort order: PK → K → 1 → 12
+const GRADE_ORDER = ['PK', 'K', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+
+function gradeRank(g: string | null | undefined): number {
+  if (!g) return 999;
+  const i = GRADE_ORDER.indexOf(String(g));
+  return i === -1 ? 998 : i;
+}
+
+function gradeTabLabel(g: string | null | undefined): string {
+  if (!g) return 'Unassigned';
+  if (g === 'PK') return 'Pre-K';
+  if (g === 'K') return 'Kindergarten';
+  return `Grade ${g}`;
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -82,6 +98,8 @@ const { type, split } = await req.json();
 
     /* --------------------------------------------------
        CLASS PLACEMENT EXPORT
+       One tab per grade (PK→K→1→12), rows sorted by
+       teacher last name then student last name.
     -------------------------------------------------- */
     if (type === "class_placement") {
       const { data, error } = await admin
@@ -102,53 +120,67 @@ const { type, split } = await req.json();
           )
         `)
         .eq("school_id", profile.school_id)
-        .order("grade_level", { ascending: true })
         .order("last_name", { ascending: true });
 
       if (error) throw error;
 
-      const rows = (data ?? []).map(s => ({
-        Grade: s.grade_level ?? "",
-        "Homeroom Teacher": s.employees
-          ? `${s.employees.last_name}, ${s.employees.first_name}`
-          : "",
-        "Student Last Name": s.last_name ?? "",
-        "Student First Name": s.first_name ?? "",
-        "Student Number": s.student_number ?? "",
-        Family: s.families?.family_name ?? "",
-        "Carline Tag": s.families?.carline_tag_number ?? "",
-        Active: s.active ? "Yes" : "No"
-      }));
+      // Sort: grade rank → teacher last name → student last name
+      const students = (data ?? []).sort((a, b) => {
+        const gradeA = gradeRank(a.grade_level);
+        const gradeB = gradeRank(b.grade_level);
+        if (gradeA !== gradeB) return gradeA - gradeB;
+        const tA = a.employees ? a.employees.last_name : '￿';
+        const tB = b.employees ? b.employees.last_name : '￿';
+        if (tA !== tB) return tA.localeCompare(tB);
+        return (a.last_name ?? '').localeCompare(b.last_name ?? '');
+      });
 
+      // Group by grade
+      const byGrade = new Map<string, any[]>();
+      for (const s of students) {
+        const grade = s.grade_level ?? 'Unassigned';
+        if (!byGrade.has(grade)) byGrade.set(grade, []);
+        byGrade.get(grade)!.push({
+          "Homeroom Teacher": s.employees
+            ? `${s.employees.last_name}, ${s.employees.first_name}`
+            : "(Unassigned)",
+          "Student Last Name": s.last_name ?? "",
+          "Student First Name": s.first_name ?? "",
+          "Student Number": s.student_number ?? "",
+          Family: s.families?.family_name ?? "",
+          "Carline Tag": s.families?.carline_tag_number ?? "",
+          Active: s.active ? "Yes" : "No"
+        });
+      }
+
+      // Write tabs in grade order
       const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(rows);
-      XLSX.utils.book_append_sheet(wb, ws, "Class Placement");
+      const gradesToWrite = [...GRADE_ORDER, 'Unassigned'].filter(g => byGrade.has(g));
+      for (const grade of gradesToWrite) {
+        const ws = XLSX.utils.json_to_sheet(byGrade.get(grade)!);
+        XLSX.utils.book_append_sheet(wb, ws, gradeTabLabel(grade).substring(0, 31));
+      }
 
       const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
       const base64 = bufferToBase64(buffer);
 
-      const filename = `class-placement-${new Date()
-        .toISOString()
-        .slice(0, 10)}.xlsx`;
+      const filename = `class-placement-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
-return new Response(
-  JSON.stringify({
-    file_base64: base64,
-    filename,
-    mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-  }),
-  {
-    headers: {
-      ...corsHeaders,
-      "Content-Type": "application/json"   // ✅ REQUIRED
-    }
-  }
-);
-
+      return new Response(
+        JSON.stringify({
+          file_base64: base64,
+          filename,
+          mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
 /* --------------------------------------------------
    TEACHER ROSTERS EXPORT
+   One tab per teacher, tabs sorted by grade level
+   (PK→K→1→12) then teacher last name. Rows sorted
+   by student last name within each tab.
 -------------------------------------------------- */
 if (type === "teacher_rosters") {
   const { data, error } = await admin
@@ -174,9 +206,10 @@ if (type === "teacher_rosters") {
 
   if (error) throw error;
 
-  // Group students by teacher
+  // Group students by teacher; track the lowest grade rank seen per teacher
   const byTeacher = new Map<string, {
     teacherName: string;
+    primaryGradeRank: number;
     rows: any[];
   }>();
 
@@ -184,11 +217,17 @@ if (type === "teacher_rosters") {
     if (!s.employees) continue;
 
     const key = s.employees.id;
+    const rank = gradeRank(s.grade_level);
+
     if (!byTeacher.has(key)) {
       byTeacher.set(key, {
         teacherName: `${s.employees.last_name}, ${s.employees.first_name}`,
+        primaryGradeRank: rank,
         rows: []
       });
+    } else {
+      const entry = byTeacher.get(key)!;
+      if (rank < entry.primaryGradeRank) entry.primaryGradeRank = rank;
     }
 
     byTeacher.get(key)!.rows.push({
@@ -202,43 +241,41 @@ if (type === "teacher_rosters") {
     });
   }
 
+  // Sort tabs: primary grade rank → teacher last name
+  const sortedTeachers = [...byTeacher.values()].sort((a, b) => {
+    if (a.primaryGradeRank !== b.primaryGradeRank) {
+      return a.primaryGradeRank - b.primaryGradeRank;
+    }
+    return a.teacherName.localeCompare(b.teacherName);
+  });
+
   const wb = XLSX.utils.book_new();
 
-  for (const { teacherName, rows } of byTeacher.values()) {
+  for (const { teacherName, rows } of sortedTeachers) {
     const ws = XLSX.utils.json_to_sheet(rows);
-    XLSX.utils.book_append_sheet(
-      wb,
-      ws,
-      teacherName.substring(0, 31) // Excel sheet name limit
-    );
+    XLSX.utils.book_append_sheet(wb, ws, teacherName.substring(0, 31));
   }
 
   const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
   const base64 = bufferToBase64(buffer);
 
-  const filename = `teacher-rosters-${new Date()
-    .toISOString()
-    .slice(0, 10)}.xlsx`;
+  const filename = `teacher-rosters-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
   return new Response(
     JSON.stringify({
       file_base64: base64,
       filename,
-      mime_type:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     }),
-    {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
-      }
-    }
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
 
 
 /* --------------------------------------------------
    GRADE ROSTERS EXPORT
+   One tab per grade (PK→K→1→12), rows sorted by
+   homeroom teacher then student last name.
 -------------------------------------------------- */
 if (type === "grade_rosters") {
   const { data, error } = await admin
@@ -259,25 +296,30 @@ if (type === "grade_rosters") {
       )
     `)
     .eq("school_id", profile.school_id)
-    .order("grade_level", { ascending: true })
     .order("last_name", { ascending: true });
 
   if (error) throw error;
 
-  // Group students by grade
+  // Sort: grade rank → teacher last name → student last name
+  const students = (data ?? []).sort((a, b) => {
+    const gradeA = gradeRank(a.grade_level);
+    const gradeB = gradeRank(b.grade_level);
+    if (gradeA !== gradeB) return gradeA - gradeB;
+    const tA = a.employees ? a.employees.last_name : '￿';
+    const tB = b.employees ? b.employees.last_name : '￿';
+    if (tA !== tB) return tA.localeCompare(tB);
+    return (a.last_name ?? '').localeCompare(b.last_name ?? '');
+  });
+
+  // Group by grade
   const byGrade = new Map<string, any[]>();
-
-  for (const s of data ?? []) {
-    const grade = s.grade_level ?? "Unassigned";
-
-    if (!byGrade.has(grade)) {
-      byGrade.set(grade, []);
-    }
-
+  for (const s of students) {
+    const grade = s.grade_level ?? 'Unassigned';
+    if (!byGrade.has(grade)) byGrade.set(grade, []);
     byGrade.get(grade)!.push({
       "Homeroom Teacher": s.employees
         ? `${s.employees.last_name}, ${s.employees.first_name}`
-        : "",
+        : "(Unassigned)",
       "Student Last Name": s.last_name ?? "",
       "Student First Name": s.first_name ?? "",
       "Student Number": s.student_number ?? "",
@@ -287,34 +329,26 @@ if (type === "grade_rosters") {
     });
   }
 
+  // Write tabs in grade order
   const wb = XLSX.utils.book_new();
-
-  for (const [grade, rows] of byGrade.entries()) {
-    const sheetName = `Grade ${grade}`.substring(0, 31);
-    const ws = XLSX.utils.json_to_sheet(rows);
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  const gradesToWrite = [...GRADE_ORDER, 'Unassigned'].filter(g => byGrade.has(g));
+  for (const grade of gradesToWrite) {
+    const ws = XLSX.utils.json_to_sheet(byGrade.get(grade)!);
+    XLSX.utils.book_append_sheet(wb, ws, gradeTabLabel(grade).substring(0, 31));
   }
 
   const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" });
   const base64 = bufferToBase64(buffer);
 
-  const filename = `grade-rosters-${new Date()
-    .toISOString()
-    .slice(0, 10)}.xlsx`;
+  const filename = `grade-rosters-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
   return new Response(
     JSON.stringify({
       file_base64: base64,
       filename,
-      mime_type:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     }),
-    {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json"
-      }
-    }
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 }
 

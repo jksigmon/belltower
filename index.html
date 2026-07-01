@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Belltower: School Operations Platform</title>
+<meta name="description" content="Belltower replaces the spreadsheets and email chains that slow schools down. One connected platform, built specifically for how schools operate." />
 <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
@@ -11,18 +12,27 @@
 <link rel="icon" href="/icons/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.474.0/dist/umd/lucide.min.js"></script>
 <style>
-/* ── Variables ─────────────────────────────────────────────── */
+/* ============================================================
+   Variables
+   ============================================================ */
 :root {
+  --ink-900: #020810;
+  --ink-800: #050f1d;
+  --ink-700: #08182b;
   --navy-900: #071c2f;
   --navy:     #0b2d4f;
   --navy-600: #0e3b66;
   --blue:     #2563eb;
   --blue-h:   #1d4ed8;
+  --blue-400: #3b82f6;
+  --sky:      #38bdf8;
+  --sky-200:  #bae6fd;
   --blue-xl:  #93c5fd;
   --amber:    #f59e0b;
+  --amber-300:#fbbf24;
   --amber-d:  #d97706;
   --bg:       #ffffff;
   --bg-soft:  #f6f8fc;
@@ -35,51 +45,82 @@
   --blue-line:#dbe6fb;
   --ease:     cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --maxw:     1200px;
+  --display:  'Fraunces', Georgia, 'Times New Roman', serif;
+  --sans:     'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
-/* ── Reset ─────────────────────────────────────────────────── */
+/* ============================================================
+   Reset + Base
+   ============================================================ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
-
-/* ── Base ──────────────────────────────────────────────────── */
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
 body {
-  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: var(--sans);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
 }
+img { max-width: 100%; display: block; }
+::selection { background: rgba(245,158,11,0.28); color: #fff; }
 
-/* ── Scroll Progress ───────────────────────────────────────── */
+.shell { max-width: var(--maxw); margin: 0 auto; padding: 0 2rem; }
+
+/* Grain overlay (reusable, dark sections) */
+.grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.45;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grainShift 7s steps(6) infinite;
+}
+@keyframes grainShift {
+  0%,100% { transform: translate(0,0); }
+  20% { transform: translate(-4%,3%); }
+  40% { transform: translate(3%,-5%); }
+  60% { transform: translate(-3%,4%); }
+  80% { transform: translate(4%,-2%); }
+}
+
+
+/* ============================================================
+   Vertical scroll progress
+   ============================================================ */
 .scroll-progress {
   position: fixed;
   top: 0; left: 0;
-  height: 2px;
-  width: 0%;
-  background: linear-gradient(90deg, var(--blue), var(--amber));
+  width: 3px;
+  height: 0%;
+  background: linear-gradient(180deg, var(--sky), var(--blue) 50%, var(--amber));
   z-index: 200;
   pointer-events: none;
-  transition: width 0.06s linear;
+  transition: height 0.08s linear;
+  box-shadow: 0 0 14px rgba(56,189,248,0.5);
 }
 
-.shell { max-width: 1200px; margin: 0 auto; padding: 0 2rem; }
-
-/* ── Header ────────────────────────────────────────────────── */
+/* ============================================================
+   Header
+   ============================================================ */
 header {
   position: fixed;
   inset: 0 0 auto 0;
   z-index: 100;
-  background: rgba(7,28,47,0.5);
+  background: rgba(2,8,16,0.4);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 1px solid rgba(255,255,255,0.09);
-  height: 72px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  height: 74px;
   transition: background 0.3s, box-shadow 0.3s;
 }
 header.scrolled {
-  background: rgba(7,28,47,0.9);
-  box-shadow: 0 4px 32px rgba(0,0,0,0.25);
+  background: rgba(2,8,16,0.82);
+  box-shadow: 0 6px 34px rgba(0,0,0,0.4);
 }
 header::after {
   content: "";
@@ -89,43 +130,42 @@ header::after {
   background: linear-gradient(90deg, transparent, rgba(245,158,11,0.45), transparent);
 }
 .header-inner {
-  height: 72px;
-  max-width: 1200px;
+  height: 74px;
+  max-width: var(--maxw);
   margin: auto;
   padding: 0 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.logo img { height: 44px; width: auto; display: block; }
-
+.logo img { height: 42px; width: auto; }
 .nav-links { display: flex; align-items: center; gap: 0.2rem; }
 .nav-links a.text-link {
-  color: rgba(255,255,255,0.75);
+  color: rgba(255,255,255,0.72);
   text-decoration: none;
-  padding: 0.45rem 0.85rem;
+  padding: 0.45rem 0.9rem;
   border-radius: 8px;
   font-size: 0.875rem;
   font-weight: 500;
   letter-spacing: -0.01em;
   transition: color 0.18s, background 0.18s;
+  position: relative;
 }
-.nav-links a.text-link:hover { color: #fff; background: rgba(255,255,255,0.08); }
+.nav-links a.text-link:hover { color: #fff; background: rgba(255,255,255,0.07); }
 .nav-login {
-  color: rgba(255,255,255,0.88) !important;
-  border: 1px solid rgba(255,255,255,0.26) !important;
-  border-radius: 8px !important;
+  color: rgba(255,255,255,0.9) !important;
+  border: 1px solid rgba(255,255,255,0.24) !important;
+  border-radius: 9px !important;
 }
-.nav-login:hover { background: rgba(255,255,255,0.09) !important; border-color: rgba(255,255,255,0.48) !important; }
-
+.nav-login:hover { background: rgba(255,255,255,0.08) !important; border-color: rgba(255,255,255,0.46) !important; }
 .nav-cta {
-  margin-left: 0.5rem;
+  margin-left: 0.55rem;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.55rem 1.15rem;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #fff 0%, #eef4ff 100%);
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fff 0%, #e9f1ff 100%);
   color: var(--navy);
   font-size: 0.875rem;
   font-weight: 700;
@@ -135,19 +175,21 @@ header::after {
   font-family: inherit;
   letter-spacing: -0.01em;
   transition: transform 0.18s var(--ease), box-shadow 0.18s;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.9);
+  box-shadow: 0 2px 14px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.9);
 }
-.nav-cta:hover { transform: translateY(-1px); box-shadow: 0 6px 22px rgba(0,0,0,0.3); }
+.nav-cta:hover { transform: translateY(-1px); box-shadow: 0 8px 26px rgba(37,99,235,0.4); }
 .nav-cta svg { width: 14px; height: 14px; }
 
-/* ── Eyebrow ────────────────────────────────────────────────── */
+/* ============================================================
+   Eyebrow
+   ============================================================ */
 .eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
   font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--blue);
 }
@@ -157,16 +199,18 @@ header::after {
   box-shadow: 0 0 0 3px rgba(245,158,11,0.2);
   flex-shrink: 0;
 }
-.eyebrow.on-dark { color: #93c5fd; }
+.eyebrow.on-dark { color: var(--sky-200); }
 
-/* ── Buttons ────────────────────────────────────────────────── */
+/* ============================================================
+   Buttons
+   ============================================================ */
 .btn {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.8rem 1.5rem;
-  border-radius: 10px;
-  font-size: 0.9rem;
+  padding: 0.85rem 1.6rem;
+  border-radius: 11px;
+  font-size: 0.92rem;
   font-weight: 600;
   font-family: inherit;
   text-decoration: none;
@@ -180,277 +224,422 @@ header::after {
 .btn-primary {
   background: linear-gradient(135deg, var(--blue) 0%, #1a55d4 100%);
   color: #fff;
-  box-shadow: 0 6px 22px rgba(37,99,235,0.32), inset 0 1px 0 rgba(255,255,255,0.18);
+  box-shadow: 0 8px 26px rgba(37,99,235,0.36), inset 0 1px 0 rgba(255,255,255,0.2);
 }
-.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 34px rgba(37,99,235,0.42); }
+.btn-primary:hover { box-shadow: 0 14px 40px rgba(37,99,235,0.5); }
 .btn-outline {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.06);
   color: #fff;
-  border-color: rgba(255,255,255,0.3);
+  border-color: rgba(255,255,255,0.28);
   backdrop-filter: blur(8px);
 }
-.btn-outline:hover { background: rgba(255,255,255,0.14); border-color: rgba(255,255,255,0.55); transform: translateY(-2px); }
+.btn-outline:hover { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.52); }
 .btn-ghost {
   background: #fff;
   color: var(--navy);
   border-color: var(--border-2);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-.btn-ghost:hover { border-color: var(--blue); background: #f0f5ff; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(11,45,79,0.1); }
+.btn-ghost:hover { border-color: var(--blue); background: #f0f5ff; box-shadow: 0 10px 24px rgba(11,45,79,0.12); }
 
-/* ── Hero ───────────────────────────────────────────────────── */
+/* ============================================================
+   Hero
+   ============================================================ */
 .hero {
+  position: relative;
   min-height: 100vh;
-  padding: 120px 2rem 6rem;
+  padding: 150px 2rem 5rem;
   display: flex;
   align-items: center;
-  position: relative;
   overflow: hidden;
+  background: var(--ink-900);
+  isolation: isolate;
+}
+/* Animated gradient mesh */
+.hero-mesh {
+  position: absolute;
+  inset: -20%;
+  z-index: 0;
+  pointer-events: none;
   background:
-    linear-gradient(160deg, rgba(7,28,47,0.18) 0%, rgba(7,28,47,0.52) 100%),
-    url("images/hero-belltower-wide.png") center / cover no-repeat;
+    radial-gradient(40% 50% at 18% 28%, rgba(37,99,235,0.34), transparent 60%),
+    radial-gradient(38% 46% at 80% 22%, rgba(56,189,248,0.22), transparent 60%),
+    radial-gradient(45% 55% at 70% 82%, rgba(245,158,11,0.16), transparent 62%),
+    radial-gradient(40% 48% at 28% 78%, rgba(30,58,138,0.4), transparent 64%);
+  filter: blur(30px);
+  animation: meshDrift 22s ease-in-out infinite alternate;
 }
-.hero-inner {
-  max-width: 1200px;
-  margin: auto;
-  width: 100%;
-  position: relative;
-  z-index: 2;
+@keyframes meshDrift {
+  0%   { transform: translate(0,0) scale(1); }
+  50%  { transform: translate(2%,-2%) scale(1.06); }
+  100% { transform: translate(-2%,1%) scale(1.03); }
 }
-
-/* Animated blobs */
-.hero-blobs {
+/* Fine grid lines */
+.hero::before {
+  content: "";
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 0;
   pointer-events: none;
-  overflow: hidden;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 30%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 30%, transparent 80%);
 }
-.hero-blob {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(72px);
-  will-change: transform;
-}
-.hero-blob.b1 {
-  width: 560px; height: 560px;
-  background: radial-gradient(circle, rgba(37,99,235,0.22), transparent 70%);
-  top: -160px; left: -80px;
-  animation: hb1 15s ease-in-out infinite;
-}
-.hero-blob.b2 {
-  width: 400px; height: 400px;
-  background: radial-gradient(circle, rgba(245,158,11,0.14), transparent 70%);
-  bottom: -60px; right: 5%;
-  animation: hb2 12s ease-in-out infinite;
-}
-.hero-blob.b3 {
-  width: 500px; height: 500px;
-  background: radial-gradient(circle, rgba(30,58,138,0.2), transparent 70%);
-  top: 35%; left: 42%;
-  animation: hb3 18s ease-in-out infinite;
-}
-@keyframes hb1 {
-  0%,100% { transform: translate(0,0) scale(1); }
-  40%     { transform: translate(40px,-28px) scale(1.07); }
-  70%     { transform: translate(-22px,18px) scale(0.94); }
-}
-@keyframes hb2 {
-  0%,100% { transform: translate(0,0) scale(1); }
-  35%     { transform: translate(-28px,-18px) scale(1.1); }
-  65%     { transform: translate(18px,14px) scale(0.92); }
-}
-@keyframes hb3 {
-  0%,100% { transform: translate(0,0) scale(1); }
-  30%     { transform: translate(18px,28px) scale(1.05); }
-  70%     { transform: translate(-14px,-18px) scale(0.97); }
-}
-
-/* Glass card */
-.hero-glass {
-  background: linear-gradient(170deg, rgba(7,28,47,0.8), rgba(11,45,79,0.66));
-  backdrop-filter: blur(26px) saturate(140%);
-  -webkit-backdrop-filter: blur(26px) saturate(140%);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 24px;
-  padding: 3.2rem 3.6rem;
-  max-width: 650px;
+.hero-inner {
   position: relative;
-  box-shadow:
-    0 32px 72px rgba(0,0,0,0.45),
-    0 0 0 1px rgba(255,255,255,0.07),
-    inset 0 1px 0 rgba(255,255,255,0.13);
+  z-index: 3;
+  max-width: var(--maxw);
+  margin: auto;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 3.5rem;
+  align-items: center;
 }
-/* Shimmer border ring */
-.hero-glass::before {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: 25px;
-  background: linear-gradient(135deg, rgba(245,158,11,0.4) 0%, rgba(37,99,235,0.22) 50%, rgba(255,255,255,0.1) 100%);
-  z-index: -1;
-  animation: shimmer 7s ease-in-out infinite alternate;
-}
-@keyframes shimmer { from { opacity: 0.65; } to { opacity: 1; } }
-
 .hero-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  font-size: 0.7rem;
+  gap: 0.6rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #93c5fd;
-  margin-bottom: 1.1rem;
+  color: var(--sky-200);
+  padding: 0.5rem 0.95rem;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 100px;
+  background: rgba(255,255,255,0.03);
+  margin-bottom: 1.6rem;
 }
 .hero-eyebrow .dot {
-  width: 5px; height: 5px; border-radius: 50%;
+  width: 6px; height: 6px; border-radius: 50%;
   background: var(--amber);
   box-shadow: 0 0 0 3px rgba(245,158,11,0.25);
+  animation: pulseDot 2.4s ease-in-out infinite;
+}
+@keyframes pulseDot {
+  0%,100% { box-shadow: 0 0 0 3px rgba(245,158,11,0.25); }
+  50% { box-shadow: 0 0 0 6px rgba(245,158,11,0.05); }
 }
 .hero h1 {
-  font-size: 3.6rem;
-  font-weight: 900;
-  line-height: 1.04;
-  letter-spacing: -0.035em;
+  font-family: var(--display);
+  font-size: clamp(2.9rem, 6.4vw, 5.2rem);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.02em;
   color: #fff;
 }
-.hero-accent {
-  font-style: normal;
-  color: var(--amber);
-  display: block;
+.hero h1 .lead {
+  font-weight: 300;
+  color: rgba(255,255,255,0.92);
+}
+.hero h1 .accent {
+  font-style: italic;
+  font-weight: 500;
+  background: linear-gradient(100deg, var(--amber-300) 0%, var(--amber) 55%, #fff2d6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  padding-bottom: 0.28em;
 }
 .hero-sub {
-  margin-top: 1.25rem;
-  font-size: 1.05rem;
-  color: rgba(203,213,225,0.88);
-  line-height: 1.68;
+  margin-top: 1.6rem;
+  font-size: 1.1rem;
+  color: rgba(203,213,225,0.86);
+  line-height: 1.65;
   font-weight: 400;
-  max-width: 500px;
+  max-width: 480px;
 }
 .hero-actions {
-  margin-top: 2.2rem;
+  margin-top: 2.3rem;
   display: flex;
   gap: 0.9rem;
   flex-wrap: wrap;
 }
 .hero-trust {
-  margin-top: 1.8rem;
+  margin-top: 2rem;
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  font-size: 0.82rem;
-  color: rgba(255,255,255,0.58);
-  padding-top: 1.5rem;
-  border-top: 1px solid rgba(255,255,255,0.09);
+  font-size: 0.84rem;
+  color: rgba(255,255,255,0.55);
+  padding-top: 1.6rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  max-width: 480px;
 }
-.hero-trust svg { width: 14px; height: 14px; color: #93c5fd; flex-shrink: 0; }
-.hero-trust b { color: rgba(255,255,255,0.88); font-weight: 600; }
+.hero-trust svg { width: 15px; height: 15px; color: var(--blue-xl); flex-shrink: 0; }
+.hero-trust b { color: rgba(255,255,255,0.9); font-weight: 600; }
 
-/* ── Ticker ─────────────────────────────────────────────────── */
+/* Kinetic typography */
+.kin-line { display: block; }
+.kin-line > span {
+  display: block;
+  opacity: 0;
+  transform: translateY(22px);
+  animation: lineUp 0.95s var(--ease-out) forwards;
+}
+@keyframes lineUp { to { opacity: 1; transform: none; } }
+.kin { opacity: 0; transform: translateY(18px); animation: kinUp 0.9s var(--ease-out) forwards; }
+@keyframes kinUp { to { opacity: 1; transform: none; } }
+
+/* Hero product window */
+.hero-visual {
+  position: relative;
+  perspective: 1600px;
+  opacity: 0;
+  animation: kinUp 1s var(--ease-out) 0.5s forwards;
+}
+.hero-window {
+  position: relative;
+  transform: rotateY(-13deg) rotateX(6deg) rotate(0.4deg);
+  transform-style: preserve-3d;
+  border-radius: 18px;
+  background: linear-gradient(165deg, #0c1c30, #081320);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 50px 90px -30px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04);
+  overflow: hidden;
+  animation: floatWin 9s ease-in-out infinite;
+}
+@keyframes floatWin {
+  0%,100% { transform: rotateY(-13deg) rotateX(6deg) translateY(0); }
+  50% { transform: rotateY(-10deg) rotateX(4deg) translateY(-12px); }
+}
+.hero-window::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(56,189,248,0.5), rgba(37,99,235,0.1) 40%, rgba(245,158,11,0.4));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+@keyframes live { 0% { box-shadow: 0 0 0 0 rgba(40,200,64,0.55); } 100% { box-shadow: 0 0 0 8px rgba(40,200,64,0); } }
+
+/* App dashboard mockup (inspired by the live Belltower admin) */
+.hero-window.app-mock { background: #fff; }
+.am-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.7rem 0.9rem;
+  background: linear-gradient(100deg, var(--navy) 0%, var(--ink-700) 100%);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.am-brand { display: flex; align-items: center; gap: 0.5rem; color: #fff; font-weight: 800; font-size: 0.82rem; letter-spacing: -0.01em; }
+.am-logo { width: 23px; height: 23px; border-radius: 7px; background: linear-gradient(160deg, var(--sky), var(--blue)); display: flex; align-items: center; justify-content: center; color: #fff; }
+.am-logo svg { width: 13px; height: 13px; }
+.am-top-right { display: flex; align-items: center; gap: 0.5rem; }
+.am-weather { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.32rem 0.55rem; border-radius: 8px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: #fff; font-size: 0.7rem; font-weight: 700; }
+.am-weather svg { width: 13px; height: 13px; color: var(--amber-300); }
+.am-avatar { width: 27px; height: 27px; border-radius: 50%; background: linear-gradient(135deg, var(--amber), var(--amber-d)); display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,0.4); }
+.am-avatar svg { width: 14px; height: 14px; }
+.am-body { display: grid; grid-template-columns: 96px 1fr; background: var(--bg-soft); }
+.am-side { padding: 0.7rem 0.5rem; display: flex; flex-direction: column; gap: 0.12rem; border-right: 1px solid var(--border); background: #fff; }
+.am-nav { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.5rem; border-radius: 8px; font-size: 0.64rem; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.am-nav svg { width: 13px; height: 13px; color: var(--muted); }
+.am-nav.active { background: var(--blue-tint); color: var(--blue-h); }
+.am-nav.active svg { color: var(--blue); }
+.am-sec { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.12em; color: #aab4c3; padding: 0.5rem 0.5rem 0.2rem; }
+.am-main { padding: 0.8rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.am-greet { position: relative; border-radius: 13px; padding: 0.9rem 1rem; overflow: hidden; background: linear-gradient(150deg, var(--navy) 0%, #0e3b66 55%, var(--ink-700) 100%); }
+.am-greet::after { content: ""; position: absolute; top: -30%; right: -10%; width: 130px; height: 130px; border-radius: 50%; background: radial-gradient(circle, rgba(56,189,248,0.22), transparent 70%); }
+.am-gtop { display: flex; align-items: flex-start; justify-content: space-between; position: relative; z-index: 1; }
+.am-greet small { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.56rem; letter-spacing: 0.18em; font-weight: 700; color: var(--sky-200); }
+.am-greet small .gdot { width: 5px; height: 5px; border-radius: 50%; background: var(--amber); }
+.am-date { text-align: right; color: rgba(255,255,255,0.7); }
+.am-date b { display: block; font-size: 0.62rem; font-weight: 700; color: #fff; }
+.am-date span { font-size: 0.54rem; }
+.am-name { font-family: var(--display); font-size: 1.3rem; font-weight: 600; color: #fff; line-height: 1; margin: 0.4rem 0 0.55rem; position: relative; z-index: 1; }
+.am-chips { display: flex; gap: 0.35rem; flex-wrap: wrap; position: relative; z-index: 1; }
+.am-chips span { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.58rem; font-weight: 600; color: rgba(255,255,255,0.82); padding: 0.26rem 0.55rem; border-radius: 100px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.14); }
+.am-chips span svg { width: 10px; height: 10px; }
+.am-label { font-size: 0.52rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.am-qa { display: flex; gap: 0.4rem; }
+.qa { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; font-size: 0.6rem; font-weight: 700; color: var(--text-2); padding: 0.5rem 0.3rem; border-radius: 9px; background: #fff; border: 1px solid var(--border); white-space: nowrap; }
+.qa svg { width: 12px; height: 12px; }
+.qa-amber { background: linear-gradient(135deg, var(--amber), var(--amber-d)); color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(245,158,11,0.32); }
+.am-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
+.am-stat { position: relative; background: #fff; border: 1px solid var(--border); border-radius: 11px; padding: 0.6rem 0.7rem; overflow: hidden; box-shadow: 0 1px 4px rgba(15,23,42,0.04); }
+.am-stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.am-stat.red::before { background: #ef4444; }
+.am-stat.blue::before { background: var(--blue); }
+.am-stat.amber::before { background: var(--amber); }
+.am-stat .st-ico { width: 24px; height: 24px; border-radius: 7px; display: flex; align-items: center; justify-content: center; margin-bottom: 0.4rem; }
+.am-stat .st-ico svg { width: 13px; height: 13px; }
+.am-stat.red .st-ico { background: #fee2e2; color: #dc2626; }
+.am-stat.blue .st-ico { background: var(--blue-tint); color: var(--blue); }
+.am-stat.amber .st-ico { background: #fef3c7; color: var(--amber-d); }
+.am-stat .n { font-size: 1.3rem; font-weight: 800; color: var(--text); line-height: 1; }
+.am-stat.flag .n { color: #dc2626; }
+.am-stat .l { font-size: 0.52rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin-top: 0.3rem; line-height: 1.3; }
+
+/* Floating chips */
+.hero-chip {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(8,19,32,0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.12);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #fff;
+  box-shadow: 0 18px 44px rgba(0,0,0,0.5);
+  z-index: 4;
+}
+.hero-chip svg { width: 16px; height: 16px; }
+.hero-chip.c1 { top: 4%; right: -6%; animation: floatChip 6s ease-in-out infinite; }
+.hero-chip.c2 { bottom: 8%; left: -9%; animation: floatChip 7s ease-in-out infinite 0.6s; }
+.hero-chip .ico-ok { color: #34d399; }
+.hero-chip .ico-bell { color: var(--amber-300); }
+@keyframes floatChip {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+
+/* Scroll hint */
+.hero-scroll {
+  position: absolute;
+  bottom: 1.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  font-weight: 600;
+}
+.hero-scroll .track { width: 22px; height: 34px; border: 1.5px solid rgba(255,255,255,0.25); border-radius: 12px; position: relative; }
+.hero-scroll .track::before { content: ""; position: absolute; top: 6px; left: 50%; transform: translateX(-50%); width: 3px; height: 7px; border-radius: 3px; background: var(--amber); animation: scrollDot 1.8s ease-in-out infinite; }
+@keyframes scrollDot { 0% { opacity: 0; top: 6px; } 40% { opacity: 1; } 80% { opacity: 0; top: 18px; } 100% { opacity: 0; } }
+
+/* ============================================================
+   Ticker
+   ============================================================ */
 .ticker-wrap {
-  background: var(--navy-900);
-  border-top: 1px solid rgba(255,255,255,0.07);
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  padding: 0.85rem 0;
+  background: linear-gradient(180deg, var(--ink-900), var(--ink-800));
+  border-top: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 1.1rem 0;
   overflow: hidden;
   position: relative;
   user-select: none;
 }
-.ticker-wrap::before,
-.ticker-wrap::after {
+.ticker-wrap::before, .ticker-wrap::after {
   content: '';
   position: absolute;
   top: 0; bottom: 0;
-  width: 80px;
+  width: 140px;
   z-index: 1;
   pointer-events: none;
 }
-.ticker-wrap::before { left: 0;  background: linear-gradient(90deg,  var(--navy-900), transparent); }
-.ticker-wrap::after  { right: 0; background: linear-gradient(-90deg, var(--navy-900), transparent); }
-
+.ticker-wrap::before { left: 0;  background: linear-gradient(90deg,  var(--ink-900), transparent); }
+.ticker-wrap::after  { right: 0; background: linear-gradient(-90deg, var(--ink-900), transparent); }
 .ticker-track {
   display: flex;
   width: max-content;
-  animation: tick 38s linear infinite;
+  animation: tick 42s linear infinite;
   will-change: transform;
 }
-@keyframes tick {
-  from { transform: translateX(0); }
-  to   { transform: translateX(-50%); }
-}
+@keyframes tick { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 .ticker-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  padding: 0 2rem;
-  color: rgba(255,255,255,0.5);
-  font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  gap: 0.6rem;
+  padding: 0 2.4rem;
+  color: rgba(255,255,255,0.46);
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   white-space: nowrap;
 }
-.ticker-item svg { width: 13px; height: 13px; color: var(--blue-xl); opacity: 0.75; flex-shrink: 0; }
-.ticker-sep {
-  display: inline-block;
-  width: 3px; height: 3px;
-  border-radius: 50%;
-  background: var(--amber);
-  opacity: 0.65;
-  margin-left: 0.5rem;
-}
+.ticker-item svg { width: 14px; height: 14px; color: var(--blue-xl); opacity: 0.8; flex-shrink: 0; }
+.ticker-sep { display: inline-block; width: 4px; height: 4px; border-radius: 50%; background: var(--amber); opacity: 0.7; margin-left: 0.6rem; }
 
-/* ── Section scaffold ────────────────────────────────────────── */
-section.block { padding: 6rem 0; }
+/* ============================================================
+   Section scaffold
+   ============================================================ */
+section.block { padding: 7rem 0; position: relative; }
 section.soft {
   background: var(--bg-soft);
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
-.section-head { max-width: 640px; }
+.section-head { max-width: 680px; }
 .section-head.center { margin: 0 auto; text-align: center; }
 .section-head.center .eyebrow { justify-content: center; }
 .section-title {
-  font-size: 2.2rem;
-  font-weight: 800;
-  line-height: 1.13;
-  letter-spacing: -0.022em;
+  font-family: var(--display);
+  font-size: clamp(2rem, 3.6vw, 3rem);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
   color: var(--text);
-  margin-top: 0.85rem;
+  margin-top: 1rem;
 }
+.section-title em { font-style: italic; color: var(--blue); }
 .section-sub {
-  font-size: 1rem;
+  font-size: 1.04rem;
   line-height: 1.68;
   color: var(--text-2);
-  margin-top: 0.9rem;
+  margin-top: 1.1rem;
 }
 
-/* ── Modules Grid ──────────────────────────────────────────── */
+/* ============================================================
+   Modules bento
+   ============================================================ */
 .modules-bento {
-  margin-top: 3rem;
+  margin-top: 3.2rem;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 168px;
   gap: 1rem;
 }
 .mod-bento {
   background: #fff;
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 1.5rem;
+  border-radius: 18px;
+  padding: 1.6rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 150px;
   position: relative;
   overflow: hidden;
-  transition: transform 0.26s var(--ease), box-shadow 0.26s, border-color 0.26s;
+  transition: transform 0.3s var(--ease), box-shadow 0.3s, border-color 0.3s;
   box-shadow: 0 2px 8px rgba(15,23,42,0.04);
 }
+/* Cursor-follow glow */
+.mod-bento::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 320px; height: 320px;
+  transform: translate(-50%, -50%);
+  left: var(--mx, 50%);
+  top: var(--my, 50%);
+  background: radial-gradient(circle, rgba(37,99,235,0.16), transparent 65%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.mod-bento:hover::after { opacity: 1; }
 .mod-bento:hover {
   transform: translateY(-3px);
-  box-shadow: 0 18px 44px rgba(11,45,79,0.11);
+  box-shadow: 0 22px 50px rgba(11,45,79,0.13);
   border-color: var(--blue-line);
 }
 .mod-bento::before {
@@ -460,248 +649,353 @@ section.soft {
   height: 2px;
   background: linear-gradient(90deg, var(--blue), var(--amber));
   opacity: 0;
-  transition: opacity 0.26s;
+  transition: opacity 0.3s;
+  z-index: 2;
 }
 .mod-bento:hover::before { opacity: 1; }
-
-/* Featured: Leave Management — dark navy, same size */
-.mod-bento:nth-child(1) {
-  background: linear-gradient(148deg, #0b2d4f 0%, #0e3b66 100%);
+/* Irregular spans */
+.mod-bento.wide { grid-column: span 2; }
+.mod-bento.tall { grid-row: span 2; justify-content: flex-start; gap: 1rem; }
+/* Featured dark */
+.mod-bento.feature {
+  background: linear-gradient(150deg, #0b2d4f 0%, #0e3b66 55%, #08182b 100%);
   border-color: rgba(255,255,255,0.1);
+  color: #fff;
 }
-.mod-bento:nth-child(1)::before { opacity: 1; }
-.mod-bento:nth-child(1):hover { border-color: rgba(255,255,255,0.22); }
-.mod-bento:nth-child(1) .mod-ico { background: rgba(255,255,255,0.1); color: var(--amber); }
-.mod-bento:nth-child(1) .mod-title { color: #fff; }
-
-/* Amber-tinted alternates */
-.mod-bento:nth-child(2),
-.mod-bento:nth-child(4),
-.mod-bento:nth-child(6),
-.mod-bento:nth-child(8) { background: #fffcf0; }
-.mod-bento:nth-child(2) .mod-ico,
-.mod-bento:nth-child(4) .mod-ico,
-.mod-bento:nth-child(6) .mod-ico,
-.mod-bento:nth-child(8) .mod-ico { background: rgba(245,158,11,0.1); color: var(--amber-d); }
-
+.mod-bento.feature::before { opacity: 1; }
+.mod-bento.feature:hover { border-color: rgba(255,255,255,0.24); }
+.mod-bento.feature::after { background: radial-gradient(circle, rgba(245,158,11,0.2), transparent 65%); }
+.mod-bento.feature .mod-ico { background: rgba(255,255,255,0.1); color: var(--amber-300); }
+.mod-bento.feature .mod-title { color: #fff; }
+.mod-bento.feature .mod-desc { color: rgba(203,213,225,0.7); font-size: 0.82rem; line-height: 1.55; }
+.mod-bento.feature .mod-mini { margin-top: auto; display: flex; gap: 0.4rem; }
+.mod-bento.feature .mod-mini span { height: 6px; border-radius: 4px; background: rgba(255,255,255,0.14); }
+.mod-bento.feature .mod-mini span:nth-child(1) { width: 44px; background: rgba(56,189,248,0.5); }
+.mod-bento.feature .mod-mini span:nth-child(2) { width: 28px; background: rgba(245,158,11,0.55); }
+.mod-bento.feature .mod-mini span:nth-child(3) { width: 36px; }
+/* Amber tinted alternates */
+.mod-bento.amber { background: #fffcf0; }
+.mod-bento.amber .mod-ico { background: rgba(245,158,11,0.12); color: var(--amber-d); }
 .mod-ico {
-  width: 42px; height: 42px; border-radius: 11px; flex-shrink: 0;
+  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
   background: var(--blue-tint); color: var(--blue);
   display: flex; align-items: center; justify-content: center;
   transition: transform 0.22s var(--ease);
+  position: relative; z-index: 2;
 }
-.mod-bento:hover .mod-ico { transform: scale(1.06); }
-.mod-ico svg { width: 19px; height: 19px; }
-
+.mod-bento:hover .mod-ico { transform: scale(1.08) rotate(-3deg); }
+.mod-ico svg { width: 20px; height: 20px; }
 .mod-title {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: var(--text);
   line-height: 1.3;
   letter-spacing: -0.01em;
+  position: relative; z-index: 2;
 }
+.bento-cta { margin-top: 2rem; text-align: center; }
 
-.bento-cta {
-  margin-top: 1.8rem;
-  text-align: center;
-}
-
-/* ── Feature Cards ───────────────────────────────────────────── */
-.feature-grid {
-  margin-top: 3.5rem;
+/* ============================================================
+   Features (sticky scroll showcase)
+   ============================================================ */
+.ft-layout {
+  margin-top: 4rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(272px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: 0.92fr 1.08fr;
+  gap: 4.5rem;
+  align-items: start;
 }
-.card {
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 2rem;
-  box-shadow: 0 2px 12px rgba(15,23,42,0.04);
-  position: relative;
-  overflow: hidden;
-  transition: transform 0.3s var(--ease), box-shadow 0.3s, border-color 0.3s;
+.ft-track { display: flex; flex-direction: column; }
+.ft-block {
+  min-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  opacity: 0.32;
+  transition: opacity 0.45s var(--ease-out);
 }
-/* Gradient top bar on hover */
-.card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--blue), var(--amber));
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 0.4s var(--ease);
+.ft-block.is-active { opacity: 1; }
+.ft-index {
+  font-family: var(--display);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--blue);
+  letter-spacing: 0.05em;
 }
-.card:hover::before { transform: scaleX(1); }
-.card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 26px 54px rgba(11,45,79,0.13);
-  border-color: var(--blue-line);
-}
-/* Subtle corner glow */
-.card::after {
-  content: '';
-  position: absolute;
-  bottom: -40px; right: -40px;
-  width: 130px; height: 130px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(37,99,235,0.06), transparent 70%);
-  opacity: 0;
-  transition: opacity 0.4s;
-  pointer-events: none;
-}
-.card:hover::after { opacity: 1; }
-
-/* Amber variant on even cards */
-.card:nth-child(even)::before {
-  background: linear-gradient(90deg, var(--amber), var(--blue));
-}
-.card:nth-child(even)::after {
-  background: radial-gradient(circle, rgba(245,158,11,0.06), transparent 70%);
-}
-.card:nth-child(even) .card-ico {
-  background: rgba(245,158,11,0.1);
-  color: var(--amber-d);
-}
-.card:nth-child(even) .card-bullets li svg { color: var(--amber-d); }
-
-.card-ico {
-  width: 46px; height: 46px; border-radius: 12px;
+.ft-ico {
+  width: 50px; height: 50px; border-radius: 13px;
   background: var(--blue-tint); color: var(--blue);
   display: flex; align-items: center; justify-content: center;
-  margin-bottom: 1.2rem;
-  transition: transform 0.3s var(--ease), box-shadow 0.3s;
+  margin: 1.1rem 0 1.3rem;
 }
-.card:hover .card-ico { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(37,99,235,0.07); }
-.card:nth-child(even):hover .card-ico { box-shadow: 0 0 0 6px rgba(245,158,11,0.1); }
-.card-ico svg { width: 22px; height: 22px; }
-
-.card h3 {
-  font-size: 1.08rem;
-  font-weight: 700;
+.ft-ico svg { width: 24px; height: 24px; }
+.ft-block h3 {
+  font-family: var(--display);
+  font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+  font-weight: 500;
+  letter-spacing: -0.01em;
   color: var(--text);
-  margin-bottom: 0.55rem;
-  letter-spacing: -0.015em;
+  line-height: 1.1;
 }
-.card > p { font-size: 0.9rem; line-height: 1.6; color: var(--text-2); }
-.card-bullets { list-style: none; margin-top: 1.1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-.card-bullets li {
-  font-size: 0.84rem;
+.ft-block > p { font-size: 1rem; line-height: 1.65; color: var(--text-2); margin-top: 0.9rem; max-width: 440px; }
+.ft-bullets { list-style: none; margin-top: 1.4rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.ft-bullets li {
+  font-size: 0.9rem;
   line-height: 1.45;
   color: var(--text-2);
   display: flex;
-  align-items: baseline;
-  gap: 0.55rem;
+  align-items: flex-start;
+  gap: 0.65rem;
 }
-.card-bullets li svg { width: 13px; height: 13px; color: var(--blue); flex-shrink: 0; position: relative; top: 2px; }
+.ft-bullets li svg { width: 17px; height: 17px; color: var(--blue); flex-shrink: 0; position: relative; top: 1px; padding: 2px; background: var(--blue-tint); border-radius: 5px; box-sizing: content-box; }
 
-/* ── Why Belltower ───────────────────────────────────────────── */
+/* Sticky stage */
+.ft-stage { position: sticky; top: 0; height: 100vh; }
+.ft-stage-inner {
+  position: relative;
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.ft-stage-inner::before {
+  content: "";
+  position: absolute;
+  inset: 8% 4%;
+  border-radius: 32px;
+  background: radial-gradient(60% 60% at 50% 35%, rgba(37,99,235,0.1), transparent 70%), linear-gradient(160deg, #f4f8ff, #eef3fb);
+  border: 1px solid var(--border);
+}
+.ft-mock {
+  position: absolute;
+  width: min(420px, 86%);
+  opacity: 0;
+  transform: translateY(34px) scale(0.95);
+  transition: opacity 0.55s var(--ease-out), transform 0.55s var(--ease-out);
+  pointer-events: none;
+}
+.ft-mock.is-active { opacity: 1; transform: none; }
+
+/* Mock window shared */
+.mw {
+  background: #fff;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: 0 34px 70px -24px rgba(11,45,79,0.4);
+  overflow: hidden;
+}
+.mw-bar { display: flex; align-items: center; gap: 0.45rem; padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); background: var(--bg-soft); }
+.mw-bar .d { width: 9px; height: 9px; border-radius: 50%; background: #d9dee8; }
+.mw-bar .d.r { background: #ff5f57; } .mw-bar .d.y { background: #febc2e; } .mw-bar .d.g { background: #28c840; }
+.mw-bar .t { margin-left: auto; font-size: 0.7rem; font-weight: 700; color: var(--muted); letter-spacing: 0.04em; display: inline-flex; align-items: center; gap: 0.4rem; }
+.mw-bar .t .live { width: 7px; height: 7px; border-radius: 50%; background: #28c840; animation: live 1.8s ease-out infinite; }
+.mw-body { padding: 1.2rem; }
+.mrow { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem 0.8rem; border-radius: 11px; border: 1px solid var(--border); margin-bottom: 0.55rem; background: #fff; }
+.mrow:last-child { margin-bottom: 0; }
+.mav { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, var(--blue-400), var(--navy)); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; }
+.mav.a2 { background: linear-gradient(135deg, var(--amber), var(--amber-d)); }
+.mav.a3 { background: linear-gradient(135deg, var(--sky), var(--blue)); }
+.mtext { flex: 1; display: flex; flex-direction: column; gap: 0.32rem; }
+.mline { height: 7px; border-radius: 4px; background: #e8edf5; }
+.mline.s { width: 55%; height: 6px; background: #eef2f8; }
+.mpill { font-size: 0.62rem; font-weight: 700; padding: 0.25rem 0.6rem; border-radius: 100px; letter-spacing: 0.02em; white-space: nowrap; }
+.mpill.ok { color: #047857; background: #d1fae5; }
+.mpill.warn { color: var(--amber-d); background: #fef3c7; }
+.mpill.info { color: var(--blue-h); background: var(--blue-tint); }
+.mpill.mut { color: var(--muted); background: #eef1f6; }
+/* board */
+.mboard { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+.mcol { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 12px; padding: 0.7rem; }
+.mcol h5 { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.55rem; display: flex; align-items: center; gap: 0.35rem; }
+.mcol h5 svg { width: 13px; height: 13px; }
+.mchip { display: flex; align-items: center; gap: 0.45rem; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 0.4rem 0.5rem; margin-bottom: 0.4rem; font-size: 0.72rem; font-weight: 600; color: var(--text-2); }
+.mchip:last-child { margin-bottom: 0; }
+.mchip .dotc { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); flex-shrink: 0; }
+.mchip .dotc.am { background: var(--amber); }
+/* call board */
+.mcall { text-align: center; padding: 1.4rem 1rem 1rem; border-radius: 14px; background: linear-gradient(160deg, var(--blue-tint), #fff); border: 1px solid var(--blue-line); margin-bottom: 0.7rem; }
+.mcall small { font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--blue); font-weight: 700; }
+.mcall .big { font-family: var(--display); font-size: 2.6rem; font-weight: 600; color: var(--navy); line-height: 1; margin-top: 0.25rem; }
+.mcall .nm { font-size: 0.74rem; color: var(--muted); margin-top: 0.4rem; }
+/* mini cal */
+.mcal { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; }
+.mcal span { aspect-ratio: 1; border-radius: 7px; background: var(--bg-soft); border: 1px solid var(--border); font-size: 0.6rem; color: var(--muted); display: flex; align-items: center; justify-content: center; font-weight: 600; }
+.mcal span.on { background: var(--blue); color: #fff; border-color: var(--blue); }
+.mcal span.am { background: var(--amber); color: #fff; border-color: var(--amber); }
+.mhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.9rem; }
+.mhead .ttl { font-size: 0.82rem; font-weight: 700; color: var(--text); display: inline-flex; align-items: center; gap: 0.45rem; }
+.mhead .ttl svg { width: 16px; height: 16px; color: var(--blue); }
+/* Realistic mock text rows */
+.mtext-name { font-size: 0.72rem; font-weight: 600; color: var(--text); line-height: 1.3; }
+.mtext-sub  { font-size: 0.6rem; color: var(--muted); line-height: 1.3; }
+.am-mod-label { font-size: 0.62rem; font-weight: 600; color: rgba(255,255,255,0.55); letter-spacing: 0.01em; }
+.msearch { display:flex; align-items:center; gap:0.5rem; background:var(--bg-soft); border:1px solid var(--border); border-radius:8px; padding:0.38rem 0.65rem; margin-bottom:0.55rem; }
+.msearch svg { width:13px; height:13px; color:var(--muted); flex-shrink:0; }
+.msearch span { font-size:0.7rem; color:#94a3b8; }
+
+/* ============================================================
+   Stats band
+   ============================================================ */
+.stats-band {
+  position: relative;
+  background: var(--ink-900);
+  overflow: hidden;
+  isolation: isolate;
+}
+.stats-band .mesh {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(40% 70% at 12% 50%, rgba(37,99,235,0.28), transparent 60%),
+    radial-gradient(40% 70% at 88% 50%, rgba(245,158,11,0.14), transparent 60%);
+}
+.stats-inner { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; }
+.stat-card {
+  padding: 1.4rem 0.5rem;
+  text-align: center;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+.stat-card:last-child { border-right: none; }
+.stat-num {
+  font-family: var(--display);
+  font-size: clamp(3.4rem, 7vw, 5.6rem);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 0.9;
+  background: linear-gradient(160deg, #fff 0%, var(--sky-200) 60%, var(--blue-xl) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-variation-settings: 'opsz' 144, 'WONK' 0;
+}
+.stat-card:nth-child(even) .stat-num {
+  background: linear-gradient(160deg, #fff 0%, var(--amber-300) 55%, var(--amber) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.stat-label { font-size: 0.86rem; color: rgba(203,213,225,0.66); margin-top: 0.9rem; line-height: 1.45; font-weight: 500; max-width: 180px; margin-left: auto; margin-right: auto; }
+
+/* ============================================================
+   Why Belltower
+   ============================================================ */
 .value-inner {
   display: grid;
-  grid-template-columns: 1fr 0.88fr;
-  gap: 5rem;
+  grid-template-columns: 1fr 0.9fr;
+  gap: 4.5rem;
   align-items: center;
 }
-.value-blocks { margin-top: 2.5rem; display: flex; flex-direction: column; gap: 1.8rem; }
-.value-block {
-  padding-left: 1.4rem;
-  position: relative;
-}
+.value-blocks { margin-top: 2.5rem; display: flex; flex-direction: column; gap: 1.9rem; }
+.value-block { padding-left: 1.5rem; position: relative; }
 .value-block::before {
   content: '';
   position: absolute;
-  left: 0; top: 0; bottom: 0;
+  left: 0; top: 0.15rem; bottom: 0.15rem;
   width: 3px;
   background: linear-gradient(180deg, var(--blue), var(--amber));
   border-radius: 2px;
 }
-.value-block h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; letter-spacing: -0.01em; }
-.value-block p { font-size: 0.9rem; line-height: 1.65; color: var(--text-2); }
+.value-block h3 { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-bottom: 0.45rem; letter-spacing: -0.01em; }
+.value-block p { font-size: 0.94rem; line-height: 1.65; color: var(--text-2); }
 
-.value-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-.stat-card {
-  background: linear-gradient(150deg, #fff 0%, var(--bg-soft) 100%);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 1.8rem 1.6rem;
-  box-shadow: 0 2px 12px rgba(15,23,42,0.04);
+.value-media { position: relative; }
+.value-frame {
   position: relative;
+  border-radius: 22px;
   overflow: hidden;
-  transition: transform 0.26s var(--ease), box-shadow 0.26s;
+  border: 1px solid var(--border-2);
+  box-shadow: 0 40px 80px -30px rgba(11,45,79,0.45);
+  aspect-ratio: 4 / 3.4;
 }
-.stat-card:hover { transform: translateY(-3px); box-shadow: 0 18px 38px rgba(11,45,79,0.1); }
-.stat-card::before {
-  content: '';
+.value-frame img { width: 100%; height: 100%; object-fit: cover; filter: saturate(1.05) contrast(1.02); }
+.value-frame::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(7,28,47,0.05) 0%, rgba(7,28,47,0.42) 100%);
+}
+.value-tag {
   position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--blue), var(--amber));
+  bottom: 1rem; left: 1rem; right: 1rem;
+  z-index: 2;
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  background: rgba(8,19,32,0.7);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: #fff;
 }
-.stat-num {
-  font-size: 3rem;
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 1;
-  background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.stat-card:nth-child(even) .stat-num {
-  background: linear-gradient(135deg, #b45309 0%, var(--amber) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-.stat-label { font-size: 0.84rem; color: var(--text-2); margin-top: 0.6rem; line-height: 1.4; font-weight: 500; }
+.value-tag .vt-ico { width: 34px; height: 34px; border-radius: 9px; background: rgba(245,158,11,0.16); color: var(--amber-300); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.value-tag .vt-ico svg { width: 17px; height: 17px; }
+.value-tag b { font-size: 0.86rem; font-weight: 700; display: block; }
+.value-tag span { font-size: 0.74rem; color: rgba(255,255,255,0.6); }
 
-/* ── CTA Band ────────────────────────────────────────────────── */
+/* ============================================================
+   CTA Band
+   ============================================================ */
 .cta-band {
   position: relative;
-  background: linear-gradient(135deg, var(--navy-900) 0%, var(--navy) 45%, var(--navy-600) 75%, var(--navy-900) 100%);
+  background: linear-gradient(150deg, var(--ink-900) 0%, var(--navy) 45%, var(--navy-600) 70%, var(--ink-900) 100%);
   overflow: hidden;
   text-align: center;
+  isolation: isolate;
 }
-/* Dot grid */
 .cta-band::before {
   content: '';
   position: absolute;
-  inset: 0;
-  background-image: radial-gradient(rgba(255,255,255,0.055) 1px, transparent 1px);
-  background-size: 28px 28px;
+  inset: 0; z-index: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 30px 30px;
   pointer-events: none;
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000, transparent 75%);
 }
-/* Warm radial glow */
-.cta-band::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse 700px 380px at 50% -5%, rgba(245,158,11,0.11), transparent 70%);
-  pointer-events: none;
+.cta-band .glow {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(ellipse 720px 400px at 50% -8%, rgba(245,158,11,0.14), transparent 70%);
 }
-.cta-inner { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; }
+.cta-inner { position: relative; z-index: 2; max-width: 680px; margin: 0 auto; }
 .cta-band h2 {
-  font-size: 2.5rem;
-  font-weight: 900;
-  line-height: 1.1;
+  font-family: var(--display);
+  font-size: clamp(2.2rem, 4.6vw, 3.4rem);
+  font-weight: 500;
+  line-height: 1.05;
   color: #fff;
-  letter-spacing: -0.025em;
-  margin-top: 0.85rem;
+  letter-spacing: -0.02em;
+  margin-top: 1rem;
 }
-.cta-band p { font-size: 1.05rem; line-height: 1.65; color: rgba(203,213,225,0.82); margin: 1.1rem 0 2.2rem; }
+.cta-band h2 em { font-style: italic; color: var(--amber-300); }
+.cta-band p { font-size: 1.1rem; line-height: 1.65; color: rgba(203,213,225,0.82); margin: 1.3rem auto 2.4rem; max-width: 480px; }
 .cta-actions { display: flex; gap: 0.9rem; justify-content: center; flex-wrap: wrap; }
 
-/* ── Footer ──────────────────────────────────────────────────── */
+/* ============================================================
+   Footer
+   ============================================================ */
 footer {
-  background: var(--navy-900);
-  background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
-  background-size: 28px 28px;
+  position: relative;
+  background: var(--ink-900);
   border-top: 1px solid rgba(255,255,255,0.07);
-  padding: 3.5rem 0 2rem;
+  padding: 4.5rem 0 2rem;
+  overflow: hidden;
+}
+.footer-watermark {
+  position: absolute;
+  left: 50%;
+  bottom: -0.18em;
+  transform: translateX(-50%);
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 22vw;
+  line-height: 0.8;
+  letter-spacing: -0.03em;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(255,255,255,0.06);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
 }
 .footer-grid {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: 1fr auto auto;
   gap: 4rem;
@@ -709,102 +1003,98 @@ footer {
   padding-bottom: 2.5rem;
   border-bottom: 1px solid rgba(255,255,255,0.07);
 }
-.footer-brand img { height: 30px; width: auto; opacity: 0.9; margin-bottom: 0.9rem; display: block; }
-.footer-brand p { font-size: 0.83rem; color: rgba(255,255,255,0.42); line-height: 1.65; max-width: 230px; }
+.footer-brand img { height: 30px; width: auto; opacity: 0.92; margin-bottom: 1rem; }
+.footer-brand p { font-size: 0.85rem; color: rgba(255,255,255,0.44); line-height: 1.65; max-width: 250px; }
 .footer-col h4 {
   font-size: 0.7rem;
   font-weight: 700;
-  letter-spacing: 0.11em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: rgba(255,255,255,0.38);
-  margin-bottom: 1rem;
+  color: rgba(255,255,255,0.4);
+  margin-bottom: 1.1rem;
 }
-.footer-col-links { display: flex; flex-direction: column; gap: 0.65rem; }
+.footer-col-links { display: flex; flex-direction: column; gap: 0.7rem; }
 .footer-col-links a {
-  color: rgba(255,255,255,0.58);
+  color: rgba(255,255,255,0.6);
   text-decoration: none;
-  font-size: 0.87rem;
+  font-size: 0.88rem;
   font-weight: 500;
   transition: color 0.18s;
+  width: fit-content;
 }
 .footer-col-links a:hover { color: #fff; }
 .footer-bottom {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 1.6rem;
+  padding-top: 1.7rem;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
-.footer-copy { color: rgba(255,255,255,0.32); font-size: 0.8rem; }
-.footer-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.75rem;
-  color: rgba(255,255,255,0.32);
-  font-weight: 500;
-}
-.footer-badge::before {
-  content: '';
-  width: 5px; height: 5px; border-radius: 50%;
-  background: var(--amber);
-  opacity: 0.6;
-  flex-shrink: 0;
-}
+.footer-copy { color: rgba(255,255,255,0.34); font-size: 0.82rem; }
+.footer-badge { display: inline-flex; align-items: center; gap: 0.45rem; font-size: 0.76rem; color: rgba(255,255,255,0.34); font-weight: 500; }
+.footer-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--amber); opacity: 0.7; flex-shrink: 0; }
 
-/* ── Modal ───────────────────────────────────────────────────── */
+/* ============================================================
+   Modal
+   ============================================================ */
 .modal {
   position: fixed; inset: 0; z-index: 1000;
-  background: rgba(7,28,47,0.62);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(2,8,16,0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: none; align-items: center; justify-content: center; padding: 1rem;
 }
 .modal.active { display: flex; }
 .modal-box {
-  background: #fff; border-radius: 20px; padding: 2.2rem; width: 100%; max-width: 460px;
-  box-shadow: 0 40px 80px rgba(7,28,47,0.4);
-  animation: modal-in 0.3s var(--ease);
+  background: #fff; border-radius: 22px; padding: 2.3rem; width: 100%; max-width: 460px;
+  box-shadow: 0 50px 90px rgba(2,8,16,0.5);
+  animation: modal-in 0.32s var(--ease);
   border: 1px solid var(--border);
 }
-@keyframes modal-in { from { opacity: 0; transform: translateY(14px) scale(0.97); } to { opacity: 1; transform: none; } }
-.modal-box h2 { font-size: 1.3rem; font-weight: 800; color: var(--text); margin-bottom: 0.3rem; letter-spacing: -0.02em; }
-.modal-box .modal-lead { font-size: 0.88rem; color: var(--muted); margin-bottom: 0.5rem; line-height: 1.55; }
-.modal-box label { display: block; font-size: 0.76rem; font-weight: 600; color: var(--text-2); margin-top: 1rem; margin-bottom: 0.3rem; }
+@keyframes modal-in { from { opacity: 0; transform: translateY(16px) scale(0.97); } to { opacity: 1; transform: none; } }
+.modal-box h2 { font-family: var(--display); font-size: 1.5rem; font-weight: 600; color: var(--text); margin-bottom: 0.35rem; letter-spacing: -0.01em; }
+.modal-box .modal-lead { font-size: 0.9rem; color: var(--muted); margin-bottom: 0.5rem; line-height: 1.55; }
+.modal-box label { display: block; font-size: 0.76rem; font-weight: 600; color: var(--text-2); margin-top: 1rem; margin-bottom: 0.35rem; }
 .modal-box input, .modal-box textarea {
-  width: 100%; padding: 0.7rem 1rem; border-radius: 10px;
+  width: 100%; padding: 0.75rem 1rem; border-radius: 11px;
   border: 1px solid var(--border); background: var(--bg-soft); color: var(--text);
   font-size: 0.92rem; font-family: inherit; outline: none;
-  transition: border-color 0.18s, box-shadow 0.18s;
+  transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
 }
 .modal-box input:focus, .modal-box textarea:focus {
   border-color: var(--blue); background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
 }
 .modal-box input::placeholder, .modal-box textarea::placeholder { color: #94a3b8; }
-.modal-actions { display: flex; justify-content: flex-end; gap: 0.65rem; margin-top: 1.6rem; padding-top: 1.2rem; border-top: 1px solid #f1f5f9; }
-.modal-actions button { padding: 0.65rem 1.3rem; border-radius: 10px; font-size: 0.88rem; font-weight: 600; font-family: inherit; cursor: pointer; border: none; transition: background 0.18s, transform 0.15s; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.65rem; margin-top: 1.7rem; padding-top: 1.2rem; border-top: 1px solid #f1f5f9; }
+.modal-actions button { padding: 0.7rem 1.4rem; border-radius: 11px; font-size: 0.9rem; font-weight: 600; font-family: inherit; cursor: pointer; border: none; transition: background 0.18s, transform 0.15s, box-shadow 0.18s; }
 .modal-actions button:hover { transform: translateY(-1px); }
 .cancel { background: #f1f5f9; color: var(--text-2); }
 .cancel:hover { background: #e2e8f0; }
-.submit { background: linear-gradient(135deg, var(--blue) 0%, #1a55d4 100%); color: #fff; box-shadow: 0 4px 12px rgba(37,99,235,0.28); }
-.submit:hover { box-shadow: 0 6px 18px rgba(37,99,235,0.38); }
+.submit { background: linear-gradient(135deg, var(--blue) 0%, #1a55d4 100%); color: #fff; box-shadow: 0 4px 14px rgba(37,99,235,0.3); }
+.submit:hover { box-shadow: 0 8px 22px rgba(37,99,235,0.42); }
 
-/* ── Reveal ──────────────────────────────────────────────────── */
-.reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.65s var(--ease-out), transform 0.65s var(--ease-out); }
+/* ============================================================
+   Reveal
+   ============================================================ */
+.reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s var(--ease-out), transform 0.7s var(--ease-out); }
 .reveal.visible { opacity: 1; transform: none; }
+.stagger > * { opacity: 0; transform: translateY(20px); transition: opacity 0.58s var(--ease-out), transform 0.58s var(--ease-out); }
+.stagger.visible > * { opacity: 1; transform: none; }
+.stagger.visible > *:nth-child(1){transition-delay:.04s}
+.stagger.visible > *:nth-child(2){transition-delay:.09s}
+.stagger.visible > *:nth-child(3){transition-delay:.14s}
+.stagger.visible > *:nth-child(4){transition-delay:.19s}
+.stagger.visible > *:nth-child(5){transition-delay:.24s}
+.stagger.visible > *:nth-child(6){transition-delay:.29s}
+.stagger.visible > *:nth-child(7){transition-delay:.34s}
+.stagger.visible > *:nth-child(8){transition-delay:.39s}
 
-.stagger > * { opacity: 0; transform: translateY(18px); transition: opacity 0.55s var(--ease-out), transform 0.55s var(--ease-out); }
-.stagger.visible > *:nth-child(1) { opacity:1;transform:none;transition-delay:0.04s }
-.stagger.visible > *:nth-child(2) { opacity:1;transform:none;transition-delay:0.1s }
-.stagger.visible > *:nth-child(3) { opacity:1;transform:none;transition-delay:0.16s }
-.stagger.visible > *:nth-child(4) { opacity:1;transform:none;transition-delay:0.22s }
-.stagger.visible > *:nth-child(5) { opacity:1;transform:none;transition-delay:0.28s }
-.stagger.visible > *:nth-child(6) { opacity:1;transform:none;transition-delay:0.34s }
-.stagger.visible > *:nth-child(7) { opacity:1;transform:none;transition-delay:0.4s }
-.stagger.visible > *:nth-child(8) { opacity:1;transform:none;transition-delay:0.46s }
-
-/* ── Reduced Motion ──────────────────────────────────────────── */
+/* ============================================================
+   Reduced motion
+   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -813,44 +1103,68 @@ footer {
     scroll-behavior: auto !important;
   }
   .ticker-track { animation: none; }
+  .hero-window { transform: rotateY(-8deg) rotateX(4deg); }
+  .kin-line > span, .kin, .hero-visual { opacity: 1; transform: none; }
 }
 
-/* ── Responsive ──────────────────────────────────────────────── */
+/* ============================================================
+   Responsive
+   ============================================================ */
 @media (max-width: 1024px) {
+  .hero-inner { grid-template-columns: 1fr; gap: 3rem; }
+  .hero-visual { max-width: 460px; }
+  .hero-chip.c1 { right: 2%; } .hero-chip.c2 { left: 2%; }
   .value-inner { grid-template-columns: 1fr; gap: 3rem; }
-  .value-stats { grid-template-columns: repeat(4, 1fr); }
+  .ft-layout { grid-template-columns: 1fr; gap: 0; margin-top: 2.5rem; }
+  .ft-stage { display: none; }
+  .ft-block {
+    min-height: auto;
+    opacity: 1;
+    padding: 2rem;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: #fff;
+    box-shadow: 0 2px 12px rgba(15,23,42,0.04);
+    margin-bottom: 1.5rem;
+  }
 }
 @media (max-width: 900px) {
   .nav-links a.text-link:not(.nav-login):not(.nav-cta-link) { display: none; }
-  .hero h1 { font-size: 2.7rem; }
-  .hero-glass { padding: 2.2rem; max-width: 100%; }
-  .modules-bento { grid-template-columns: repeat(2, 1fr); }
-  .section-title { font-size: 1.9rem; }
-  .cta-band h2 { font-size: 2rem; }
+  .modules-bento { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 156px; }
+  .mod-bento.wide { grid-column: span 2; }
+  .mod-bento.tall { grid-row: span 1; }
   .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
-  .stat-num { font-size: 2.4rem; }
-  .value-stats { grid-template-columns: 1fr 1fr; }
+  .stats-inner { grid-template-columns: 1fr 1fr; gap: 1rem 0; }
+  .stat-card:nth-child(2) { border-right: none; }
+  .stat-card { border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 1.8rem; }
+  .stat-card:nth-child(3), .stat-card:nth-child(4) { border-bottom: none; }
+  .hero-scroll { display: none; }
 }
 @media (max-width: 640px) {
   .shell { padding: 0 1.25rem; }
-  section.block { padding: 4.5rem 0; }
-  .hero { padding: 105px 1.25rem 4rem; }
-  .hero h1 { font-size: 2.15rem; }
-  .hero-glass { padding: 1.8rem; border-radius: 18px; }
-  .modules-bento { grid-template-columns: repeat(2, 1fr); }
+  section.block { padding: 4.8rem 0; }
+  .hero { padding: 120px 1.25rem 3.5rem; }
+  .hero-eyebrow { font-size: 0.66rem; }
+  .modules-bento { grid-template-columns: 1fr; grid-auto-rows: auto; }
+  .mod-bento { min-height: 132px; }
+  .mod-bento.wide { grid-column: span 1; }
   .nav-cta span { display: none; }
-  .cta-band h2 { font-size: 1.75rem; }
-  .footer-grid { gap: 1.5rem; }
-  .footer-brand p { display: none; }
+  .nav-cta { padding: 0.6rem 0.8rem; }
+  .ft-block { padding: 1.6rem; }
+  .value-frame { aspect-ratio: 4 / 3; }
+  .am-body { grid-template-columns: 1fr; }
+  .am-side { display: none; }
 }
 </style>
 </head>
 <body>
 
-<!-- Scroll progress bar -->
+<!-- Scroll progress (vertical) -->
 <div class="scroll-progress" id="scrollProgress"></div>
 
-<!-- ── Header ──────────────────────────────────────────────────── -->
+<!-- ============================================================
+     Header
+     ============================================================ -->
 <header id="mainHeader">
   <div class="header-inner">
     <div class="logo">
@@ -860,45 +1174,110 @@ footer {
       <a class="text-link" href="#features">Features</a>
       <a class="text-link" href="#why">Why Belltower</a>
       <a class="text-link nav-login" href="app/login.html">Log in</a>
-      <button class="nav-cta" onclick="openModal('Request a Demo')">
+      <button class="nav-cta magnetic" onclick="openModal('Request a Demo')">
         <i data-lucide="calendar-check"></i><span>Request a Demo</span>
       </button>
     </nav>
   </div>
 </header>
 
-<!-- ── Hero ────────────────────────────────────────────────────── -->
-<section class="hero">
-  <div class="hero-blobs" aria-hidden="true">
-    <div class="hero-blob b1"></div>
-    <div class="hero-blob b2"></div>
-    <div class="hero-blob b3"></div>
-  </div>
+<!-- ============================================================
+     Hero
+     ============================================================ -->
+<section class="hero grain">
+  <div class="hero-mesh" aria-hidden="true"></div>
   <div class="hero-inner">
-    <div class="hero-glass reveal">
-      <p class="hero-eyebrow"><span class="dot"></span> School Operations Platform</p>
-      <h1>Less logistics.<br><em class="hero-accent">More learning.</em></h1>
-      <p class="hero-sub">
+    <div class="hero-copy">
+      <p class="hero-eyebrow kin" style="animation-delay:.15s"><span class="dot"></span> School Operations Platform</p>
+      <h1>
+        <span class="kin-line"><span class="lead" style="animation-delay:.1s">Less logistics.</span></span>
+        <span class="kin-line"><span class="accent" style="animation-delay:.22s">More learning.</span></span>
+      </h1>
+      <p class="hero-sub kin" style="animation-delay:.5s">
         Belltower replaces the spreadsheets and email chains that slow schools down.
         One connected platform, built specifically for how schools operate.
       </p>
-      <div class="hero-actions">
-        <button class="btn btn-primary" onclick="openModal('Request a Demo')">
+      <div class="hero-actions kin" style="animation-delay:.62s">
+        <button class="btn btn-primary magnetic" onclick="openModal('Request a Demo')">
           <i data-lucide="calendar-check"></i> Request a Demo
         </button>
         <a class="btn btn-outline" href="#features">
           See what it does <i data-lucide="arrow-right"></i>
         </a>
       </div>
-      <div class="hero-trust">
+      <div class="hero-trust kin" style="animation-delay:.74s">
         <i data-lucide="lock"></i>
-        <span>Role-based access &amp; audit trails, <b>built for K–12</b></span>
+        <span>Role-based access &amp; audit trails, <b>built for K-12</b></span>
       </div>
     </div>
+
+    <div class="hero-visual" aria-hidden="true">
+      <div class="hero-window app-mock">
+        <div class="am-top">
+          <div class="am-brand">
+            <img src="images/belltower-logo.png" alt="Belltower" style="height:22px;width:auto">
+          </div>
+          <div class="am-top-right">
+            <span class="am-weather"><i data-lucide="sun"></i> 71°</span>
+            <span class="am-avatar"><i data-lucide="user"></i></span>
+          </div>
+        </div>
+        <div class="am-body">
+          <aside class="am-side">
+            <span class="am-nav active"><i data-lucide="layout-dashboard"></i> Dashboard</span>
+            <span class="am-sec">OPERATIONS</span>
+            <span class="am-nav"><i data-lucide="calendar"></i> Leave</span>
+            <span class="am-nav"><i data-lucide="repeat-2"></i> Substitutes</span>
+            <span class="am-nav"><i data-lucide="car"></i> Carline</span>
+            <span class="am-nav"><i data-lucide="shield-check"></i> Compliance</span>
+            <span class="am-nav"><i data-lucide="map"></i> Field Trips</span>
+          </aside>
+          <main class="am-main">
+            <div class="am-greet">
+              <div class="am-gtop">
+                <small><span class="gdot"></span> GOOD MORNING</small>
+                <div class="am-date"><b>Monday</b><span>June 15, 2026</span></div>
+              </div>
+              <div class="am-name">Welcome back</div>
+              <div class="am-chips">
+                <span><i data-lucide="building-2"></i> Riverside Academy</span>
+                <span><i data-lucide="shield"></i> Administrator</span>
+              </div>
+            </div>
+            <div>
+              <div class="am-label">Quick Actions</div>
+              <div class="am-qa" style="margin-top:0.45rem">
+                <span class="qa qa-amber"><i data-lucide="car"></i> Start Carline</span>
+                <span class="qa"><i data-lucide="user-plus"></i> Add Staff</span>
+                <span class="qa"><i data-lucide="calendar-check"></i> Review Leave</span>
+              </div>
+            </div>
+            <div>
+              <div class="am-label">Needs Attention</div>
+              <div class="am-grid" style="margin-top:0.45rem">
+                <div class="am-stat red"><div class="st-ico"><i data-lucide="calendar-clock"></i></div><div class="n">0</div><div class="l">Pending Leave</div></div>
+                <div class="am-stat blue"><div class="st-ico"><i data-lucide="user-minus"></i></div><div class="n">0</div><div class="l">Staff Out Today</div></div>
+                <div class="am-stat amber"><div class="st-ico"><i data-lucide="badge-alert"></i></div><div class="n">0</div><div class="l">Licenses Expiring</div></div>
+                <div class="am-stat red flag"><div class="st-ico"><i data-lucide="user-check"></i></div><div class="n">2</div><div class="l">Pending BG Checks</div></div>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+      <div class="hero-chip c1"><i data-lucide="check-circle-2" class="ico-ok"></i> Leave approved</div>
+      <div class="hero-chip c2"><i data-lucide="car" class="ico-bell"></i> Carline started</div>
+    </div>
+  </div>
+
+  <div class="hero-scroll" aria-hidden="true">
+    <span class="track"></span>
+    Scroll
   </div>
 </section>
 
-<!-- ── Ticker ───────────────────────────────────────────────────── -->
+<!-- ============================================================
+     Ticker
+     ============================================================ -->
 <div class="ticker-wrap" aria-hidden="true">
   <div class="ticker-track">
     <span class="ticker-item"><i data-lucide="calendar"></i> Leave Management <span class="ticker-sep"></span></span>
@@ -921,20 +1300,26 @@ footer {
   </div>
 </div>
 
-<!-- ── Modules Bento ─────────────────────────────────────────────── -->
+<!-- ============================================================
+     Modules bento
+     ============================================================ -->
 <section class="block soft">
   <div class="shell">
     <div class="section-head center reveal">
       <span class="eyebrow"><span class="dot"></span> One platform. Every operation.</span>
-      <h2 class="section-title">Eight modules that work as one</h2>
-      <p class="section-sub">Purpose-built for school workflows — from staff leave requests to daily carline dismissal.</p>
+      <h2 class="section-title">Eight modules that work <em>as one</em></h2>
+      <p class="section-sub">Purpose-built for school workflows, from staff leave requests to daily carline dismissal.</p>
     </div>
-    <div class="modules-bento stagger">
-      <div class="mod-bento">
+    <div class="modules-bento stagger" id="bento">
+      <div class="mod-bento feature tall">
         <span class="mod-ico"><i data-lucide="calendar"></i></span>
-        <div class="mod-title">Leave Management</div>
+        <div>
+          <div class="mod-title">Leave Management</div>
+          <p class="mod-desc">One-click approvals, automatic balance tracking, and a full audit trail.</p>
+        </div>
+        <div class="mod-mini"><span></span><span></span><span></span></div>
       </div>
-      <div class="mod-bento">
+      <div class="mod-bento amber">
         <span class="mod-ico"><i data-lucide="repeat-2"></i></span>
         <div class="mod-title">Substitute Assignment</div>
       </div>
@@ -942,11 +1327,11 @@ footer {
         <span class="mod-ico"><i data-lucide="layout-dashboard"></i></span>
         <div class="mod-title">School Administration</div>
       </div>
-      <div class="mod-bento">
+      <div class="mod-bento wide">
         <span class="mod-ico"><i data-lucide="car"></i></span>
         <div class="mod-title">Carline Dismissal</div>
       </div>
-      <div class="mod-bento">
+      <div class="mod-bento amber">
         <span class="mod-ico"><i data-lucide="map"></i></span>
         <div class="mod-title">Field Trip Management</div>
       </div>
@@ -954,7 +1339,7 @@ footer {
         <span class="mod-ico"><i data-lucide="building-2"></i></span>
         <div class="mod-title">Multi-Campus Support</div>
       </div>
-      <div class="mod-bento">
+      <div class="mod-bento amber">
         <span class="mod-ico"><i data-lucide="shield-check"></i></span>
         <div class="mod-title">Volunteer Compliance</div>
       </div>
@@ -969,132 +1354,338 @@ footer {
   </div>
 </section>
 
-<!-- ── Features ──────────────────────────────────────────────────── -->
+<!-- ============================================================
+     Features (sticky scroll showcase)
+     ============================================================ -->
 <section class="block" id="features">
   <div class="shell">
     <div class="section-head reveal">
       <span class="eyebrow"><span class="dot"></span> What Belltower Does</span>
-      <h2 class="section-title">Purpose-built tools for the tasks that slow schools down</h2>
+      <h2 class="section-title">Purpose-built tools for the tasks that <em>slow schools down</em></h2>
       <p class="section-sub">
         Every module targets a specific operational pain point. Together, they give administrators
         a clear, connected picture of how the school runs day to day.
       </p>
     </div>
 
-    <div class="feature-grid">
+    <div class="ft-layout">
+      <!-- Left: scrolling feature text -->
+      <div class="ft-track" id="ftTrack">
 
-      <div class="card reveal">
-        <div class="card-ico"><i data-lucide="calendar"></i></div>
-        <h3>Leave Management</h3>
-        <p>Staff submit requests online. Supervisors approve or deny in one click. Balances update automatically.</p>
-        <ul class="card-bullets">
-          <li><i data-lucide="check"></i> One-click email approval, no login required</li>
-          <li><i data-lucide="check"></i> Real-time balance tracking with full audit trail</li>
-          <li><i data-lucide="check"></i> Annual allotment policies per role</li>
-          <li><i data-lucide="check"></i> Automated notifications and calendar export</li>
-          <li><i data-lucide="check"></i> Payroll-ready leave reports</li>
-        </ul>
+        <article class="ft-block" data-ft="0">
+          <span class="ft-index">01 / 08</span>
+          <span class="ft-ico"><i data-lucide="calendar"></i></span>
+          <h3>Leave Management</h3>
+          <p>Staff submit requests online. Supervisors approve or deny in one click. Balances update automatically.</p>
+          <ul class="ft-bullets">
+            <li><i data-lucide="check"></i> One-click email approval, no login required</li>
+            <li><i data-lucide="check"></i> Real-time balance tracking with full audit trail</li>
+            <li><i data-lucide="check"></i> Annual allotment policies per role</li>
+            <li><i data-lucide="check"></i> Automated notifications and calendar export</li>
+            <li><i data-lucide="check"></i> Payroll-ready leave reports</li>
+          </ul>
+        </article>
+
+        <article class="ft-block" data-ft="1">
+          <span class="ft-index">02 / 08</span>
+          <span class="ft-ico"><i data-lucide="repeat-2"></i></span>
+          <h3>Substitute Assignment</h3>
+          <p>When staff call out, coverage gaps surface immediately and subs or internal staff are matched to open periods.</p>
+          <ul class="ft-bullets">
+            <li><i data-lucide="check"></i> Triggered automatically by leave approvals</li>
+            <li><i data-lucide="check"></i> Outside subs or internal staff coverage</li>
+            <li><i data-lucide="check"></i> Period-by-period coverage view</li>
+            <li><i data-lucide="check"></i> Double-booking conflict warnings</li>
+            <li><i data-lucide="check"></i> Assignment history with Excel export</li>
+          </ul>
+        </article>
+
+        <article class="ft-block" data-ft="2">
+          <span class="ft-index">03 / 08</span>
+          <span class="ft-ico"><i data-lucide="map"></i></span>
+          <h3>Field Trip Management</h3>
+          <p>Plan, staff, and track every field trip from chaperone sign-up through vehicle assignments and attendance.</p>
+          <ul class="ft-bullets">
+            <li><i data-lucide="check"></i> Chaperone assignment with student groupings</li>
+            <li><i data-lucide="check"></i> Driver clearance requirements (MVR-linked)</li>
+            <li><i data-lucide="check"></i> Drag-and-drop vehicle assignment board</li>
+            <li><i data-lucide="check"></i> Payment tracking with installment support</li>
+            <li><i data-lucide="check"></i> Export trip rosters</li>
+          </ul>
+        </article>
+
+        <article class="ft-block" data-ft="3">
+          <span class="ft-index">04 / 08</span>
+          <span class="ft-ico"><i data-lucide="car"></i></span>
+          <h3>Carline Dismissal</h3>
+          <p>Staff enter family tag numbers on any device. Students are called on a live display as cars arrive.</p>
+          <ul class="ft-bullets">
+            <li><i data-lucide="check"></i> Live call board for display screens</li>
+            <li><i data-lucide="check"></i> Audio announcements for each call</li>
+            <li><i data-lucide="check"></i> Real-time sync across all devices</li>
+            <li><i data-lucide="check"></i> All-call for remaining students</li>
+          </ul>
+        </article>
+
+        <article class="ft-block" data-ft="4">
+          <span class="ft-index">05 / 08</span>
+          <span class="ft-ico"><i data-lucide="layout-dashboard"></i></span>
+          <h3>School Administration</h3>
+          <p>Centralize student, family, guardian, and employee records in one searchable, filterable admin panel.</p>
+          <ul class="ft-bullets">
+            <li><i data-lucide="check"></i> Students, families, guardians, and staff records</li>
+            <li><i data-lucide="check"></i> Tokenized guardian intake forms</li>
+            <li><i data-lucide="check"></i> Bulk upload and data export</li>
+            <li><i data-lucide="check"></i> Role-based access control</li>
+            <li><i data-lucide="check"></i> Year-end promotion and grade retention workflow</li>
+          </ul>
+        </article>
+
+        <article class="ft-block" data-ft="5">
+          <span class="ft-index">06 / 08</span>
+          <span class="ft-ico"><i data-lucide="shield-check"></i></span>
+          <h3>Volunteer Compliance</h3>
+          <p>Collect and track volunteer agreements, background checks, and driver clearances across your parent community.</p>
+          <ul class="ft-bullets">
+            <li><i data-lucide="check"></i> Digital volunteer agreements with e-signature</li>
+            <li><i data-lucide="check"></i> Background check request and status tracking</li>
+            <li><i data-lucide="check"></i> Chaperone and driver clearance flags</li>
+            <li><i data-lucide="check"></i> Per-student compliance report for teachers</li>
+            <li><i data-lucide="check"></i> PDF export of signed agreements</li>
+          </ul>
+        </article>
+
+        <article class="ft-block" data-ft="6">
+          <span class="ft-index">07 / 08</span>
+          <span class="ft-ico"><i data-lucide="badge-check"></i></span>
+          <h3>Licensure Tracking</h3>
+          <p>Keep staff certifications and professional licenses current with expiration tracking and automated alerts.</p>
+          <ul class="ft-bullets">
+            <li><i data-lucide="check"></i> License and certification records per staff member</li>
+            <li><i data-lucide="check"></i> Expiration alerts sent before licenses lapse</li>
+            <li><i data-lucide="check"></i> Admin view across all staff at a glance</li>
+            <li><i data-lucide="check"></i> Staff self-service license submission</li>
+          </ul>
+        </article>
+
+        <article class="ft-block" data-ft="7">
+          <span class="ft-index">08 / 08</span>
+          <span class="ft-ico"><i data-lucide="building-2"></i></span>
+          <h3>Multi-Campus Support</h3>
+          <p>Run independent operations per location while keeping reporting and records unified across your organization.</p>
+          <ul class="ft-bullets">
+            <li><i data-lucide="check"></i> Independent carline sessions per campus</li>
+            <li><i data-lucide="check"></i> Filter reports and records by location</li>
+            <li><i data-lucide="check"></i> Home-campus assignment for staff and students</li>
+            <li><i data-lucide="check"></i> No extra configuration to get started</li>
+          </ul>
+        </article>
+
       </div>
 
-      <div class="card reveal">
-        <div class="card-ico"><i data-lucide="repeat-2"></i></div>
-        <h3>Substitute Assignment</h3>
-        <p>When staff call out, coverage gaps surface immediately and subs or internal staff are matched to open periods.</p>
-        <ul class="card-bullets">
-          <li><i data-lucide="check"></i> Triggered automatically by leave approvals</li>
-          <li><i data-lucide="check"></i> Outside subs or internal staff coverage</li>
-          <li><i data-lucide="check"></i> Period-by-period coverage view</li>
-          <li><i data-lucide="check"></i> Double-booking conflict warnings</li>
-          <li><i data-lucide="check"></i> Assignment history with Excel export</li>
-        </ul>
-      </div>
+      <!-- Right: sticky mockup stage -->
+      <div class="ft-stage" aria-hidden="true">
+        <div class="ft-stage-inner" id="ftStage">
 
-      <div class="card reveal">
-        <div class="card-ico"><i data-lucide="map"></i></div>
-        <h3>Field Trip Management</h3>
-        <p>Plan, staff, and track every field trip from chaperone sign-up through vehicle assignments and attendance.</p>
-        <ul class="card-bullets">
-          <li><i data-lucide="check"></i> Chaperone assignment with student groupings</li>
-          <li><i data-lucide="check"></i> Driver clearance requirements (MVR-linked)</li>
-          <li><i data-lucide="check"></i> Drag-and-drop vehicle assignment board</li>
-          <li><i data-lucide="check"></i> Payment tracking with installment support</li>
-          <li><i data-lucide="check"></i> Export trip rosters</li>
-        </ul>
-      </div>
+          <!-- 0 Leave -->
+          <div class="ft-mock" data-mock="0">
+            <div class="mw">
+              <div class="am-top">
+                <div class="am-brand"><img src="images/belltower-logo.png" alt="Belltower" style="height:19px;width:auto"></div>
+                <span class="am-mod-label">Leave &amp; PTO</span>
+              </div>
+              <div class="mw-body">
+                <div class="mhead"><span class="ttl"><i data-lucide="clock-4"></i> Requests</span><span class="mpill warn">2 pending</span></div>
+                <div class="mrow"><span class="mav">JM</span><span class="mtext"><span class="mtext-name">Martinez, Julia</span><span class="mtext-sub">Personal Day · Jun 18 · 1 day</span></span><span class="mpill warn">Pending</span></div>
+                <div class="mrow"><span class="mav a2">AR</span><span class="mtext"><span class="mtext-name">Rodriguez, Amir</span><span class="mtext-sub">Sick Leave · Jun 19–20 · 2 days</span></span><span class="mpill warn">Pending</span></div>
+                <div class="mrow"><span class="mav a3">TS</span><span class="mtext"><span class="mtext-name">Singh, Trisha</span><span class="mtext-sub">Bereavement · Jun 12 · 3 days</span></span><span class="mpill ok">Approved</span></div>
+                <div class="mrow"><span class="mav">KB</span><span class="mtext"><span class="mtext-name">Brooks, Kevin</span><span class="mtext-sub">Balance: 11 days remaining</span></span><span class="mpill info">Balance</span></div>
+              </div>
+            </div>
+          </div>
 
-      <div class="card reveal">
-        <div class="card-ico"><i data-lucide="car"></i></div>
-        <h3>Carline Dismissal</h3>
-        <p>Staff enter family tag numbers on any device. Students are called on a live display as cars arrive.</p>
-        <ul class="card-bullets">
-          <li><i data-lucide="check"></i> Live call board for display screens</li>
-          <li><i data-lucide="check"></i> Audio announcements for each call</li>
-          <li><i data-lucide="check"></i> Real-time sync across all devices</li>
-          <li><i data-lucide="check"></i> All-call for remaining students</li>
-        </ul>
-      </div>
+          <!-- 1 Substitute -->
+          <div class="ft-mock" data-mock="1">
+            <div class="mw">
+              <div class="am-top">
+                <div class="am-brand"><img src="images/belltower-logo.png" alt="Belltower" style="height:19px;width:auto"></div>
+                <span class="am-mod-label">Substitutes</span>
+              </div>
+              <div class="mw-body">
+                <div class="mhead"><span class="ttl"><i data-lucide="repeat-2"></i> Coverage — Jun 18</span><span class="mpill warn">1 open</span></div>
+                <div class="mrow"><span class="mav a3">MS</span><span class="mtext"><span class="mtext-name">Smith, M. — 3rd Grade</span><span class="mtext-sub">P1, P2 · Sub: Lee, Dana</span></span><span class="mpill ok">Covered</span></div>
+                <div class="mrow"><span class="mav a2">TW</span><span class="mtext"><span class="mtext-name">Wilson, T. — 5th Grade</span><span class="mtext-sub">P3 · Internal: Carr, L.</span></span><span class="mpill ok">Covered</span></div>
+                <div class="mrow"><span class="mav">BH</span><span class="mtext"><span class="mtext-name">Hughes, B. — 7th Science</span><span class="mtext-sub">P4, P5 · No sub assigned</span></span><span class="mpill warn">Open</span></div>
+              </div>
+            </div>
+          </div>
 
-      <div class="card reveal">
-        <div class="card-ico"><i data-lucide="layout-dashboard"></i></div>
-        <h3>School Administration</h3>
-        <p>Centralize student, family, guardian, and employee records in one searchable, filterable admin panel.</p>
-        <ul class="card-bullets">
-          <li><i data-lucide="check"></i> Students, families, guardians, and staff records</li>
-          <li><i data-lucide="check"></i> Tokenized guardian intake forms</li>
-          <li><i data-lucide="check"></i> Bulk upload and data export</li>
-          <li><i data-lucide="check"></i> Role-based access control</li>
-          <li><i data-lucide="check"></i> Year-end promotion and grade retention workflow</li>
-        </ul>
-      </div>
+          <!-- 2 Field Trip -->
+          <div class="ft-mock" data-mock="2">
+            <div class="mw">
+              <div class="am-top">
+                <div class="am-brand"><img src="images/belltower-logo.png" alt="Belltower" style="height:19px;width:auto"></div>
+                <span class="am-mod-label">Field Trips</span>
+              </div>
+              <div class="mw-body">
+                <div class="mhead"><span class="ttl"><i data-lucide="map"></i> Science Museum · Jun 18</span><span class="mpill info">24 students</span></div>
+                <div class="mboard">
+                  <div class="mcol">
+                    <h5><i data-lucide="bus"></i> Bus 1</h5>
+                    <div class="mchip"><span class="dotc"></span> Group A (12)</div>
+                    <div class="mchip"><span class="dotc am"></span> Chaperone: Reyes</div>
+                    <div class="mchip" style="color:#047857;border-color:#a7f3d0;background:#d1fae5"><span style="width:7px;height:7px;border-radius:50%;background:#10b981;flex-shrink:0;display:inline-block"></span> Driver cleared</div>
+                  </div>
+                  <div class="mcol">
+                    <h5><i data-lucide="car"></i> Van 2</h5>
+                    <div class="mchip"><span class="dotc"></span> Group B (12)</div>
+                    <div class="mchip"><span class="dotc am"></span> Chaperone: Kim</div>
+                    <div class="mchip" style="color:#92400e;border-color:#fcd34d;background:#fef3c7"><span style="width:7px;height:7px;border-radius:50%;background:#f59e0b;flex-shrink:0;display:inline-block"></span> MVR pending</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-      <div class="card reveal">
-        <div class="card-ico"><i data-lucide="shield-check"></i></div>
-        <h3>Volunteer Compliance</h3>
-        <p>Collect and track volunteer agreements, background checks, and driver clearances across your parent community.</p>
-        <ul class="card-bullets">
-          <li><i data-lucide="check"></i> Digital volunteer agreements with e-signature</li>
-          <li><i data-lucide="check"></i> Background check request and status tracking</li>
-          <li><i data-lucide="check"></i> Chaperone and driver clearance flags</li>
-          <li><i data-lucide="check"></i> Per-student compliance report for teachers</li>
-          <li><i data-lucide="check"></i> PDF export of signed agreements</li>
-        </ul>
-      </div>
+          <!-- 3 Carline -->
+          <div class="ft-mock" data-mock="3">
+            <div class="mw">
+              <div class="am-top">
+                <div class="am-brand"><img src="images/belltower-logo.png" alt="Belltower" style="height:19px;width:auto"></div>
+                <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.62rem;color:#34d399;font-weight:700"><span style="width:7px;height:7px;border-radius:50%;background:#34d399;animation:live 1.8s ease-out infinite;display:inline-block"></span> LIVE</span>
+              </div>
+              <div class="mw-body">
+                <div class="mcall">
+                  <small>Now Calling</small>
+                  <div class="big">#142</div>
+                  <div class="nm">Rivera Family · 2 students</div>
+                </div>
+                <div class="mrow"><span class="mpill info">#138</span><span class="mtext"><span class="mtext-name">Chen Family</span><span class="mtext-sub">1 student · called in</span></span><span class="mpill ok">Called</span></div>
+                <div class="mrow"><span class="mpill mut">#145</span><span class="mtext"><span class="mtext-name">Thompson Family</span><span class="mtext-sub">3 students · in queue</span></span><span class="mpill warn">Waiting</span></div>
+              </div>
+            </div>
+          </div>
 
-      <div class="card reveal">
-        <div class="card-ico"><i data-lucide="badge-check"></i></div>
-        <h3>Licensure Tracking</h3>
-        <p>Keep staff certifications and professional licenses current with expiration tracking and automated alerts.</p>
-        <ul class="card-bullets">
-          <li><i data-lucide="check"></i> License and certification records per staff member</li>
-          <li><i data-lucide="check"></i> Expiration alerts sent before licenses lapse</li>
-          <li><i data-lucide="check"></i> Admin view across all staff at a glance</li>
-          <li><i data-lucide="check"></i> Staff self-service license submission</li>
-        </ul>
-      </div>
+          <!-- 4 Administration -->
+          <div class="ft-mock" data-mock="4">
+            <div class="mw">
+              <div class="am-top">
+                <div class="am-brand"><img src="images/belltower-logo.png" alt="Belltower" style="height:19px;width:auto"></div>
+                <span class="am-mod-label">Admin Panel</span>
+              </div>
+              <div class="mw-body">
+                <div class="mhead"><span class="ttl"><i data-lucide="users"></i> Students</span><span class="mpill info">482 total</span></div>
+                <div class="msearch"><i data-lucide="search"></i><span>Search students...</span></div>
+                <div class="mrow"><span class="mav">SL</span><span class="mtext"><span class="mtext-name">Lopez, Sofia</span><span class="mtext-sub">Grade 4 · Homeroom: Barth · Tag 221</span></span><span class="mpill mut">Active</span></div>
+                <div class="mrow"><span class="mav a3">DP</span><span class="mtext"><span class="mtext-name">Park, Daniel</span><span class="mtext-sub">Grade 2 · Homeroom: Hughes · Tag 44</span></span><span class="mpill mut">Active</span></div>
+                <div class="mrow"><span class="mav a2">MG</span><span class="mtext"><span class="mtext-name">Garcia, Maya</span><span class="mtext-sub">Grade 6 · Homeroom: Torres · Tag 305</span></span><span class="mpill mut">Active</span></div>
+              </div>
+            </div>
+          </div>
 
-      <div class="card reveal">
-        <div class="card-ico"><i data-lucide="building-2"></i></div>
-        <h3>Multi-Campus Support</h3>
-        <p>Run independent operations per location while keeping reporting and records unified across your organization.</p>
-        <ul class="card-bullets">
-          <li><i data-lucide="check"></i> Independent carline sessions per campus</li>
-          <li><i data-lucide="check"></i> Filter reports and records by location</li>
-          <li><i data-lucide="check"></i> Home-campus assignment for staff and students</li>
-          <li><i data-lucide="check"></i> No extra configuration to get started</li>
-        </ul>
-      </div>
+          <!-- 5 Volunteer Compliance -->
+          <div class="ft-mock" data-mock="5">
+            <div class="mw">
+              <div class="am-top">
+                <div class="am-brand"><img src="images/belltower-logo.png" alt="Belltower" style="height:19px;width:auto"></div>
+                <span class="am-mod-label">Compliance</span>
+              </div>
+              <div class="mw-body">
+                <div class="mhead"><span class="ttl"><i data-lucide="shield-check"></i> Volunteers</span><span class="mpill warn">1 incomplete</span></div>
+                <div class="mrow"><span class="mav a3">LR</span><span class="mtext"><span class="mtext-name">Reyes, Laura</span><span class="mtext-sub">Agreement · BG Check · Driver</span></span><span class="mpill ok">Cleared</span></div>
+                <div class="mrow"><span class="mav">MK</span><span class="mtext"><span class="mtext-name">Kim, Michael</span><span class="mtext-sub">Agreement · BG Check · Driver</span></span><span class="mpill ok">Cleared</span></div>
+                <div class="mrow"><span class="mav a2">PN</span><span class="mtext"><span class="mtext-name">Nguyen, Priya</span><span class="mtext-sub">Agreement signed · BG pending</span></span><span class="mpill warn">Pending</span></div>
+              </div>
+            </div>
+          </div>
 
+          <!-- 6 Licensure -->
+          <div class="ft-mock" data-mock="6">
+            <div class="mw">
+              <div class="am-top">
+                <div class="am-brand"><img src="images/belltower-logo.png" alt="Belltower" style="height:19px;width:auto"></div>
+                <span class="am-mod-label">Licensure</span>
+              </div>
+              <div class="mw-body">
+                <div class="mhead"><span class="ttl"><i data-lucide="badge-check"></i> Staff Licenses</span><span class="mpill warn">1 expiring</span></div>
+                <div class="mrow"><span class="mav a3">ET</span><span class="mtext"><span class="mtext-name">Torres, Elena</span><span class="mtext-sub">Teaching Cert · Exp: Mar 2027</span></span><span class="mpill ok">Current</span></div>
+                <div class="mrow"><span class="mav a2">RW</span><span class="mtext"><span class="mtext-name">Williams, Ray</span><span class="mtext-sub">CDL · Exp: Jul 17, 2026</span></span><span class="mpill warn">21 days</span></div>
+                <div class="mrow"><span class="mav">CV</span><span class="mtext"><span class="mtext-name">Vance, Cora</span><span class="mtext-sub">SPED Cert · Exp: Sep 2026</span></span><span class="mpill ok">Current</span></div>
+                <div class="mrow"><span class="mav">BP</span><span class="mtext"><span class="mtext-name">Price, Ben</span><span class="mtext-sub">Admin License · Exp: Dec 2026</span></span><span class="mpill ok">Current</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 7 Multi-Campus -->
+          <div class="ft-mock" data-mock="7">
+            <div class="mw">
+              <div class="am-top">
+                <div class="am-brand"><img src="images/belltower-logo.png" alt="Belltower" style="height:19px;width:auto"></div>
+                <span class="am-mod-label">All Campuses</span>
+              </div>
+              <div class="mw-body">
+                <div class="mhead"><span class="ttl"><i data-lucide="building-2"></i> Campus Overview</span><span class="mpill info">2 active</span></div>
+                <div class="mboard">
+                  <div class="mcol">
+                    <h5><i data-lucide="map-pin"></i> North Campus</h5>
+                    <div class="mchip"><span class="dotc"></span> 412 students</div>
+                    <div class="mchip"><span class="dotc"></span> 38 staff</div>
+                    <div class="mchip" style="color:#047857;border-color:#a7f3d0;background:#d1fae5"><span style="width:7px;height:7px;border-radius:50%;background:#34d399;flex-shrink:0;display:inline-block"></span> Carline active</div>
+                  </div>
+                  <div class="mcol">
+                    <h5><i data-lucide="map-pin"></i> South Campus</h5>
+                    <div class="mchip"><span class="dotc"></span> 286 students</div>
+                    <div class="mchip"><span class="dotc"></span> 24 staff</div>
+                    <div class="mchip" style="color:#047857;border-color:#a7f3d0;background:#d1fae5"><span style="width:7px;height:7px;border-radius:50%;background:#34d399;flex-shrink:0;display:inline-block"></span> Carline active</div>
+                  </div>
+                </div>
+                <div class="mrow" style="margin-top:0.55rem"><span class="mtext"><span class="mtext-name">2 leave requests pending across campuses</span></span><span class="mpill warn">Review</span></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ── Why Belltower ──────────────────────────────────────────────── -->
+<!-- ============================================================
+     Stats band
+     ============================================================ -->
+<section class="block stats-band grain">
+  <div class="mesh" aria-hidden="true"></div>
+  <div class="shell">
+    <div class="stats-inner reveal" id="statsBand">
+      <div class="stat-card">
+        <div class="stat-num" data-target="8">0</div>
+        <div class="stat-label">Integrated operational modules</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" data-target="1">0</div>
+        <div class="stat-label">Login for your entire staff</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">Multi</div>
+        <div class="stat-label">Campus support, built in</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">K-12</div>
+        <div class="stat-label">Purpose-built school workflows</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     Why Belltower
+     ============================================================ -->
 <section class="block soft" id="why">
   <div class="shell value-inner">
     <div>
       <div class="section-head reveal">
         <span class="eyebrow"><span class="dot"></span> Why Belltower</span>
-        <h2 class="section-title">Designed for schools, not adapted for them</h2>
+        <h2 class="section-title">Designed for schools, <em>not adapted</em> for them</h2>
         <p class="section-sub">
           Generic HR and admin tools were not built with school workflows in mind. Belltower was, from the way leave balances are calculated to how dismissal runs across multiple campuses.
         </p>
@@ -1115,35 +1706,32 @@ footer {
       </div>
     </div>
 
-    <div class="value-stats reveal">
-      <div class="stat-card">
-        <div class="stat-num">8</div>
-        <div class="stat-label">Integrated operational modules</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">1</div>
-        <div class="stat-label">Login for your entire staff</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">Multi</div>
-        <div class="stat-label">Campus support, built in</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-num">K–12</div>
-        <div class="stat-label">Purpose-built school workflows</div>
+    <div class="value-media reveal">
+      <div class="value-frame">
+        <img src="images/hero-belltower-wide.png" alt="A bright, modern K-12 school commons" loading="lazy">
+        <div class="value-tag">
+          <span class="vt-ico"><i data-lucide="building-2"></i></span>
+          <div>
+            <b>Built for K-12</b>
+            <span>One platform, every campus</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ── CTA Band ───────────────────────────────────────────────────── -->
-<section class="block cta-band">
+<!-- ============================================================
+     CTA Band
+     ============================================================ -->
+<section class="block cta-band grain">
+  <div class="glow" aria-hidden="true"></div>
   <div class="shell cta-inner">
     <span class="eyebrow on-dark reveal" style="justify-content:center;"><span class="dot"></span> Get Started</span>
-    <h2 class="reveal">Ready to see it in action?</h2>
+    <h2 class="reveal">Ready to see it <em>in action?</em></h2>
     <p class="reveal">Request a live demo and we'll walk through how Belltower fits your school's workflow.</p>
     <div class="cta-actions reveal">
-      <button class="btn btn-primary" onclick="openModal('Request a Demo')">
+      <button class="btn btn-primary magnetic" onclick="openModal('Request a Demo')">
         <i data-lucide="calendar-check"></i> Request a Demo
       </button>
       <a class="btn btn-outline" href="app/login.html"><i data-lucide="log-in"></i> Log in</a>
@@ -1151,13 +1739,16 @@ footer {
   </div>
 </section>
 
-<!-- ── Footer ─────────────────────────────────────────────────────── -->
+<!-- ============================================================
+     Footer
+     ============================================================ -->
 <footer>
+  <span class="footer-watermark" aria-hidden="true">BELLTOWER</span>
   <div class="shell">
     <div class="footer-grid">
       <div class="footer-brand">
         <img src="images/belltower-logo.png" alt="Belltower" />
-        <p>Purpose-built school operations platform for K–12 schools that want less friction and more clarity.</p>
+        <p>Purpose-built school operations platform for K-12 schools that want less friction and more clarity.</p>
       </div>
       <div class="footer-col">
         <h4>Platform</h4>
@@ -1177,12 +1768,14 @@ footer {
     </div>
     <div class="footer-bottom">
       <div class="footer-copy">© 2026 Belltower · All Rights Reserved</div>
-      <div class="footer-badge">K–12 Operations Platform</div>
+      <div class="footer-badge">K-12 Operations Platform</div>
     </div>
   </div>
 </footer>
 
-<!-- ── Modal ──────────────────────────────────────────────────────── -->
+<!-- ============================================================
+     Modal
+     ============================================================ -->
 <div class="modal" id="emailModal">
   <div class="modal-box">
     <h2 id="modalTitle">Request a Demo</h2>
@@ -1200,9 +1793,11 @@ footer {
   </div>
 </div>
 
-<!-- ── Scripts ────────────────────────────────────────────────────── -->
+<!-- ============================================================
+     Scripts
+     ============================================================ -->
 <script>
-// ── Modal ─────────────────────────────────────────────────────────
+// ---- Modal ----------------------------------------------------------
 let modalContext = "";
 function openModal(type) {
   modalContext = type;
@@ -1225,11 +1820,14 @@ function sendEmail() {
 document.getElementById('emailModal').addEventListener('click', (e) => {
   if (e.target.id === 'emailModal') closeModal();
 });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
-// ── Lucide ────────────────────────────────────────────────────────
+// ---- Lucide ---------------------------------------------------------
 lucide.createIcons();
 
-// ── Intersection observer (reveal + stagger) ──────────────────────
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---- Intersection observer (reveal + stagger) ----------------------
 const observer = new IntersectionObserver(
   entries => entries.forEach(e => {
     if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
@@ -1244,16 +1842,87 @@ document.querySelectorAll('.reveal, .stagger').forEach(el => {
   }
 });
 
-// ── Scroll effects ────────────────────────────────────────────────
+// ---- Scroll effects (header + vertical progress) -------------------
 const header      = document.getElementById('mainHeader');
 const progressBar = document.getElementById('scrollProgress');
-
 window.addEventListener('scroll', () => {
   const scrollY   = window.scrollY;
   const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-  progressBar.style.width = (scrollY / maxScroll * 100) + '%';
+  progressBar.style.height = (scrollY / maxScroll * 100) + '%';
   header.classList.toggle('scrolled', scrollY > 60);
 }, { passive: true });
+
+// ---- Feature sticky showcase ---------------------------------------
+const ftBlocks = Array.from(document.querySelectorAll('.ft-block'));
+const ftMocks  = Array.from(document.querySelectorAll('.ft-mock'));
+function setFeature(i) {
+  ftBlocks.forEach(b => b.classList.toggle('is-active', +b.dataset.ft === i));
+  ftMocks.forEach(m => m.classList.toggle('is-active', +m.dataset.mock === i));
+}
+if (ftMocks.length) {
+  setFeature(0);
+  const ftObserver = new IntersectionObserver(
+    entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) setFeature(+e.target.dataset.ft);
+      });
+    },
+    { rootMargin: '-45% 0px -45% 0px', threshold: 0 }
+  );
+  ftBlocks.forEach(b => ftObserver.observe(b));
+}
+
+// ---- Stat count-up --------------------------------------------------
+function countUp(el) {
+  const target = parseInt(el.dataset.target, 10);
+  if (reduceMotion) { el.textContent = target; return; }
+  const dur = 1400;
+  const start = performance.now();
+  function frame(now) {
+    const p = Math.min((now - start) / dur, 1);
+    const eased = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(eased * target);
+    if (p < 1) requestAnimationFrame(frame);
+    else el.textContent = target;
+  }
+  requestAnimationFrame(frame);
+}
+const statsBand = document.getElementById('statsBand');
+if (statsBand) {
+  const statObserver = new IntersectionObserver((entries, obs) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        document.querySelectorAll('.stat-num[data-target]').forEach(countUp);
+        obs.disconnect();
+      }
+    });
+  }, { threshold: 0.4 });
+  statObserver.observe(statsBand);
+}
+
+// ---- Bento cursor-follow glow --------------------------------------
+document.querySelectorAll('#bento .mod-bento').forEach(cell => {
+  cell.addEventListener('pointermove', e => {
+    const r = cell.getBoundingClientRect();
+    cell.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    cell.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  });
+});
+
+// ---- Magnetic buttons ------------------------------
+const finePointer = window.matchMedia('(pointer: fine)').matches;
+if (finePointer && !reduceMotion) {
+  document.querySelectorAll('.magnetic').forEach(el => {
+    const strength = 0.35;
+    el.addEventListener('pointermove', e => {
+      const r = el.getBoundingClientRect();
+      const x = e.clientX - (r.left + r.width / 2);
+      const y = e.clientY - (r.top + r.height / 2);
+      el.style.transform = `translate(${x * strength}px, ${y * strength}px)`;
+    });
+    el.addEventListener('pointerleave', () => { el.style.transform = ''; });
+  });
+}
 </script>
 
 </body>
