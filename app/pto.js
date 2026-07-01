@@ -114,6 +114,10 @@ if (!currentProfile.can_review_pto && !_canManagePtoBalances) {
   document.getElementById('navPtoHistory')?.remove();
 }
 
+if (!(currentProfile.can_submit_on_behalf && currentProfile.can_approve_pto)) {
+  document.getElementById('navPtoSubmitOnBehalf')?.remove();
+}
+
 if (!_canAdjustPto) {
   document.getElementById('navPtoAdjust')?.remove();
 }
@@ -1973,6 +1977,10 @@ async function setPtoView(view) {
     showToast('You are not authorized to run year-end rollover.', 'error');
     return;
   }
+  if (view === 'submit-for-staff' && !(currentProfile.can_submit_on_behalf && currentProfile.can_approve_pto)) {
+    showToast('You are not authorized to submit leave on behalf of staff.', 'error');
+    return;
+  }
 
   document.querySelectorAll('.admin-section').forEach(section => {
     section.classList.remove('active');
@@ -2043,6 +2051,11 @@ async function setPtoView(view) {
     if (view === 'policies' && !ptoViewCache.has('policies')) {
       await loadPtoPolicies();
       ptoViewCache.add('policies');
+    }
+
+    if (view === 'submit-for-staff' && !ptoViewCache.has('submit-for-staff')) {
+      await initProxySubmitView();
+      ptoViewCache.add('submit-for-staff');
     }
   } catch (err) {
     console.error(`Error loading PTO view "${view}"`, err);
@@ -2964,3 +2977,224 @@ document.getElementById('downloadCommittedBtn').addEventListener('click', () => 
   if (!committedRolloverMeta) return;
   exportRolloverReport(committedRolloverMeta.data, committedRolloverMeta.ptoType, committedRolloverMeta.year);
 });
+
+/* =============================================
+   SUBMIT LEAVE ON BEHALF OF STAFF
+============================================= */
+let proxyDatePicker = null;
+let proxySelectedStart = null;
+let proxySelectedEnd = null;
+let proxyWorkdayHours = 8;
+const PROXY_INCREMENT_MINUTES = 30;
+
+async function initProxySubmitView() {
+  // Load workday hours from school settings
+  const { data: settings } = await supabase
+    .from('school_settings')
+    .select('workday_hours')
+    .eq('school_id', currentProfile.school_id)
+    .single();
+  proxyWorkdayHours = settings?.workday_hours ?? 8;
+
+  // Populate staff picker
+  const staffSelect = document.getElementById('proxyStaffSelect');
+  staffSelect.innerHTML = '<option value="">Select staff member…</option>';
+  const staff = await loadStaffList();
+  staff.forEach(emp => {
+    const opt = new Option(`${emp.last_name}, ${emp.first_name}`, emp.id);
+    staffSelect.appendChild(opt);
+  });
+
+  // Populate leave types
+  const typeSelect = document.getElementById('proxyPtoType');
+  typeSelect.innerHTML = '<option value="">Select Leave Type</option>';
+  currentSchoolPtoTypes.forEach(type => {
+    typeSelect.appendChild(new Option(type, type));
+  });
+
+  // Duration change → update date picker mode and show/hide time row
+  const durationSelect = document.getElementById('proxyDuration');
+  durationSelect.addEventListener('change', () => {
+    const val = durationSelect.value;
+    const isMulti = val === 'multi';
+    const isPartial = val === 'partial';
+    if (proxyDatePicker) {
+      proxyDatePicker.set('mode', isMulti ? 'range' : 'single');
+      proxyDatePicker.clear();
+      proxySelectedStart = null;
+      proxySelectedEnd = null;
+    }
+    document.getElementById('proxyTimeRow').style.display = isPartial ? 'flex' : 'none';
+    updateProxyComputedHours();
+  });
+
+  // Date picker
+  proxyDatePicker = flatpickr('#proxyDateRange', {
+    mode: 'single',
+    dateFormat: 'M j, Y',
+    disableMobile: true,
+    onChange(dates) {
+      if (dates.length === 1) {
+        proxySelectedStart = dates[0];
+        proxySelectedEnd = dates[0];
+      } else if (dates.length === 2) {
+        proxySelectedStart = dates[0];
+        proxySelectedEnd = dates[1];
+      } else {
+        proxySelectedStart = null;
+        proxySelectedEnd = null;
+      }
+      updateProxyComputedHours();
+    }
+  });
+
+  // Time selects
+  populateProxyTimeSelects();
+  document.getElementById('proxyStartTime').addEventListener('change', updateProxyComputedHours);
+  document.getElementById('proxyEndTime').addEventListener('change', updateProxyComputedHours);
+
+  // Submit
+  document.getElementById('proxySubmitBtn').addEventListener('click', submitProxyLeave);
+}
+
+function populateProxyTimeSelects() {
+  const startSel = document.getElementById('proxyStartTime');
+  const endSel   = document.getElementById('proxyEndTime');
+  startSel.innerHTML = '<option value="">Start time</option>';
+  endSel.innerHTML   = '<option value="">End time</option>';
+  for (let h = 6; h <= 18; h++) {
+    for (let m = 0; m < 60; m += PROXY_INCREMENT_MINUTES) {
+      const hh  = String(h).padStart(2, '0');
+      const mm  = String(m).padStart(2, '0');
+      const val = `${hh}:${mm}`;
+      const ampm = h < 12 ? 'AM' : 'PM';
+      const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+      const label = `${h12}:${mm} ${ampm}`;
+      startSel.appendChild(new Option(label, val));
+      endSel.appendChild(new Option(label, val));
+    }
+  }
+}
+
+function updateProxyComputedHours() {
+  const el = document.getElementById('proxyComputedHours');
+  if (!el) return;
+  const start = document.getElementById('proxyStartTime').value;
+  const end   = document.getElementById('proxyEndTime').value;
+  if (!start || !end) { el.textContent = 'Total: —'; return; }
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const mins = (eh * 60 + em) - (sh * 60 + sm);
+  if (mins <= 0) { el.textContent = 'Total: —'; return; }
+  const hrs = mins / 60;
+  el.textContent = `Total: ${hrs % 1 === 0 ? hrs : hrs.toFixed(1)} hrs`;
+}
+
+function proxyCalculateHours({ startDate, endDate, isHalfDay, isPartial, partialHours }) {
+  if (isPartial) return partialHours;
+  if (isHalfDay) return proxyWorkdayHours / 2;
+  const start = new Date(startDate + 'T00:00:00');
+  const end   = new Date(endDate   + 'T00:00:00');
+  const days  = Math.round((end - start) / 86400000) + 1;
+  return days * proxyWorkdayHours;
+}
+
+async function submitProxyLeave() {
+  const message = document.getElementById('proxyRequestMessage');
+  message.textContent = '';
+
+  const employeeId = document.getElementById('proxyStaffSelect').value;
+  const type       = document.getElementById('proxyPtoType').value;
+  const duration   = document.getElementById('proxyDuration').value;
+  const notes      = document.getElementById('proxyNotes').value.trim();
+  const subChoice  = document.querySelector('input[name="proxySubCoverage"]:checked')?.value;
+
+  if (!employeeId) { message.textContent = 'Please select a staff member.'; return; }
+  if (!type)       { message.textContent = 'Please select a leave type.'; return; }
+  if (!proxySelectedStart || !proxySelectedEnd) { message.textContent = 'Please select leave date(s).'; return; }
+
+  const notesRequired = currentSchoolPtoTypeMeta?.[type]?.notesRequired;
+  if (notesRequired && !notes) {
+    message.textContent = 'Notes are required for this leave type.';
+    document.getElementById('proxyNotesRequiredHint').style.display = 'block';
+    document.getElementById('proxyNotes').focus();
+    return;
+  }
+  document.getElementById('proxyNotesRequiredHint').style.display = 'none';
+
+  if (!subChoice) { message.textContent = 'Please indicate whether substitute/coverage is needed.'; return; }
+
+  const startDate = proxySelectedStart.toISOString().slice(0, 10);
+  const endDate   = proxySelectedEnd.toISOString().slice(0, 10);
+  const isHalfDay  = duration === 'half';
+  const isPartial  = duration === 'partial';
+  const isMultiDay = duration === 'multi';
+
+  if (isMultiDay && startDate === endDate) {
+    message.textContent = 'Please select a date range for multi-day leave.';
+    return;
+  }
+
+  let startTime = null;
+  let endTime   = null;
+  let customHours = null;
+
+  if (isPartial) {
+    startTime = document.getElementById('proxyStartTime').value;
+    endTime   = document.getElementById('proxyEndTime').value;
+    if (!startTime) { message.textContent = 'Please select a start time.'; return; }
+    if (!endTime)   { message.textContent = 'Please select an end time.'; return; }
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    customHours = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+    if (customHours <= 0) { message.textContent = 'End time must be after start time.'; return; }
+  }
+
+  const requestedHours = proxyCalculateHours({ startDate, endDate, isHalfDay, isPartial, partialHours: customHours });
+  const durationLabel  = isHalfDay ? 'Half Day' : isPartial ? null : `${requestedHours / proxyWorkdayHours === 1 ? '1 Day' : `${requestedHours / proxyWorkdayHours} Days`}`;
+
+  const btn = document.getElementById('proxySubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  const { error } = await supabase.from('pto_requests').insert({
+    school_id:                currentProfile.school_id,
+    employee_id:              employeeId,
+    submitted_by:             currentProfile.employee_id,
+    pto_type:                 type,
+    start_date:               startDate,
+    end_date:                 endDate,
+    requested_hours:          requestedHours,
+    requested_duration_label: durationLabel,
+    partial_day:              isPartial,
+    partial_hours:            isPartial ? customHours : null,
+    start_time:               startTime,
+    end_time:                 endTime,
+    notes:                    notes || null,
+    status:                   'PENDING',
+    needs_sub_coverage:       subChoice === 'yes'
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Submit Request';
+
+  if (error) {
+    console.error('Proxy submit failed:', error);
+    message.textContent = 'Failed to submit leave request.';
+    return;
+  }
+
+  // Reset form
+  document.getElementById('proxyStaffSelect').value = '';
+  document.getElementById('proxyPtoType').value = '';
+  document.getElementById('proxyDuration').value = 'full';
+  document.getElementById('proxyTimeRow').style.display = 'none';
+  document.getElementById('proxyNotes').value = '';
+  document.querySelectorAll('input[name="proxySubCoverage"]').forEach(r => r.checked = false);
+  if (proxyDatePicker) { proxyDatePicker.set('mode', 'single'); proxyDatePicker.clear(); }
+  proxySelectedStart = null;
+  proxySelectedEnd = null;
+  updateProxyComputedHours();
+
+  showToast('Leave request submitted successfully.', 'success');
+}

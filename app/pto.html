@@ -505,6 +505,7 @@
   <i data-lucide="x-circle"></i> Cancellations
   <span class="badge-count" id="cancelCount"></span>
 </a>
+<a href="/pto.html#submit-for-staff" id="navPtoSubmitOnBehalf"><i data-lucide="user-plus"></i> Submit for Staff</a>
 <a href="/pto.html#history" id="navPtoHistory"><i data-lucide="book-open"></i> Staff Leave History</a>
 <a href="/pto.html#adjust" id="navPtoAdjust"><i data-lucide="sliders-horizontal"></i> Adjust Leave</a>
 <a href="/pto.html#reports"><i data-lucide="bar-chart-2"></i> Leave Reports</a>
@@ -596,6 +597,83 @@
   </div>
   </div>
 </section>
+<section id="pto-submit-for-staff" class="admin-section">
+  <div class="admin-content fade-in">
+    <div class="panel" style="max-width:640px;">
+      <h3>Submit Leave on Behalf of Staff</h3>
+      <p class="muted" style="margin-top:-4px; margin-bottom:20px;">Select a staff member and fill in the leave details. The request will enter the normal approval queue and the employee will be notified by email.</p>
+
+      <div class="pto-field" style="margin-bottom:16px;">
+        <span class="pto-field-label">Staff Member <span style="color:#dc2626;">*</span></span>
+        <select id="proxyStaffSelect">
+          <option value="">Select staff member…</option>
+        </select>
+      </div>
+
+      <div class="pto-fields-grid" style="margin-bottom:16px;">
+        <div class="pto-field">
+          <span class="pto-field-label">Leave Type <span style="color:#dc2626;">*</span></span>
+          <select id="proxyPtoType">
+            <option value="">Select Leave Type</option>
+          </select>
+        </div>
+        <div class="pto-field">
+          <span class="pto-field-label">Duration</span>
+          <select id="proxyDuration">
+            <option value="full">Full day</option>
+            <option value="half">Half day</option>
+            <option value="multi">Multi-day</option>
+            <option value="partial">Partial day…</option>
+          </select>
+        </div>
+        <div class="pto-field">
+          <span class="pto-field-label">Date(s) <span style="color:#dc2626;">*</span></span>
+          <input type="text" id="proxyDateRange" placeholder="Select date(s)" readonly />
+        </div>
+      </div>
+
+      <div class="pto-form-row-conditional" id="proxyTimeRow" style="margin-bottom:16px;">
+        <div class="pto-field">
+          <span class="pto-field-label">Start Time</span>
+          <select id="proxyStartTime"></select>
+        </div>
+        <div class="pto-field">
+          <span class="pto-field-label">End Time</span>
+          <select id="proxyEndTime"></select>
+        </div>
+        <div id="proxyComputedHours" style="font-size:13px;color:var(--text-muted,#6b7280);align-self:flex-end;padding-bottom:6px;">Total: —</div>
+      </div>
+
+      <div class="pto-field" style="margin-bottom:16px;">
+        <span class="pto-field-label">Substitute / Coverage Needed? <span style="color:#dc2626;">*</span></span>
+        <div class="pto-coverage-group">
+          <div class="pto-segmented">
+            <label class="pto-radio-btn">
+              <input type="radio" name="proxySubCoverage" value="yes" />
+              <span>Yes</span>
+            </label>
+            <label class="pto-radio-btn">
+              <input type="radio" name="proxySubCoverage" value="no" />
+              <span>No</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="pto-field" style="margin-bottom:20px;">
+        <span class="pto-field-label">Notes</span>
+        <textarea id="proxyNotes" placeholder="Add context for this request (optional)" rows="3" style="width:100%;box-sizing:border-box;"></textarea>
+        <span id="proxyNotesRequiredHint" style="display:none;font-size:12px;color:#dc2626;margin-top:4px;">Notes are required for this leave type.</span>
+      </div>
+
+      <div class="pto-submit-row">
+        <span id="proxyRequestMessage" class="pto-form-message"></span>
+        <button id="proxySubmitBtn" class="btn btn-primary">Submit Request</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="pto-history" class="admin-section">
   <!-- Skeleton -->
   <div class="admin-content skeleton-container">

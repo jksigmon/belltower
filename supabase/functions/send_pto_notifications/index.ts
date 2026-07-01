@@ -170,6 +170,19 @@ const { data: request, error } = await supabase
 
     const employee = request.employees;
 
+    // Load proxy submitter name if this was submitted on behalf of the employee
+    let submittedByName: string | null = null;
+    if (request.submitted_by) {
+      const { data: submitter } = await supabase
+        .from("employees")
+        .select("first_name, last_name")
+        .eq("id", request.submitted_by)
+        .single();
+      if (submitter) {
+        submittedByName = `${submitter.first_name} ${submitter.last_name}`;
+      }
+    }
+
     // Load school config for sender email
     const { data: school } = await supabase
       .from("schools")
@@ -234,8 +247,8 @@ if (approvers.length === 0) {
 const emailCfg = { from: FROM_ADDRESS, replyTo: REPLY_TO };
 
 if (event === "INSERT" && new_status === "PENDING") {
-  await sendEmployeeSubmission(request, employee, emailCfg);
-  await sendApproverRequest(request, employee, approvers, emailCfg);
+  await sendEmployeeSubmission(request, employee, emailCfg, submittedByName);
+  await sendApproverRequest(request, employee, approvers, emailCfg, submittedByName);
 }
 
 if (event === "UPDATE" && old_status === "PENDING") {
@@ -358,13 +371,16 @@ async function createApprovalToken(payload: {
    EMAIL HELPERS
 ------------------------------------------------------------------ */
 
-async function sendEmployeeSubmission(request: any, employee: any, cfg: any) {
+async function sendEmployeeSubmission(request: any, employee: any, cfg: any, submittedByName: string | null = null) {
+  const isProxy = !!submittedByName;
   await sendEmail({
     to: employee.email,
-    subject: "PTO Request Submitted",
+    subject: isProxy ? "Leave Request Submitted on Your Behalf" : "PTO Request Submitted",
     html: renderPtoEmail({
-      title: "PTO Request Submitted",
-      intro: "✅ Your PTO request has been successfully submitted.",
+      title: isProxy ? "Leave Request Submitted on Your Behalf" : "PTO Request Submitted",
+      intro: isProxy
+        ? `✅ <strong>${submittedByName}</strong> has submitted a leave request on your behalf.`
+        : "✅ Your PTO request has been successfully submitted.",
       request,
       employee,
       footer: "You’ll be notified once your request is reviewed."
@@ -373,7 +389,7 @@ async function sendEmployeeSubmission(request: any, employee: any, cfg: any) {
   });
 }
 
-async function sendApproverRequest(request: any, employee: any, approvers: any[], cfg: any) {
+async function sendApproverRequest(request: any, employee: any, approvers: any[], cfg: any, submittedByName: string | null = null) {
   for (const approver of approvers) {
     const expiresAt = Date.now() + 1000 * 60 * 60 * 24;
 
@@ -396,12 +412,16 @@ async function sendApproverRequest(request: any, employee: any, approvers: any[]
     const approveUrl = `${base}?token=${encodeURIComponent(approveToken)}`;
     const denyUrl = `${base}?token=${encodeURIComponent(denyToken)}`;
 
+    const approverIntro = submittedByName
+      ? `<strong>${submittedByName}</strong> has submitted a leave request on behalf of ${employee.first_name} ${employee.last_name} that requires your approval.`
+      : `${employee.first_name} ${employee.last_name} has submitted a PTO request that requires your approval.`;
+
     await sendEmail({
       to: approver.email,
       subject: "PTO Approval Required",
       html: renderPtoEmail({
         title: "PTO Approval Required",
-        intro: `${employee.first_name} ${employee.last_name} has submitted a PTO request that requires your approval.`,
+        intro: approverIntro,
         request,
         employee,
         showActions: true,
