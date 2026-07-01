@@ -336,7 +336,14 @@ async function executeDeleteStaff() {
   if (!editingEmpId) return;
   const { error } = await supabase.from('employees').delete().eq('id', editingEmpId);
   document.getElementById('deleteStaffModal').hidden = true;
-  if (error) { dbError(error, 'Failed to delete staff'); return; }
+  if (error) {
+    if (error.code === '23503' && error.message?.includes('students_homeroom_teacher_fkey')) {
+      dbError({ message: 'This teacher is still assigned as the homeroom teacher for one or more students. Reassign those students to a different homeroom teacher before deleting.' }, 'Cannot delete staff member');
+    } else {
+      dbError(error, 'Failed to delete staff');
+    }
+    return;
+  }
   window.closeDrawer?.('editStaffDrawer');
   editingEmpId = null;
   staffDirectory.load();
