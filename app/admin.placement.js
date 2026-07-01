@@ -537,12 +537,12 @@ function buildCard(student) {
   const isOffGrade = boardGrade != null && student.grade_level !== boardGrade;
   card.innerHTML = `
     <div class="placement-card-name">${esc(student.last_name)}, ${esc(student.first_name)}</div>
-    <span class="student-grade-badge${isOffGrade ? ' student-grade-badge--off' : ''}"${isOffGrade ? ` title="Off grade for this ${esc(gradeLabel(boardGrade))} board"` : ''}>${esc(gradeShort(student.grade_level))}</span>
     ${student.is_retained ? `<span class="student-retained-badge">Retained</span>` : ''}
     ${isManuallyAdded ? `<span class="student-manual-badge">Added</span>` : ''}
     ${homeroomName ? `<div class="placement-card-homeroom">${esc(homeroomName)}</div>` : ''}
     <div class="placement-card-footer">
       <div class="placement-flag-dots" data-dots-for="${student.id}"></div>
+      <span class="student-grade-badge${isOffGrade ? ' student-grade-badge--off' : ''}"${isOffGrade ? ` title="Off grade for this ${esc(gradeLabel(boardGrade))} board"` : ''}>${esc(gradeShort(student.grade_level))}</span>
       <button class="placement-flag-btn" data-flag-for="${student.id}" title="Edit flags" tabindex="-1">
         <i data-lucide="tag" style="width:12px;height:12px;"></i>
       </button>

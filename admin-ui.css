@@ -4396,6 +4396,7 @@ a.staff-dash-request-row:hover {
   color: #b91c1c;
   border-color: #fca5a5;
 }
+.placement-card-footer .student-grade-badge { flex-shrink: 0; }
 
 /* Placement flag chips — drawer toggle UI */
 .student-flags-chips {
