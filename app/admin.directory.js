@@ -152,7 +152,10 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
           btn.onclick = async () => {
             state.page = page;
             await load();
-            if (scrollToTop) window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (scrollToTop) {
+              const scroller = document.querySelector('.wrap > main') || document.documentElement;
+              scroller.scrollTo({ top: 0, behavior: 'smooth' });
+            }
           };
         }
         return btn;
