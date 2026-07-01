@@ -115,6 +115,9 @@ export async function renderSessionList() {
             <span class="placement-session-date">${dateLabel}</span>
           </div>
           <div class="placement-session-card-actions">
+            ${!archived ? `<button class="psc-icon-btn rename-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" title="Rename board">
+              <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+            </button>` : ''}
             <button class="psc-icon-btn clone-session-btn" data-idx="${data.indexOf(s)}" title="Clone to a new year">
               <i data-lucide="copy" style="width:14px;height:14px;"></i>
             </button>
@@ -146,8 +149,32 @@ export async function renderSessionList() {
   container.querySelectorAll('.delete-session-btn').forEach(btn => {
     btn.addEventListener('click', () => confirmDeleteSession(btn.dataset.id, btn.dataset.label));
   });
+  container.querySelectorAll('.rename-session-btn').forEach(btn => {
+    btn.addEventListener('click', () => renameSession(btn.dataset.id, btn.dataset.label));
+  });
 
   if (window.lucide) lucide.createIcons({ nodes: Array.from(container.querySelectorAll('[data-lucide]')) });
+}
+
+async function renameSession(sessionId, currentLabel) {
+  const name = prompt('Rename this board:', currentLabel ?? '');
+  if (name === null) return;               // cancelled
+  const trimmed = name.trim();
+  if (!trimmed || trimmed === currentLabel) return;  // empty or unchanged
+
+  const { error } = await supabase
+    .from('placement_sessions')
+    .update({ label: trimmed })
+    .eq('id', sessionId)
+    .eq('school_id', _profile.school_id);
+
+  if (error) {
+    console.error('Rename session error:', error);
+    alert('Failed to rename the board. Check the console for details.');
+    return;
+  }
+
+  await renderSessionList();
 }
 
 async function confirmDeleteSession(sessionId, label) {
