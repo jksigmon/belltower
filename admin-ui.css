@@ -4380,6 +4380,22 @@ a.staff-dash-request-row:hover {
   font-weight: 600;
   width: fit-content;
 }
+.student-grade-badge {
+  display: inline-block;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  font-size: 0.67rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  width: fit-content;
+}
+.student-grade-badge--off {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
 
 /* Placement flag chips — drawer toggle UI */
 .student-flags-chips {

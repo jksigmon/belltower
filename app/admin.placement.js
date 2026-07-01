@@ -297,7 +297,7 @@ async function loadBoardData(sessionId) {
       ? supabase.from('employees').select('id, first_name, last_name').in('id', teacherIds)
       : Promise.resolve({ data: [] }),
     studentIds.length
-      ? supabase.from('students').select('id, first_name, last_name, student_number, homeroom_teacher_id, is_retained').in('id', studentIds)
+      ? supabase.from('students').select('id, first_name, last_name, student_number, grade_level, homeroom_teacher_id, is_retained').in('id', studentIds)
       : Promise.resolve({ data: [] }),
     studentIds.length
       ? supabase.from('student_placement_flags').select('student_id, flag_id').in('student_id', studentIds)
@@ -510,6 +510,17 @@ function buildColumn(teacherId, name) {
   return col;
 }
 
+// Compact grade label for the card badge (e.g. "5th", "K", "?").
+function gradeShort(g) {
+  if (!g) return '?';
+  if (g === 'K' || g === 'PK') return g;
+  const n = parseInt(g, 10);
+  if (isNaN(n)) return g;
+  const v = n % 100;
+  const suffix = (v >= 11 && v <= 13) ? 'th' : (['th', 'st', 'nd', 'rd'][v % 10] || 'th');
+  return `${n}${suffix}`;
+}
+
 function buildCard(student) {
   const isSelected = _selectedStudentIds.has(student.id);
   const card = document.createElement('div');
@@ -522,8 +533,11 @@ function buildCard(student) {
     : null;
 
   const isManuallyAdded = _manuallyAddedIds.has(student.id);
+  const boardGrade = _session?.incoming_grade ?? null;
+  const isOffGrade = boardGrade != null && student.grade_level !== boardGrade;
   card.innerHTML = `
     <div class="placement-card-name">${esc(student.last_name)}, ${esc(student.first_name)}</div>
+    <span class="student-grade-badge${isOffGrade ? ' student-grade-badge--off' : ''}"${isOffGrade ? ` title="Off grade for this ${esc(gradeLabel(boardGrade))} board"` : ''}>${esc(gradeShort(student.grade_level))}</span>
     ${student.is_retained ? `<span class="student-retained-badge">Retained</span>` : ''}
     ${isManuallyAdded ? `<span class="student-manual-badge">Added</span>` : ''}
     ${homeroomName ? `<div class="placement-card-homeroom">${esc(homeroomName)}</div>` : ''}
