@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
-import { esc, getAvatarColor, debounce, dbError } from './admin.shared.js';
+import { esc, getAvatarColor, debounce, dbError, showToast } from './admin.shared.js';
 
 
 let currentProfile;
@@ -337,8 +337,8 @@ async function executeDeleteStaff() {
   const { error } = await supabase.from('employees').delete().eq('id', editingEmpId);
   document.getElementById('deleteStaffModal').hidden = true;
   if (error) {
-    if (error.code === '23503' && error.message?.includes('students_homeroom_teacher_fkey')) {
-      dbError({ message: 'This teacher is still assigned as the homeroom teacher for one or more students. Reassign those students to a different homeroom teacher before deleting.' }, 'Cannot delete staff member');
+    if (error.message?.includes('students_homeroom_teacher_fkey')) {
+      showToast('Cannot delete: this teacher is still assigned as the homeroom teacher for one or more students. Reassign those students first.', 'error');
     } else {
       dbError(error, 'Failed to delete staff');
     }
