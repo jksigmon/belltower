@@ -445,6 +445,144 @@
   }
 }
 
+/* ── Proxy submit form — mirrors staff portal leave form ── */
+.proxy-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.pto-field {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+}
+.pto-field-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+.pto-field input[type="text"],
+.pto-field select,
+.pto-field textarea {
+  display: block;
+  width: 100%;
+  padding: 0 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #111827;
+  background: #fff;
+  box-sizing: border-box;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  font-family: inherit;
+}
+.pto-field input[type="text"],
+.pto-field select { height: 40px; }
+.pto-field textarea {
+  padding: 10px 12px;
+  height: auto;
+  min-height: 80px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.pto-field input[type="text"]:focus,
+.pto-field select:focus,
+.pto-field textarea:focus {
+  border-color: var(--primary, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.10);
+}
+.pto-field select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+.pto-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.pto-fields-grid .pto-field:nth-child(3) { grid-column: 1 / -1; }
+.proxy-time-row {
+  display: none;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 16px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 16px;
+  align-items: end;
+}
+.proxy-time-row.visible { display: grid; }
+.proxy-computed-hours {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  padding-bottom: 10px;
+  white-space: nowrap;
+}
+.pto-coverage-group { display: flex; align-items: center; gap: 10px; }
+.pto-segmented {
+  display: inline-flex;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #f9fafb;
+}
+.pto-radio-btn {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.pto-radio-btn + .pto-radio-btn { border-left: 1.5px solid #e5e7eb; }
+.pto-radio-btn input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.pto-radio-btn span {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 22px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  background: transparent;
+  transition: background 0.12s, color 0.12s;
+  user-select: none;
+}
+.pto-radio-btn:hover span { background: #f3f4f6; color: #374151; }
+.pto-radio-btn input[type="radio"]:checked + span {
+  background: #eff6ff;
+  color: var(--primary, #2563eb);
+  font-weight: 600;
+}
+.proxy-submit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+  flex-wrap: wrap;
+}
+.proxy-form-message {
+  font-size: 13px;
+  color: #dc2626;
+  font-weight: 500;
+  flex: 1;
+}
   </style>
 </head>
 
@@ -599,76 +737,80 @@
 </section>
 <section id="pto-submit-for-staff" class="admin-section">
   <div class="admin-content fade-in">
-    <div class="panel" style="max-width:640px;">
+    <div class="panel" style="max-width:660px;">
       <h3>Submit Leave on Behalf of Staff</h3>
-      <p class="muted" style="margin-top:-4px; margin-bottom:20px;">Select a staff member and fill in the leave details. The request will enter the normal approval queue and the employee will be notified by email.</p>
+      <p class="muted" style="margin-top:-4px; margin-bottom:28px; font-size:13px; line-height:1.5;">Select a staff member and fill in the leave details. The request enters the normal approval queue and the employee will be notified by email.</p>
 
-      <div class="pto-field" style="margin-bottom:16px;">
-        <span class="pto-field-label">Staff Member <span style="color:#dc2626;">*</span></span>
-        <select id="proxyStaffSelect">
-          <option value="">Select staff member…</option>
-        </select>
-      </div>
+      <div class="proxy-form">
 
-      <div class="pto-fields-grid" style="margin-bottom:16px;">
         <div class="pto-field">
-          <span class="pto-field-label">Leave Type <span style="color:#dc2626;">*</span></span>
-          <select id="proxyPtoType">
-            <option value="">Select Leave Type</option>
+          <span class="pto-field-label">Staff Member <span style="color:#dc2626;">*</span></span>
+          <select id="proxyStaffSelect">
+            <option value="">Select staff member…</option>
           </select>
         </div>
-        <div class="pto-field">
-          <span class="pto-field-label">Duration</span>
-          <select id="proxyDuration">
-            <option value="full">Full day</option>
-            <option value="half">Half day</option>
-            <option value="multi">Multi-day</option>
-            <option value="partial">Partial day…</option>
-          </select>
-        </div>
-        <div class="pto-field">
-          <span class="pto-field-label">Date(s) <span style="color:#dc2626;">*</span></span>
-          <input type="text" id="proxyDateRange" placeholder="Select date(s)" readonly />
-        </div>
-      </div>
 
-      <div class="pto-form-row-conditional" id="proxyTimeRow" style="margin-bottom:16px;">
-        <div class="pto-field">
-          <span class="pto-field-label">Start Time</span>
-          <select id="proxyStartTime"></select>
-        </div>
-        <div class="pto-field">
-          <span class="pto-field-label">End Time</span>
-          <select id="proxyEndTime"></select>
-        </div>
-        <div id="proxyComputedHours" style="font-size:13px;color:var(--text-muted,#6b7280);align-self:flex-end;padding-bottom:6px;">Total: —</div>
-      </div>
-
-      <div class="pto-field" style="margin-bottom:16px;">
-        <span class="pto-field-label">Substitute / Coverage Needed? <span style="color:#dc2626;">*</span></span>
-        <div class="pto-coverage-group">
-          <div class="pto-segmented">
-            <label class="pto-radio-btn">
-              <input type="radio" name="proxySubCoverage" value="yes" />
-              <span>Yes</span>
-            </label>
-            <label class="pto-radio-btn">
-              <input type="radio" name="proxySubCoverage" value="no" />
-              <span>No</span>
-            </label>
+        <div class="pto-fields-grid">
+          <div class="pto-field">
+            <span class="pto-field-label">Leave Type <span style="color:#dc2626;">*</span></span>
+            <select id="proxyPtoType">
+              <option value="">Select Leave Type</option>
+            </select>
+          </div>
+          <div class="pto-field">
+            <span class="pto-field-label">Duration</span>
+            <select id="proxyDuration">
+              <option value="full">Full day</option>
+              <option value="half">Half day</option>
+              <option value="multi">Multi-day</option>
+              <option value="partial">Partial day…</option>
+            </select>
+          </div>
+          <div class="pto-field">
+            <span class="pto-field-label">Date(s) <span style="color:#dc2626;">*</span></span>
+            <input type="text" id="proxyDateRange" placeholder="Select date(s)" readonly />
           </div>
         </div>
-      </div>
 
-      <div class="pto-field" style="margin-bottom:20px;">
-        <span class="pto-field-label">Notes</span>
-        <textarea id="proxyNotes" placeholder="Add context for this request (optional)" rows="3" style="width:100%;box-sizing:border-box;"></textarea>
-        <span id="proxyNotesRequiredHint" style="display:none;font-size:12px;color:#dc2626;margin-top:4px;">Notes are required for this leave type.</span>
-      </div>
+        <div class="proxy-time-row" id="proxyTimeRow">
+          <div class="pto-field">
+            <span class="pto-field-label">Start Time</span>
+            <select id="proxyStartTime"></select>
+          </div>
+          <div class="pto-field">
+            <span class="pto-field-label">End Time</span>
+            <select id="proxyEndTime"></select>
+          </div>
+          <div id="proxyComputedHours" class="proxy-computed-hours">Total: —</div>
+        </div>
 
-      <div class="pto-submit-row">
-        <span id="proxyRequestMessage" class="pto-form-message"></span>
-        <button id="proxySubmitBtn" class="btn btn-primary">Submit Request</button>
+        <div class="pto-field">
+          <span class="pto-field-label">Substitute / Coverage Needed? <span style="color:#dc2626;">*</span></span>
+          <div class="pto-coverage-group">
+            <div class="pto-segmented">
+              <label class="pto-radio-btn">
+                <input type="radio" name="proxySubCoverage" value="yes" />
+                <span>Yes</span>
+              </label>
+              <label class="pto-radio-btn">
+                <input type="radio" name="proxySubCoverage" value="no" />
+                <span>No</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="pto-field">
+          <span class="pto-field-label">Notes</span>
+          <textarea id="proxyNotes" placeholder="Add context for this request (optional)"></textarea>
+          <span id="proxyNotesRequiredHint" style="display:none;font-size:12px;color:#dc2626;margin-top:4px;">Notes are required for this leave type.</span>
+        </div>
+
+        <div class="proxy-submit-row">
+          <span id="proxyRequestMessage" class="proxy-form-message"></span>
+          <button id="proxySubmitBtn" class="btn btn-primary" style="min-width:160px;">Submit Request</button>
+        </div>
+
       </div>
     </div>
   </div>

@@ -3024,7 +3024,7 @@ async function initProxySubmitView() {
       proxySelectedStart = null;
       proxySelectedEnd = null;
     }
-    document.getElementById('proxyTimeRow').style.display = isPartial ? 'flex' : 'none';
+    document.getElementById('proxyTimeRow').classList.toggle('visible', isPartial);
     updateProxyComputedHours();
   });
 
@@ -3188,7 +3188,7 @@ async function submitProxyLeave() {
   document.getElementById('proxyStaffSelect').value = '';
   document.getElementById('proxyPtoType').value = '';
   document.getElementById('proxyDuration').value = 'full';
-  document.getElementById('proxyTimeRow').style.display = 'none';
+  document.getElementById('proxyTimeRow').classList.remove('visible');
   document.getElementById('proxyNotes').value = '';
   document.querySelectorAll('input[name="proxySubCoverage"]').forEach(r => r.checked = false);
   if (proxyDatePicker) { proxyDatePicker.set('mode', 'single'); proxyDatePicker.clear(); }
