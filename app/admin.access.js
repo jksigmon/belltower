@@ -166,7 +166,7 @@ async function loadAccessProfile(profileId) {
       id, user_id, school_id, employee_id,
       display_name, email, status, is_superadmin,
       can_login, can_access_admin, can_manage_access,
-      can_view_pto_calendar, can_review_pto, can_approve_pto, can_submit_on_behalf,
+      can_view_pto_calendar, can_review_pto, can_approve_pto,
       is_fallback_approver, can_adjust_pto, can_manage_pto_balances, can_generate_pto_reports,
       can_view_carline, can_manage_carline,
       can_manage_staff, can_manage_students, can_manage_placement,
