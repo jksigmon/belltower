@@ -400,6 +400,52 @@
     text-align: center;
   }
 
+  /* ── Kiosk drawer styles ── */
+  .cl-kiosk-url-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cl-kiosk-url-text {
+    font-size: 11px;
+    color: var(--cl-text-muted);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: monospace;
+  }
+  .cl-kiosk-pin-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .cl-kiosk-pin-label {
+    font-size: 12px;
+    color: var(--cl-text-muted);
+    flex: 1;
+  }
+  .cl-kiosk-pin-val {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--cl-text);
+    font-family: monospace;
+    letter-spacing: 3px;
+  }
+  .cl-kiosk-copy-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid var(--cl-border);
+    border-radius: 6px;
+    color: var(--cl-text-muted);
+    font-size: 11px;
+    padding: 3px 9px;
+    cursor: pointer;
+    transition: background 120ms, color 120ms;
+    font-family: var(--cl-font);
+  }
+  .cl-kiosk-copy-btn:hover { background: var(--cl-bg); color: var(--cl-text); }
+
   /* ── Individual student pills ── */
   .cl-pinned-student-pill {
     display: inline-flex;
@@ -500,6 +546,7 @@ let pinnedStudentIds     = new Set();
 let activePickupGroupIds = new Set(); // pickup group ids selected in class bar
 let allPickupGroups      = [];        // carline_pickup_groups for this school
 let teacherNameMap       = new Map(); // employee_id → "First Last"
+let currentKioskPin      = null;      // loaded when pickup drawer opens
 let realtimeChannel  = null;
 let eventPollTimer   = null;
 let callsPollTimer   = null;
@@ -1574,6 +1621,27 @@ function renderLog() {
 }
 
 // ─── Pickup groups drawer ─────────────────────────────────────────────
+async function loadKioskPin() {
+  const { data } = await supabase
+    .from('school_settings')
+    .select('carline_kiosk_pin')
+    .eq('school_id', profile.school_id)
+    .maybeSingle();
+  currentKioskPin = data?.carline_kiosk_pin ?? null;
+}
+
+async function saveKioskPin() {
+  const pin = document.getElementById('pgKioskPinInput').value.trim();
+  if (!pin || !/^\d{6}$/.test(pin)) { showToast('Enter a 6-digit numeric PIN'); return; }
+  const { error } = await supabase
+    .from('school_settings')
+    .upsert({ school_id: profile.school_id, carline_kiosk_pin: pin }, { onConflict: 'school_id' });
+  if (error) { showToast('Failed to save PIN'); return; }
+  currentKioskPin = pin;
+  renderPickupDrawer();
+  showToast('Kiosk PIN saved');
+}
+
 function togglePickupDrawer() {
   const drawer = document.getElementById('pgDrawer');
   const btn    = document.getElementById('btnPickupGroups');
@@ -1584,13 +1652,64 @@ function togglePickupDrawer() {
   if (isOpen) {
     document.getElementById('activityLog').classList.remove('open');
     document.getElementById('btnActivityLog').classList.remove('active');
-    renderPickupDrawer();
+    loadKioskPin().then(renderPickupDrawer);
   }
 }
 
 function renderPickupDrawer() {
   const body = document.getElementById('pgDrawerBody');
   body.innerHTML = '';
+
+  // ── Kiosk Access section ───────────────────────────────────────────────
+  const kioskUrl = `${window.location.origin}/app/carline-kiosk.html`;
+
+  const kioskSection = document.createElement('div');
+  kioskSection.innerHTML = `
+    <div class="cl-pg-section-title">Kiosk Access</div>
+    <div style="padding:4px 16px 12px;display:flex;flex-direction:column;gap:8px;">
+      <div class="cl-kiosk-url-row">
+        <span class="cl-kiosk-url-text">${esc(kioskUrl)}</span>
+        <button id="btnCopyKioskUrl" class="cl-kiosk-copy-btn">Copy Link</button>
+      </div>
+      ${currentKioskPin ? `
+        <div class="cl-kiosk-pin-row">
+          <span class="cl-kiosk-pin-label">Current PIN</span>
+          <span class="cl-kiosk-pin-val" id="pgKioskPinVal">••••••</span>
+          <button id="btnRevealKioskPin" class="cl-kiosk-copy-btn">Show</button>
+        </div>
+      ` : `
+        <div class="cl-kiosk-pin-row">
+          <span class="cl-kiosk-pin-label">PIN not set</span>
+        </div>
+      `}
+    </div>
+    <div class="cl-pg-form" style="margin-top:0;">
+      <div class="cl-pg-form-title">${currentKioskPin ? 'Change PIN' : 'Set Kiosk PIN'}</div>
+      <input type="text" id="pgKioskPinInput" class="cl-pg-input"
+        placeholder="6-digit PIN" maxlength="6" inputmode="numeric"
+        autocomplete="off" pattern="[0-9]*" />
+      <button class="cl-pg-save-btn" id="btnSaveKioskPin">
+        ${currentKioskPin ? 'Update PIN' : 'Set PIN'}
+      </button>
+    </div>
+    <div style="height:1px;background:var(--cl-border);margin:4px 0 8px;"></div>
+  `;
+  body.appendChild(kioskSection);
+
+  // Wire kiosk UI
+  document.getElementById('btnCopyKioskUrl').addEventListener('click', () => {
+    navigator.clipboard.writeText(kioskUrl).then(() => showToast('Kiosk link copied'));
+  });
+  document.getElementById('btnSaveKioskPin').addEventListener('click', saveKioskPin);
+  const revealBtn = document.getElementById('btnRevealKioskPin');
+  if (revealBtn) {
+    revealBtn.addEventListener('click', () => {
+      const val = document.getElementById('pgKioskPinVal');
+      const showing = val.textContent === currentKioskPin;
+      val.textContent = showing ? '••••••' : currentKioskPin;
+      revealBtn.textContent = showing ? 'Show' : 'Hide';
+    });
+  }
 
   // List existing groups
   if (allPickupGroups.length) {

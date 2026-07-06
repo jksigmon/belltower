@@ -5,6 +5,7 @@ import { esc, GRADE_ORDER, gradeLabel } from './admin.shared.js';
 let _profile      = null;
 let _schoolConfig = null;
 let _showArchived = false;
+let _showDeleted  = false;
 let _formEmployees = [];
 let _selectedTeacherIds = new Set();
 
@@ -30,6 +31,10 @@ export function initSessions(profile, schoolConfig) {
 
 export function setShowArchived(val) {
   _showArchived = val;
+}
+
+export function setShowDeleted(val) {
+  _showDeleted = val;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -65,10 +70,17 @@ export async function renderSessionList() {
 
   let query = supabase
     .from('placement_sessions')
-    .select('id, label, academic_year, incoming_grade, target_grade, status, created_at, committed_at, target_class_size, archived_at')
+    .select('id, label, academic_year, incoming_grade, target_grade, status, created_at, committed_at, target_class_size, archived_at, deleted_at')
     .eq('school_id', _profile.school_id)
     .order('created_at', { ascending: false });
-  if (!_showArchived) query = query.is('archived_at', null);
+
+  if (_showDeleted) {
+    query = query.not('deleted_at', 'is', null);
+  } else {
+    query = query.is('deleted_at', null);
+    if (!_showArchived) query = query.is('archived_at', null);
+  }
+
   const { data, error } = await query;
 
   if (error) {
@@ -79,8 +91,10 @@ export async function renderSessionList() {
   if (!data || data.length === 0) {
     container.innerHTML = `
       <div class="placement-empty">
-        <p style="font-weight:600;margin:0 0 4px;">No placement sessions yet.</p>
-        <p class="muted" style="font-size:13px;margin:0;">Create a session to start placing students for the upcoming year.</p>
+        ${_showDeleted
+          ? '<p style="font-weight:600;margin:0 0 4px;">Trash is empty.</p><p class="muted" style="font-size:13px;margin:0;">Deleted boards appear here and can be restored.</p>'
+          : '<p style="font-weight:600;margin:0 0 4px;">No placement sessions yet.</p><p class="muted" style="font-size:13px;margin:0;">Create a session to start placing students for the upcoming year.</p>'
+        }
       </div>`;
     return;
   }
@@ -90,13 +104,18 @@ export async function renderSessionList() {
     const row = document.createElement('div');
     const committed = s.status === 'committed';
     const archived  = !!s.archived_at;
+    const deleted   = !!s.deleted_at;
+
     row.className = 'placement-session-card' +
       (committed ? ' placement-session-card--committed' : '') +
-      (archived  ? ' placement-session-card--archived'  : '');
+      (archived  ? ' placement-session-card--archived'  : '') +
+      (deleted   ? ' placement-session-card--deleted'   : '');
 
-    const dateLabel = committed && s.committed_at
-      ? 'Committed ' + new Date(s.committed_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' })
-      : 'Created '   + new Date(s.created_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' });
+    const dateLabel = deleted
+      ? 'Deleted '    + new Date(s.deleted_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' })
+      : committed && s.committed_at
+        ? 'Committed ' + new Date(s.committed_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' })
+        : 'Created '   + new Date(s.created_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' });
 
     row.innerHTML = `
       <div class="placement-session-card-accent"></div>
@@ -107,29 +126,42 @@ export async function renderSessionList() {
             <span class="placement-year-chip">${esc(s.academic_year.replace('-','–'))}</span>
             <span class="placement-grade-chip placement-grade-chip--to">${gradeLabel(s.incoming_grade)}</span>
             ${archived ? '<span class="placement-grade-chip" style="background:#f1f5f9;color:#64748b;">Archived</span>' : ''}
+            ${deleted  ? '<span class="placement-grade-chip" style="background:#fef2f2;color:#dc2626;">Deleted</span>' : ''}
           </div>
         </div>
         <div class="placement-session-card-right">
           <div class="placement-session-card-status">
-            <span class="placement-status-badge ${committed ? 'badge-committed' : 'badge-draft'}">${committed ? 'Committed' : 'Draft'}</span>
+            ${deleted
+              ? `<span class="placement-status-badge" style="background:#fef2f2;color:#dc2626;">Trash</span>`
+              : `<span class="placement-status-badge ${committed ? 'badge-committed' : 'badge-draft'}">${committed ? 'Committed' : 'Draft'}</span>`
+            }
             <span class="placement-session-date">${dateLabel}</span>
           </div>
           <div class="placement-session-card-actions">
-            ${!archived ? `<button class="psc-icon-btn rename-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" title="Rename board">
-              <i data-lucide="pencil" style="width:14px;height:14px;"></i>
-            </button>` : ''}
-            <button class="psc-icon-btn clone-session-btn" data-idx="${data.indexOf(s)}" title="Clone to a new year">
-              <i data-lucide="copy" style="width:14px;height:14px;"></i>
-            </button>
-            <button class="psc-icon-btn archive-session-btn" data-id="${s.id}" data-archived="${archived}" title="${archived ? 'Unarchive' : 'Archive'} session">
-              <i data-lucide="${archived ? 'archive-restore' : 'archive'}" style="width:14px;height:14px;"></i>
-            </button>
-            ${!committed && !archived ? `<button class="psc-icon-btn psc-icon-btn--danger delete-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" title="Delete draft">
-              <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
-            </button>` : ''}
-            ${!archived ? `<button class="btn btn-sm ${committed ? 'btn-outline' : 'btn-primary'} open-session-btn" data-id="${s.id}" style="gap:6px;">
-              ${committed ? 'View' : 'Open Board'} <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
-            </button>` : ''}
+            ${deleted ? `
+              <button class="btn btn-sm btn-primary restore-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" style="gap:6px;">
+                <i data-lucide="rotate-ccw" style="width:13px;height:13px;"></i> Restore
+              </button>
+              <button class="psc-icon-btn psc-icon-btn--danger purge-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" title="Delete permanently">
+                <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+              </button>
+            ` : `
+              ${!archived ? `<button class="psc-icon-btn rename-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" title="Rename board">
+                <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+              </button>` : ''}
+              <button class="psc-icon-btn clone-session-btn" data-idx="${data.indexOf(s)}" title="Clone to a new year">
+                <i data-lucide="copy" style="width:14px;height:14px;"></i>
+              </button>
+              <button class="psc-icon-btn archive-session-btn" data-id="${s.id}" data-archived="${archived}" title="${archived ? 'Unarchive' : 'Archive'} session">
+                <i data-lucide="${archived ? 'archive-restore' : 'archive'}" style="width:14px;height:14px;"></i>
+              </button>
+              ${!committed && !archived ? `<button class="psc-icon-btn psc-icon-btn--danger delete-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" title="Move to trash">
+                <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+              </button>` : ''}
+              ${!archived ? `<button class="btn btn-sm ${committed ? 'btn-outline' : 'btn-primary'} open-session-btn" data-id="${s.id}" style="gap:6px;">
+                ${committed ? 'View' : 'Open Board'} <i data-lucide="arrow-right" style="width:13px;height:13px;"></i>
+              </button>` : ''}
+            `}
           </div>
         </div>
       </div>
@@ -151,6 +183,12 @@ export async function renderSessionList() {
   });
   container.querySelectorAll('.rename-session-btn').forEach(btn => {
     btn.addEventListener('click', () => renameSession(btn.dataset.id, btn.dataset.label));
+  });
+  container.querySelectorAll('.restore-session-btn').forEach(btn => {
+    btn.addEventListener('click', () => restoreSession(btn.dataset.id, btn.dataset.label));
+  });
+  container.querySelectorAll('.purge-session-btn').forEach(btn => {
+    btn.addEventListener('click', () => purgeSession(btn.dataset.id, btn.dataset.label));
   });
 
   if (window.lucide) lucide.createIcons({ nodes: Array.from(container.querySelectorAll('[data-lucide]')) });
@@ -179,15 +217,56 @@ async function renameSession(sessionId, currentLabel) {
 
 async function confirmDeleteSession(sessionId, label) {
   const confirmed = confirm(
-    `Delete draft session "${label}"?\n\nThis will permanently remove the session and all its assignments. This cannot be undone.`
+    `Move "${label}" to Trash?\n\nThe board and all its placements will be hidden but not permanently deleted. You can restore it from the Trash view.`
   );
   if (!confirmed) return;
 
-  const { error } = await supabase.from('placement_sessions').delete().eq('id', sessionId);
+  const { error } = await supabase
+    .from('placement_sessions')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', sessionId)
+    .eq('school_id', _profile.school_id);
 
   if (error) {
     console.error('Delete session error:', error);
-    alert('Failed to delete session. Check the console for details.');
+    alert('Failed to move session to trash. Check the console for details.');
+    return;
+  }
+
+  await renderSessionList();
+}
+
+async function restoreSession(sessionId, label) {
+  const { error } = await supabase
+    .from('placement_sessions')
+    .update({ deleted_at: null })
+    .eq('id', sessionId)
+    .eq('school_id', _profile.school_id);
+
+  if (error) {
+    console.error('Restore session error:', error);
+    alert('Failed to restore session. Check the console for details.');
+    return;
+  }
+
+  await renderSessionList();
+}
+
+async function purgeSession(sessionId, label) {
+  const confirmed = confirm(
+    `Permanently delete "${label}"?\n\nThis will remove the board and all its placements forever. This cannot be undone.`
+  );
+  if (!confirmed) return;
+
+  const { error } = await supabase
+    .from('placement_sessions')
+    .delete()
+    .eq('id', sessionId)
+    .eq('school_id', _profile.school_id);
+
+  if (error) {
+    console.error('Purge session error:', error);
+    alert('Failed to permanently delete session. Check the console for details.');
     return;
   }
 

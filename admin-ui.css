@@ -4984,6 +4984,8 @@ a.staff-dash-request-row:hover {
 .placement-session-card--committed .placement-session-card-accent { background: #22c55e; }
 .placement-session-card--archived .placement-session-card-accent  { background: #cbd5e1; }
 .placement-session-card--archived { opacity: 0.7; }
+.placement-session-card--deleted .placement-session-card-accent   { background: #fca5a5; }
+.placement-session-card--deleted { opacity: 0.75; }
 
 .placement-session-card-body {
   flex: 1;

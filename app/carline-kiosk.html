@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carline Kiosk — Belltower</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+  <link rel="stylesheet" href="/carline.css?v=6" />
+</head>
+<body>
+
+<!-- ── Lock screen ───────────────────────────────────────────────────── -->
+<div id="kioskLock" class="kiosk-lock">
+  <div class="kiosk-lock-card">
+    <img src="/images/belltower-logo.png" alt="Belltower" class="kiosk-logo" />
+    <h2 class="kiosk-lock-title">Carline Kiosk</h2>
+    <p class="kiosk-lock-sub">Select your school and enter the kiosk PIN</p>
+
+    <select id="kioskSchoolSelect" class="kiosk-school-select">
+      <option value="">Loading schools…</option>
+    </select>
+
+    <div class="kiosk-pin-display" id="kioskPinDisplay">______</div>
+
+    <div class="kiosk-keypad" id="kioskKeypad">
+      <button class="kiosk-key" data-digit="1">1</button>
+      <button class="kiosk-key" data-digit="2">2</button>
+      <button class="kiosk-key" data-digit="3">3</button>
+      <button class="kiosk-key" data-digit="4">4</button>
+      <button class="kiosk-key" data-digit="5">5</button>
+      <button class="kiosk-key" data-digit="6">6</button>
+      <button class="kiosk-key" data-digit="7">7</button>
+      <button class="kiosk-key" data-digit="8">8</button>
+      <button class="kiosk-key" data-digit="9">9</button>
+      <button class="kiosk-key backspace" id="kioskBackspace">⌫</button>
+      <button class="kiosk-key" data-digit="0">0</button>
+      <button class="kiosk-key go" id="kioskGo">✓</button>
+    </div>
+
+    <p class="kiosk-error" id="kioskError" hidden>Incorrect PIN. Try again.</p>
+    <p class="kiosk-submitting" id="kioskSubmitting" hidden>Checking…</p>
+  </div>
+</div>
+
+<!-- ── App shell (shown after PIN validation) ────────────────────────── -->
+<div id="kioskApp" hidden>
+
+  <header id="clHeader">
+    <div class="cl-header-left">
+      <span class="cl-school-name" id="kSchoolName">Belltower</span>
+      <span class="cl-event-date" id="kEventDate"></span>
+      <span class="cl-status-badge open" id="kStatusBadge">OPEN</span>
+      <span class="cl-campus-label" id="kCampusLabel" hidden></span>
+      <span class="kiosk-mode-badge">Kiosk</span>
+    </div>
+
+    <div class="cl-header-spacer"></div>
+
+    <div class="cl-header-right">
+      <span class="cl-clock" id="kClock"></span>
+      <button class="cl-icon-btn cl-fontsize-btn" id="kBtnFontSize" title="Font size (S/M/L)">M</button>
+      <button class="cl-icon-btn" id="kBtnDarkMode" title="Toggle dark mode">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="cl-icon-btn" id="kBtnFullscreen" title="Fullscreen">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      </button>
+      <button class="cl-signout-btn" id="kBtnLock" title="Lock kiosk" style="gap:6px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span class="cl-btn-label">Lock</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Class bar -->
+  <div id="kClassBar">
+    <span class="cl-bar-label">Classes:</span>
+    <div id="kClassPills" style="display:flex;gap:6px;align-items:center;"></div>
+    <div class="cl-add-class-wrap">
+      <button class="cl-add-class-btn" id="kBtnAddClass">+ Add Class</button>
+      <div class="cl-class-dropdown" id="kClassDropdown" hidden></div>
+    </div>
+    <div class="cl-add-class-wrap">
+      <button class="cl-add-class-btn cl-add-student-btn" id="kBtnAddStudent" title="Add individual student">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>Add Student
+      </button>
+      <div class="cl-student-search-panel" id="kStudentSearchPanel" hidden>
+        <input type="text" id="kStudentSearchInput" class="cl-student-search-input" placeholder="Search by name…" autocomplete="off" spellcheck="false" />
+        <div id="kStudentSearchResults"></div>
+      </div>
+    </div>
+    <div class="cl-bar-spacer"></div>
+  </div>
+
+  <!-- All Call banner -->
+  <div id="kAllCallBanner" class="cl-all-call-banner" hidden>
+    <span class="cl-all-call-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></span>
+    <span class="cl-all-call-text">All Call — All remaining students to the front</span>
+    <button class="cl-all-call-dismiss" id="kBtnDismissAllCall" title="Dismiss">✕</button>
+  </div>
+
+  <!-- Mobile tab bar -->
+  <div id="kDisplayTabBar" hidden>
+    <button class="cl-tab-btn waiting active" data-tab="waiting">
+      <span class="cl-tab-count" id="kTabCountWaiting">0</span>
+      Waiting
+    </button>
+    <button class="cl-tab-btn called" data-tab="called">
+      <span class="cl-tab-count" id="kTabCountCalled">0</span>
+      Called
+    </button>
+    <button class="cl-tab-btn recalled" data-tab="recalled">
+      <span class="cl-tab-count" id="kTabCountRecalled">0</span>
+      Recalled
+    </button>
+  </div>
+
+  <!-- No active event state -->
+  <div id="kDisplayNoEvent" class="cl-no-event" hidden>
+    <h2>No Active Dismissal</h2>
+    <p>Dismissal hasn't started yet. Check back shortly.</p>
+  </div>
+
+  <!-- 3-column grid -->
+  <div id="kDisplayGrid" data-active-tab="waiting" hidden>
+    <div class="cl-status-col" data-tab="waiting">
+      <div class="cl-status-col-hdr waiting">
+        <span class="cl-col-title">Waiting</span>
+        <span class="cl-col-badge" id="kCountWaiting">0</span>
+        <div class="cl-col-progress"><div class="cl-col-progress-fill" id="kWaitingProgressFill"></div></div>
+      </div>
+      <div class="cl-status-col-body" id="kBodyWaiting">
+        <div class="cl-col-empty" id="kEmptyWaiting">+ Add Class to get started</div>
+      </div>
+    </div>
+    <div class="cl-status-col" data-tab="called">
+      <div class="cl-status-col-hdr called">
+        <span class="cl-col-title">Called</span>
+        <span class="cl-col-badge" id="kCountCalled">0</span>
+      </div>
+      <div class="cl-status-col-body" id="kBodyCalled">
+        <div class="cl-col-empty" id="kEmptyCalled">No students called yet</div>
+      </div>
+    </div>
+    <div class="cl-status-col" data-tab="recalled">
+      <div class="cl-status-col-hdr recalled">
+        <span class="cl-col-title">Recalled</span>
+        <span class="cl-col-badge" id="kCountRecalled">0</span>
+      </div>
+      <div class="cl-status-col-body" id="kBodyRecalled">
+        <div class="cl-col-empty" id="kEmptyRecalled">—</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="cl-toast" id="kToast"></div>
+
+<!-- ── Kiosk-specific styles ─────────────────────────────────────────── -->
+<style>
+  /* Lock screen */
+  .kiosk-lock {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--cl-bg);
+    padding: 20px;
+  }
+  .kiosk-lock-card {
+    background: var(--cl-surface);
+    border: 1px solid var(--cl-border);
+    border-radius: 18px;
+    padding: 36px 32px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    text-align: center;
+  }
+  .kiosk-logo {
+    height: 46px;
+    width: auto;
+    margin-bottom: 16px;
+  }
+  .kiosk-lock-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--cl-text);
+    margin-bottom: 6px;
+  }
+  .kiosk-lock-sub {
+    font-size: 13px;
+    color: var(--cl-text-muted);
+    margin-bottom: 20px;
+  }
+  .kiosk-school-select {
+    width: 100%;
+    border: 1.5px solid var(--cl-border);
+    border-radius: 9px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--cl-text);
+    background: var(--cl-bg);
+    font-family: var(--cl-font);
+    margin-bottom: 20px;
+    outline: none;
+    cursor: pointer;
+  }
+  .kiosk-school-select:focus { border-color: #059669; }
+  .kiosk-pin-display {
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: 10px;
+    color: var(--cl-text);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 18px;
+    min-height: 46px;
+    user-select: none;
+  }
+  .kiosk-keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .kiosk-key {
+    padding: 16px 8px;
+    font-size: 20px;
+    font-weight: 700;
+    background: var(--cl-bg);
+    border: 1.5px solid var(--cl-border);
+    border-radius: 10px;
+    cursor: pointer;
+    color: var(--cl-text);
+    transition: background 100ms, transform 80ms;
+    font-family: var(--cl-font);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .kiosk-key:hover { background: var(--cl-border); }
+  .kiosk-key:active { transform: scale(0.94); }
+  .kiosk-key.go { background: #059669; color: #fff; border-color: #059669; }
+  .kiosk-key.go:hover { background: #047857; }
+  .kiosk-key.go:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  .kiosk-key.backspace { font-size: 18px; }
+  .kiosk-error {
+    color: #dc2626;
+    font-size: 13px;
+    margin-top: 8px;
+    font-weight: 600;
+  }
+  .kiosk-submitting {
+    color: var(--cl-text-muted);
+    font-size: 13px;
+    margin-top: 8px;
+  }
+
+  /* Kiosk mode badge in header */
+  .kiosk-mode-badge {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(8,145,178,0.1);
+    color: #0891b2;
+    border: 1px solid rgba(8,145,178,0.25);
+    border-radius: 99px;
+    padding: 2px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+  }
+  [data-theme="dark"] .kiosk-mode-badge {
+    background: rgba(8,145,178,0.2);
+    color: #22d3ee;
+    border-color: rgba(8,145,178,0.35);
+  }
+
+  /* App shell — mirrors #clApp from carline.css */
+  #kioskApp {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* Class bar — mirrors #classBar from carline.css */
+  #kClassBar {
+    background: var(--cl-surface);
+    border-bottom: 1px solid var(--cl-border);
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    gap: 8px;
+    height: 56px;
+    flex-shrink: 0;
+    overflow-x: auto;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  /* Display grid — mirrors #displayGrid from carline.css */
+  #kDisplayGrid {
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    padding: 14px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* Mobile tab bar — mirrors #displayTabBar from carline.css */
+  #kDisplayTabBar {
+    display: none;
+    background: var(--cl-surface);
+    border-bottom: 1px solid var(--cl-border);
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 767px) {
+    #kDisplayTabBar { display: flex; }
+    #kDisplayGrid { grid-template-columns: 1fr; gap: 0; padding: 0; }
+    #kDisplayGrid[data-active-tab="waiting"]  .cl-status-col[data-tab="waiting"],
+    #kDisplayGrid[data-active-tab="called"]   .cl-status-col[data-tab="called"],
+    #kDisplayGrid[data-active-tab="recalled"] .cl-status-col[data-tab="recalled"] { display: flex; }
+  }
+
+  /* Pickup group pills (cyan) */
+  .cl-pickup-group-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(8,145,178,0.1);
+    color: #0891b2;
+    border: 1px solid rgba(8,145,178,0.25);
+    border-radius: 99px;
+    padding: 7px 12px 7px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  [data-theme="dark"] .cl-pickup-group-pill {
+    background: rgba(8,145,178,0.18);
+    color: #22d3ee;
+    border-color: rgba(8,145,178,0.35);
+  }
+  .cl-pickup-group-pill .cl-pill-remove { background: rgba(8,145,178,0.15); color: #0891b2; }
+  .cl-pickup-group-pill .cl-pill-remove:hover { background: rgba(8,145,178,0.3); }
+  [data-theme="dark"] .cl-pickup-group-pill .cl-pill-remove { color: #22d3ee; }
+
+  /* Pinned student pills (purple) */
+  .cl-pinned-student-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(124,58,237,0.1);
+    color: #7c3aed;
+    border: 1px solid rgba(124,58,237,0.25);
+    border-radius: 99px;
+    padding: 7px 12px 7px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  [data-theme="dark"] .cl-pinned-student-pill {
+    background: rgba(139,92,246,0.18);
+    color: #a78bfa;
+    border-color: rgba(139,92,246,0.3);
+  }
+  .cl-pinned-student-pill .cl-pill-remove { background: rgba(124,58,237,0.15); color: #7c3aed; }
+  .cl-pinned-student-pill .cl-pill-remove:hover { background: rgba(124,58,237,0.3); }
+  [data-theme="dark"] .cl-pinned-student-pill .cl-pill-remove { color: #a78bfa; }
+  .cl-add-student-btn { color: #7c3aed !important; border-color: rgba(124,58,237,0.3) !important; }
+  .cl-add-student-btn:hover { border-color: #7c3aed !important; }
+
+  /* Student typeahead */
+  .cl-student-search-panel {
+    position: fixed;
+    background: var(--cl-surface);
+    border: 1px solid var(--cl-border);
+    border-radius: var(--cl-radius);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.2);
+    z-index: 200;
+    width: 290px;
+    padding: 8px;
+  }
+  .cl-student-search-panel[hidden] { display: none !important; }
+  .cl-student-search-input {
+    width: 100%;
+    border: 1.5px solid var(--cl-border);
+    border-radius: 7px;
+    padding: 8px 12px;
+    font-size: 14px;
+    color: var(--cl-text);
+    background: var(--cl-bg);
+    outline: none;
+    font-family: var(--cl-font);
+    margin-bottom: 4px;
+    display: block;
+  }
+  .cl-student-search-input:focus { border-color: #7c3aed; }
+  #kStudentSearchResults { max-height: 260px; overflow-y: auto; }
+  .cl-search-hint {
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--cl-text-muted);
+    text-align: center;
+  }
+  .cl-dropdown-item .item-sub {
+    font-size: 11px;
+    color: var(--cl-text-muted);
+    font-weight: 400;
+    display: block;
+    margin-top: 1px;
+  }
+</style>
+
+<script type="module">
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '/app/config.js';
+import { GRADE_ORDER } from '/app/admin.shared.js';
+
+const EDGE    = `${SUPABASE_URL}/functions/v1/carline_kiosk`;
+const HEADERS = { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' };
+
+// ── SVG constants ───────────────────────────────────────────────────────
+const SVG_MOON     = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
+const SVG_SUN      = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+const SVG_EXPAND   = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
+const SVG_COMPRESS = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>`;
+const SVG_CAR_SM   = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 16H9m10 0h3v-3.15a1 1 0 0 0-.84-.99L16 11l-2.7-3.6a1 1 0 0 0-.8-.4H5.24a2 2 0 0 0-1.8 1.1l-.8 1.63A6 6 0 0 0 2 12.42V16h2"/><circle cx="6.5" cy="16.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg>`;
+const SVG_BELL_SM  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`;
+const SVG_MEGA_SM  = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`;
+
+// ── State ───────────────────────────────────────────────────────────────
+let kioskSchoolId    = null;
+let kioskPin         = null;
+let pinBuffer        = '';
+let validating       = false;
+
+let allStudents      = [];
+let allPickupGroups  = [];
+let allCampuses      = [];
+let teacherNameMap   = new Map();   // employee_id → "First Last"
+let familyTagMap     = new Map();   // family_id   → tag_number
+let callStatus       = new Map();   // student_id  → status
+let calledAt         = new Map();   // student_id  → ISO string
+let allCallAt        = null;
+let currentEvents    = [];
+
+let activeTeacherIds     = new Set();
+let activePickupGroupIds = new Set();
+let pinnedStudentIds     = new Set();
+
+let pollTimer  = null;
+let toastTimer = null;
+let audioCtx   = null;
+const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
+
+// ── Boot ────────────────────────────────────────────────────────────────
+async function boot() {
+  loadDarkModePreference();
+  initFontSize();
+  await loadSchools();
+
+  // Try auto-restore from sessionStorage
+  const saved = sessionStorage.getItem('kiosk_session');
+  if (saved) {
+    try {
+      const { schoolId, pin } = JSON.parse(saved);
+      if (schoolId && pin) {
+        document.getElementById('kioskSchoolSelect').value = schoolId;
+        await submitPin(schoolId, pin, true);
+        return;
+      }
+    } catch { /* ignore */ }
+  }
+
+  showLockScreen();
+}
+
+// ── School list ─────────────────────────────────────────────────────────
+async function loadSchools() {
+  try {
+    const res  = await fetch(`${EDGE}?action=schools`, { headers: HEADERS });
+    const data = await res.json();
+    const sel  = document.getElementById('kioskSchoolSelect');
+    sel.innerHTML = '<option value="">Select a school…</option>';
+    (data.schools || []).forEach(s => {
+      const opt = document.createElement('option');
+      opt.value       = s.id;
+      opt.textContent = s.name;
+      sel.appendChild(opt);
+    });
+  } catch {
+    document.getElementById('kioskSchoolSelect').innerHTML =
+      '<option value="">Failed to load schools</option>';
+  }
+}
+
+// ── Lock / unlock ───────────────────────────────────────────────────────
+function showLockScreen() {
+  document.getElementById('kioskLock').hidden = false;
+  document.getElementById('kioskApp').hidden  = true;
+  clearInterval(pollTimer);
+  pollTimer = null;
+  pinBuffer = '';
+  updatePinDisplay();
+  document.getElementById('kioskError').hidden      = true;
+  document.getElementById('kioskSubmitting').hidden = true;
+}
+
+function lockKiosk() {
+  sessionStorage.removeItem('kiosk_session');
+  kioskSchoolId = null;
+  kioskPin      = null;
+  clearInterval(pollTimer);
+  pollTimer = null;
+  showLockScreen();
+}
+
+// ── PIN entry ───────────────────────────────────────────────────────────
+function updatePinDisplay() {
+  const filled = pinBuffer.length;
+  const el     = document.getElementById('kioskPinDisplay');
+  el.textContent = '●'.repeat(filled) + '_'.repeat(6 - filled);
+  document.getElementById('kioskGo').disabled = filled < 6 || validating;
+}
+
+async function handleKeyPress(digit) {
+  if (validating) return;
+  if (pinBuffer.length < 6) {
+    pinBuffer += digit;
+    updatePinDisplay();
+    document.getElementById('kioskError').hidden = true;
+    if (pinBuffer.length === 6) await tryValidate();
+  }
+}
+
+function handleBackspace() {
+  if (validating) return;
+  pinBuffer = pinBuffer.slice(0, -1);
+  updatePinDisplay();
+  document.getElementById('kioskError').hidden = true;
+}
+
+async function tryValidate() {
+  const schoolId = document.getElementById('kioskSchoolSelect').value;
+  if (!schoolId) {
+    pinBuffer = '';
+    updatePinDisplay();
+    showToast('Please select a school first');
+    return;
+  }
+  await submitPin(schoolId, pinBuffer, false);
+}
+
+async function submitPin(schoolId, pin, silent) {
+  validating = true;
+  document.getElementById('kioskError').hidden      = true;
+  document.getElementById('kioskSubmitting').hidden = false;
+  document.getElementById('kioskGo').disabled       = true;
+
+  try {
+    const res  = await fetch(EDGE, {
+      method:  'POST',
+      headers: HEADERS,
+      body:    JSON.stringify({ school_id: schoolId, pin }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (silent) { showLockScreen(); return; }
+      document.getElementById('kioskError').hidden      = false;
+      document.getElementById('kioskSubmitting').hidden = true;
+      pinBuffer = '';
+      updatePinDisplay();
+      validating = false;
+      return;
+    }
+
+    // Success
+    sessionStorage.setItem('kiosk_session', JSON.stringify({ schoolId, pin }));
+    kioskSchoolId = schoolId;
+    kioskPin      = pin;
+    applySnapshot(data);
+    showAppScreen();
+    startPolling();
+  } catch {
+    if (!silent) {
+      document.getElementById('kioskSubmitting').hidden = true;
+      document.getElementById('kioskError').hidden      = false;
+      document.getElementById('kioskError').textContent = 'Connection error. Try again.';
+    } else {
+      showLockScreen();
+    }
+    pinBuffer  = '';
+    validating = false;
+    updatePinDisplay();
+  }
+}
+
+// ── Snapshot application ────────────────────────────────────────────────
+function applySnapshot(data) {
+  allStudents     = data.students     || [];
+  allPickupGroups = data.pickupGroups || [];
+  allCampuses     = data.campuses     || [];
+  currentEvents   = data.events       || [];
+
+  teacherNameMap.clear();
+  (data.employees || []).forEach(e => {
+    teacherNameMap.set(e.id, `${e.first_name ?? ''} ${e.last_name ?? ''}`.trim());
+  });
+
+  familyTagMap.clear();
+  (data.families || []).forEach(f => {
+    if (f.carline_tag_number) familyTagMap.set(f.id, String(f.carline_tag_number));
+  });
+
+  callStatus.clear();
+  calledAt.clear();
+  const hadAllCall = !!allCallAt;
+  let   hasAllCall = false;
+  (data.calls || []).forEach(c => {
+    callStatus.set(c.student_id, c.status);
+    if (c.called_at) calledAt.set(c.student_id, c.called_at);
+    if (c.call_type === 'ALL_CALL') hasAllCall = true;
+  });
+
+  // Detect all_call from events
+  if (!hasAllCall) {
+    hasAllCall = currentEvents.some(e => e.all_call_at);
+  }
+  allCallAt = hasAllCall ? (allCallAt || new Date().toISOString()) : null;
+
+  if (!hadAllCall && hasAllCall) updateAllCallBanner(true);
+  else updateAllCallBanner(false);
+}
+
+// ── Show app screen ─────────────────────────────────────────────────────
+function showAppScreen() {
+  document.getElementById('kioskLock').hidden = true;
+  document.getElementById('kioskApp').hidden  = false;
+  validating = false;
+  pinBuffer  = '';
+
+  const school = document.getElementById('kioskSchoolSelect');
+  const name   = school.options[school.selectedIndex]?.text ?? 'Carline';
+  document.getElementById('kSchoolName').textContent = name;
+  document.getElementById('kEventDate').textContent  = new Date().toLocaleDateString('en-US', {
+    weekday: 'short', month: 'short', day: 'numeric'
+  });
+
+  updateEventUI();
+  renderClassBar();
+  renderColumns();
+  startClock();
+}
+
+// ── Polling ─────────────────────────────────────────────────────────────
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(poll, 5000);
+}
+
+async function poll() {
+  if (!kioskSchoolId || !kioskPin) return;
+  try {
+    const res  = await fetch(EDGE, {
+      method:  'POST',
+      headers: HEADERS,
+      body:    JSON.stringify({ school_id: kioskSchoolId, pin: kioskPin }),
+    });
+
+    if (res.status === 401) {
+      // PIN was changed or revoked
+      showToast('Kiosk access revoked. Please re-enter PIN.');
+      lockKiosk();
+      return;
+    }
+    if (!res.ok) return;
+
+    const prev = new Map(callStatus);
+    applySnapshot(await res.json());
+
+    // Flash cards that changed status
+    callStatus.forEach((status, sid) => {
+      if (prev.get(sid) !== status) {
+        flashCard(`kcard-${sid}`, status);
+        if (status === 'CALLED'   && isStudentVisible(sid)) playCallSound();
+        if (status === 'RECALLED' && isStudentVisible(sid)) playRecallSound();
+        if (isMobile()) {
+          if (status === 'CALLED')   setActiveTab('called');
+          if (status === 'RECALLED') setActiveTab('recalled');
+        }
+      }
+    });
+
+    updateEventUI();
+    renderColumns();
+  } catch { /* network blip — try again next interval */ }
+}
+
+// ── Event UI ────────────────────────────────────────────────────────────
+function updateEventUI() {
+  const hasEvent = currentEvents.length > 0;
+  const isOpen   = hasEvent;
+
+  document.getElementById('kDisplayNoEvent').hidden = isOpen;
+  document.getElementById('kDisplayGrid').hidden    = !isOpen;
+  document.getElementById('kDisplayTabBar').hidden  = !isOpen;
+
+  const badge = document.getElementById('kStatusBadge');
+  badge.textContent = isOpen ? 'OPEN' : 'CLOSED';
+  badge.className   = 'cl-status-badge ' + (isOpen ? 'open' : 'closed');
+
+  const campusLabel = document.getElementById('kCampusLabel');
+  const eventName   = currentEvents[0]?.name ?? null;
+  if (eventName) {
+    campusLabel.textContent = eventName;
+    campusLabel.hidden = false;
+  } else {
+    campusLabel.hidden = true;
+  }
+}
+
+// ── Teacher map ─────────────────────────────────────────────────────────
+function getTeacherMap() {
+  const map = new Map();
+  allStudents.forEach(s => {
+    const key = s.homeroom_teacher_id ?? '__none__';
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        teacherName: teacherNameMap.get(key) || 'Unassigned',
+        grade: s.grade_level || '',
+        students: [],
+      });
+    }
+    map.get(key).students.push(s);
+  });
+  map.forEach(info => info.students.sort((a, b) => a.last_name.localeCompare(b.last_name)));
+  return map;
+}
+
+// ── Class bar ───────────────────────────────────────────────────────────
+function renderClassBar() {
+  const tm   = getTeacherMap();
+  const wrap = document.getElementById('kClassPills');
+  wrap.innerHTML = '';
+
+  activeTeacherIds.forEach(tid => {
+    const info = tm.get(tid);
+    if (!info) return;
+    const pill = document.createElement('div');
+    pill.className = 'cl-class-pill';
+    const initials = info.teacherName.split(' ').filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+    pill.innerHTML = `
+      <span class="cl-pill-avatar">${esc(initials)}</span>
+      <span>${esc(info.teacherName)}${info.grade ? ` · ${esc(info.grade)}` : ''}</span>
+      <button class="cl-pill-remove" title="Remove class">×</button>
+    `;
+    pill.querySelector('.cl-pill-remove').addEventListener('click', () => {
+      activeTeacherIds.delete(tid);
+      renderClassBar();
+      renderColumns();
+    });
+    wrap.appendChild(pill);
+  });
+
+  activePickupGroupIds.forEach(pgId => {
+    const pg = allPickupGroups.find(g => g.id === pgId);
+    if (!pg) { activePickupGroupIds.delete(pgId); return; }
+    const pill = document.createElement('div');
+    pill.className = 'cl-pickup-group-pill';
+    const campusName = allCampuses.find(c => c.id === pg.campus_id)?.name ?? '';
+    const meta = campusName ? ` · ${campusName}` : '';
+    pill.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>${esc(pg.name)}${meta ? `<span style="font-weight:400;opacity:0.7">${esc(meta)}</span>` : ''}</span>
+      <button class="cl-pill-remove" title="Remove group">×</button>
+    `;
+    pill.querySelector('.cl-pill-remove').addEventListener('click', () => {
+      activePickupGroupIds.delete(pgId);
+      renderClassBar();
+      renderColumns();
+    });
+    wrap.appendChild(pill);
+  });
+
+  pinnedStudentIds.forEach(sid => {
+    const student = allStudents.find(s => s.id === sid);
+    if (!student) { pinnedStudentIds.delete(sid); return; }
+    const pill = document.createElement('div');
+    pill.className = 'cl-pinned-student-pill';
+    const name  = `${student.preferred_name || student.first_name} ${student.last_name}`;
+    const grade = student.grade_level ? ` · ${student.grade_level}` : '';
+    pill.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>${esc(name)}${grade ? `<span style="font-weight:400;opacity:0.7">${esc(grade)}</span>` : ''}</span>
+      <button class="cl-pill-remove" title="Remove student">×</button>
+    `;
+    pill.querySelector('.cl-pill-remove').addEventListener('click', () => {
+      pinnedStudentIds.delete(sid);
+      renderClassBar();
+      renderColumns();
+    });
+    wrap.appendChild(pill);
+  });
+}
+
+function openClassDropdown() {
+  const dd  = document.getElementById('kClassDropdown');
+  const btn = document.getElementById('kBtnAddClass');
+  const tm  = getTeacherMap();
+  dd.innerHTML = '';
+
+  const availableGroups = allPickupGroups.filter(g => !activePickupGroupIds.has(g.id));
+  if (availableGroups.length) {
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'padding:6px 12px 2px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.07em;color:var(--cl-text-muted);';
+    hdr.textContent = 'Pickup Groups';
+    dd.appendChild(hdr);
+    availableGroups.forEach(pg => {
+      const campusName = allCampuses.find(c => c.id === pg.campus_id)?.name ?? '';
+      const count = allStudents.filter(s => pg.grade_levels.includes(s.grade_level)).length;
+      const item = document.createElement('div');
+      item.className = 'cl-dropdown-item';
+      item.innerHTML = `
+        <span style="color:#0891b2;">${esc(pg.name)}${campusName ? `<span class="item-sub">${esc(campusName)}</span>` : ''}</span>
+        <span class="item-count">${count}</span>
+      `;
+      item.addEventListener('click', () => {
+        activePickupGroupIds.add(pg.id);
+        dd.hidden = true;
+        renderClassBar();
+        renderColumns();
+      });
+      dd.appendChild(item);
+    });
+    const sep = document.createElement('div');
+    sep.style.cssText = 'height:1px;background:var(--cl-border);margin:4px 0;';
+    dd.appendChild(sep);
+  }
+
+  const available = [...tm.entries()]
+    .filter(([k]) => !activeTeacherIds.has(k))
+    .sort(([, a], [, b]) => {
+      const gi = GRADE_ORDER.indexOf(a.grade) - GRADE_ORDER.indexOf(b.grade);
+      return gi !== 0 ? gi : a.teacherName.localeCompare(b.teacherName);
+    });
+
+  if (!available.length && !availableGroups.length) {
+    dd.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:var(--cl-text-muted);">All classes added</div>';
+  } else if (available.length) {
+    if (availableGroups.length) {
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'padding:6px 12px 2px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.07em;color:var(--cl-text-muted);';
+      hdr.textContent = 'Classes';
+      dd.appendChild(hdr);
+    }
+    available.forEach(([key, info]) => {
+      const item = document.createElement('div');
+      item.className = 'cl-dropdown-item';
+      item.innerHTML = `
+        <span>${esc(info.teacherName)}${info.grade ? ` · ${esc(info.grade)}` : ''}</span>
+        <span class="item-count">${info.students.length}</span>
+      `;
+      item.addEventListener('click', () => {
+        activeTeacherIds.add(key);
+        dd.hidden = true;
+        renderClassBar();
+        renderColumns();
+      });
+      dd.appendChild(item);
+    });
+  }
+
+  const rect = btn.getBoundingClientRect();
+  dd.style.top  = (rect.bottom + 6) + 'px';
+  dd.style.left = rect.left + 'px';
+  dd.hidden = false;
+}
+
+// ── Student typeahead ────────────────────────────────────────────────────
+function openStudentTypeahead() {
+  const panel = document.getElementById('kStudentSearchPanel');
+  const input = document.getElementById('kStudentSearchInput');
+  const btn   = document.getElementById('kBtnAddStudent');
+  const rect  = btn.getBoundingClientRect();
+  const vw    = window.innerWidth;
+  const gap   = 8;
+  const panelW = Math.min(290, vw - gap * 2);
+  panel.style.width = panelW + 'px';
+  panel.style.top   = Math.max(gap, rect.bottom + 6) + 'px';
+  panel.style.left  = Math.max(gap, Math.min(rect.left, vw - panelW - gap)) + 'px';
+  panel.hidden = false;
+  input.value = '';
+  renderStudentSearchResults('');
+  setTimeout(() => input.focus(), 0);
+}
+
+function renderStudentSearchResults(query) {
+  const results = document.getElementById('kStudentSearchResults');
+  const q = query.trim().toLowerCase();
+  if (!q) {
+    results.innerHTML = '<div class="cl-search-hint">Type a student name to search</div>';
+    return;
+  }
+  const matches = allStudents
+    .filter(s => {
+      if (pinnedStudentIds.has(s.id)) return false;
+      const full = `${s.last_name} ${s.first_name} ${s.preferred_name || ''}`.toLowerCase();
+      return full.includes(q);
+    })
+    .slice(0, 8);
+  if (!matches.length) {
+    results.innerHTML = '<div class="cl-search-hint">No matching students</div>';
+    return;
+  }
+  results.innerHTML = '';
+  matches.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'cl-dropdown-item';
+    const displayName = `${s.preferred_name || s.first_name} ${s.last_name}`;
+    const subParts = [s.grade_level, s.homeroom_teacher_id ? (teacherNameMap.get(s.homeroom_teacher_id) || '') : ''].filter(Boolean);
+    item.innerHTML = `
+      <span>${esc(displayName)}${subParts.length ? `<span class="item-sub">${esc(subParts.join(' · '))}</span>` : ''}</span>
+    `;
+    item.addEventListener('click', e => {
+      e.stopPropagation();
+      pinnedStudentIds.add(s.id);
+      document.getElementById('kStudentSearchPanel').hidden = true;
+      renderClassBar();
+      renderColumns();
+    });
+    results.appendChild(item);
+  });
+}
+
+// ── 3-column rendering ───────────────────────────────────────────────────
+function isInActivePickupGroup(s) {
+  if (!activePickupGroupIds.size || !s.grade_level) return false;
+  for (const pgId of activePickupGroupIds) {
+    const pg = allPickupGroups.find(g => g.id === pgId);
+    if (pg && pg.grade_levels.includes(s.grade_level)) return true;
+  }
+  return false;
+}
+
+function getStudentGroup(s) {
+  if (isInActivePickupGroup(s)) {
+    for (const pgId of activePickupGroupIds) {
+      const pg = allPickupGroups.find(g => g.id === pgId);
+      if (pg && pg.grade_levels.includes(s.grade_level)) return { key: `pg_${pgId}`, name: pg.name };
+    }
+  }
+  const k = s.homeroom_teacher_id ?? '__none__';
+  return { key: k, name: teacherNameMap.get(k) || 'Unassigned' };
+}
+
+function getVisibleStudents() {
+  if (activeTeacherIds.size === 0 && pinnedStudentIds.size === 0 && activePickupGroupIds.size === 0) return [];
+  return allStudents.filter(s =>
+    activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__') ||
+    pinnedStudentIds.has(s.id) ||
+    isInActivePickupGroup(s)
+  );
+}
+
+function isStudentVisible(studentId) {
+  if (pinnedStudentIds.has(studentId)) return true;
+  const s = allStudents.find(s => s.id === studentId);
+  if (!s) return false;
+  if (isInActivePickupGroup(s)) return true;
+  return activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__');
+}
+
+function renderColumns() {
+  if (activeTeacherIds.size === 0 && pinnedStudentIds.size === 0 && activePickupGroupIds.size === 0) {
+    const pf = document.getElementById('kWaitingProgressFill');
+    if (pf) pf.style.width = '0%';
+    colEmpty('kBodyWaiting',  '+ Add Class to get started');
+    colEmpty('kBodyCalled',   '—');
+    colEmpty('kBodyRecalled', '—');
+    document.getElementById('kCountWaiting').textContent   = '0';
+    document.getElementById('kCountCalled').textContent    = '0';
+    document.getElementById('kCountRecalled').textContent  = '0';
+    return;
+  }
+
+  const students    = getVisibleStudents();
+  const multi       = (activeTeacherIds.size + activePickupGroupIds.size) > 1;
+  const hasAllCall  = !!allCallAt;
+
+  const waiting  = students.filter(s => {
+    const st = callStatus.get(s.id);
+    return (!st || st === 'WAITING') && !hasAllCall;
+  });
+  const called   = students.filter(s => {
+    const st = callStatus.get(s.id);
+    return st === 'CALLED' || (hasAllCall && (!st || st === 'WAITING'));
+  });
+  const recalled = students.filter(s => callStatus.get(s.id) === 'RECALLED');
+
+  called.sort((a, b) => (calledAt.get(b.id) || '').localeCompare(calledAt.get(a.id) || ''));
+
+  const pf = document.getElementById('kWaitingProgressFill');
+  if (pf) {
+    const pct = students.length > 0
+      ? Math.round(((called.length + recalled.length) / students.length) * 100)
+      : 0;
+    pf.style.width = pct + '%';
+  }
+
+  const allDone = students.length > 0 && waiting.length === 0 && !hasAllCall;
+  renderColumn('kBodyWaiting',  'kEmptyWaiting',  waiting,  'waiting',  multi, allDone ? '__celebration__' : '—');
+  renderColumn('kBodyCalled',   'kEmptyCalled',   called,   'called',   multi, 'No students called yet');
+  renderColumn('kBodyRecalled', 'kEmptyRecalled', recalled, 'recalled', multi, '—');
+
+  document.getElementById('kCountWaiting').textContent     = waiting.length;
+  document.getElementById('kCountCalled').textContent      = called.length;
+  document.getElementById('kCountRecalled').textContent    = recalled.length;
+  document.getElementById('kTabCountWaiting').textContent  = waiting.length;
+  document.getElementById('kTabCountCalled').textContent   = called.length;
+  document.getElementById('kTabCountRecalled').textContent = recalled.length;
+}
+
+function colEmpty(bodyId, msg) {
+  document.getElementById(bodyId).innerHTML = `<div class="cl-col-empty"><span>${esc(msg)}</span></div>`;
+}
+
+function renderColumn(bodyId, emptyId, students, statusClass, multi, emptyMsg) {
+  const body = document.getElementById(bodyId);
+  body.innerHTML = '';
+
+  if (!students.length) {
+    if (emptyMsg === '__celebration__') {
+      const el = document.createElement('div');
+      el.className = 'cl-col-celebration';
+      el.innerHTML = `
+        <div class="cl-col-celebration-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="cl-col-celebration-title">All students called!</div>
+        <div class="cl-col-celebration-sub">Dismissal complete</div>
+      `;
+      body.appendChild(el);
+    } else {
+      const EMPTY_ICONS = {
+        called:  `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
+        recalled:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
+      };
+      const icon = EMPTY_ICONS[statusClass] || '';
+      const el   = document.createElement('div');
+      el.className = 'cl-col-empty';
+      el.id        = emptyId;
+      el.innerHTML = `${icon}<span>${esc(emptyMsg)}</span>`;
+      body.appendChild(el);
+    }
+    return;
+  }
+
+  if (multi) {
+    const groups = new Map();
+    students.forEach(s => {
+      const { key, name } = getStudentGroup(s);
+      if (!groups.has(key)) groups.set(key, { name, students: [] });
+      groups.get(key).students.push(s);
+    });
+    groups.forEach(({ name, students: gs }) => {
+      const lbl = document.createElement('div');
+      lbl.className = 'cl-class-group-label';
+      lbl.textContent = name;
+      body.appendChild(lbl);
+      gs.forEach(s => body.appendChild(buildCard(s, statusClass)));
+    });
+  } else {
+    students.forEach(s => body.appendChild(buildCard(s, statusClass)));
+  }
+}
+
+function buildCard(student, statusClass) {
+  const tag   = familyTagMap.get(student.family_id) ?? '';
+  const grade = student.grade_level ? ` <span class="cl-card-grade">· ${esc(student.grade_level)}</span>` : '';
+  let icon = '', timeStr = '';
+
+  if (statusClass === 'recalled') {
+    icon = SVG_BELL_SM;
+  } else if (statusClass === 'called') {
+    const actualStatus = callStatus.get(student.id);
+    if (actualStatus === 'CALLED') {
+      icon = SVG_CAR_SM;
+      const iso = calledAt.get(student.id);
+      if (iso) timeStr = `<span class="cl-card-time-pill">${new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</span>`;
+    } else {
+      icon = SVG_MEGA_SM;
+    }
+  }
+
+  const el = document.createElement('div');
+  el.className = `cl-student-card ${statusClass}`;
+  el.id        = `kcard-${student.id}`;
+  el.dataset.studentId = student.id;
+  el.innerHTML = `
+    ${icon ? `<span class="cl-card-icon">${icon}</span>` : ''}
+    <span class="cl-card-body">
+      <span class="cl-card-name">${esc(student.preferred_name || student.first_name)} ${esc(student.last_name)}${grade}</span>
+    </span>
+    <span class="cl-card-meta">
+      ${tag ? `<span class="cl-card-tag">${esc(tag)}</span>` : ''}
+      ${timeStr}
+    </span>
+  `;
+  return el;
+}
+
+// ── All Call banner ──────────────────────────────────────────────────────
+function updateAllCallBanner(isNew) {
+  const banner = document.getElementById('kAllCallBanner');
+  banner.hidden = !allCallAt;
+  if (isNew && allCallAt) {
+    playAllCallSound();
+    if (isMobile()) setActiveTab('called');
+  }
+}
+
+// ── Sound ────────────────────────────────────────────────────────────────
+function getCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function tone(ctx, freq, start, dur, vol = 0.25, type = 'sine') {
+  const osc  = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain); gain.connect(ctx.destination);
+  osc.type = type; osc.frequency.value = freq;
+  const t = ctx.currentTime + start;
+  gain.gain.setValueAtTime(vol, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  osc.start(t); osc.stop(t + dur + 0.05);
+}
+function playCallSound() {
+  try { const c = getCtx(); tone(c,523.25,0,0.15); tone(c,659.25,0.14,0.15); tone(c,783.99,0.28,0.25); } catch {}
+}
+function playRecallSound() {
+  try { const c = getCtx(); tone(c,880,0,0.10,0.28,'triangle'); tone(c,659,0.09,0.10,0.28,'triangle'); tone(c,880,0.20,0.10,0.28,'triangle'); tone(c,659,0.30,0.18,0.28,'triangle'); } catch {}
+}
+function playAllCallSound() {
+  try { const c = getCtx(); tone(c,880,0,0.10,0.35,'square'); tone(c,880,0.16,0.10,0.35,'square'); tone(c,880,0.32,0.10,0.35,'square'); tone(c,1046.5,0.50,0.40,0.35,'sine'); } catch {}
+}
+
+// ── UI helpers ───────────────────────────────────────────────────────────
+function flashCard(id, status) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const cls = status === 'CALLED' ? 'new-call' : status === 'RECALLED' ? 'new-recall' : null;
+  if (!cls) return;
+  el.classList.remove('new-call', 'new-recall');
+  void el.offsetWidth;
+  el.classList.add(cls);
+  setTimeout(() => el.classList.remove(cls), 700);
+}
+
+function showToast(msg) {
+  const el = document.getElementById('kToast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function toggleDarkMode() {
+  const dark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  document.getElementById('kBtnDarkMode').innerHTML = dark ? SVG_MOON : SVG_SUN;
+  localStorage.setItem('kiosk-dark', dark ? '0' : '1');
+}
+
+function loadDarkModePreference() {
+  const pref = localStorage.getItem('kiosk-dark');
+  if (pref === '1') document.documentElement.dataset.theme = 'dark';
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen?.();
+    document.getElementById('kBtnFullscreen').innerHTML = SVG_COMPRESS;
+  } else {
+    document.exitFullscreen?.();
+    document.getElementById('kBtnFullscreen').innerHTML = SVG_EXPAND;
+  }
+}
+
+function setActiveTab(tab) {
+  document.getElementById('kDisplayGrid').dataset.activeTab = tab;
+  document.querySelectorAll('.cl-tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+}
+
+function startClock() {
+  const el   = document.getElementById('kClock');
+  const tick = () => { el.textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); };
+  tick();
+  setInterval(tick, 1000);
+}
+
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Font size ────────────────────────────────────────────────────────────
+const FONT_SIZES  = ['sm', 'md', 'lg'];
+const FONT_LABELS = ['S', 'M', 'L'];
+let fontSizeIdx = 1;
+function initFontSize() {
+  const saved = localStorage.getItem('cl-font-size');
+  const idx   = FONT_SIZES.indexOf(saved);
+  fontSizeIdx  = idx >= 0 ? idx : 1;
+  applyFontSize(false);
+}
+function cycleFontSize() { fontSizeIdx = (fontSizeIdx + 1) % FONT_SIZES.length; applyFontSize(true); }
+function applyFontSize(save) {
+  document.documentElement.dataset.fontsize = FONT_SIZES[fontSizeIdx];
+  document.getElementById('kBtnFontSize').textContent = FONT_LABELS[fontSizeIdx];
+  if (save) localStorage.setItem('cl-font-size', FONT_SIZES[fontSizeIdx]);
+}
+
+// ── Wire events ──────────────────────────────────────────────────────────
+function wireEvents() {
+  // Keypad
+  document.querySelectorAll('.kiosk-key[data-digit]').forEach(btn => {
+    btn.addEventListener('click', () => handleKeyPress(btn.dataset.digit));
+  });
+  document.getElementById('kioskBackspace').addEventListener('click', handleBackspace);
+  document.getElementById('kioskGo').addEventListener('click', async () => {
+    if (pinBuffer.length === 6) await tryValidate();
+  });
+
+  // Dark mode toggle on lock screen (carline.css variables are already loaded)
+  document.getElementById('kioskLock').addEventListener('dblclick', toggleDarkMode);
+
+  // App buttons
+  document.getElementById('kBtnLock').addEventListener('click', lockKiosk);
+  document.getElementById('kBtnDarkMode').addEventListener('click', toggleDarkMode);
+  document.getElementById('kBtnFullscreen').addEventListener('click', toggleFullscreen);
+  document.getElementById('kBtnFontSize').addEventListener('click', cycleFontSize);
+  document.getElementById('kBtnDismissAllCall').addEventListener('click', () => {
+    document.getElementById('kAllCallBanner').hidden = true;
+  });
+
+  // Tab bar
+  document.querySelectorAll('.cl-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
+  });
+
+  // Class dropdown
+  document.getElementById('kBtnAddClass').addEventListener('click', e => {
+    e.stopPropagation();
+    const dd = document.getElementById('kClassDropdown');
+    document.getElementById('kStudentSearchPanel').hidden = true;
+    if (dd.hidden) openClassDropdown(); else dd.hidden = true;
+  });
+
+  // Student typeahead
+  document.getElementById('kBtnAddStudent').addEventListener('click', e => {
+    e.stopPropagation();
+    const panel = document.getElementById('kStudentSearchPanel');
+    document.getElementById('kClassDropdown').hidden = true;
+    if (panel.hidden) openStudentTypeahead(); else panel.hidden = true;
+  });
+  document.getElementById('kStudentSearchInput').addEventListener('input', e => {
+    renderStudentSearchResults(e.target.value);
+  });
+  document.getElementById('kStudentSearchInput').addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.getElementById('kStudentSearchPanel').hidden = true;
+  });
+  document.getElementById('kStudentSearchPanel').addEventListener('click', e => e.stopPropagation());
+  document.addEventListener('click', () => {
+    document.getElementById('kClassDropdown').hidden = true;
+    document.getElementById('kStudentSearchPanel').hidden = true;
+  });
+
+  // Keyboard support for PIN entry
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('kioskLock').hidden) return;
+    if (e.key >= '0' && e.key <= '9') handleKeyPress(e.key);
+    else if (e.key === 'Backspace')   handleBackspace();
+    else if (e.key === 'Enter' && pinBuffer.length === 6) tryValidate();
+  });
+
+  // Prime AudioContext on first interaction
+  document.addEventListener('pointerdown', () => getCtx(), { once: true });
+}
+
+wireEvents();
+boot().catch(err => {
+  console.error('Carline kiosk failed to load:', err);
+  document.getElementById('kioskSchoolSelect').innerHTML =
+    '<option value="">Error loading — check console</option>';
+});
+</script>
+</body>
+</html>

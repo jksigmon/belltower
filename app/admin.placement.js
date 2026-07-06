@@ -2,7 +2,7 @@ import { supabase } from './admin.supabase.js';
 import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast, getAvatarColor } from './admin.shared.js';
 import {
   initSessions, showSessionList, showCreateForm, renderSessionList,
-  setShowArchived, submitCreateForm,
+  setShowArchived, setShowDeleted, submitCreateForm,
 } from './admin.placement.sessions.js';
 
 /* ── State ── */
@@ -77,6 +77,8 @@ function wireGlobalEvents() {
     ?.addEventListener('click', submitCreateForm);
   document.getElementById('showArchivedSessionsToggle')
     ?.addEventListener('change', e => { setShowArchived(e.target.checked); renderSessionList(); });
+  document.getElementById('showDeletedSessionsToggle')
+    ?.addEventListener('change', e => { setShowDeleted(e.target.checked); renderSessionList(); });
   document.getElementById('backToSessionListBtn')
     ?.addEventListener('click', () => { teardownRealtime(); exitFullscreen(); showSessionList(); });
 
