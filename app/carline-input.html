@@ -216,6 +216,7 @@ let profile      = null;
 let currentEvent = null;
 let allStudents  = [];
 let allBusGroups = [];
+let allPickupGroups = [];       // carline_pickup_groups for this school
 let calledBusIds = new Set();   // bus_group_ids called this event
 let allCampuses  = [];
 let activeCampusId = null;    // null = no campus filter (school-wide)
@@ -255,7 +256,7 @@ async function boot() {
     document.getElementById('adminSection').hidden = false;
   }
 
-  await Promise.all([ loadStudents(), loadBusGroups(), loadFamilyTags(), loadCarpoolTags(), loadCampuses() ]);
+  await Promise.all([ loadStudents(), loadBusGroups(), loadFamilyTags(), loadCarpoolTags(), loadCampuses(), loadPickupGroups() ]);
 
   // Default campus from employee assignment
   if (p.employee_id && allCampuses.length > 0) {
@@ -286,11 +287,20 @@ async function boot() {
 async function loadStudents() {
   const { data } = await supabase
     .from('students')
-    .select('id, first_name, last_name, family_id, bus_group_id, campus_id')
+    .select('id, first_name, last_name, family_id, bus_group_id, campus_id, grade_level')
     .eq('school_id', profile.school_id)
     .eq('active', true)
     .order('last_name');
   allStudents = data || [];
+}
+
+async function loadPickupGroups() {
+  const { data } = await supabase
+    .from('carline_pickup_groups')
+    .select('id, name, campus_id, grade_levels, active')
+    .eq('school_id', profile.school_id)
+    .eq('active', true);
+  allPickupGroups = data || [];
 }
 
 async function loadCampuses() {
@@ -614,7 +624,11 @@ async function callByTag(tag, isRecall = false) {
 
   const students = allStudents.filter(s =>
     familyIds.includes(s.family_id) &&
-    (activeCampusId === null || s.campus_id === activeCampusId)
+    (
+      activeCampusId === null ||
+      s.campus_id === activeCampusId ||
+      allPickupGroups.some(g => g.campus_id === activeCampusId && g.grade_levels.includes(s.grade_level))
+    )
   );
   if (!students.length) { showToast(`Tag ${tag}: no students at this campus`); return; }
 
@@ -761,7 +775,11 @@ async function undoByTag() {
 
   const students = allStudents.filter(s =>
     familyIds.includes(s.family_id) &&
-    (activeCampusId === null || s.campus_id === activeCampusId)
+    (
+      activeCampusId === null ||
+      s.campus_id === activeCampusId ||
+      allPickupGroups.some(g => g.campus_id === activeCampusId && g.grade_levels.includes(s.grade_level))
+    )
   );
   if (!students.length) { showToast(`No students for tag ${tag} at this campus`); return; }
 
@@ -783,7 +801,11 @@ async function allCall() {
 
   const waiting = allStudents.filter(s =>
     (callStatus.get(s.id) ?? 'WAITING') === 'WAITING' &&
-    (activeCampusId === null || s.campus_id === activeCampusId)
+    (
+      activeCampusId === null ||
+      s.campus_id === activeCampusId ||
+      allPickupGroups.some(g => g.campus_id === activeCampusId && g.grade_levels.includes(s.grade_level))
+    )
   );
   if (!waiting.length) { showToast('No waiting students remaining at this campus'); return; }
 

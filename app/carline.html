@@ -36,6 +36,9 @@
       <button class="cl-icon-btn" id="btnActivityLog" title="Activity log">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><line x1="9" y1="9" x2="10" y2="9"/></svg>
       </button>
+      <button class="cl-icon-btn" id="btnPickupGroups" title="Pickup groups" hidden>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </button>
       <a href="/carline-input.html" class="cl-input-link-btn" id="btnInputLink" target="_blank" hidden>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
         <span class="cl-btn-label">Input Page</span>
@@ -164,6 +167,15 @@
 
 <div class="cl-toast" id="clToast"></div>
 
+<!-- Pickup Groups drawer (can_manage_carline only) -->
+<div class="cl-log-panel" id="pgDrawer">
+  <div class="cl-log-hdr">
+    <span class="cl-log-hdr-title">Pickup Groups</span>
+    <button class="cl-log-close" id="btnClosePgDrawer" title="Close">✕</button>
+  </div>
+  <div class="cl-log-body" id="pgDrawerBody"></div>
+</div>
+
 <!-- Campus picker (shown when school has multiple campuses) -->
 <div id="campusPicker" hidden>
   <div id="campusPickerDialog">
@@ -236,6 +248,157 @@
     transition: background 120ms;
   }
   #campusPickerCancel:hover { background: var(--cl-bg); }
+
+  /* ── Pickup group pills ── */
+  .cl-pickup-group-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(8,145,178,0.1);
+    color: #0891b2;
+    border: 1px solid rgba(8,145,178,0.25);
+    border-radius: 99px;
+    padding: 7px 12px 7px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  [data-theme="dark"] .cl-pickup-group-pill {
+    background: rgba(8,145,178,0.18);
+    color: #22d3ee;
+    border-color: rgba(8,145,178,0.35);
+  }
+  .cl-pickup-group-pill .cl-pill-remove {
+    background: rgba(8,145,178,0.15);
+    color: #0891b2;
+  }
+  .cl-pickup-group-pill .cl-pill-remove:hover { background: rgba(8,145,178,0.3); }
+  [data-theme="dark"] .cl-pickup-group-pill .cl-pill-remove { color: #22d3ee; }
+
+  /* ── Pickup groups drawer form ── */
+  .cl-pg-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--cl-text-muted);
+    padding: 14px 16px 6px;
+  }
+  .cl-pg-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--cl-border);
+  }
+  .cl-pg-row-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--cl-text);
+  }
+  .cl-pg-row-meta {
+    font-size: 11px;
+    color: var(--cl-text-muted);
+    margin-top: 2px;
+  }
+  .cl-pg-delete-btn {
+    flex-shrink: 0;
+    background: none;
+    border: 1px solid var(--cl-border);
+    border-radius: 6px;
+    color: #dc2626;
+    font-size: 12px;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: background 120ms;
+  }
+  .cl-pg-delete-btn:hover { background: rgba(220,38,38,0.08); }
+  .cl-pg-form {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-top: 1px solid var(--cl-border);
+    margin-top: 6px;
+  }
+  .cl-pg-form-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--cl-text-muted);
+    margin-bottom: 2px;
+  }
+  .cl-pg-input, .cl-pg-select {
+    width: 100%;
+    border: 1.5px solid var(--cl-border);
+    border-radius: 7px;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--cl-text);
+    background: var(--cl-bg);
+    outline: none;
+    font-family: var(--cl-font);
+    box-sizing: border-box;
+  }
+  .cl-pg-input:focus, .cl-pg-select:focus { border-color: #0891b2; }
+  .cl-pg-grade-hdr {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cl-text-muted);
+    margin-bottom: 4px;
+  }
+  .cl-pg-grade-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .cl-pg-grade-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--cl-text);
+    background: var(--cl-bg);
+    border: 1.5px solid var(--cl-border);
+    border-radius: 6px;
+    padding: 4px 9px;
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 120ms, background 120ms;
+  }
+  .cl-pg-grade-label:has(input:checked) {
+    background: rgba(8,145,178,0.1);
+    border-color: #0891b2;
+    color: #0891b2;
+  }
+  [data-theme="dark"] .cl-pg-grade-label:has(input:checked) {
+    background: rgba(8,145,178,0.2);
+    color: #22d3ee;
+  }
+  .cl-pg-grade-label input { display: none; }
+  .cl-pg-save-btn {
+    background: #0891b2;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 120ms;
+    font-family: var(--cl-font);
+  }
+  .cl-pg-save-btn:hover { background: #0e7490; }
+  .cl-pg-empty {
+    padding: 20px 16px;
+    font-size: 13px;
+    color: var(--cl-text-muted);
+    text-align: center;
+  }
 
   /* ── Individual student pills ── */
   .cl-pinned-student-pill {
@@ -332,9 +495,11 @@ let familyTagMap  = new Map(); // family_id → tag_number
 let callStatus    = new Map(); // student_id → status string
 let calledAt      = new Map(); // student_id → ISO string
 let callLog       = [];        // { name, status, time } newest-first
-let activeTeacherIds   = new Set();
-let pinnedStudentIds   = new Set();
-let teacherNameMap     = new Map(); // employee_id → "First Last"
+let activeTeacherIds     = new Set();
+let pinnedStudentIds     = new Set();
+let activePickupGroupIds = new Set(); // pickup group ids selected in class bar
+let allPickupGroups      = [];        // carline_pickup_groups for this school
+let teacherNameMap       = new Map(); // employee_id → "First Last"
 let realtimeChannel  = null;
 let eventPollTimer   = null;
 let callsPollTimer   = null;
@@ -367,7 +532,7 @@ async function boot() {
     weekday: 'short', month: 'short', day: 'numeric'
   });
 
-  await Promise.all([ loadStudents(), loadFamilyTags(), loadTeacherNames(), loadCampuses(), loadBusGroups() ]);
+  await Promise.all([ loadStudents(), loadFamilyTags(), loadTeacherNames(), loadCampuses(), loadBusGroups(), loadPickupGroups() ]);
   await ensureCarlineEvent();
   if (currentEvent) {
     await loadExistingCalls();
@@ -393,7 +558,7 @@ async function boot() {
 async function loadStudents() {
   const { data } = await supabase
     .from('students')
-    .select('id, first_name, last_name, preferred_name, grade_level, homeroom_teacher_id, bus_group_id, family_id')
+    .select('id, first_name, last_name, preferred_name, grade_level, homeroom_teacher_id, bus_group_id, family_id, campus_id')
     .eq('school_id', profile.school_id)
     .eq('active', true)
     .order('last_name');
@@ -440,6 +605,15 @@ async function loadBusGroups() {
     .eq('school_id', profile.school_id)
     .order('name');
   allBusGroups = data || [];
+}
+
+async function loadPickupGroups() {
+  const { data } = await supabase
+    .from('carline_pickup_groups')
+    .select('id, name, campus_id, grade_levels, active')
+    .eq('school_id', profile.school_id)
+    .eq('active', true);
+  allPickupGroups = data || [];
 }
 
 async function loadBusArrivals() {
@@ -626,6 +800,7 @@ function updateEventUI() {
   badge.className   = 'cl-status-badge ' + (isOpen ? 'open' : 'closed');
 
   document.getElementById('btnInputLink').hidden         = !canManage;
+  document.getElementById('btnPickupGroups').hidden      = !canManage;
   document.getElementById('btnCloseDismissal').hidden    = !isOpen   || !canManage;
   document.getElementById('btnStartNoEvent').hidden      = hasEvent  || !canManage;
   document.getElementById('btnReopenDismissal').hidden   = !isClosed || !canManage;
@@ -692,6 +867,26 @@ function renderClassBar() {
     wrap.appendChild(pill);
   });
 
+  activePickupGroupIds.forEach(pgId => {
+    const pg = allPickupGroups.find(g => g.id === pgId);
+    if (!pg) { activePickupGroupIds.delete(pgId); return; }
+    const pill = document.createElement('div');
+    pill.className = 'cl-pickup-group-pill';
+    const campusName = allCampuses.find(c => c.id === pg.campus_id)?.name ?? '';
+    const meta = campusName ? ` · ${campusName}` : '';
+    pill.innerHTML = `
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      <span>${esc(pg.name)}${meta ? `<span style="font-weight:400;opacity:0.7">${esc(meta)}</span>` : ''}</span>
+      <button class="cl-pill-remove" title="Remove group">×</button>
+    `;
+    pill.querySelector('.cl-pill-remove').addEventListener('click', () => {
+      activePickupGroupIds.delete(pgId);
+      renderClassBar();
+      renderColumns();
+    });
+    wrap.appendChild(pill);
+  });
+
   pinnedStudentIds.forEach(sid => {
     const student = allStudents.find(s => s.id === sid);
     if (!student) { pinnedStudentIds.delete(sid); return; }
@@ -719,15 +914,51 @@ function openClassDropdown() {
   const tm  = getTeacherMap();
   dd.innerHTML = '';
 
+  // Pickup groups (shown first if any exist and aren't already active)
+  const availableGroups = allPickupGroups.filter(g => !activePickupGroupIds.has(g.id));
+  if (availableGroups.length) {
+    const hdr = document.createElement('div');
+    hdr.style.cssText = 'padding:6px 12px 2px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.07em;color:var(--cl-text-muted);';
+    hdr.textContent = 'Pickup Groups';
+    dd.appendChild(hdr);
+    availableGroups.forEach(pg => {
+      const campusName = allCampuses.find(c => c.id === pg.campus_id)?.name ?? '';
+      const count = allStudents.filter(s => pg.grade_levels.includes(s.grade_level)).length;
+      const item = document.createElement('div');
+      item.className = 'cl-dropdown-item';
+      item.innerHTML = `
+        <span style="color:#0891b2;">${esc(pg.name)}${campusName ? `<span class="item-sub">${esc(campusName)}</span>` : ''}</span>
+        <span class="item-count">${count}</span>
+      `;
+      item.addEventListener('click', () => {
+        activePickupGroupIds.add(pg.id);
+        dd.hidden = true;
+        renderClassBar();
+        renderColumns();
+      });
+      dd.appendChild(item);
+    });
+    const sep = document.createElement('div');
+    sep.style.cssText = 'height:1px;background:var(--cl-border);margin:4px 0;';
+    dd.appendChild(sep);
+  }
+
+  // Teacher classes
   const available = [...tm.entries()]
     .filter(([k]) => !activeTeacherIds.has(k))
     .sort(([, a], [, b]) => {
       const gi = GRADE_ORDER.indexOf(a.grade) - GRADE_ORDER.indexOf(b.grade);
       return gi !== 0 ? gi : a.teacherName.localeCompare(b.teacherName);
     });
-  if (!available.length) {
+  if (!available.length && !availableGroups.length) {
     dd.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:var(--cl-text-muted);">All classes added</div>';
-  } else {
+  } else if (available.length) {
+    if (availableGroups.length) {
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'padding:6px 12px 2px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.07em;color:var(--cl-text-muted);';
+      hdr.textContent = 'Classes';
+      dd.appendChild(hdr);
+    }
     available.forEach(([key, info]) => {
       const item = document.createElement('div');
       item.className = 'cl-dropdown-item';
@@ -820,10 +1051,34 @@ function renderStudentSearchResults(query) {
 }
 
 // ─── 3-column rendering ───────────────────────────────────────────────
+function isInActivePickupGroup(s) {
+  if (!activePickupGroupIds.size || !s.grade_level) return false;
+  for (const pgId of activePickupGroupIds) {
+    const pg = allPickupGroups.find(g => g.id === pgId);
+    if (pg && pg.grade_levels.includes(s.grade_level)) return true;
+  }
+  return false;
+}
+
+function getStudentGroup(s) {
+  if (isInActivePickupGroup(s)) {
+    for (const pgId of activePickupGroupIds) {
+      const pg = allPickupGroups.find(g => g.id === pgId);
+      if (pg && pg.grade_levels.includes(s.grade_level)) {
+        return { key: `pg_${pgId}`, name: pg.name };
+      }
+    }
+  }
+  const k = s.homeroom_teacher_id ?? '__none__';
+  return { key: k, name: teacherNameMap.get(k) || 'Unassigned' };
+}
+
 function getVisibleStudents() {
-  if (activeTeacherIds.size === 0 && pinnedStudentIds.size === 0) return [];
+  if (activeTeacherIds.size === 0 && pinnedStudentIds.size === 0 && activePickupGroupIds.size === 0) return [];
   return allStudents.filter(s =>
-    activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__') || pinnedStudentIds.has(s.id)
+    activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__') ||
+    pinnedStudentIds.has(s.id) ||
+    isInActivePickupGroup(s)
   );
 }
 
@@ -848,7 +1103,7 @@ function renderColumns() {
   }
 
   const students = getVisibleStudents();
-  const multi    = activeTeacherIds.size > 1;
+  const multi    = (activeTeacherIds.size + activePickupGroupIds.size) > 1;
   const hasAllCall = !!allCallAt;
 
   const waiting  = students.filter(s => {
@@ -921,12 +1176,11 @@ function renderColumn(bodyId, emptyId, students, statusClass, multi, emptyMsg) {
   }
 
   if (multi) {
-    // Group by teacher
     const groups = new Map();
     students.forEach(s => {
-      const k = s.homeroom_teacher_id ?? '__none__';
-      if (!groups.has(k)) groups.set(k, { name: teacherNameMap.get(k) || 'Unassigned', students: [] });
-      groups.get(k).students.push(s);
+      const { key, name } = getStudentGroup(s);
+      if (!groups.has(key)) groups.set(key, { name, students: [] });
+      groups.get(key).students.push(s);
     });
     groups.forEach(({ name, students: gs }) => {
       const lbl = document.createElement('div');
@@ -1159,9 +1413,11 @@ function flashCard(id, status) {
 // ─── Sound ────────────────────────────────────────────────────────────
 function isStudentVisible(studentId) {
   if (pinnedStudentIds.has(studentId)) return true;
-  if (activeTeacherIds.size === 0) return false;
   const s = allStudents.find(s => s.id === studentId);
-  return s ? activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__') : false;
+  if (!s) return false;
+  if (isInActivePickupGroup(s)) return true;
+  if (activeTeacherIds.size === 0) return false;
+  return activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__');
 }
 
 function getCtx() {
@@ -1317,6 +1573,114 @@ function renderLog() {
   });
 }
 
+// ─── Pickup groups drawer ─────────────────────────────────────────────
+function togglePickupDrawer() {
+  const drawer = document.getElementById('pgDrawer');
+  const btn    = document.getElementById('btnPickupGroups');
+  const isOpen = drawer.classList.toggle('open');
+  document.getElementById('clApp').classList.toggle('log-open', isOpen);
+  btn.classList.toggle('active', isOpen);
+  // Close activity log if open
+  if (isOpen) {
+    document.getElementById('activityLog').classList.remove('open');
+    document.getElementById('btnActivityLog').classList.remove('active');
+    renderPickupDrawer();
+  }
+}
+
+function renderPickupDrawer() {
+  const body = document.getElementById('pgDrawerBody');
+  body.innerHTML = '';
+
+  // List existing groups
+  if (allPickupGroups.length) {
+    const listHdr = document.createElement('div');
+    listHdr.className = 'cl-pg-section-title';
+    listHdr.textContent = 'Configured Groups';
+    body.appendChild(listHdr);
+    allPickupGroups.forEach(pg => {
+      const campusName = allCampuses.find(c => c.id === pg.campus_id)?.name ?? 'Any campus';
+      const row = document.createElement('div');
+      row.className = 'cl-pg-row';
+      row.innerHTML = `
+        <div>
+          <div class="cl-pg-row-name">${esc(pg.name)}</div>
+          <div class="cl-pg-row-meta">${esc(campusName)} · Grades: ${esc(pg.grade_levels.join(', ') || '—')}</div>
+        </div>
+        <button class="cl-pg-delete-btn" data-id="${esc(pg.id)}">Delete</button>
+      `;
+      row.querySelector('.cl-pg-delete-btn').addEventListener('click', () => deletePickupGroup(pg.id));
+      body.appendChild(row);
+    });
+  } else {
+    const empty = document.createElement('p');
+    empty.className = 'cl-pg-empty';
+    empty.textContent = 'No pickup groups yet. Add one below.';
+    body.appendChild(empty);
+  }
+
+  // New group form
+  const gradeSet = new Set(allStudents.map(s => s.grade_level).filter(Boolean));
+  const grades   = GRADE_ORDER.filter(g => gradeSet.has(g));
+
+  const campusOptions = allCampuses.map(c =>
+    `<option value="${esc(c.id)}">${esc(c.name)}</option>`
+  ).join('');
+
+  const gradeCheckboxes = grades.map(g =>
+    `<label class="cl-pg-grade-label"><input type="checkbox" class="cl-pg-grade-cb" value="${esc(g)}"> ${esc(g)}</label>`
+  ).join('');
+
+  const form = document.createElement('div');
+  form.className = 'cl-pg-form';
+  form.innerHTML = `
+    <div class="cl-pg-form-title">New Pickup Group</div>
+    <input type="text" id="pgNewName" class="cl-pg-input" placeholder="e.g. Upper School Shuttle" autocomplete="off" />
+    ${allCampuses.length > 1
+      ? `<select id="pgNewCampus" class="cl-pg-select"><option value="">All campuses</option>${campusOptions}</select>`
+      : `<input type="hidden" id="pgNewCampus" value="${esc(allCampuses[0]?.id ?? '')}">`
+    }
+    <div>
+      <div class="cl-pg-grade-hdr">Grades to include:</div>
+      <div class="cl-pg-grade-grid">${gradeCheckboxes}</div>
+    </div>
+    <button class="cl-pg-save-btn" id="btnSavePg">Add Group</button>
+  `;
+  body.appendChild(form);
+  document.getElementById('btnSavePg').addEventListener('click', createPickupGroup);
+}
+
+async function createPickupGroup() {
+  const name = document.getElementById('pgNewName').value.trim();
+  if (!name) { showToast('Enter a group name'); return; }
+  const campusId    = document.getElementById('pgNewCampus').value || null;
+  const gradeLevels = [...document.querySelectorAll('.cl-pg-grade-cb:checked')].map(cb => cb.value);
+  if (!gradeLevels.length) { showToast('Select at least one grade'); return; }
+
+  const { data, error } = await supabase
+    .from('carline_pickup_groups')
+    .insert({ school_id: profile.school_id, name, campus_id: campusId, grade_levels: gradeLevels, active: true })
+    .select('id, name, campus_id, grade_levels, active')
+    .single();
+  if (error) { showToast('Failed to save'); return; }
+
+  allPickupGroups.push(data);
+  renderPickupDrawer();
+  showToast(`"${name}" created`);
+}
+
+async function deletePickupGroup(id) {
+  if (!confirm('Delete this pickup group?')) return;
+  const { error } = await supabase.from('carline_pickup_groups').delete().eq('id', id);
+  if (error) { showToast('Failed to delete'); return; }
+  activePickupGroupIds.delete(id);
+  allPickupGroups = allPickupGroups.filter(g => g.id !== id);
+  renderPickupDrawer();
+  renderClassBar();
+  renderColumns();
+  showToast('Pickup group deleted');
+}
+
 // ─── Wire events ──────────────────────────────────────────────────────
 function wireEvents() {
   document.getElementById('btnSignOut').addEventListener('click', async () => {
@@ -1324,8 +1688,18 @@ function wireEvents() {
     window.location.href = '/login.html';
   });
   document.getElementById('btnFontSize').addEventListener('click', cycleFontSize);
-  document.getElementById('btnActivityLog').addEventListener('click', toggleActivityLog);
+  document.getElementById('btnActivityLog').addEventListener('click', () => {
+    // Close pickup drawer if open before toggling activity log
+    const pgDrawer = document.getElementById('pgDrawer');
+    if (pgDrawer.classList.contains('open')) {
+      pgDrawer.classList.remove('open');
+      document.getElementById('btnPickupGroups').classList.remove('active');
+    }
+    toggleActivityLog();
+  });
   document.getElementById('btnCloseLog').addEventListener('click', toggleActivityLog);
+  document.getElementById('btnPickupGroups').addEventListener('click', togglePickupDrawer);
+  document.getElementById('btnClosePgDrawer').addEventListener('click', togglePickupDrawer);
   document.getElementById('btnDarkMode').addEventListener('click', toggleDarkMode);
   document.getElementById('btnFullscreen').addEventListener('click', toggleFullscreen);
   document.getElementById('btnStartNoEvent').addEventListener('click', handleStartClick);
