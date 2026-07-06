@@ -2,6 +2,39 @@
 import { supabase } from './admin.supabase.js';
 import { esc, GRADE_ORDER, gradeLabel } from './admin.shared.js';
 
+function showConfirmModal({ title, body, okLabel = 'Delete', danger = true }) {
+  return new Promise(resolve => {
+    const overlay  = document.getElementById('placementConfirmModal');
+    const titleEl  = document.getElementById('placementConfirmTitle');
+    const bodyEl   = document.getElementById('placementConfirmBody');
+    const okBtn    = document.getElementById('placementConfirmOkBtn');
+    const cancelBtn = document.getElementById('placementConfirmCancelBtn');
+
+    titleEl.textContent = title;
+    bodyEl.textContent  = body;
+    okBtn.textContent = okLabel;
+    if (danger) {
+      okBtn.className = 'btn';
+      okBtn.style.cssText = 'background:#dc2626;color:#fff;border-color:#dc2626;';
+    } else {
+      okBtn.className = 'btn btn-primary';
+      okBtn.style.cssText = '';
+    }
+    overlay.hidden = false;
+
+    function cleanup(result) {
+      overlay.hidden = true;
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    function onOk()     { cleanup(true);  }
+    function onCancel() { cleanup(false); }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+
 let _profile      = null;
 let _schoolConfig = null;
 let _showArchived = false;
@@ -216,9 +249,12 @@ async function renameSession(sessionId, currentLabel) {
 }
 
 async function confirmDeleteSession(sessionId, label) {
-  const confirmed = confirm(
-    `Move "${label}" to Trash?\n\nThe board and all its placements will be hidden but not permanently deleted. You can restore it from the Trash view.`
-  );
+  const confirmed = await showConfirmModal({
+    title:   `Move "${label}" to Trash?`,
+    body:    'The board and all its placements will be hidden but not permanently deleted. You can restore it from the Trash view.',
+    okLabel: 'Move to Trash',
+    danger:  false,
+  });
   if (!confirmed) return;
 
   const { error } = await supabase
@@ -253,9 +289,12 @@ async function restoreSession(sessionId, label) {
 }
 
 async function purgeSession(sessionId, label) {
-  const confirmed = confirm(
-    `Permanently delete "${label}"?\n\nThis will remove the board and all its placements forever. This cannot be undone.`
-  );
+  const confirmed = await showConfirmModal({
+    title:   `Permanently delete "${label}"?`,
+    body:    'This will remove the board and all its placements forever. This cannot be undone.',
+    okLabel: 'Delete Forever',
+    danger:  true,
+  });
   if (!confirmed) return;
 
   const { error } = await supabase

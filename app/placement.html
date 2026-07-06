@@ -462,6 +462,18 @@
     </div>
   </div>
 
+  <!-- Generic confirm modal (used by session delete/purge) -->
+  <div id="placementConfirmModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:420px;width:100%;">
+      <h3 class="confirm-modal-title" id="placementConfirmTitle"></h3>
+      <p class="confirm-modal-body" id="placementConfirmBody" style="font-size:14px;line-height:1.6;color:var(--text-secondary);margin:0 0 4px;"></p>
+      <div class="confirm-modal-actions">
+        <button id="placementConfirmCancelBtn" class="btn btn-outline">Cancel</button>
+        <button id="placementConfirmOkBtn" class="btn">Delete</button>
+      </div>
+    </div>
+  </div>
+
 </div><!-- /#appShell -->
 
 </div><!-- /.placement-main -->

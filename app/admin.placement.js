@@ -54,7 +54,13 @@ export async function initPlacementSection(profile) {
     wireGlobalEvents();
     document.addEventListener('placement:show-board', e => showBoard(e.detail.sessionId));
   }
-  await showSessionList();
+
+  const resumeId = sessionStorage.getItem('placement:boardId');
+  if (resumeId) {
+    await showBoard(resumeId);
+  } else {
+    await showSessionList();
+  }
 }
 
 /* ── View switching ── */
@@ -70,9 +76,9 @@ function wireGlobalEvents() {
   document.getElementById('newPlacementSessionBtn')
     ?.addEventListener('click', showCreateForm);
   document.getElementById('cancelCreatePlacementBtn')
-    ?.addEventListener('click', () => showSessionList());
+    ?.addEventListener('click', () => { sessionStorage.removeItem('placement:boardId'); showSessionList(); });
   document.getElementById('cancelCreatePlacementBtn2')
-    ?.addEventListener('click', () => showSessionList());
+    ?.addEventListener('click', () => { sessionStorage.removeItem('placement:boardId'); showSessionList(); });
   document.getElementById('submitCreatePlacementBtn')
     ?.addEventListener('click', submitCreateForm);
   document.getElementById('showArchivedSessionsToggle')
@@ -80,7 +86,7 @@ function wireGlobalEvents() {
   document.getElementById('showDeletedSessionsToggle')
     ?.addEventListener('change', e => { setShowDeleted(e.target.checked); renderSessionList(); });
   document.getElementById('backToSessionListBtn')
-    ?.addEventListener('click', () => { teardownRealtime(); exitFullscreen(); showSessionList(); });
+    ?.addEventListener('click', () => { sessionStorage.removeItem('placement:boardId'); teardownRealtime(); exitFullscreen(); showSessionList(); });
 
   window.addEventListener('beforeunload', teardownRealtime);
   document.getElementById('commitPlacementBtn')
@@ -196,6 +202,7 @@ function wireGlobalEvents() {
 async function showBoard(sessionId) {
   teardownRealtime();   // drop any subscription from a previously open board
   _currentSessionId = sessionId;
+  sessionStorage.setItem('placement:boardId', sessionId);
   _selectedStudentIds.clear();
   _undoStack = [];
   _boardSearchTerm = '';
