@@ -1,5 +1,5 @@
 import { supabase } from './admin.supabase.js';
-import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast } from './admin.shared.js';
+import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast, getAvatarColor } from './admin.shared.js';
 import {
   initSessions, showSessionList, showCreateForm, renderSessionList,
   setShowArchived, submitCreateForm,
@@ -30,6 +30,11 @@ let _managingColId = null;
 let _placeholderColIds = new Set(); // PST row IDs that are placeholder columns
 let _resolvingColId = null;         // col ID being resolved in Assign Teacher modal
 let _manuallyAddedIds = new Set(); // student IDs added via "Add Student" (not auto-pulled by grade)
+
+/* ── Realtime collaboration state ── */
+let _realtimeChannel = null;   // postgres_changes: assignments + column order
+let _presenceChannel = null;   // presence + move broadcast
+let _remoteBanners = [];       // stack of active remote-move banner elements
 
 /* ── Entry point ── */
 export async function initPlacementSection(profile) {
@@ -73,7 +78,9 @@ function wireGlobalEvents() {
   document.getElementById('showArchivedSessionsToggle')
     ?.addEventListener('change', e => { setShowArchived(e.target.checked); renderSessionList(); });
   document.getElementById('backToSessionListBtn')
-    ?.addEventListener('click', () => { exitFullscreen(); showSessionList(); });
+    ?.addEventListener('click', () => { teardownRealtime(); exitFullscreen(); showSessionList(); });
+
+  window.addEventListener('beforeunload', teardownRealtime);
   document.getElementById('commitPlacementBtn')
     ?.addEventListener('click', confirmCommit);
   document.getElementById('undoCommitPlacementBtn')
@@ -185,6 +192,7 @@ function wireGlobalEvents() {
 
 /* ── Board ── */
 async function showBoard(sessionId) {
+  teardownRealtime();   // drop any subscription from a previously open board
   _currentSessionId = sessionId;
   _selectedStudentIds.clear();
   _undoStack = [];
@@ -218,6 +226,7 @@ async function showBoard(sessionId) {
   renderBoard();
   updateSaveStatus('');
   updateUndoBtn();
+  setupRealtime(sessionId);
 }
 
 async function loadBoardData(sessionId) {
@@ -765,6 +774,7 @@ function moveStudents(studentIds, teacherId) {
   if (_undoStack.length > 30) _undoStack.shift();
   ids.forEach(id => { _assignments[id] = teacherId; });
   logMoves(group, teacherId);
+  broadcastMoves(group, teacherId);
   clearSelection();
   if (!tryMoveSurgical(ids, teacherId)) renderBoard();
   scheduleSave();
@@ -1023,6 +1033,242 @@ async function saveAssignments() {
 function updateSaveStatus(msg) {
   const el = document.getElementById('placementSaveStatus');
   if (el) el.textContent = msg;
+}
+
+/* ── Realtime collaboration ────────────────────────────────────────────
+   Two channels per open board:
+   1. _realtimeChannel — postgres_changes on placement_assignments (state
+      sync) and placement_session_teachers (column reorder sync).
+   2. _presenceChannel — presence (who's viewing) + a "move" broadcast that
+      carries the mover's name for the notification banner.
+   State always syncs from the DB (source of truth); the broadcast is a
+   best-effort display extra. Remote moves never touch _undoStack.
+─────────────────────────────────────────────────────────────────────── */
+function setupRealtime(sessionId) {
+  if (!sessionId || !_profile) return;
+
+  // Guard: never leak a channel if setup runs twice for some reason.
+  teardownRealtime();
+
+  _realtimeChannel = supabase
+    .channel(`placement:${sessionId}`)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'placement_assignments',
+      filter: `session_id=eq.${sessionId}`,
+    }, handleRemoteAssignment)
+    .on('postgres_changes', {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'placement_session_teachers',
+      filter: `session_id=eq.${sessionId}`,
+    }, handleRemoteColumnReorder)
+    .subscribe(status => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Placement realtime subscription issue:', status);
+      }
+    });
+
+  const fullName = [_profile.first_name, _profile.last_name].filter(Boolean).join(' ') || (_profile.email ?? 'Someone');
+  _presenceChannel = supabase
+    .channel(`presence:placement:${sessionId}`, { config: { presence: { key: _profile.id } } })
+    .on('presence', { event: 'sync' }, updatePresenceUI)
+    .on('broadcast', { event: 'move' }, handleRemoteMoveBroadcast)
+    .subscribe(async status => {
+      if (status === 'SUBSCRIBED') {
+        await _presenceChannel.track({
+          user_id: _profile.id,
+          name: fullName,
+          color: getAvatarColor(fullName),
+        });
+      }
+    });
+}
+
+function teardownRealtime() {
+  if (_realtimeChannel) { supabase.removeChannel(_realtimeChannel); _realtimeChannel = null; }
+  if (_presenceChannel) { supabase.removeChannel(_presenceChannel); _presenceChannel = null; }
+  const presenceEl = document.getElementById('placementPresence');
+  if (presenceEl) presenceEl.innerHTML = '';
+}
+
+// Resolve a DB assignment row to the in-memory column key (teacherId,
+// placeholder col id, or null for Unplaced).
+function assignmentColKey(row) {
+  if (!row) return null;
+  return row.teacher_id ?? row.assigned_col_id ?? null;
+}
+
+function handleRemoteAssignment(payload) {
+  // DELETE = student removed from the board entirely (not an unplace, which
+  // is an UPDATE with null teacher). Removals aren't synced live — the other
+  // user sees them on next board open — so ignore to avoid phantom cards.
+  if (payload.eventType === 'DELETE') return;
+
+  const row = payload.new;
+  if (!row || !row.student_id) return;
+  const studentId = row.student_id;
+  const incoming = assignmentColKey(row);
+
+  // Ignore self-echo and no-ops: we already reflect this state.
+  if ((_assignments[studentId] ?? null) === (incoming ?? null)) return;
+
+  // If we have an unsaved local change for this student, ours wins
+  // (last-save-wins) — skip the remote value to avoid clobber/flicker.
+  if ((_assignments[studentId] ?? null) !== (_savedAssignments[studentId] ?? null)) return;
+
+  // Only sync students we actually know about on this board.
+  if (!_students.some(s => s.id === studentId)) return;
+
+  _assignments[studentId] = incoming;
+  _savedAssignments[studentId] = incoming;
+
+  if (!tryMoveSurgical([studentId], incoming)) renderBoard();
+  flashColumn(incoming);
+}
+
+async function handleRemoteColumnReorder() {
+  if (!_currentSessionId) return;
+  const { data, error } = await supabase
+    .from('placement_session_teachers')
+    .select('id, sort_order')
+    .eq('session_id', _currentSessionId)
+    .order('sort_order');
+  if (error || !data) return;
+
+  const orderMap = new Map(data.map(r => [r.id, r.sort_order]));
+  const currentOrder = _teachers.map(t => t._rowId).join(',');
+  const reordered = [..._teachers].sort(
+    (a, b) => (orderMap.get(a._rowId) ?? 0) - (orderMap.get(b._rowId) ?? 0)
+  );
+  // Skip re-render if nothing actually changed (e.g. our own upsert echo).
+  if (reordered.map(t => t._rowId).join(',') === currentOrder) return;
+
+  _teachers = reordered;
+  renderBoard();
+}
+
+/* ── Presence UI ── */
+function updatePresenceUI() {
+  const el = document.getElementById('placementPresence');
+  if (!el || !_presenceChannel) return;
+
+  const state = _presenceChannel.presenceState();
+  // Flatten presence entries, dedupe by user_id, drop self.
+  const seen = new Set();
+  const others = [];
+  Object.values(state).forEach(entries => {
+    entries.forEach(entry => {
+      const uid = entry.user_id;
+      if (!uid || uid === _profile.id || seen.has(uid)) return;
+      seen.add(uid);
+      others.push(entry);
+    });
+  });
+
+  if (!others.length) { el.innerHTML = ''; return; }
+
+  const MAX = 4;
+  const shown = others.slice(0, MAX);
+  const extra = others.length - shown.length;
+
+  el.innerHTML = shown.map(o => {
+    const color = o.color || getAvatarColor(o.name || '?');
+    return `<span class="presence-avatar" style="background:${color};" title="${esc(o.name || '')}">${esc(initialsOf(o.name || '?'))}</span>`;
+  }).join('') + (extra > 0
+    ? `<span class="presence-avatar" style="background:#64748b;" title="${extra} more">+${extra}</span>`
+    : '');
+}
+
+function initialsOf(name) {
+  const p = String(name).trim().split(/\s+/);
+  return p.length >= 2 ? (p[0][0] + p[p.length - 1][0]).toUpperCase() : String(name).slice(0, 2).toUpperCase();
+}
+
+/* ── Move broadcast (notification banner) ── */
+function broadcastMoves(group, toTeacherId) {
+  if (!_presenceChannel) return;
+  const realMoves = group.filter(m => m.fromTeacherId !== toTeacherId);
+  if (!realMoves.length) return;
+
+  const by = [_profile.first_name, _profile.last_name].filter(Boolean).join(' ') || (_profile.email ?? 'Someone');
+  const toLast = columnLastName(toTeacherId);
+  const students = realMoves
+    .map(m => _students.find(s => s.id === m.studentId)?.last_name)
+    .filter(Boolean);
+
+  _presenceChannel.send({
+    type: 'broadcast',
+    event: 'move',
+    payload: { by, toLast, students },
+  });
+}
+
+function columnLastName(teacherId) {
+  if (!teacherId) return 'Unplaced';
+  const t = _teachers.find(t => t.id === teacherId);
+  if (!t) return 'Unplaced';
+  return t.isPlaceholder ? (t.placeholder_name || 'Open Position') : t.last_name;
+}
+
+function handleRemoteMoveBroadcast({ payload }) {
+  if (!payload) return;
+  const { by, toLast, students = [] } = payload;
+  let text;
+  if (students.length === 1) {
+    text = `${by} moved ${students[0]} → ${toLast}`;
+  } else if (students.length > 1) {
+    text = `${by} moved ${students.length} students → ${toLast}`;
+  } else {
+    text = `${by} made a change`;
+  }
+  showRemoteBanner(text);
+}
+
+/* ── Remote move banner (stacks up to 3) ── */
+function showRemoteBanner(text) {
+  const banner = document.createElement('div');
+  banner.className = 'placement-remote-banner';
+  banner.textContent = text;
+  document.body.appendChild(banner);
+  _remoteBanners.push(banner);
+
+  // Keep only the most recent 3.
+  while (_remoteBanners.length > 3) {
+    const old = _remoteBanners.shift();
+    old?.remove();
+  }
+  repositionBanners();
+
+  setTimeout(() => {
+    banner.remove();
+    _remoteBanners = _remoteBanners.filter(b => b !== banner);
+    repositionBanners();
+  }, 4000);
+}
+
+function repositionBanners() {
+  // Newest on the bottom, older ones stacked above.
+  const gap = 8;
+  let offset = 20;
+  for (let i = _remoteBanners.length - 1; i >= 0; i--) {
+    const b = _remoteBanners[i];
+    b.style.bottom = offset + 'px';
+    offset += b.offsetHeight + gap;
+  }
+}
+
+/* ── Column flash on remote move ── */
+function flashColumn(colKey) {
+  const key = colKey ?? '__unplaced__';
+  const col = document.querySelector(`.placement-col[data-col-key="${CSS.escape(String(key))}"]`);
+  if (!col) return;
+  col.classList.remove('col-remote-flash');
+  // Force reflow so the animation can restart if the class was just removed.
+  void col.offsetWidth;
+  col.classList.add('col-remote-flash');
+  setTimeout(() => col.classList.remove('col-remote-flash'), 1500);
 }
 
 /* ── Export ── */
