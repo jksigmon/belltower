@@ -404,7 +404,7 @@ async function loadDashboardStats() {
   const isAdmin = p.is_superadmin || p.can_access_admin || p.can_manage_access;
   const row = document.getElementById('dashActionsRow');
   const actions = [];
-  if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: 'Start Carline', icon: 'car', href: '/app/carline-input.html', variant: 'amber' });
+  if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: 'Carline', icon: 'car', href: '/app/carline.html', variant: 'primary' });
   if (isAdmin) actions.push({ label: 'Add Student', icon: 'graduation-cap', href: '#students', variant: 'secondary' });
   if (isAdmin) actions.push({ label: 'Add Staff',   icon: 'user-plus', href: '#staff',    variant: 'secondary' });
   if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: 'Review Leave', icon: 'calendar-check', href: '/app/pto.html', variant: 'secondary' });

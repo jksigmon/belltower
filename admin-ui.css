@@ -3301,7 +3301,7 @@ a.stat, a.dash-stat-link {
   transform: translateY(-1px);
 }
 
-/* Amber: gradient — for primary everyday actions (e.g. Start Carline) */
+/* Amber: gradient — for high-emphasis everyday actions */
 .dash-action-btn--amber {
   background: linear-gradient(135deg, #f59e0b, #ea580c);
   color: #fff;
