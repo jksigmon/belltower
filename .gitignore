@@ -18,4 +18,8 @@ node_modules/
 # Vercel CLI
 .vercel
 
-.vercel
+# Supabase CLI temp files
+supabase/.temp/
+
+# One-off local operational scripts (kept locally, not tracked)
+rollover-2026.sql
