@@ -3,6 +3,7 @@
   "outputDirectory": ".",
   "rewrites": [
     { "source": "/carline-input.html", "destination": "/app/carline-input.html" },
+    { "source": "/carline-kiosk.html", "destination": "/app/carline-kiosk.html" },
     { "source": "/:path.html", "destination": "/app/:path.html" }
   ],
   "headers": [

@@ -3,18 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Carline Kiosk — Belltower</title>
+  <title>Carline Kiosk · Belltower</title>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="manifest" href="/icons/site.webmanifest">
   <link rel="icon" href="/icons/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/carline.css?v=6" />
 </head>
 <body>
 
 <!-- ── Lock screen ───────────────────────────────────────────────────── -->
 <div id="kioskLock" class="kiosk-lock">
+  <div class="kiosk-mesh" aria-hidden="true"></div>
   <div class="kiosk-lock-card">
     <img src="/images/belltower-logo.png" alt="Belltower" class="kiosk-logo" />
     <h2 class="kiosk-lock-title">Carline Kiosk</h2>
@@ -163,101 +167,206 @@
 
 <!-- ── Kiosk-specific styles ─────────────────────────────────────────── -->
 <style>
-  /* Lock screen */
+  /* ── Lock screen (matches login.html / callback.html) ──────────────── */
   .kiosk-lock {
+    position: relative;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--cl-bg);
-    padding: 20px;
+    padding: 24px 20px;
+    background: #020810;               /* ink-900 */
+    overflow: hidden;
+    isolation: isolate;
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   }
+  /* Animated gradient mesh */
+  .kiosk-mesh {
+    position: absolute;
+    inset: -20%;
+    z-index: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(40% 50% at 20% 30%, rgba(37,99,235,0.34), transparent 60%),
+      radial-gradient(38% 46% at 80% 22%, rgba(56,189,248,0.22), transparent 60%),
+      radial-gradient(45% 55% at 72% 84%, rgba(245,158,11,0.16), transparent 62%),
+      radial-gradient(40% 48% at 26% 80%, rgba(30,58,138,0.4), transparent 64%);
+    filter: blur(30px);
+    animation: kioskMeshDrift 22s ease-in-out infinite alternate;
+  }
+  @keyframes kioskMeshDrift {
+    0%   { transform: translate(0,0) scale(1); }
+    50%  { transform: translate(2%,-2%) scale(1.06); }
+    100% { transform: translate(-2%,1%) scale(1.03); }
+  }
+  /* Fine grid lines */
+  .kiosk-lock::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 45%, #000 30%, transparent 82%);
+    -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 45%, #000 30%, transparent 82%);
+  }
+  /* Grain overlay */
+  .kiosk-lock::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.4;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation: kioskGrain 7s steps(6) infinite;
+  }
+  @keyframes kioskGrain {
+    0%,100% { transform: translate(0,0); }
+    20% { transform: translate(-4%,3%); }
+    40% { transform: translate(3%,-5%); }
+    60% { transform: translate(-3%,4%); }
+    80% { transform: translate(4%,-2%); }
+  }
+
   .kiosk-lock-card {
-    background: var(--cl-surface);
-    border: 1px solid var(--cl-border);
-    border-radius: 18px;
+    position: relative;
+    z-index: 3;
+    background: rgba(9, 24, 43, 0.72);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
     padding: 36px 32px;
-    max-width: 360px;
+    max-width: 372px;
     width: 100%;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    box-shadow: 0 40px 80px -30px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06);
     text-align: center;
   }
+  @supports not (backdrop-filter: blur(10px)) {
+    .kiosk-lock-card { background: #0b2038; }
+  }
+  /* Gradient hairline border */
+  .kiosk-lock-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(56,189,248,0.5), rgba(37,99,235,0.08) 42%, rgba(245,158,11,0.42));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
   .kiosk-logo {
-    height: 46px;
+    height: 44px;
     width: auto;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
+    position: relative;
+    z-index: 1;
   }
   .kiosk-lock-title {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--cl-text);
+    font-family: 'Fraunces', Georgia, 'Times New Roman', serif;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #fff;
     margin-bottom: 6px;
   }
   .kiosk-lock-sub {
     font-size: 13px;
-    color: var(--cl-text-muted);
-    margin-bottom: 20px;
+    color: rgba(203,213,225,0.72);
+    margin-bottom: 22px;
+    line-height: 1.5;
   }
   .kiosk-school-select {
     width: 100%;
-    border: 1.5px solid var(--cl-border);
-    border-radius: 9px;
-    padding: 10px 12px;
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 11px;
+    padding: 12px 14px;
     font-size: 14px;
-    color: var(--cl-text);
-    background: var(--cl-bg);
-    font-family: var(--cl-font);
-    margin-bottom: 20px;
+    font-weight: 500;
+    color: #fff;
+    background: rgba(255,255,255,0.05);
+    font-family: inherit;
+    margin-bottom: 22px;
     outline: none;
     cursor: pointer;
+    transition: border-color 150ms, background 150ms;
+    /* recolor native dropdown arrow for dark bg */
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 40px;
   }
-  .kiosk-school-select:focus { border-color: #059669; }
+  .kiosk-school-select:focus { border-color: rgba(56,189,248,0.6); background: rgba(255,255,255,0.08); }
+  .kiosk-school-select option { color: #0f172a; }   /* readable in native popup */
   .kiosk-pin-display {
-    font-size: 34px;
-    font-weight: 800;
-    letter-spacing: 10px;
-    color: var(--cl-text);
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: 12px;
+    color: var(--amber-300, #fbbf24);
     font-variant-numeric: tabular-nums;
-    margin-bottom: 18px;
-    min-height: 46px;
+    margin: 4px 0 22px;
+    min-height: 40px;
+    text-indent: 12px;   /* balance the trailing letter-spacing */
     user-select: none;
   }
   .kiosk-keypad {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-bottom: 12px;
+    gap: 9px;
+    margin-bottom: 4px;
+    position: relative;
+    z-index: 1;
   }
   .kiosk-key {
-    padding: 16px 8px;
+    padding: 17px 8px;
     font-size: 20px;
     font-weight: 700;
-    background: var(--cl-bg);
-    border: 1.5px solid var(--cl-border);
-    border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
     cursor: pointer;
-    color: var(--cl-text);
-    transition: background 100ms, transform 80ms;
-    font-family: var(--cl-font);
+    color: #fff;
+    transition: background 120ms, transform 80ms, border-color 120ms;
+    font-family: inherit;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
-  .kiosk-key:hover { background: var(--cl-border); }
+  .kiosk-key:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
   .kiosk-key:active { transform: scale(0.94); }
-  .kiosk-key.go { background: #059669; color: #fff; border-color: #059669; }
-  .kiosk-key.go:hover { background: #047857; }
-  .kiosk-key.go:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
-  .kiosk-key.backspace { font-size: 18px; }
+  .kiosk-key.go {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 8px 22px rgba(16,185,129,0.34);
+  }
+  .kiosk-key.go:hover { box-shadow: 0 12px 30px rgba(16,185,129,0.46); background: linear-gradient(135deg, #14c48d 0%, #059669 100%); }
+  .kiosk-key.go:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+  .kiosk-key.backspace { font-size: 18px; color: rgba(203,213,225,0.85); }
   .kiosk-error {
-    color: #dc2626;
+    color: #fca5a5;
     font-size: 13px;
-    margin-top: 8px;
+    margin-top: 14px;
     font-weight: 600;
+    position: relative;
+    z-index: 1;
   }
   .kiosk-submitting {
-    color: var(--cl-text-muted);
+    color: rgba(203,213,225,0.7);
     font-size: 13px;
-    margin-top: 8px;
+    margin-top: 14px;
+    position: relative;
+    z-index: 1;
   }
 
   /* Kiosk mode badge in header */

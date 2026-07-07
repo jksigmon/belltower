@@ -1,232 +1,334 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Signing you in…</title>
+  <title>Signing you in… · Belltower</title>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
-  
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
-
   <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    /* ============================================================
+       Variables (mirrors index.html / login.html)
+       ============================================================ */
     :root {
-      --navy-900: #071c2f;
-      --navy-800: #0b2d4f;
-      --blue-main: #1f5fa8;
-      --text-muted: #cbd5e1;
-      --white: #ffffff;
+      --ink-900: #020810;
+      --navy:     #0b2d4f;
+      --navy-600: #0e3b66;
+      --blue:     #2563eb;
+      --sky:      #38bdf8;
+      --sky-200:  #bae6fd;
+      --amber:    #f59e0b;
+      --amber-300:#fbbf24;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --display:  'Fraunces', Georgia, 'Times New Roman', serif;
+      --sans:     'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* ============================================================
+       Stage: dark animated backdrop
+       ============================================================ */
+    .auth-stage {
+      position: relative;
       min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px 16px;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-
+      padding: 2rem 1.25rem;
+      background: var(--ink-900);
+      overflow: hidden;
+      isolation: isolate;
+    }
+    .auth-mesh {
+      position: absolute;
+      inset: -20%;
+      z-index: 0;
+      pointer-events: none;
       background:
-        linear-gradient(
-          to bottom,
-          rgba(7, 28, 47, 0.45),
-          rgba(7, 28, 47, 0.65)
-        ),
-        url("/images/hero-belltower-wide.png");
-
-      background-size: cover;
-      background-position: center center;
-      background-repeat: no-repeat;
+        radial-gradient(40% 50% at 20% 30%, rgba(37,99,235,0.32), transparent 60%),
+        radial-gradient(38% 46% at 80% 24%, rgba(56,189,248,0.2), transparent 60%),
+        radial-gradient(45% 55% at 70% 82%, rgba(245,158,11,0.15), transparent 62%),
+        radial-gradient(40% 48% at 28% 78%, rgba(30,58,138,0.38), transparent 64%);
+      filter: blur(30px);
+      animation: meshDrift 22s ease-in-out infinite alternate;
+    }
+    @keyframes meshDrift {
+      0%   { transform: translate(0,0) scale(1); }
+      50%  { transform: translate(2%,-2%) scale(1.06); }
+      100% { transform: translate(-2%,1%) scale(1.03); }
+    }
+    .auth-stage::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, #000 30%, transparent 80%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, #000 30%, transparent 80%);
+    }
+    .auth-stage::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      opacity: 0.4;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      animation: grainShift 7s steps(6) infinite;
+    }
+    @keyframes grainShift {
+      0%,100% { transform: translate(0,0); }
+      20% { transform: translate(-4%,3%); }
+      40% { transform: translate(3%,-5%); }
+      60% { transform: translate(-3%,4%); }
+      80% { transform: translate(4%,-2%); }
     }
 
+    /* ============================================================
+       Card
+       ============================================================ */
     .callback-card {
+      position: relative;
+      z-index: 3;
       width: 100%;
-      max-width: 420px;
-      padding: 2.25rem;
+      max-width: 400px;
+      padding: 2.6rem 2.25rem 2.4rem;
       text-align: center;
-
-      border-radius: 16px;
-      background: rgba(11, 45, 79, 0.7);
-      backdrop-filter: blur(14px) saturate(1.2);
-      -webkit-backdrop-filter: blur(14px) saturate(1.2);
-
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+      border-radius: 20px;
+      background: rgba(9, 24, 43, 0.72);
+      backdrop-filter: blur(20px) saturate(160%);
+      -webkit-backdrop-filter: blur(20px) saturate(160%);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 40px 80px -30px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06);
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(16px);
+      animation: cardIn 0.7s var(--ease-out) forwards;
+    }
+    @keyframes cardIn { to { opacity: 1; transform: none; } }
+    .callback-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 20px;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(56,189,248,0.5), rgba(37,99,235,0.08) 42%, rgba(245,158,11,0.42));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+    @supports not (backdrop-filter: blur(10px)) {
+      .callback-card { background: #0b2038; }
     }
 
-    .callback-logo {
-      max-height: 80px;
-      max-width: 220px;
-      width: auto;
-      height: auto;
-      margin-bottom: 1.5rem;
-    }
+    .callback-logo { height: 34px; width: auto; margin-bottom: 1.9rem; }
 
-    .callback-text {
-      color: var(--white);
-      font-weight: 600;
-      margin-bottom: 1.25rem;
+    /* Branded dual-ring spinner */
+    .ring {
+      position: relative;
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 1.5rem;
     }
-
-    .callback-subtext {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    .spinner {
-      width: 36px;
-      height: 36px;
-      margin: 0 auto 1.25rem;
-      border: 3px solid rgba(255, 255, 255, 0.3);
-      border-top-color: var(--white);
+    .ring::before,
+    .ring::after {
+      content: "";
+      position: absolute;
+      inset: 0;
       border-radius: 50%;
+      border: 3px solid transparent;
+    }
+    .ring::before {
+      border-top-color: var(--sky);
+      border-right-color: var(--sky);
       animation: spin 0.9s linear infinite;
     }
+    .ring::after {
+      inset: 8px;
+      border-bottom-color: var(--amber-300);
+      border-left-color: var(--amber-300);
+      animation: spin 1.3s linear infinite reverse;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
+    .callback-text {
+      font-family: var(--display);
+      font-size: 1.3rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .callback-subtext {
+      margin-top: 0.55rem;
+      font-size: 0.85rem;
+      color: rgba(203,213,225,0.62);
+      line-height: 1.5;
     }
 
-    @media (max-width: 767px) {
-      .callback-card {
-        padding: 2rem 1.5rem;
-        border-radius: 14px;
-      }
+    /* Animated progress dots */
+    .dots { margin-top: 1.4rem; display: flex; justify-content: center; gap: 0.4rem; }
+    .dots span {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: rgba(255,255,255,0.25);
+      animation: dotPulse 1.4s ease-in-out infinite;
+    }
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dotPulse {
+      0%,100% { background: rgba(255,255,255,0.22); transform: scale(1); }
+      50% { background: var(--sky-200); transform: scale(1.35); }
+    }
 
-      .callback-logo {
-        max-height: 64px;
+    @media (max-width: 480px) {
+      .callback-card { padding: 2.2rem 1.6rem 2rem; border-radius: 18px; }
+      .callback-logo { height: 30px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
       }
+      .callback-card { opacity: 1; transform: none; }
+      .ring::before { border-top-color: var(--sky); }
     }
   </style>
 </head>
 
 <body>
-  <div class="callback-card">
-    <img
-      src="/images/belltower-logo.png"
-      alt="Belltower"
-      class="callback-logo"
-    />
+  <div class="auth-stage">
+    <div class="auth-mesh" aria-hidden="true"></div>
 
-    <div class="spinner"></div>
-
-    <div class="callback-text">Signing you in…</div>
+    <div class="callback-card">
+      <img src="/images/belltower-logo.png" alt="Belltower" class="callback-logo" />
+      <div class="ring" aria-hidden="true"></div>
+      <div class="callback-text">Signing you in…</div>
+      <div class="callback-subtext">Verifying your access and preparing your workspace.</div>
+      <div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>
+    </div>
   </div>
 
- 
- 
-<script type="module">
-import { supabase } from '/app/admin.supabase.js'
+  <script type="module">
+    import { supabase } from '/app/admin.supabase.js'
 
-// If Google redirected back with an error (e.g. user cancelled), go back to login
-const qp = new URLSearchParams(window.location.search);
-const hp = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-if (qp.get('error') || hp.get('error')) {
-  window.location.replace('/app/login.html');
-}
+    // If Google redirected back with an error (e.g. user cancelled), go back to login
+    const qp = new URLSearchParams(window.location.search);
+    const hp = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    if (qp.get('error') || hp.get('error')) {
+      window.location.replace('/app/login.html');
+    }
 
-supabase.auth.onAuthStateChange(async (event, session) => {
-  if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return
-  if (!session) return
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return
+      if (!session) return
 
-  const user = session.user
-  const email = user.email.toLowerCase()
-  const domain = email.split('@')[1]
+      const user = session.user
+      const email = user.email.toLowerCase()
+      const domain = email.split('@')[1]
 
-  // Load profile by user_id first
-  let { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', user.id)
-    .maybeSingle()
-
-  // Fallback: check for a pre-populated profile matched by email (no user_id yet)
-  if (!profile) {
-    const { data: prebuilt } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email', email)
-      .is('user_id', null)
-      .maybeSingle()
-
-    if (prebuilt) {
-      await supabase
+      // Load profile by user_id first
+      let { data: profile } = await supabase
         .from('profiles')
-        .update({
-          user_id: user.id,
-          display_name: user.user_metadata?.full_name ?? prebuilt.display_name
-        })
-        .eq('id', prebuilt.id)
-      profile = { ...prebuilt, user_id: user.id }
-    }
-  }
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle()
 
-  // Look up school by domain
-  const { data: school } = await supabase
-    .from('schools')
-    .select('id')
-    .eq('email_domain', domain)
-    .maybeSingle()
+      // Fallback: check for a pre-populated profile matched by email (no user_id yet)
+      if (!profile) {
+        const { data: prebuilt } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', email)
+          .is('user_id', null)
+          .maybeSingle()
 
-  // ✅ FIRST LOGIN → CREATE PROFILE
-  if (!profile) {
-    const { error } = await supabase
-      .from('profiles')
-      .insert({
-        user_id: user.id,
-        email: user.email,
-        display_name: user.user_metadata?.full_name ?? user.email,
-        role: 'staff',   
-        status: 'pending',
-        can_login: false,
-        school_id: school?.id ?? null
-      })
+        if (prebuilt) {
+          await supabase
+            .from('profiles')
+            .update({
+              user_id: user.id,
+              display_name: user.user_metadata?.full_name ?? prebuilt.display_name
+            })
+            .eq('id', prebuilt.id)
+          profile = { ...prebuilt, user_id: user.id }
+        }
+      }
 
-    if (error) {
-      console.error('Profile creation failed:', error)
-      await supabase.auth.signOut()
-      window.location.replace('/login.html')
-      return
-    }
+      // Look up school by domain
+      const { data: school } = await supabase
+        .from('schools')
+        .select('id')
+        .eq('email_domain', domain)
+        .maybeSingle()
 
-    window.location.replace('/app/pending.html')
-    return
-  }
+      // ✅ FIRST LOGIN → CREATE PROFILE
+      if (!profile) {
+        const { error } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            display_name: user.user_metadata?.full_name ?? user.email,
+            role: 'staff',
+            status: 'pending',
+            can_login: false,
+            school_id: school?.id ?? null
+          })
 
-  // ✅ Pending users stay signed in
-  if (profile.status === 'pending') {
-    window.location.replace('/app/pending.html')
-    return
-  }
+        if (error) {
+          console.error('Profile creation failed:', error)
+          await supabase.auth.signOut()
+          window.location.replace('/login.html')
+          return
+        }
 
-  // ✅ Block inactive users
-  if (profile.can_login !== true) {
-    await supabase.auth.signOut()
-    window.location.replace('/login.html')
-    return
-  }
+        window.location.replace('/app/pending.html')
+        return
+      }
 
-  const isAdmin =
-    profile.is_superadmin ||
-    profile.can_access_admin ||
-    profile.can_manage_access ||
-    profile.can_approve_pto ||
-    profile.can_adjust_pto ||
-    profile.can_bulk_upload
+      // ✅ Pending users stay signed in
+      if (profile.status === 'pending') {
+        window.location.replace('/app/pending.html')
+        return
+      }
 
-  window.location.replace(isAdmin ? '/admin.html' : '/staff.html')
-})
-</script>
+      // ✅ Block inactive users
+      if (profile.can_login !== true) {
+        await supabase.auth.signOut()
+        window.location.replace('/login.html')
+        return
+      }
 
+      const isAdmin =
+        profile.is_superadmin ||
+        profile.can_access_admin ||
+        profile.can_manage_access ||
+        profile.can_approve_pto ||
+        profile.can_adjust_pto ||
+        profile.can_bulk_upload
+
+      window.location.replace(isAdmin ? '/admin.html' : '/staff.html')
+    })
+  </script>
 </body>
 </html>
