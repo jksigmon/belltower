@@ -80,7 +80,8 @@ const { data: profile, error } = await supabase
     bannerDateEl.innerHTML = `<span class="dash-banner-date-day">${dayName}</span><span class="dash-banner-date-full">${fullDate}</span>`;
   }
 
-  initCalendarStrip(supabase, effectiveSchoolId, document.getElementById('dashCalChip'));
+  const canManageCalendar = profile.is_superadmin || profile.role === 'admin' || profile.can_manage_calendar === true;
+  initCalendarStrip(supabase, effectiveSchoolId, document.getElementById('dashCalChip'), canManageCalendar);
 
   loadWeather('dashWeather', profile.schools?.weather_lat, profile.schools?.weather_lon, profile.schools?.timezone);
 
