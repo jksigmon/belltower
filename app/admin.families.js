@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
-import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError } from './admin.shared.js';
+import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError, GRADE_ORDER } from './admin.shared.js';
 
 let currentProfile;
 let schoolConfig = null;
@@ -28,7 +28,8 @@ export async function initFamiliesSection(profile) {
         id,
         carline_tag_number,
         family_name,
-        active
+        active,
+        students ( first_name, last_name, grade_level, active )
       `,
 
       searchFields: hasCarline ? ['carline_tag_number', 'family_name'] : ['family_name'],
@@ -39,7 +40,8 @@ export async function initFamiliesSection(profile) {
 
       tbodySelector: '#familiesTable tbody',
       paginationContainer: '#familiesPagination',
-      renderRow: renderFamilyRow
+      renderRow: renderFamilyRow,
+      exportRow: exportFamilyRow
     });
   }
 
@@ -48,6 +50,40 @@ export async function initFamiliesSection(profile) {
     initialized = true;
     familiesDirectory.load();
   }
+}
+
+/* ===============================
+   EXPORT ROW
+================================ */
+
+// "Mia Perez (3), Leo Perez (K)" — active students, sorted by grade then name.
+function formatFamilyStudents(students) {
+  if (!Array.isArray(students) || !students.length) return '';
+  const gradeRank = g => {
+    const i = GRADE_ORDER.indexOf(g);
+    return i === -1 ? 999 : i;   // unknown/blank grades sort last
+  };
+  return students
+    .filter(s => s.active !== false)
+    .sort((a, b) => {
+      const diff = gradeRank(a.grade_level) - gradeRank(b.grade_level);
+      if (diff !== 0) return diff;
+      return `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`);
+    })
+    .map(s => {
+      const name = `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim();
+      return s.grade_level ? `${name} (${s.grade_level})` : name;
+    })
+    .join(', ');
+}
+
+function exportFamilyRow(f) {
+  return {
+    'Carline Tag/Family Number': f.carline_tag_number ?? '',
+    'Family Name':               f.family_name ?? '',
+    'Active':                    f.active ? 'TRUE' : 'FALSE',
+    'Students':                  formatFamilyStudents(f.students),
+  };
 }
 
 /* ===============================
