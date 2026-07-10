@@ -3093,10 +3093,22 @@ function updateProxyComputedHours() {
 function proxyCalculateHours({ startDate, endDate, isHalfDay, isPartial, partialHours }) {
   if (isPartial) return partialHours;
   if (isHalfDay) return proxyWorkdayHours / 2;
-  const start = new Date(startDate + 'T00:00:00');
-  const end   = new Date(endDate   + 'T00:00:00');
-  const days  = Math.round((end - start) / 86400000) + 1;
-  return days * proxyWorkdayHours;
+
+  // Multi-day range: count weekdays only (exclude weekends), matching the
+  // staff portal leave form (calculateRequestedHours in staff.html).
+  if (startDate !== endDate) {
+    const start = new Date(startDate + 'T00:00:00');
+    const end   = new Date(endDate   + 'T00:00:00');
+    let days = 0;
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const day = d.getDay();
+      if (day !== 0 && day !== 6) days++; // weekdays only
+    }
+    return days * proxyWorkdayHours;
+  }
+
+  // Single full day
+  return proxyWorkdayHours;
 }
 
 async function submitProxyLeave() {
