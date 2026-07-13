@@ -35,7 +35,7 @@ export async function initFamiliesSection(profile) {
       searchFields: hasCarline ? ['carline_tag_number', 'family_name'] : ['family_name'],
 
       defaultSort: hasCarline
-        ? { column: 'carline_tag_number', ascending: true }
+        ? { column: 'carline_tag_sort', ascending: true }   // numeric: 23 < 233
         : { column: 'family_name', ascending: true },
 
       tbodySelector: '#familiesTable tbody',

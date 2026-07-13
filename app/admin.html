@@ -317,8 +317,10 @@
     <select id="staffSort">
       <option value="last_name.asc">Last name (A–Z)</option>
       <option value="last_name.desc">Last name (Z–A)</option>
-      <option value="first_name.asc">First name</option>
-      <option value="position.asc">Position</option>
+      <option value="first_name.asc">First name (A–Z)</option>
+      <option value="first_name.desc">First name (Z–A)</option>
+      <option value="position.asc">Position (A–Z)</option>
+      <option value="position.desc">Position (Z–A)</option>
     </select>
   </div>
 
@@ -502,8 +504,10 @@
     />
 
     <select id="familySort">
-      <option value="carline_tag_number.asc">Tag #</option>
-      <option value="family_name.asc">Family name</option>
+      <option value="carline_tag_sort.asc">Tag # (low → high)</option>
+      <option value="carline_tag_sort.desc">Tag # (high → low)</option>
+      <option value="family_name.asc">Family name (A–Z)</option>
+      <option value="family_name.desc">Family name (Z–A)</option>
     </select>
   </div>
 
@@ -558,8 +562,10 @@
     />
 
     <select id="guardianSort">
-      <option value="last_name.asc">Last name</option>
-      <option value="first_name.asc">First name</option>
+      <option value="last_name.asc">Last name (A–Z)</option>
+      <option value="last_name.desc">Last name (Z–A)</option>
+      <option value="first_name.asc">First name (A–Z)</option>
+      <option value="first_name.desc">First name (Z–A)</option>
     </select>
   </div>
 
@@ -629,11 +635,22 @@
       <option value="">All campuses</option>
     </select>
 
+    <select id="studentFamilyFilter">
+      <option value="">All families</option>
+      <option value="none">No family</option>
+    </select>
+
     <select id="studentSort">
-      <option value="last_name.asc">Last name</option>
-      <option value="first_name.asc">First name</option>
-      <option value="grade_level.asc">Grade</option>
-      <option value="campus_id.asc">Campus</option>
+      <option value="last_name.asc">Last name (A–Z)</option>
+      <option value="last_name.desc">Last name (Z–A)</option>
+      <option value="first_name.asc">First name (A–Z)</option>
+      <option value="first_name.desc">First name (Z–A)</option>
+      <option value="grade_sort.asc">Grade (low → high)</option>
+      <option value="grade_sort.desc">Grade (high → low)</option>
+      <option value="families(carline_tag_sort).asc">Family # (low → high)</option>
+      <option value="families(carline_tag_sort).desc">Family # (high → low)</option>
+      <option value="campuses(name).asc">Campus (A–Z)</option>
+      <option value="campuses(name).desc">Campus (Z–A)</option>
     </select>
   </div>
 

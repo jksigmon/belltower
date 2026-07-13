@@ -68,11 +68,15 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
       });
     }
 
-    // Sorting
+    // Sorting. nullsFirst:false keeps rows with a missing sort value
+    // (e.g. students with no family) at the end in BOTH directions —
+    // otherwise desc order would lead with every null row.
+    // Supports embedded columns like "families(carline_tag_sort)".
     const sort = all ? defaultSort : state.sort;
     if (sort?.column) {
       query = query.order(sort.column, {
-        ascending: sort.ascending
+        ascending: sort.ascending,
+        nullsFirst: false
       });
     }
 

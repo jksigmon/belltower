@@ -57,7 +57,7 @@ export async function initStudentsSection(profile) {
         birthdate,
         withdrawn_at,
         withdrawal_reason,
-        families(carline_tag_number, family_name),
+        families(carline_tag_number, carline_tag_sort, family_name),
         employees!left(id, first_name, last_name),
         bus_groups(id, name),
         campuses(id, name),
@@ -69,7 +69,8 @@ export async function initStudentsSection(profile) {
       filters: {
         grade:    val => val ? { column: 'grade_level',        op: 'eq', value: val } : null,
         homeroom: val => val ? { column: 'homeroom_teacher_id', op: 'eq', value: val } : null,
-        campus:   val => val ? { column: 'campus_id',           op: 'eq', value: val } : null
+        campus:   val => val ? { column: 'campus_id',           op: 'eq', value: val } : null,
+        family:   val => val === 'none' ? { column: 'family_id', op: 'is', value: null } : null
       },
 
       defaultSort: { column: 'last_name', ascending: true },
@@ -540,6 +541,7 @@ function wireStudentEvents() {
   const gradeFilter    = document.getElementById('studentGradeFilter');
   const homeroomFilter = document.getElementById('studentHomeroomFilter');
   const campusFilter   = document.getElementById('studentCampusFilter');
+  const familyFilter   = document.getElementById('studentFamilyFilter');
 
   if (searchInput) {
     searchInput.addEventListener('input', debounce(e =>
@@ -554,6 +556,7 @@ function wireStudentEvents() {
   if (gradeFilter)    gradeFilter.addEventListener('change',    e => studentsDirectory.setFilter('grade',    e.target.value));
   if (homeroomFilter) homeroomFilter.addEventListener('change', e => studentsDirectory.setFilter('homeroom', e.target.value));
   if (campusFilter)   campusFilter.addEventListener('change',   e => studentsDirectory.setFilter('campus',   e.target.value));
+  if (familyFilter)   familyFilter.addEventListener('change',   e => studentsDirectory.setFilter('family',   e.target.value));
 
   document.getElementById('exportStudentsCurrent')?.addEventListener('click', () => studentsDirectory.exportFiltered());
   document.getElementById('exportStudentsAll')?.addEventListener('click',     () => studentsDirectory.exportAll());
