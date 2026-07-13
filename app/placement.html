@@ -65,6 +65,36 @@
       from { opacity: 0; transform: translateX(-50%) translateY(8px); }
       to   { opacity: 1; transform: translateX(-50%) translateY(0); }
     }
+
+    /* Small-screen advisory (mirrors .mobile-notice in admin-ui.css);
+       hidden on desktop, shown under 768px */
+    .placement-mobile-notice {
+      display: none;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      margin-bottom: 14px;
+    }
+    .placement-mobile-notice button {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: 15px;
+      cursor: pointer;
+      padding: 2px 4px;
+      line-height: 1;
+    }
+    @media (max-width: 767px) {
+      .placement-mobile-notice { display: flex; }
+    }
   </style>
   <script>
     // Set back-button destination before render to avoid flicker
@@ -127,6 +157,12 @@
 <div id="appShell" style="display:none;height:100%;overflow-y:auto;">
   <div class="placement-page-body">
     <div class="admin-content">
+
+      <!-- Small-screen notice: board drag-and-drop needs a mouse/trackpad -->
+      <div class="placement-mobile-notice" id="placementMobileNotice">
+        <span>Class placement works best on a desktop or a tablet with a trackpad — drag-and-drop isn't supported by touch browsers. You can still view boards here.</span>
+        <button type="button" aria-label="Dismiss" onclick="document.getElementById('placementMobileNotice').remove()">&#10005;</button>
+      </div>
 
       <!-- Session list view -->
       <div id="placementSessionListView">

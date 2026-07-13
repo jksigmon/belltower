@@ -344,6 +344,13 @@
     }
     .lic-file-old-row a { color: #9ca3af; }
     .lic-file-old-row a:hover { color: #6b7280; }
+
+    /* Summary stats: even thirds on desktop, stacked pair on phones
+       (was an inline style, which defeated the mobile collapse) */
+    .lic-summary-grid { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 600px) {
+      .lic-summary-grid { grid-template-columns: 1fr 1fr; }
+    }
   </style>
 </head>
 
@@ -399,7 +406,7 @@
 
       <div class="dash-section" style="margin-top:0;">
         <p class="dash-section-title">Summary</p>
-        <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="stat-grid lic-summary-grid">
           <div class="stat stat-info">
             <strong id="statTotal">—</strong>
             <span>Total Active</span>

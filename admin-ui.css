@@ -6793,3 +6793,60 @@ select.admin-input {
   .cal-chip-icon  { opacity: 1; }
   .cal-drawer { width: 100vw; right: -100vw; }
 }
+
+/* ====================================================================
+   MOBILE POLISH — shared controls (≤ 767px)
+   Additive pass: iOS zoom prevention, touch targets, modal fit.
+   Desktop (>767px) is intentionally untouched by everything below.
+==================================================================== */
+@media (max-width: 767px) {
+
+  /* iOS Safari auto-zooms the page when focusing any form control with
+     font-size < 16px. Bump controls to 16px on phones only. !important
+     is deliberate: per-page inline styles must not reintroduce the bug. */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="date"],
+  input[type="time"],
+  input[type="search"],
+  select,
+  textarea,
+  .form-input,
+  .cal-input {
+    font-size: 16px !important;
+  }
+
+  /* Touch targets: 34-40px controls are hard to hit on a phone.
+     44px is the accepted minimum for primary interactive elements. */
+  input[type="text"],
+  input[type="number"] { height: 44px; }
+  select { min-height: 44px; }
+  .btn,
+  .btn-primary,
+  .btn-outline { min-height: 44px; }
+  /* Keep small buttons compact-ish but still tappable */
+  .btn.btn-sm,
+  .btn-sm { min-height: 38px; }
+
+  /* Modals: keep off the screen edges, never taller than the visible
+     viewport (dvh tracks iOS toolbar collapse), always scrollable. */
+  .modal { padding: 16px; }
+  .modal-content { max-height: calc(100dvh - 32px); }
+  .confirm-modal-dialog {
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
+  }
+
+  /* Pagination: wrap instead of overflowing, and bump 30px buttons
+     to a comfortable tap size */
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .pagination-btn {
+    min-width: 38px;
+    height: 38px;
+  }
+}

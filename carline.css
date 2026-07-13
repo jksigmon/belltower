@@ -1446,3 +1446,54 @@ html, body {
     font-size: 12px;
   }
 }
+
+/* ================================================
+   MOBILE POLISH (≤ 767px) — display + input pages
+   Additive fixes only; desktop layout untouched.
+================================================ */
+@media (max-width: 767px) {
+  /* Call-log / Pickup-Groups drawer: fixed 270px is unusable on phones —
+     go full-width below the header instead, and don't squeeze the grid. */
+  .cl-log-panel {
+    width: 100vw;
+    border-left: none;
+  }
+  #clApp.log-open #displayGrid { padding-right: 0; }
+
+  /* Class-bar pill remove "×": 16px is too small to tap reliably */
+  .cl-pill-remove {
+    width: 26px;
+    height: 26px;
+    font-size: 14px;
+  }
+
+  /* Class dropdown: never wider than the viewport, comfy rows */
+  .cl-class-dropdown {
+    max-width: calc(100vw - 24px);
+  }
+  .cl-dropdown-item { padding: 12px 14px; }
+
+  /* All-call banner dismiss: bump to comfortable touch size */
+  .cl-all-call-dismiss { width: 40px; height: 40px; }
+
+  /* Undo buttons on the input page: meet 44px touch minimum */
+  .inp-undo-btn { min-height: 44px; }
+}
+
+/* ================================================
+   SAFE-AREA INSETS (notched phones, standalone PWA)
+   carline-input.html ships viewport-fit=cover + apple-mobile-web-app-capable,
+   so without these the header sits under the iOS status bar / notch.
+   env() resolves to 0 on devices without insets — harmless elsewhere.
+================================================ */
+#inputHeader {
+  padding-top: calc(6px + env(safe-area-inset-top, 0px));
+  padding-left: calc(14px + env(safe-area-inset-left, 0px));
+  padding-right: calc(14px + env(safe-area-inset-right, 0px));
+}
+#inputMain {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.cl-toast {
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
