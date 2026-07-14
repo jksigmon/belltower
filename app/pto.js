@@ -1,7 +1,7 @@
 import { supabase } from '/app/admin.supabase.js';
 import { initUserMenu } from '/app/user-menu.js';
 import { requireAuth } from '/app/admin.auth.js';
-import { showToast, esc } from '/app/admin.shared.js';
+import { showToast, esc, getAvatarColor, fmtShortDate } from '/app/admin.shared.js';
 
 /* =============================================
    STATE
@@ -287,15 +287,19 @@ function updatePendingBulkBar() {
 
 function clearPendingSelection() {
   selectedPendingIds.clear();
-  document.querySelectorAll('#ptoTable .pto-row-check').forEach(cb => { cb.checked = false; });
+  document.querySelectorAll('#ptoGroups .pto-row-check').forEach(cb => { cb.checked = false; });
   const sa = document.getElementById('ptoPendingSelectAll');
   if (sa) { sa.checked = false; sa.indeterminate = false; }
   updatePendingBulkBar();
 }
 
-async function bulkApprovePending() {
-  if (!selectedPendingIds.size) return;
-  const ids = [...selectedPendingIds];
+// Shared by the bulk bar and each group's "Approve all" button
+async function approveIds(ids) {
+  if (!ids.length) return;
+  if (!currentProfile.can_approve_pto) {
+    showToast('You are not authorized to approve leave requests.', 'error');
+    return;
+  }
   if (!await showConfirm({
     title: `Approve ${ids.length} Request${ids.length !== 1 ? 's' : ''}`,
     body: `Approve ${ids.length} leave request${ids.length !== 1 ? 's' : ''}?`,
@@ -323,6 +327,10 @@ async function bulkApprovePending() {
   loadPto();
   loadPtoCancellationRequests();
   ptoCalendar?.refetchEvents();
+}
+
+function bulkApprovePending() {
+  return approveIds([...selectedPendingIds]);
 }
 
 document.getElementById('ptoBulkApprove')?.addEventListener('click', bulkApprovePending);
@@ -486,24 +494,69 @@ async function loadSchoolPtoTypes() {
 }
 
 /* =============================================
-   PENDING PTO TABLE
+   PENDING PTO — GROUPED BY EMPLOYEE
 ============================================= */
+
+// Deterministic tint per leave type — stable across loads, no config needed.
+// The palette lives inside the function because loadPto() runs during the
+// module's top-level startup await, before consts below that point would
+// be initialized (function declarations hoist; const does not).
+function ptoTypeTint(type) {
+  const tints = [
+    ['#eef2ff', '#4338ca'],  // indigo
+    ['#ecfeff', '#0e7490'],  // cyan
+    ['#f0fdf4', '#15803d'],  // green
+    ['#fff7ed', '#c2410c'],  // orange
+    ['#fdf4ff', '#a21caf'],  // fuchsia
+    ['#f0f9ff', '#0369a1'],  // sky
+  ];
+  let h = 0;
+  const s = String(type);
+  for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
+  const [bg, fg] = tints[Math.abs(h) % tints.length];
+  return { bg, fg };
+}
+
+// 'PROFESSIONAL' → 'Professional', 'JURY DUTY' → 'Jury Duty'
+function ptoTypeLabel(type) {
+  return String(type).toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Compact human range: 'Oct 26, 2026' or 'Sep 3 – Sep 14, 2026'
+function fmtReqDates(r) {
+  if (r.start_date === r.end_date) return fmtShortDate(r.start_date);
+  const sameYear = r.start_date?.slice(0, 4) === r.end_date?.slice(0, 4);
+  if (!sameYear) return `${fmtShortDate(r.start_date)} – ${fmtShortDate(r.end_date)}`;
+  const startShort = new Date(r.start_date + 'T12:00:00')
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${startShort} – ${fmtShortDate(r.end_date)}`;
+}
+
+function submittedAgeLabel(submittedAt) {
+  if (!submittedAt) return null;
+  const days = Math.floor((Date.now() - new Date(submittedAt).getTime()) / 86_400_000);
+  return { days, label: days <= 0 ? 'today' : `${days}d ago` };
+}
+
 async function loadPto() {
-  const tbody = document.querySelector('#ptoTable tbody');
+  const wrap = document.getElementById('ptoGroups');
   const emptyState = document.getElementById('pendingEmpty');
+  const toolbar = document.getElementById('ptoPendingToolbar');
+  const titleCount = document.getElementById('ptoPendingTitleCount');
   if (!currentProfile.can_approve_pto) {
     if (emptyState) emptyState.hidden = false;
     return;
   }
-  if (!tbody) return;
+  if (!wrap) return;
 
   clearPendingSelection();
-  tbody.innerHTML = '';
+  wrap.innerHTML = '';
 
   const { data, error } = await supabase
     .from('pto_requests')
     .select(`
       id,
+      employee_id,
       pto_type,
       start_date,
       end_date,
@@ -513,7 +566,13 @@ async function loadPto() {
       end_time,
       notes,
       status,
+      submitted_at,
+      needs_sub_coverage,
       employees!pto_requests_employee_id_fkey (
+        first_name,
+        last_name
+      ),
+      submitter:employees!pto_requests_submitted_by_fkey (
         first_name,
         last_name
       )
@@ -531,72 +590,109 @@ async function loadPto() {
 
   if (!data || data.length === 0) {
     if (emptyState) emptyState.hidden = false;
+    if (toolbar) toolbar.hidden = true;
+    if (titleCount) titleCount.hidden = true;
     return;
   }
 
   if (emptyState) emptyState.hidden = true;
+  if (toolbar) toolbar.hidden = false;
+  if (titleCount) { titleCount.textContent = data.length; titleCount.hidden = false; }
 
+  // ── Group requests by employee ──────────────────────────────
+  const groups = new Map();
   data.forEach(r => {
-    const emp = r.employees
-      ? `${r.employees.first_name} ${r.employees.last_name}`
-      : '';
+    const key = r.employee_id ?? 'unknown';
+    if (!groups.has(key)) {
+      const name = r.employees
+        ? `${r.employees.first_name} ${r.employees.last_name}`
+        : 'Unknown employee';
+      groups.set(key, { name, requests: [] });
+    }
+    groups.get(key).requests.push(r);
+  });
 
-    const dates =
-      r.start_date === r.end_date
-        ? r.start_date
-        : `${r.start_date} → ${r.end_date}`;
+  // Soonest upcoming leave first; within a group, by start date
+  const ordered = [...groups.values()];
+  ordered.forEach(g =>
+    g.requests.sort((a, b) => String(a.start_date).localeCompare(String(b.start_date))));
+  ordered.sort((a, b) =>
+    String(a.requests[0].start_date).localeCompare(String(b.requests[0].start_date)));
 
-    const hoursText = formatHoursWithTime(r);
-    const notesText = r.notes ? r.notes : '—';
+  ordered.forEach(g => {
+    const n = g.requests.length;
+    const totalHrs = g.requests.reduce((s, r) => s + Number(r.requested_hours ?? 0), 0);
+    const initials = g.name.split(/\s+/).filter(Boolean)
+      .map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td class="pto-cell-check">
-        <input type="checkbox" class="pto-row-check" data-id="${r.id}" aria-label="Select row" />
-      </td>
-      <td>${emp}</td>
-      <td>${r.pto_type}</td>
-      <td>${dates}</td>
-      <td>${hoursText}</td>
-      <td>${notesText}</td>
-      <td>${r.status}</td>
-      <td>
-        <span class="action-buttons">
-          <button class="btn btn-approve">Approve</button>
-          <button class="btn btn-deny">Deny</button>
-        </span>
-      </td>
+    const groupEl = document.createElement('div');
+    groupEl.className = 'pto-group';
+    groupEl.innerHTML = `
+      <div class="pto-group-hd">
+        <div class="pto-group-avatar" style="background:${getAvatarColor(g.name)}">${esc(initials)}</div>
+        <div class="pto-group-id">
+          <div class="pto-group-name">${esc(g.name)}</div>
+          <div class="pto-group-meta">${n} request${n !== 1 ? 's' : ''} · ${totalHrs} hrs</div>
+        </div>
+        ${n > 1 ? `<button class="btn btn-sm pto-group-approve">Approve all (${n})</button>` : ''}
+      </div>
     `;
 
-    tr.querySelector('.pto-row-check').addEventListener('change', e => {
-      if (e.target.checked) {
-        selectedPendingIds.add(r.id);
-      } else {
-        selectedPendingIds.delete(r.id);
+    groupEl.querySelector('.pto-group-approve')?.addEventListener('click', () =>
+      approveIds(g.requests.map(r => r.id)));
+
+    g.requests.forEach(r => {
+      const tint = ptoTypeTint(r.pto_type);
+      const age = submittedAgeLabel(r.submitted_at);
+      const submitter = r.submitter
+        ? `${r.submitter.first_name} ${r.submitter.last_name}`
+        : null;
+      let durationSub = r.requested_duration_label || '';
+      if (r.start_time && r.end_time) {
+        durationSub = `${formatTime(r.start_time)} – ${formatTime(r.end_time)}`;
       }
-      // Update select-all indeterminate state
-      const sa = document.getElementById('ptoPendingSelectAll');
-      if (sa) {
-        const total = document.querySelectorAll('#ptoTable .pto-row-check').length;
-        sa.checked = selectedPendingIds.size === total;
-        sa.indeterminate = selectedPendingIds.size > 0 && selectedPendingIds.size < total;
-      }
-      updatePendingBulkBar();
+
+      const row = document.createElement('div');
+      row.className = 'pto-req';
+      row.innerHTML = `
+        <input type="checkbox" class="pto-row-check" data-id="${r.id}" aria-label="Select request" />
+        <div class="pto-req-when">
+          <div class="pto-req-date">${esc(fmtReqDates(r))}</div>
+          ${durationSub ? `<div class="pto-req-duration">${esc(durationSub)}</div>` : ''}
+        </div>
+        <span class="pto-type-chip" style="background:${tint.bg};color:${tint.fg}">${esc(ptoTypeLabel(r.pto_type))}</span>
+        ${r.needs_sub_coverage ? '<span class="pto-sub-chip" title="The requester indicated substitute coverage is needed">Sub needed</span>' : ''}
+        <span class="pto-req-hours">${Number(r.requested_hours ?? 0)} hrs</span>
+        <span class="pto-req-notes" title="${esc(r.notes ?? '')}">${r.notes ? esc(r.notes) : ''}</span>
+        ${submitter ? `<span class="pto-req-via" title="Submitted on their behalf">via ${esc(submitter)}</span>` : ''}
+        ${age ? `<span class="pto-req-age${age.days >= 7 ? ' stale' : ''}">${esc(age.label)}</span>` : ''}
+        <span class="pto-req-actions">
+          <button class="btn btn-sm btn-req-approve">Approve</button>
+          <button class="btn btn-sm btn-req-deny">Deny</button>
+        </span>
+      `;
+
+      row.querySelector('.pto-row-check').addEventListener('change', e => {
+        if (e.target.checked) selectedPendingIds.add(r.id);
+        else selectedPendingIds.delete(r.id);
+        syncSelectAllState();
+        updatePendingBulkBar();
+      });
+
+      row.querySelector('.btn-req-approve').addEventListener('click', () => {
+        if (!currentProfile.can_approve_pto) {
+          showToast('You are not authorized to approve leave requests.', 'error');
+          return;
+        }
+        updatePtoStatus(r.id, 'APPROVED');
+      });
+
+      row.querySelector('.btn-req-deny').addEventListener('click', () => denyInitialPto(r));
+
+      groupEl.appendChild(row);
     });
 
-    tr.querySelector('.btn-approve').addEventListener('click', () => {
-      if (!currentProfile.can_approve_pto) {
-        showToast('You are not authorized to approve leave requests.', 'error');
-        return;
-      }
-      updatePtoStatus(r.id, 'APPROVED', tr);
-    });
-
-    tr.querySelector('.btn-deny').addEventListener('click', () => {
-      denyInitialPto(r, tr);
-    });
-
-    tbody.appendChild(tr);
+    wrap.appendChild(groupEl);
   });
 
   // Wire select-all
@@ -605,7 +701,7 @@ async function loadPto() {
     sa.checked = false;
     sa.indeterminate = false;
     sa.onchange = () => {
-      document.querySelectorAll('#ptoTable .pto-row-check').forEach(cb => {
+      document.querySelectorAll('#ptoGroups .pto-row-check').forEach(cb => {
         cb.checked = sa.checked;
         if (sa.checked) {
           selectedPendingIds.add(cb.dataset.id);
@@ -616,6 +712,14 @@ async function loadPto() {
       updatePendingBulkBar();
     };
   }
+}
+
+function syncSelectAllState() {
+  const sa = document.getElementById('ptoPendingSelectAll');
+  if (!sa) return;
+  const total = document.querySelectorAll('#ptoGroups .pto-row-check').length;
+  sa.checked = total > 0 && selectedPendingIds.size === total;
+  sa.indeterminate = selectedPendingIds.size > 0 && selectedPendingIds.size < total;
 }
 
 /* =============================================
