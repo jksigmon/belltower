@@ -1,8 +1,8 @@
 import { supabase } from './admin.supabase.js';
-import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast, getAvatarColor } from './admin.shared.js';
+import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast, getAvatarColor, fmtShortDate } from './admin.shared.js';
 import {
   initSessions, showSessionList, showCreateForm, renderSessionList,
-  setShowArchived, setShowDeleted, submitCreateForm,
+  setShowArchived, setShowDeleted, submitCreateForm, showConfirmModal,
 } from './admin.placement.sessions.js';
 
 /* ── State ── */
@@ -97,6 +97,23 @@ function wireGlobalEvents() {
     ?.addEventListener('click', openAuditLog);
   document.getElementById('closeAuditLogBtn')
     ?.addEventListener('click', closeAuditLog);
+  document.getElementById('placementNotesBtn')
+    ?.addEventListener('click', openNotesPanel);
+  document.getElementById('closeNotesBtn')
+    ?.addEventListener('click', closeNotesPanel);
+  document.getElementById('placementNotesPanel')
+    ?.addEventListener('click', e => {
+      if (e.target.id === 'placementNotesPanel') closeNotesPanel();  // overlay click
+    });
+  document.getElementById('addPlacementNoteBtn')
+    ?.addEventListener('click', addPlacementNote);
+  document.getElementById('placementNoteInput')
+    ?.addEventListener('keydown', e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); addPlacementNote(); }
+    });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && _notesOpen) closeNotesPanel();
+  });
   document.getElementById('manageFlagsBtn')
     ?.addEventListener('click', openFlagEditor);
   document.getElementById('closeFlagEditorBtn')
@@ -203,6 +220,8 @@ async function showBoard(sessionId) {
   teardownRealtime();   // drop any subscription from a previously open board
   _currentSessionId = sessionId;
   sessionStorage.setItem('placement:boardId', sessionId);
+  closeNotesPanel();
+  refreshNotesBadge();  // fire-and-forget; populates the Notes button count
   _selectedStudentIds.clear();
   _undoStack = [];
   _boardSearchTerm = '';
@@ -905,6 +924,162 @@ function closeAuditLog() {
   if (panel) panel.hidden = true;
 }
 
+/* ── Board notes ─────────────────────────────────────────────
+   Shared, attributed notes per session (pairing conflicts,
+   parent requests). Discrete rows so simultaneous collaborators
+   never clobber each other; synced live over the board channel. */
+let _notesOpen = false;
+
+async function refreshNotesBadge() {
+  const el = document.getElementById('placementNotesCount');
+  if (!el || !_currentSessionId) return;
+  const { count, error } = await supabase
+    .from('placement_session_notes')
+    .select('id', { count: 'exact', head: true })
+    .eq('session_id', _currentSessionId);
+  if (error) { el.hidden = true; return; }
+  if (count > 0) {
+    el.textContent = count > 99 ? '99+' : count;
+    el.hidden = false;
+  } else {
+    el.hidden = true;
+  }
+}
+
+// Today → "3:42 PM"; otherwise → "Jul 14, 2026"
+function fmtNoteTime(ts) {
+  const d = new Date(ts);
+  if (d.toDateString() === new Date().toDateString()) {
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+  return fmtShortDate(ts);
+}
+
+async function openNotesPanel() {
+  const panel = document.getElementById('placementNotesPanel');
+  if (!panel) return;
+  panel.hidden = false;
+  _notesOpen = true;
+  await renderNotes();
+  document.getElementById('placementNoteInput')?.focus();
+}
+
+function closeNotesPanel() {
+  const panel = document.getElementById('placementNotesPanel');
+  if (panel) panel.hidden = true;
+  _notesOpen = false;
+}
+
+async function renderNotes() {
+  const body = document.getElementById('placementNotesBody');
+  if (!body || !_currentSessionId) return;
+
+  const { data, error } = await supabase
+    .from('placement_session_notes')
+    .select('id, body, created_at, author_id, author_name')
+    .eq('session_id', _currentSessionId)
+    .order('created_at', { ascending: true })
+    .limit(300);
+
+  if (error) {
+    console.error('Notes load error:', error);
+    body.innerHTML = '<p class="placement-notes-empty">Could not load notes. Close and reopen to retry.</p>';
+    return;
+  }
+
+  refreshNotesBadge();
+
+  if (!data?.length) {
+    body.innerHTML = `
+      <div class="placement-notes-empty">
+        No notes yet.<br><br>
+        Add context the whole team should see while placing students —
+        who shouldn't share a room, parent requests, teacher input.
+      </div>`;
+    return;
+  }
+
+  const isAdmin = _profile.is_superadmin || _profile.role === 'admin';
+  body.innerHTML = '';
+  data.forEach(n => {
+    const name = n.author_name || 'Unknown';
+    const initials = name.split(/\s+/).filter(Boolean)
+      .map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
+    const canDelete = isAdmin || n.author_id === _profile.id;
+
+    const note = document.createElement('div');
+    note.className = 'placement-note';
+    note.innerHTML = `
+      <div class="placement-note-hd">
+        <span class="placement-note-avatar" style="background:${getAvatarColor(name)}">${esc(initials)}</span>
+        <span class="placement-note-author">${esc(name)}</span>
+        <span class="placement-note-time">${esc(fmtNoteTime(n.created_at))}</span>
+        ${canDelete ? '<button class="placement-note-delete" title="Delete note" aria-label="Delete note">&#10005;</button>' : ''}
+      </div>
+      <div class="placement-note-body">${esc(n.body)}</div>
+    `;
+    note.querySelector('.placement-note-delete')
+      ?.addEventListener('click', () => deletePlacementNote(n));
+    body.appendChild(note);
+  });
+
+  body.scrollTop = body.scrollHeight;
+}
+
+async function addPlacementNote() {
+  const input = document.getElementById('placementNoteInput');
+  const btn = document.getElementById('addPlacementNoteBtn');
+  const text = input?.value.trim();
+  if (!text || !_currentSessionId) return;
+
+  const authorName = [_profile.first_name, _profile.last_name].filter(Boolean).join(' ')
+    || _profile.display_name || _profile.email || 'Unknown';
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
+  const { error } = await supabase.from('placement_session_notes').insert({
+    session_id: _currentSessionId,
+    author_id: _profile.id,
+    author_name: authorName,
+    body: text,
+  });
+  if (btn) { btn.disabled = false; btn.textContent = 'Add note'; }
+
+  if (error) {
+    console.error('Add note error:', error);
+    showToast('Could not add the note. Please try again.', 'error');
+    return;
+  }
+  input.value = '';
+  input.focus();
+  await renderNotes();
+}
+
+async function deletePlacementNote(n) {
+  const ok = await showConfirmModal({
+    title: 'Delete this note?',
+    body: 'The note will be removed for everyone on this board.',
+    okLabel: 'Delete note',
+    danger: true,
+  });
+  if (!ok) return;
+  const { error } = await supabase
+    .from('placement_session_notes')
+    .delete()
+    .eq('id', n.id);
+  if (error) {
+    console.error('Delete note error:', error);
+    showToast('Could not delete the note.', 'error');
+    return;
+  }
+  await renderNotes();
+}
+
+// Realtime: another collaborator added/removed a note
+function handleRemoteNoteChange() {
+  refreshNotesBadge();
+  if (_notesOpen) renderNotes();
+}
+
 /* ── Flag popover ── */
 function openFlagPopover(studentId, card) {
   const existing = document.getElementById('placementFlagPopover');
@@ -1073,6 +1248,12 @@ function setupRealtime(sessionId) {
       table: 'placement_session_teachers',
       filter: `session_id=eq.${sessionId}`,
     }, handleRemoteColumnReorder)
+    .on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'placement_session_notes',
+      filter: `session_id=eq.${sessionId}`,
+    }, handleRemoteNoteChange)
     .subscribe(status => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         console.warn('Placement realtime subscription issue:', status);

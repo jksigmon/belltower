@@ -267,6 +267,9 @@
               <input type="search" id="placementBoardSearch" class="form-input" placeholder="Search students…" style="width:170px;height:30px;font-size:13px;padding:0 8px;">
               <span id="placementSaveStatus" class="muted" style="font-size:12px;"></span>
               <div id="placementPresence" class="placement-presence" title="People viewing this board"></div>
+              <button class="btn btn-outline btn-sm" id="placementNotesBtn" title="Board notes — pairing conflicts, parent requests, teacher input">
+                <i data-lucide="sticky-note" style="width:15px;height:15px;"></i> Notes<span id="placementNotesCount" class="placement-notes-count" hidden></span>
+              </button>
               <button class="btn btn-outline btn-sm" id="placementHistoryBtn" title="View placement history">
                 <i data-lucide="history" style="width:15px;height:15px;"></i>
               </button>
@@ -470,6 +473,31 @@
       </div>
       <div id="placementAuditBody" class="placement-audit-body">
         <p class="muted" style="font-size:13px;padding:16px 0;">Loading…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Board notes panel -->
+  <div id="placementNotesPanel" class="placement-notes-overlay" hidden>
+    <div class="placement-notes-panel">
+      <div class="placement-notes-header">
+        <span style="font-weight:600;font-size:14px;">Board Notes</span>
+        <button id="closeNotesBtn" class="btn btn-sm btn-outline">Close</button>
+      </div>
+      <p class="placement-notes-hint">
+        Shared context for this board — e.g. "Keep M. Torres and J. Reyes in separate
+        rooms (parent request)". Everyone who can open this board can read and add notes.
+      </p>
+      <div id="placementNotesBody" class="placement-notes-body">
+        <p class="muted" style="font-size:13px;padding:16px;">Loading…</p>
+      </div>
+      <div class="placement-notes-composer">
+        <textarea id="placementNoteInput" rows="3" maxlength="2000"
+          placeholder="Add a note for this board…"></textarea>
+        <div class="placement-notes-composer-row">
+          <span class="placement-notes-kbd">Ctrl/⌘ + Enter to post</span>
+          <button id="addPlacementNoteBtn" class="btn btn-sm btn-primary">Add note</button>
+        </div>
       </div>
     </div>
   </div>

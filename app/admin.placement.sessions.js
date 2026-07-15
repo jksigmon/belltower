@@ -2,7 +2,7 @@
 import { supabase } from './admin.supabase.js';
 import { esc, GRADE_ORDER, gradeLabel } from './admin.shared.js';
 
-function showConfirmModal({ title, body, okLabel = 'Delete', danger = true }) {
+export function showConfirmModal({ title, body, okLabel = 'Delete', danger = true }) {
   return new Promise(resolve => {
     const overlay  = document.getElementById('placementConfirmModal');
     const titleEl  = document.getElementById('placementConfirmTitle');
