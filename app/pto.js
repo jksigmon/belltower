@@ -723,23 +723,28 @@ function syncSelectAllState() {
 }
 
 /* =============================================
-   CANCELLATIONS TABLE
+   CANCELLATIONS — GROUPED BY EMPLOYEE
+   (Same layout as Pending. Deliberately no bulk /
+   group approve: rescinds credit hours back and
+   deserve individual review.)
 ============================================= */
 async function loadPtoCancellationRequests() {
-  const tbody = document.querySelector('#ptoCancelTable tbody');
+  const wrap = document.getElementById('ptoCancelGroups');
   const emptyState = document.getElementById('cancellationsEmpty');
+  const titleCount = document.getElementById('ptoCancelTitleCount');
   if (!currentProfile.can_approve_pto) {
     if (emptyState) emptyState.hidden = false;
     return;
   }
-  if (!tbody) return;
+  if (!wrap) return;
 
-  tbody.innerHTML = '';
+  wrap.innerHTML = '';
 
   const { data, error } = await supabase
     .from('pto_requests')
     .select(`
       id,
+      employee_id,
       pto_type,
       start_date,
       end_date,
@@ -749,6 +754,7 @@ async function loadPtoCancellationRequests() {
       end_time,
       notes,
       status,
+      submitted_at,
       employees!pto_requests_employee_id_fkey (
         first_name,
         last_name
@@ -766,83 +772,100 @@ async function loadPtoCancellationRequests() {
 
   if (!data || data.length === 0) {
     if (emptyState) emptyState.hidden = false;
+    if (titleCount) titleCount.hidden = true;
     return;
   }
 
   if (emptyState) emptyState.hidden = true;
+  if (titleCount) { titleCount.textContent = data.length; titleCount.hidden = false; }
 
+  // Group by employee, soonest leave first (mirrors the pending view)
+  const groups = new Map();
   data.forEach(r => {
-    const emp = r.employees
-      ? `${r.employees.first_name} ${r.employees.last_name}`
-      : '';
+    const key = r.employee_id ?? 'unknown';
+    if (!groups.has(key)) {
+      const name = r.employees
+        ? `${r.employees.first_name} ${r.employees.last_name}`
+        : 'Unknown employee';
+      groups.set(key, { name, requests: [] });
+    }
+    groups.get(key).requests.push(r);
+  });
 
-    const dates =
-      r.start_date === r.end_date
-        ? r.start_date
-        : `${r.start_date} → ${r.end_date}`;
+  const ordered = [...groups.values()];
+  ordered.forEach(g =>
+    g.requests.sort((a, b) => String(a.start_date).localeCompare(String(b.start_date))));
+  ordered.sort((a, b) =>
+    String(a.requests[0].start_date).localeCompare(String(b.requests[0].start_date)));
 
-    const hoursText = formatHoursWithTime(r);
-    const notesText = r.notes || '—';
+  ordered.forEach(g => {
+    const n = g.requests.length;
+    const totalHrs = g.requests.reduce((s, r) => s + Number(r.requested_hours ?? 0), 0);
+    const initials = g.name.split(/\s+/).filter(Boolean)
+      .map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${emp}</td>
-      <td>${r.pto_type}</td>
-      <td>${dates}</td>
-      <td>${hoursText}</td>
-      <td>
-        ${renderCancelBadge(r.status, r.start_date)}
-        <div class="muted">${notesText}</div>
-      </td>
-      <td class="status warn">
-        ${formatStatus(r.status)}
-      </td>
-      <td>
-        <span class="action-buttons">
-          <button class="btn btn-approve">
-            ${r.status === 'RESCIND_REQUESTED' ? 'Approve Rescind' : 'Approve Cancel'}
-          </button>
-          <button class="btn btn-deny">
-            ${r.status === 'RESCIND_REQUESTED' ? 'Deny Rescind' : 'Deny Cancel'}
-          </button>
-        </span>
-      </td>
+    const groupEl = document.createElement('div');
+    groupEl.className = 'pto-group';
+    groupEl.innerHTML = `
+      <div class="pto-group-hd">
+        <div class="pto-group-avatar" style="background:${getAvatarColor(g.name)}">${esc(initials)}</div>
+        <div class="pto-group-id">
+          <div class="pto-group-name">${esc(g.name)}</div>
+          <div class="pto-group-meta">${n} cancellation request${n !== 1 ? 's' : ''} · ${totalHrs} hrs</div>
+        </div>
+      </div>
     `;
 
-    tr.querySelector('.btn-approve').addEventListener('click', () => {
-      if (!currentProfile.can_approve_pto) {
-        showToast('You are not authorized to approve leave cancellations.', 'error');
-        return;
+    g.requests.forEach(r => {
+      const isRescind = r.status === 'RESCIND_REQUESTED';
+      const tint = ptoTypeTint(r.pto_type);
+      const age = submittedAgeLabel(r.submitted_at);
+      let durationSub = r.requested_duration_label || '';
+      if (r.start_time && r.end_time) {
+        durationSub = `${formatTime(r.start_time)} – ${formatTime(r.end_time)}`;
       }
-      approveCancellation(r);
+
+      const row = document.createElement('div');
+      row.className = 'pto-req';
+      row.innerHTML = `
+        <div class="pto-req-when">
+          <div class="pto-req-date">${esc(fmtReqDates(r))}</div>
+          ${durationSub ? `<div class="pto-req-duration">${esc(durationSub)}</div>` : ''}
+        </div>
+        <span class="pto-type-chip" style="background:${tint.bg};color:${tint.fg}">${esc(ptoTypeLabel(r.pto_type))}</span>
+        <span class="pto-cancel-chip ${isRescind ? 'rescind' : 'future'}" title="${isRescind ? 'Leave already taken — approving credits the hours back' : 'Upcoming leave the employee no longer needs'}">
+          ${isRescind ? 'Rescind (past leave)' : 'Future cancel'}
+        </span>
+        <span class="pto-req-hours">${Number(r.requested_hours ?? 0)} hrs</span>
+        <span class="pto-req-notes" title="${esc(r.notes ?? '')}">${r.notes ? esc(r.notes) : ''}</span>
+        ${age ? `<span class="pto-req-age${age.days >= 7 ? ' stale' : ''}">${esc(age.label)}</span>` : ''}
+        <span class="pto-req-actions">
+          <button class="btn btn-sm btn-req-approve">${isRescind ? 'Approve Rescind' : 'Approve Cancel'}</button>
+          <button class="btn btn-sm btn-req-deny">Deny</button>
+        </span>
+      `;
+
+      row.querySelector('.btn-req-approve').addEventListener('click', () => {
+        if (!currentProfile.can_approve_pto) {
+          showToast('You are not authorized to approve leave cancellations.', 'error');
+          return;
+        }
+        approveCancellation(r);
+      });
+
+      row.querySelector('.btn-req-deny').addEventListener('click', () => {
+        if (!currentProfile.can_approve_pto) {
+          showToast('You are not authorized to deny leave cancellations.', 'error');
+          return;
+        }
+        denyCancellation(r);
+      });
+
+      groupEl.appendChild(row);
     });
 
-    tr.querySelector('.btn-deny').addEventListener('click', () => {
-      if (!currentProfile.can_approve_pto) {
-        showToast('You are not authorized to deny leave cancellations.', 'error');
-        return;
-      }
-      denyCancellation(r);
-    });
-
-    tbody.appendChild(tr);
+    wrap.appendChild(groupEl);
   });
-}
-
-function renderCancelBadge(status, startDate) {
-  if (status === 'RESCIND_REQUESTED') {
-    return '<span class="badge badge-warn">Rescind (Past Leave)</span>';
-  }
-  return '<span class="badge badge-muted">Future Cancel</span>';
-}
-
-function formatStatus(status) {
-  switch (status) {
-    case 'RESCIND_REQUESTED': return 'Rescind Requested';
-    case 'RESCINDED':         return 'Rescinded';
-    case 'CANCEL_REQUESTED':  return 'Cancel Requested';
-    default:                  return status.replace('_', ' ');
-  }
 }
 
 /* =============================================
