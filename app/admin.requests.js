@@ -32,7 +32,7 @@ export async function initRequestsSection(profile) {
 async function loadCategories() {
   const { data, error } = await supabase
     .from('request_categories')
-    .select('id, name, description, is_active, created_at')
+    .select('id, name, description, is_active, created_at, request_category_fields(count), request_category_managers(count)')
     .eq('school_id', currentProfile.school_id)
     .order('name');
   if (error) console.error('loadCategories', error);
@@ -87,15 +87,17 @@ function renderRoot() {
   if (!root) return;
 
   root.innerHTML = `
-    <div class="directory-header">
-      <div>
-        <h2 style="margin:0 0 10px;font-size:20px;font-weight:700;">Staff Requests</h2>
-        <div class="req-tabs">
-          <button class="req-tab${currentView === 'forms' ? ' active' : ''}" data-view="forms">Request Forms</button>
-          <button class="req-tab${currentView === 'submissions' ? ' active' : ''}" data-view="submissions">Submissions</button>
-        </div>
-      </div>
-      ${currentView === 'forms' ? `<button class="btn btn-primary" id="reqNewFormBtn">+ New Form</button>` : ''}
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
+      <h2 style="margin:0;font-size:20px;font-weight:700;">Staff Requests</h2>
+      ${currentView === 'forms' ? `
+        <button class="btn btn-primary" id="reqNewFormBtn" style="white-space:nowrap;flex-shrink:0;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Form
+        </button>` : ''}
+    </div>
+    <div class="req-tabs" style="margin-bottom:16px;">
+      <button class="req-tab${currentView === 'forms' ? ' active' : ''}" data-view="forms">Request Forms</button>
+      <button class="req-tab${currentView === 'submissions' ? ' active' : ''}" data-view="submissions">Submissions</button>
     </div>
     <div id="reqViewContainer"></div>
   `;
@@ -133,7 +135,10 @@ function renderFormsView() {
         </div>
         <p style="font-size:16px;font-weight:600;color:#374151;margin:0 0 6px;">No request forms yet</p>
         <p style="font-size:13px;color:#9ca3af;margin:0 auto 24px;max-width:360px;line-height:1.6;">Create a form so staff can submit requests — for IT support, facilities work, supply orders, or anything else your school needs to track.</p>
-        <button class="btn btn-primary" id="reqEmptyNewBtn">+ Create First Form</button>
+        <button class="btn btn-primary" id="reqEmptyNewBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Create First Form
+        </button>
       </div>`;
     document.getElementById('reqEmptyNewBtn')?.addEventListener('click', () => openCatDrawer(null));
     return;
@@ -142,24 +147,40 @@ function renderFormsView() {
   container.innerHTML = `
     <p style="font-size:13px;color:#6b7280;margin:0 0 16px;">${categories.length} form${categories.length === 1 ? '' : 's'} — click a card to edit fields and managers.</p>
     <div class="req-cat-grid">
-      ${categories.map(c => `
-        <div class="req-cat-card${c.is_active ? '' : ' req-cat-card--inactive'}" data-id="${esc(c.id)}">
+      ${categories.map(c => {
+        const fieldCount = c.request_category_fields?.[0]?.count ?? 0;
+        const mgrCount   = c.request_category_managers?.[0]?.count ?? 0;
+        return `
+        <div class="req-cat-card${c.is_active ? '' : ' req-cat-card--inactive'}" data-id="${esc(c.id)}" role="button" tabindex="0">
           <div class="req-cat-card-header">
             <span class="req-cat-name">${esc(c.name)}</span>
             <span class="status-badge ${c.is_active ? 'badge-green' : 'badge-gray'}">${c.is_active ? 'Active' : 'Inactive'}</span>
           </div>
           ${c.description ? `<p class="req-cat-desc">${esc(c.description)}</p>` : ''}
+          <div class="req-cat-meta">
+            <span>${fieldCount} field${fieldCount === 1 ? '' : 's'}</span>
+            <span class="req-cat-meta-dot">·</span>
+            ${mgrCount > 0
+              ? `<span>${mgrCount} manager${mgrCount === 1 ? '' : 's'}</span>`
+              : `<span class="req-cat-meta-warn" title="Submissions to this form have no one assigned to review them">No managers assigned</span>`}
+          </div>
           <div class="req-cat-actions">
             <button class="btn btn-sm btn-secondary req-edit-btn" data-id="${esc(c.id)}">Edit Form</button>
           </div>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
     </div>`;
 
-  container.querySelectorAll('.req-edit-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const cat = categories.find(c => c.id === btn.dataset.id);
+  // Whole card opens the editor (the helper text promises this);
+  // the Edit button stays as the explicit affordance.
+  container.querySelectorAll('.req-cat-card').forEach(card => {
+    const open = async () => {
+      const cat = categories.find(c => c.id === card.dataset.id);
       if (cat) await openCatDrawer(cat);
+    };
+    card.addEventListener('click', open);
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
     });
   });
 }
