@@ -1618,14 +1618,11 @@ async function initStaff() {
 
   wireSubCoverageUI();
 
+  // Show the admin-panel button to anyone with admin access — not just
+  // users who navigated here from the admin panel. Otherwise someone
+  // granted access mid-session has no visible path into the panel.
   const backToAdmin = document.getElementById('backToAdmin');
-  function cameFromAdminContext() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('from') === 'admin') { sessionStorage.setItem('bt_from_admin', '1'); return true; }
-    if (window.location.hash.includes('from=admin')) { sessionStorage.setItem('bt_from_admin', '1'); return true; }
-    return sessionStorage.getItem('bt_from_admin') === '1';
-  }
-  if (backToAdmin && cameFromAdminContext() && hasAdminAccess(currentProfile)) {
+  if (backToAdmin && hasAdminAccess(currentProfile)) {
     backToAdmin.style.display = 'inline-flex';
   }
 
@@ -3158,7 +3155,6 @@ initStaff();
 
   
   document.getElementById('signOut')?.addEventListener('click', async () => {
-  sessionStorage.removeItem('bt_from_admin');
   await supabase.auth.signOut();
   window.location.href = '/login.html';
 });
