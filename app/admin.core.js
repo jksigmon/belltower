@@ -310,13 +310,15 @@ async function loadDashboardStats() {
     queries.subCancellations = supabase.from('v_pending_cancellation_days').select('assignment_id', { count: 'exact', head: true })
       .eq('school_id', schoolId).eq('assignment_status', 'scheduled');
     // Named alert queries
+    // Fetch generously; rows are grouped per-employee client-side, so a
+    // single multi-day absence can't crowd other people's alerts out.
     queries.alertCoverage = supabase.from('v_pending_coverage_days')
       .select('out_first_name, out_last_name, coverage_date, pto_type')
-      .eq('school_id', schoolId).order('coverage_date', { ascending: true }).limit(8);
+      .eq('school_id', schoolId).order('coverage_date', { ascending: true }).limit(60);
     queries.alertSubCancellations = supabase.from('v_pending_cancellation_days')
       .select('out_first_name, out_last_name, coverage_date')
       .eq('school_id', schoolId).eq('assignment_status', 'scheduled')
-      .order('coverage_date', { ascending: true }).limit(8);
+      .order('coverage_date', { ascending: true }).limit(60);
   }
 
   if (moduleEnabled('licensure') && p.can_manage_licensure) {
@@ -635,20 +637,38 @@ async function loadDashboardStats() {
 
     const alerts = [];
 
+    // Collapse per-day rows into one alert per employee. Eight rows of
+    // "Rachel is out Sep N" bury every other alert; one row with a range
+    // and day count carries the same urgency without the noise. Rows
+    // arrive date-sorted, so dates[0] / dates.at(-1) bound the range.
+    const groupByEmployee = rows => {
+      const byEmp = new Map();
+      (rows ?? []).forEach(row => {
+        const name = `${row.out_first_name} ${row.out_last_name}`;
+        if (!byEmp.has(name)) byEmp.set(name, []);
+        byEmp.get(name).push(row.coverage_date);
+      });
+      return byEmp;
+    };
+
     // 🔴 Coverage gaps (most critical — named, upcoming)
-    (r.alertCoverage?.data ?? []).forEach(row => {
+    groupByEmployee(r.alertCoverage?.data).forEach((dates, name) => {
       alerts.push({
         level: 'red',
-        text: `${row.out_first_name} ${row.out_last_name} is out ${fmtDate(row.coverage_date)} — no substitute assigned`,
+        text: dates.length === 1
+          ? `${name} is out ${fmtDate(dates[0])} — no substitute assigned`
+          : `${name} is out ${fmtDate(dates[0])} – ${fmtDate(dates.at(-1))} — ${dates.length} days with no substitute assigned`,
         href: '/app/substitutes.html'
       });
     });
 
     // 🟠 Pending sub cancellations — PTO was cancelled but sub assignment still scheduled
-    (r.alertSubCancellations?.data ?? []).forEach(row => {
+    groupByEmployee(r.alertSubCancellations?.data).forEach((dates, name) => {
       alerts.push({
         level: 'amber',
-        text: `${row.out_first_name} ${row.out_last_name}'s leave was cancelled — sub assignment on ${fmtDate(row.coverage_date)} still needs to be cancelled`,
+        text: dates.length === 1
+          ? `${name}'s leave was cancelled — sub assignment on ${fmtDate(dates[0])} still needs to be cancelled`
+          : `${name}'s leave was cancelled — ${dates.length} sub assignments (${fmtDate(dates[0])} – ${fmtDate(dates.at(-1))}) still need to be cancelled`,
         href: '/app/substitutes.html#cancellations'
       });
     });
