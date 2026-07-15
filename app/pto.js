@@ -661,7 +661,9 @@ async function loadPto() {
           ${durationSub ? `<div class="pto-req-duration">${esc(durationSub)}</div>` : ''}
         </div>
         <span class="pto-type-chip" style="background:${tint.bg};color:${tint.fg}">${esc(ptoTypeLabel(r.pto_type))}</span>
-        ${r.needs_sub_coverage ? '<span class="pto-sub-chip" title="The requester indicated substitute coverage is needed">Sub needed</span>' : ''}
+        ${r.needs_sub_coverage
+          ? '<span class="pto-sub-chip" title="The requester indicated substitute coverage is needed">Sub needed</span>'
+          : '<span class="pto-sub-chip pto-sub-chip--none" title="The requester indicated no substitute coverage is needed">No sub</span>'}
         <span class="pto-req-hours">${Number(r.requested_hours ?? 0)} hrs</span>
         <span class="pto-req-notes" title="${esc(r.notes ?? '')}">${r.notes ? esc(r.notes) : ''}</span>
         ${submitter ? `<span class="pto-req-via" title="Submitted on their behalf">via ${esc(submitter)}</span>` : ''}
