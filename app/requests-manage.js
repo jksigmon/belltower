@@ -57,9 +57,12 @@ async function loadSubmissions() {
     .eq('school_id', currentProfile.school_id)
     .order('created_at', { ascending: false });
 
-  // Non-admins: scope to managed categories only
+  // Non-admins: scope to managed categories, and within them only
+  // submissions routed to me or unrouted (broadcast). Routing is a
+  // workflow filter — admins still see everything.
   if (!currentProfile.is_superadmin && !currentProfile.can_access_admin && managedCatIds.length) {
-    q = q.in('category_id', managedCatIds);
+    q = q.in('category_id', managedCatIds)
+         .or(`assigned_manager_id.is.null,assigned_manager_id.eq.${currentProfile.id}`);
   }
 
   if (filterCatId)  q = q.eq('category_id', filterCatId);

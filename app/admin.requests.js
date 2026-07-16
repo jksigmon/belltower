@@ -32,7 +32,7 @@ export async function initRequestsSection(profile) {
 async function loadCategories() {
   const { data, error } = await supabase
     .from('request_categories')
-    .select('id, name, description, is_active, created_at, request_category_fields(count), request_category_managers(count)')
+    .select('id, name, description, is_active, notify_managers, created_at, request_category_fields(count), request_category_managers(count)')
     .eq('school_id', currentProfile.school_id)
     .order('name');
   if (error) console.error('loadCategories', error);
@@ -234,6 +234,11 @@ function renderCatDrawerBody(cat) {
       <input id="reqCatActive" type="checkbox" ${(!cat || cat.is_active) ? 'checked' : ''} />
       <span style="font-size:13px;color:#6b7280;">Staff can see and submit this form</span>
     </div>
+    <div class="form-group form-row" style="align-items:center;gap:10px;">
+      <label class="form-label" style="margin:0;">Email managers</label>
+      <input id="reqCatNotify" type="checkbox" ${(!cat || cat.notify_managers !== false) ? 'checked' : ''} />
+      <span style="font-size:13px;color:#6b7280;">Email managers when a request is submitted. Submitters always get a confirmation.</span>
+    </div>
 
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
     <div class="req-drawer-section-header">
@@ -291,13 +296,19 @@ function renderFieldsList() {
     return;
   }
 
-  list.innerHTML = draftFields.map((f, i) => `
+  // At most one routing field per form: hide the type option elsewhere
+  const routingIdx = draftFields.findIndex(f => f.field_type === 'routing');
+
+  list.innerHTML = draftFields.map((f, i) => {
+    const types = ['text','textarea','select','date','boolean','file'];
+    if (routingIdx === -1 || routingIdx === i) types.push('routing');
+    return `
     <div class="req-field-row" data-idx="${i}" draggable="true">
       <div class="req-field-main">
         <span class="req-field-drag" title="Drag to reorder">⠿</span>
         <input class="form-control req-field-label" type="text" placeholder="Field label *" value="${esc(f.label)}" style="flex:1;" />
-        <select class="form-control req-field-type" style="width:145px;">
-          ${['text','textarea','select','date','boolean','file'].map(t =>
+        <select class="form-control req-field-type" style="width:170px;">
+          ${types.map(t =>
             `<option value="${t}" ${f.field_type === t ? 'selected' : ''}>${fieldTypeLabel(t)}</option>`
           ).join('')}
         </select>
@@ -314,8 +325,9 @@ function renderFieldsList() {
             value="${esc(Array.isArray(f.options) ? f.options.join(', ') : '')}"
           />
         </div>` : ''}
-    </div>
-  `).join('') + `<div style="margin-top:12px;"><button class="btn btn-sm btn-secondary" id="reqAddFieldBtnBottom">+ Add Field</button></div>`;
+      ${f.field_type === 'routing' ? renderRoutingEditor(f, i) : ''}
+    </div>`;
+  }).join('') + `<div style="margin-top:12px;"><button class="btn btn-sm btn-secondary" id="reqAddFieldBtnBottom">+ Add Field</button></div>`;
 
   list.querySelectorAll('.req-field-label').forEach((inp, i) => {
     inp.addEventListener('input', () => { draftFields[i].label = inp.value; });
@@ -323,7 +335,14 @@ function renderFieldsList() {
   list.querySelectorAll('.req-field-type').forEach((sel, i) => {
     sel.addEventListener('change', () => {
       draftFields[i].field_type = sel.value;
-      if (sel.value !== 'select') draftFields[i].options = null;
+      if (sel.value === 'routing') {
+        // Seed one option per current manager; admin renames labels
+        draftFields[i].options = draftManagers.map(m => ({
+          label: m.display_name, manager_id: m.profile_id,
+        }));
+      } else if (sel.value !== 'select') {
+        draftFields[i].options = null;
+      }
       renderFieldsList();
     });
   });
@@ -334,6 +353,35 @@ function renderFieldsList() {
     const idx = parseInt(inp.closest('.req-field-row').dataset.idx);
     inp.addEventListener('input', () => {
       draftFields[idx].options = inp.value.split(',').map(s => s.trim()).filter(Boolean);
+    });
+  });
+
+  // Routing option editors: [label input][manager select][remove] rows
+  list.querySelectorAll('.req-routing-label').forEach(inp => {
+    const fIdx = parseInt(inp.dataset.field), oIdx = parseInt(inp.dataset.opt);
+    inp.addEventListener('input', () => { draftFields[fIdx].options[oIdx].label = inp.value; });
+  });
+  list.querySelectorAll('.req-routing-mgr').forEach(sel => {
+    const fIdx = parseInt(sel.dataset.field), oIdx = parseInt(sel.dataset.opt);
+    sel.addEventListener('change', () => {
+      draftFields[fIdx].options[oIdx].manager_id = sel.value;
+      renderFieldsList();   // re-evaluate orphan flags
+    });
+  });
+  list.querySelectorAll('.req-routing-remove').forEach(btn => {
+    const fIdx = parseInt(btn.dataset.field), oIdx = parseInt(btn.dataset.opt);
+    btn.addEventListener('click', () => {
+      draftFields[fIdx].options.splice(oIdx, 1);
+      renderFieldsList();
+    });
+  });
+  list.querySelectorAll('.req-routing-add').forEach(btn => {
+    const fIdx = parseInt(btn.dataset.field);
+    btn.addEventListener('click', () => {
+      const opts = draftFields[fIdx].options ?? (draftFields[fIdx].options = []);
+      const unused = draftManagers.find(m => !opts.some(o => o.manager_id === m.profile_id));
+      opts.push({ label: unused?.display_name ?? '', manager_id: unused?.profile_id ?? '' });
+      renderFieldsList();
     });
   });
   list.querySelectorAll('.req-field-remove').forEach(btn => {
@@ -383,7 +431,42 @@ function addField() {
 }
 
 function fieldTypeLabel(t) {
-  return { text: 'Short Text', textarea: 'Paragraph', select: 'Dropdown', date: 'Date', boolean: 'Yes / No', file: 'File Upload' }[t] ?? t;
+  return { text: 'Short Text', textarea: 'Paragraph', select: 'Dropdown', date: 'Date', boolean: 'Yes / No', file: 'File Upload', routing: 'Routes to a manager' }[t] ?? t;
+}
+
+/* Routing option editor: each option maps a submitter-facing label to
+   one of the form's managers. Submissions with that option selected go
+   only to that manager's queue and inbox. */
+function renderRoutingEditor(f, fieldIdx) {
+  const opts = Array.isArray(f.options) ? f.options : [];
+  const mgrIds = new Set(draftManagers.map(m => m.profile_id));
+
+  const rows = opts.map((o, oIdx) => {
+    const orphaned = o.manager_id && !mgrIds.has(o.manager_id);
+    return `
+      <div style="display:flex;align-items:center;gap:8px;margin-top:6px;${orphaned ? 'padding:6px;border:1.5px solid #fca5a5;border-radius:8px;background:#fef2f2;' : ''}">
+        <input class="form-control req-routing-label" data-field="${fieldIdx}" data-opt="${oIdx}"
+          type="text" placeholder="Option label (what staff see)" value="${esc(o.label ?? '')}" style="flex:1;" />
+        <span style="font-size:12px;color:#9ca3af;flex-shrink:0;">routes to</span>
+        <select class="form-control req-routing-mgr" data-field="${fieldIdx}" data-opt="${oIdx}" style="width:180px;">
+          <option value="">— Select manager —</option>
+          ${draftManagers.map(m =>
+            `<option value="${esc(m.profile_id)}" ${o.manager_id === m.profile_id ? 'selected' : ''}>${esc(m.display_name)}</option>`
+          ).join('')}
+          ${orphaned ? `<option value="${esc(o.manager_id)}" selected>(removed manager)</option>` : ''}
+        </select>
+        <button class="btn btn-sm req-field-remove req-routing-remove" data-field="${fieldIdx}" data-opt="${oIdx}" title="Remove option">&times;</button>
+      </div>
+      ${orphaned ? '<div style="font-size:12px;color:#b91c1c;margin-top:3px;">This option points at someone no longer on this form — pick a current manager or it will be removed on save.</div>' : ''}`;
+  }).join('');
+
+  return `
+    <div style="margin-top:8px;padding:10px 12px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;">
+      <div style="font-size:12px;font-weight:600;color:#5b21b6;margin-bottom:2px;">Routing options</div>
+      <div style="font-size:12px;color:#6b7280;">Each option sends the submission to one manager. ${draftManagers.length ? '' : 'Add managers to this form first.'}</div>
+      ${rows}
+      ${draftManagers.length ? `<button class="btn btn-sm btn-secondary req-routing-add" data-field="${fieldIdx}" style="margin-top:8px;">+ Add option</button>` : ''}
+    </div>`;
 }
 
 /* Manager search + chips */
@@ -418,6 +501,7 @@ async function searchManagers(term) {
       document.getElementById('reqMgrSearch').value = '';
       dropdown.style.display = 'none';
       renderManagerChips();
+      renderFieldsList();   // routing editors list managers — keep in sync
     });
   });
 }
@@ -436,6 +520,7 @@ function renderManagerChips() {
     btn.addEventListener('click', () => {
       draftManagers.splice(parseInt(btn.dataset.idx), 1);
       renderManagerChips();
+      renderFieldsList();   // flag routing options that now point at removed managers
     });
   });
 }
@@ -445,12 +530,37 @@ async function saveCategoryDrawer() {
   const name    = document.getElementById('reqCatName')?.value.trim();
   const desc    = document.getElementById('reqCatDesc')?.value.trim();
   const active  = document.getElementById('reqCatActive')?.checked;
+  const notify  = document.getElementById('reqCatNotify')?.checked ?? true;
   const errEl   = document.getElementById('reqCatError');
   const saveBtn = document.getElementById('reqSaveCatBtn');
 
   if (!name) { showCatError('Form name is required.'); return; }
   const invalidFields = draftFields.some(f => !f.label.trim());
   if (invalidFields) { showCatError('All fields must have a label.'); return; }
+
+  // Routing field: re-validate options against the current manager list.
+  // Options pointing at removed managers are pruned (the builder flags
+  // them before save); labels must be present and unique.
+  const mgrIds = new Set(draftManagers.map(m => m.profile_id));
+  for (const f of draftFields) {
+    if (f.field_type !== 'routing') continue;
+    f.options = (Array.isArray(f.options) ? f.options : [])
+      .filter(o => o.manager_id && mgrIds.has(o.manager_id))
+      .map(o => ({ label: String(o.label ?? '').trim(), manager_id: o.manager_id }));
+    if (!f.options.length) {
+      showCatError(`"${f.label}" needs at least one routing option mapped to a current manager.`);
+      return;
+    }
+    if (f.options.some(o => !o.label)) {
+      showCatError(`Every routing option in "${f.label}" needs a label.`);
+      return;
+    }
+    const labels = f.options.map(o => o.label.toLowerCase());
+    if (new Set(labels).size !== labels.length) {
+      showCatError(`Routing options in "${f.label}" must have unique labels.`);
+      return;
+    }
+  }
 
   saveBtn.disabled = true;
   saveBtn.textContent = 'Saving…';
@@ -460,13 +570,13 @@ async function saveCategoryDrawer() {
   if (catId) {
     const { error } = await supabase
       .from('request_categories')
-      .update({ name, description: desc || null, is_active: active })
+      .update({ name, description: desc || null, is_active: active, notify_managers: notify })
       .eq('id', catId);
     if (error) { showToast('Save failed: ' + error.message, 'error'); saveBtn.disabled = false; saveBtn.textContent = 'Save Changes'; return; }
   } else {
     const { data, error } = await supabase
       .from('request_categories')
-      .insert({ school_id: currentProfile.school_id, name, description: desc || null, is_active: active, created_by: currentProfile.id })
+      .insert({ school_id: currentProfile.school_id, name, description: desc || null, is_active: active, notify_managers: notify, created_by: currentProfile.id })
       .select('id')
       .single();
     if (error) { showToast('Create failed: ' + error.message, 'error'); saveBtn.disabled = false; saveBtn.textContent = 'Create Form'; return; }
@@ -505,7 +615,7 @@ async function saveCategoryDrawer() {
       category_id: catId,
       label:       f.label.trim(),
       field_type:  f.field_type,
-      options:     f.field_type === 'select' ? (f.options ?? []) : null,
+      options:     (f.field_type === 'select' || f.field_type === 'routing') ? (f.options ?? []) : null,
       is_required: f.is_required,
       sort_order:  draftFields.indexOf(f),
     }));
@@ -523,7 +633,7 @@ async function saveCategoryDrawer() {
       category_id: catId,
       label:       f.label.trim(),
       field_type:  f.field_type,
-      options:     f.field_type === 'select' ? (f.options ?? []) : null,
+      options:     (f.field_type === 'select' || f.field_type === 'routing') ? (f.options ?? []) : null,
       is_required: f.is_required,
       sort_order:  draftFields.indexOf(f),
     }));

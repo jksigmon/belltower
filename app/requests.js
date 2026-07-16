@@ -124,6 +124,17 @@ function renderFormField(field) {
       </select>`;
       break;
     }
+    case 'routing': {
+      // Options are {label, manager_id} mappings; staff see only labels.
+      // The value is the label (stored as a normal response); the manager
+      // resolution happens at submit time.
+      const opts = Array.isArray(field.options) ? field.options : [];
+      inputHtml = `<select id="field_${esc(field.id)}" class="form-control" ${field.is_required ? 'required' : ''}>
+        <option value="">— Select —</option>
+        ${opts.map(o => `<option value="${esc(o.label ?? '')}">${esc(o.label ?? '')}</option>`).join('')}
+      </select>`;
+      break;
+    }
     case 'date':
       inputHtml = `<input id="field_${esc(field.id)}" class="form-control" type="date" ${field.is_required ? 'required' : ''} />`;
       break;
@@ -155,13 +166,26 @@ async function handleSubmit(e) {
   btn.disabled = true;
   btn.textContent = 'Submitting…';
 
+  // Resolve the routing field (if any) to a manager. Fail soft: an
+  // unanswered optional field or an unresolvable label leaves the
+  // request unassigned, which broadcasts to all managers.
+  let assignedManagerId = null;
+  const routingField = catFields.find(f => f.field_type === 'routing');
+  if (routingField) {
+    const selectedLabel = document.getElementById(`field_${routingField.id}`)?.value ?? '';
+    const opts = Array.isArray(routingField.options) ? routingField.options : [];
+    const match = opts.find(o => o.label === selectedLabel);
+    if (match?.manager_id) assignedManagerId = match.manager_id;
+  }
+
   // Insert staff_request
   const { data: newReq, error: reqErr } = await supabase
     .from('staff_requests')
     .insert({
-      school_id:    currentProfile.school_id,
-      category_id:  selectedCat.id,
-      submitted_by: currentProfile.id,
+      school_id:           currentProfile.school_id,
+      category_id:         selectedCat.id,
+      submitted_by:        currentProfile.id,
+      assigned_manager_id: assignedManagerId,
     })
     .select('id')
     .single();

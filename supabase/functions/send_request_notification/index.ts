@@ -31,8 +31,8 @@ serve(async (req) => {
     const { data: req_row, error: reqErr } = await supabase
       .from("staff_requests")
       .select(`
-        id, status, created_at, school_id,
-        request_categories ( id, name ),
+        id, status, created_at, school_id, assigned_manager_id,
+        request_categories ( id, name, notify_managers ),
         profiles!staff_requests_submitted_by_fkey ( display_name, email )
       `)
       .eq("id", request_id)
@@ -56,10 +56,10 @@ serve(async (req) => {
       .eq("request_id", request_id)
       .order("request_category_fields(sort_order)");
 
-    // Load category managers' emails
+    // Load category managers' emails (profile_id needed for routing)
     const { data: managers } = await supabase
       .from("request_category_managers")
-      .select("profiles!request_category_managers_profile_id_fkey ( email, display_name )")
+      .select("profile_id, profiles!request_category_managers_profile_id_fkey ( email, display_name )")
       .eq("category_id", category.id);
 
     // Load school email config
@@ -117,8 +117,23 @@ serve(async (req) => {
 
     const emailJobs: Promise<void>[] = [];
 
-    // Notify all managers
-    for (const m of managers ?? []) {
+    // Recipient selection:
+    // 1. notify_managers off → no manager emails at all (queue only)
+    // 2. routed (assigned_manager_id) → only that manager, IF they are
+    //    still a manager of this form — otherwise fail soft to everyone
+    //    (a wrong inbox is worse than an extra one)
+    // 3. unrouted → all managers (original behavior)
+    let recipients = managers ?? [];
+    if (category.notify_managers === false) {
+      recipients = [];
+    } else if (req_row.assigned_manager_id) {
+      const routed = recipients.filter(
+        (m: any) => m.profile_id === req_row.assigned_manager_id
+      );
+      if (routed.length) recipients = routed;
+    }
+
+    for (const m of recipients) {
       const mgr = (m as any).profiles;
       if (!mgr?.email) continue;
       emailJobs.push(sendEmail({
