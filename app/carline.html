@@ -1381,10 +1381,14 @@ function watchForNewEvents() {
       if (!ev || !currentEvent || ev.id !== currentEvent.id) return;
       const wasOpen = currentEvent.status !== 'CLOSED';
       currentEvent.status = ev.status;
-      // Detect All Call set or cleared (reset day)
+      // Detect All Call set or cleared (reset day). Sound only on the
+      // inactive → active transition: the broadcast handler stores a
+      // local timestamp, so comparing values would re-fire the fanfare
+      // when the DB timestamp arrives.
       if (ev.all_call_at !== allCallAt) {
+        const wasActive = !!allCallAt;
         allCallAt = ev.all_call_at ?? null;
-        updateAllCallBanner(!!ev.all_call_at);
+        updateAllCallBanner(!wasActive && !!allCallAt);
         renderColumns();
       }
       updateEventUI();
@@ -1499,7 +1503,13 @@ function playRecallSound() {
     tone(ctx, 659, 0.30, 0.18, 0.28, 'triangle');
   } catch(e) {}
 }
+let lastAllCallSoundAt = 0;
 function playAllCallSound() {
+  // An all-call happens once — never let racing update paths
+  // (broadcast + realtime + poll) stack the fanfare.
+  const now = Date.now();
+  if (now - lastAllCallSoundAt < 10_000) return;
+  lastAllCallSoundAt = now;
   try {
     const ctx = getCtx();
     tone(ctx, 880,    0,    0.10, 0.35, 'square');

@@ -1263,7 +1263,12 @@ function playCallSound() {
 function playRecallSound() {
   try { const c = getCtx(); tone(c,880,0,0.10,0.28,'triangle'); tone(c,659,0.09,0.10,0.28,'triangle'); tone(c,880,0.20,0.10,0.28,'triangle'); tone(c,659,0.30,0.18,0.28,'triangle'); } catch {}
 }
+let lastAllCallSoundAt = 0;
 function playAllCallSound() {
+  // One fanfare per all-call — the 5s poll must never stack replays
+  const now = Date.now();
+  if (now - lastAllCallSoundAt < 10_000) return;
+  lastAllCallSoundAt = now;
   try { const c = getCtx(); tone(c,880,0,0.10,0.35,'square'); tone(c,880,0.16,0.10,0.35,'square'); tone(c,880,0.32,0.10,0.35,'square'); tone(c,1046.5,0.50,0.40,0.35,'sine'); } catch {}
 }
 
