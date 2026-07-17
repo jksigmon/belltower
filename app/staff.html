@@ -22,6 +22,28 @@
 <link rel="stylesheet" href="/admin-ui.css" />
   <style>
 
+/* ─── Resource viewer: print only the document, nothing else ───
+   The iframe's PDF is cross-origin, so we can't call print() on its
+   own window — we print the top-level page instead and hide
+   everything except the viewer overlay/iframe via @media print.
+   Scoped to body.resource-viewer-open (set only while the viewer is
+   actually open) so a normal Cmd+P elsewhere on the page is untouched. ─── */
+@media print {
+  body.resource-viewer-open * { visibility: hidden; }
+  body.resource-viewer-open #resourceViewerOverlay,
+  body.resource-viewer-open #resourceViewerOverlay * { visibility: visible; }
+  body.resource-viewer-open #resourceViewerOverlay {
+    position: fixed; inset: 0; background: #fff;
+  }
+  body.resource-viewer-open #resourceViewerTitle,
+  body.resource-viewer-open #resourceViewerPrintBtn,
+  body.resource-viewer-open #resourceViewerCloseBtn,
+  body.resource-viewer-open #resourceViewerOverlay > div > div:first-child { display: none !important; }
+  body.resource-viewer-open #resourceViewerFrame {
+    position: fixed; inset: 0; width: 100%; height: 100%; border: none;
+  }
+}
+
 /* ─── PTO Form — Premium ─────────────────────────── */
 
 .pto-form {
@@ -709,6 +731,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="/app/field-trips.html" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
   <a href="/app/placement.html" id="navPlacement" style="display:none;"><i data-lucide="layout-grid"></i> Class Placement</a>
   <a href="#data-collection"><i data-lucide="link"></i> Form Links</a>
+  <a href="#resources" data-module="resource_docs"><i data-lucide="folder-open"></i> Resources</a>
   <a href="#access-request"><i data-lucide="key"></i> Request Access</a>
 </nav>
 
@@ -1118,7 +1141,34 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       </div>
     </section>
 
+    <!-- ── Resources ── -->
+    <section id="resources" style="display:none;">
+      <div class="panel">
+        <h3 style="margin:0 0 6px;">Resource Documents</h3>
+        <p class="muted" style="margin:0 0 20px;font-size:13px;">
+          View and print these documents. What you see here is always the current version.
+        </p>
+        <div id="staffResourcesList">
+          <p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>
+        </div>
+      </div>
+    </section>
+
   </main>
+
+  <!-- ── Resource document viewer (view/print only) ── -->
+  <div id="resourceViewerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:2000;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;width:min(900px,94vw);height:90vh;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e5e7eb;flex-shrink:0;">
+        <strong id="resourceViewerTitle" style="font-size:14px;"></strong>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm btn-primary" id="resourceViewerPrintBtn">Print</button>
+          <button class="btn btn-sm" id="resourceViewerCloseBtn">Close</button>
+        </div>
+      </div>
+      <iframe id="resourceViewerFrame" style="flex:1;border:none;width:100%;"></iframe>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -1127,6 +1177,7 @@ import { initUserMenu } from '/app/user-menu.js';
 import { requireAuth } from '/app/admin.auth.js';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
+import { esc } from '/app/admin.shared.js';
 
 // Prevent browser from restoring a stale scroll position on load
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -1443,6 +1494,8 @@ async function loadStaffDashboard() {
     actions.push({ label: 'My Licenses', icon: 'badge-check', href: '#licensure' });
   if (window.staffModules['requests'] !== false)
     actions.push({ label: 'Submit a Request', icon: 'inbox', href: '/app/requests.html' });
+  if (window.staffModules['resource_docs'] !== false)
+    actions.push({ label: 'Resources', icon: 'folder-open', href: '#resources' });
   if (currentProfile?.can_manage_placement || currentProfile?.is_superadmin)
     actions.push({ label: 'Class Placement', icon: 'layout-grid', href: '/app/placement.html' });
   if (actionsRow && actions.length) {
@@ -1685,6 +1738,7 @@ function setActive(hash) {
     if (hash === '#compliance-report')  subtitle.textContent = 'Compliance Report';
     if (hash === '#access-request')     subtitle.textContent = 'Request Access';
     if (hash === '#data-collection')    subtitle.textContent = 'Form Links';
+    if (hash === '#resources')          subtitle.textContent = 'Resources';
   }
 
   document.querySelectorAll('nav a').forEach(function (a) {
@@ -1707,6 +1761,7 @@ function setActive(hash) {
   if (hash === '#compliance-report')   initComplianceReport();
   if (hash === '#access-request')      { buildAccessRequestOptions(); loadMyAccessRequests(); }
   if (hash === '#data-collection')     loadStaffFormLinks();
+  if (hash === '#resources')           loadStaffResources();
 }
 
 async function loadStaffFormLinks() {
@@ -1752,6 +1807,116 @@ window.staffCopyLink = function (btn) {
     prompt('Copy this link:', link);
   });
 };
+
+/* ── Resource Documents (view/print only) ── */
+async function loadStaffResources() {
+  const list = document.getElementById('staffResourcesList');
+  if (!list) return;
+
+  list.innerHTML = '<p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>';
+
+  const { data, error } = await supabase
+    .from('resource_documents')
+    .select('id, title, file_path, original_filename')
+    .eq('school_id', currentProfile.school_id)
+    .order('sort_order')
+    .order('title');
+
+  if (error || !data || !data.length) {
+    list.innerHTML = '<p class="muted" style="text-align:center;padding:24px 0;">No documents available yet.</p>';
+    return;
+  }
+
+  list.innerHTML = data.map(function (d) {
+    var kind = staffFileKind(d.original_filename);
+    var btnLabel = kind === 'other' ? 'Download' : 'View &amp; Print';
+    var handler = kind === 'other' ? 'staffDownloadResource(this)' : 'staffViewResource(this)';
+    return '<div style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #f3f4f6;">' +
+      '<div style="flex:1;font-weight:600;font-size:14px;">' + esc(d.title) + '</div>' +
+      '<button class="btn btn-sm btn-primary" data-id="' + esc(d.id) + '" onclick="' + handler + '">' + btnLabel + '</button>' +
+    '</div>';
+  }).join('');
+
+  window._staffResourceDocs = data;
+}
+
+// Only PDFs and images can be shown in the print-only viewer — browsers
+// have no built-in in-page viewer for Word/Excel/etc. Matches the same
+// classification used in admin.resource-docs.js.
+function staffFileKind(filename) {
+  var ext = (filename || '').toLowerCase().split('.').pop();
+  if (ext === 'pdf') return 'pdf';
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].indexOf(ext) !== -1) return 'image';
+  return 'other';
+}
+
+window.staffViewResource = async function (btn) {
+  const doc = (window._staffResourceDocs || []).find(function (d) { return d.id === btn.dataset.id; });
+  if (!doc) return;
+
+  const { data, error } = await supabase.storage
+    .from('resource-docs')
+    .createSignedUrl(doc.file_path, 300);
+
+  if (error || !data?.signedUrl) {
+    alert('Could not open this document. Please try again.');
+    return;
+  }
+
+  const kind = staffFileKind(doc.original_filename);
+  const url  = kind === 'pdf' ? data.signedUrl + '#toolbar=0' : data.signedUrl;
+
+  document.getElementById('resourceViewerTitle').textContent = doc.title;
+  document.getElementById('resourceViewerFrame').src = url;
+  document.getElementById('resourceViewerOverlay').style.display = 'flex';
+  document.body.classList.add('resource-viewer-open');
+};
+
+// Word/Excel/etc. have no in-browser viewer, so these just download —
+// clearly labeled "Download" in the list rather than pretending to
+// protect a file type the viewer can't actually render.
+window.staffDownloadResource = async function (btn) {
+  const doc = (window._staffResourceDocs || []).find(function (d) { return d.id === btn.dataset.id; });
+  if (!doc) return;
+
+  const { data, error } = await supabase.storage
+    .from('resource-docs')
+    .createSignedUrl(doc.file_path, 300, { download: doc.original_filename || true });
+
+  if (error || !data?.signedUrl) {
+    alert('Could not download this document. Please try again.');
+    return;
+  }
+
+  const a = document.createElement('a');
+  a.href = data.signedUrl;
+  a.download = doc.original_filename || doc.title;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+
+function closeResourceViewer() {
+  document.getElementById('resourceViewerOverlay').style.display = 'none';
+  document.getElementById('resourceViewerFrame').src = 'about:blank';
+  document.body.classList.remove('resource-viewer-open');
+}
+
+document.getElementById('resourceViewerCloseBtn')?.addEventListener('click', closeResourceViewer);
+document.getElementById('resourceViewerPrintBtn')?.addEventListener('click', function () {
+  // The iframe's document is cross-origin (Supabase storage's own domain),
+  // so contentWindow.print() throws a SecurityError — same-origin policy,
+  // not something a CSP change can grant an exception to. Printing the
+  // top-level window instead works: @media print (below) hides everything
+  // on the page except the viewer overlay, so the iframe is effectively
+  // what gets printed.
+  window.print();
+});
+// Light deterrent against right-click "Save As" on the embedded viewer —
+// not foolproof (screenshots always work), matches the agreed scope.
+document.getElementById('resourceViewerOverlay')?.addEventListener('contextmenu', function (e) {
+  e.preventDefault();
+});
 
 async function loadMyLicenses() {
   const container = document.getElementById('staffLicenseList');
@@ -2399,8 +2564,13 @@ function applyModuleNavVisibility() {
   document.querySelectorAll('nav a[data-module]').forEach(function (link) {
     const moduleName = link.getAttribute('data-module');
 
-    // 1️⃣ School-level module gate
-    const moduleEnabled = window.staffModules[moduleName] === true;
+    // 1️⃣ School-level module gate. Most modules require an explicit
+    // enabled row. resource_docs defaults ON with no row needed (matches
+    // moduleEnabled() in admin.core.js and the 'requests' quick-action
+    // check below), since there's nothing to configure per school.
+    const moduleEnabled = moduleName === 'resource_docs'
+      ? window.staffModules[moduleName] !== false
+      : window.staffModules[moduleName] === true;
 
     // 2️⃣ User-level permission gate (Carline only)
     let userAllowed = true;

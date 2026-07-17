@@ -16,6 +16,7 @@ const ACCESS_ROLE_PRESETS = {
     can_manage_access: false,
     can_manage_campuses: false,
     can_manage_calendar: false,
+    can_manage_resource_docs: false,
     can_manage_staff: false,
     can_manage_students: false,
     can_manage_placement: false,
@@ -42,6 +43,7 @@ const ACCESS_ROLE_PRESETS = {
     can_manage_access: false,
     can_manage_campuses: false,
     can_manage_calendar: false,
+    can_manage_resource_docs: false,
     can_manage_students: true,
     can_manage_placement: false,
     can_manage_families: true,
@@ -67,6 +69,7 @@ const ACCESS_ROLE_PRESETS = {
     can_manage_access: true,
     can_manage_campuses: true,
     can_manage_calendar: true,
+    can_manage_resource_docs: true,
     can_manage_staff: true,
     can_manage_students: true,
     can_manage_placement: true,
@@ -175,7 +178,7 @@ async function loadAccessProfile(profileId) {
       can_manage_staff, can_manage_students, can_manage_placement,
       can_manage_families, can_manage_guardians, can_manage_bus_groups,
       can_manage_carpools, can_manage_substitutes, can_manage_campuses,
-      can_manage_calendar,
+      can_manage_calendar, can_manage_resource_docs,
       can_bulk_upload, can_export_data, can_manage_licensure, can_manage_compliance, can_manage_field_trips
     `)
     .eq('id', profileId)
