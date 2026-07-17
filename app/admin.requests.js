@@ -300,7 +300,7 @@ function renderFieldsList() {
   const routingIdx = draftFields.findIndex(f => f.field_type === 'routing');
 
   list.innerHTML = draftFields.map((f, i) => {
-    const types = ['text','textarea','select','date','boolean','file'];
+    const types = ['text','textarea','select','date','date_range','time','phone','currency','boolean','file'];
     if (routingIdx === -1 || routingIdx === i) types.push('routing');
     return `
     <div class="req-field-row" data-idx="${i}" draggable="true">
@@ -431,7 +431,11 @@ function addField() {
 }
 
 function fieldTypeLabel(t) {
-  return { text: 'Short Text', textarea: 'Paragraph', select: 'Dropdown', date: 'Date', boolean: 'Yes / No', file: 'File Upload', routing: 'Routes to a manager' }[t] ?? t;
+  return {
+    text: 'Short Text', textarea: 'Paragraph', select: 'Dropdown', date: 'Date',
+    date_range: 'Date Range', time: 'Time', phone: 'Phone Number', currency: 'Currency',
+    boolean: 'Yes / No', file: 'File Upload', routing: 'Routes to a manager',
+  }[t] ?? t;
 }
 
 /* Routing option editor: each option maps a submitter-facing label to

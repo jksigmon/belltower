@@ -50,6 +50,16 @@
     .req-field-label  { display: block; font-size: 12px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
     .req-field-label .req-required { color: #dc2626; margin-left: 2px; }
 
+    /* Date range */
+    .req-date-range     { display: flex; gap: 12px; }
+    .req-date-range-col { flex: 1; min-width: 0; }
+    .req-date-range-sub { display: block; font-size: 11px; color: #9ca3af; margin-bottom: 3px; }
+
+    /* Currency */
+    .req-currency-wrap  { position: relative; }
+    .req-currency-sign  { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #6b7280; font-size: 14px; pointer-events: none; }
+    .req-currency-input { padding-left: 22px !important; }
+
     .req-success {
       background: #f0fdf4;
       border: 1.5px solid #bbf7d0;

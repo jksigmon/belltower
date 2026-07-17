@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js';
 import { initPage } from './admin.auth.js';
-import { esc, fmtShortDate, showToast } from './admin.shared.js';
+import { esc, fmtShortDate, fmtTime, showToast } from './admin.shared.js';
 import { initUserMenu } from './user-menu.js';
 
 let currentProfile = null;
@@ -96,6 +96,7 @@ async function selectCategory(cat) {
     </div>`;
 
   document.getElementById('reqSubmitForm').addEventListener('submit', handleSubmit);
+  wireSpecialInputs();
   document.getElementById('reqCancelFormBtn').addEventListener('click', () => {
     document.getElementById('reqFormWrap').innerHTML = '';
     document.querySelectorAll('.req-cat-card').forEach(c => c.classList.remove('selected'));
@@ -103,6 +104,20 @@ async function selectCategory(cat) {
   });
 
   formWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Fixed times, 15-minute increments, full 24-hour range (departure and
+// return times for a trip can fall anywhere in the day). Labels always
+// show AM/PM via fmtTime — see the 'time' case in renderFormField.
+function timeOptionsHtml() {
+  const opts = ['<option value="">— Select —</option>'];
+  for (let h = 0; h < 24; h++) {
+    for (let m = 0; m < 60; m += 15) {
+      const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      opts.push(`<option value="${value}">${esc(fmtTime(value))}</option>`);
+    }
+  }
+  return opts.join('');
 }
 
 function renderFormField(field) {
@@ -138,6 +153,40 @@ function renderFormField(field) {
     case 'date':
       inputHtml = `<input id="field_${esc(field.id)}" class="form-control" type="date" ${field.is_required ? 'required' : ''} />`;
       break;
+    case 'date_range':
+      // Two plain date inputs — simpler and more reliable than a custom
+      // range picker, and native on every device. Single day = leave End
+      // blank or matching Start.
+      inputHtml = `<div class="req-date-range">
+        <div class="req-date-range-col">
+          <span class="req-date-range-sub">Start</span>
+          <input id="field_${esc(field.id)}_start" class="form-control" type="date" ${field.is_required ? 'required' : ''} />
+        </div>
+        <div class="req-date-range-col">
+          <span class="req-date-range-sub">End (optional for a single day)</span>
+          <input id="field_${esc(field.id)}_end" class="form-control" type="date" />
+        </div>
+      </div>`;
+      break;
+    case 'time':
+      // A dropdown of fixed times (not <input type="time">) so AM/PM is
+      // always explicit in the label — the native time input follows the
+      // OS/browser clock-format setting, so on a device set to 24-hour
+      // time it would show no AM/PM at all. Useful for things like a
+      // field trip's departure/return time.
+      inputHtml = `<select id="field_${esc(field.id)}" class="form-control" ${field.is_required ? 'required' : ''}>
+        ${timeOptionsHtml()}
+      </select>`;
+      break;
+    case 'phone':
+      inputHtml = `<input id="field_${esc(field.id)}" class="form-control req-phone-input" type="tel" inputmode="tel" placeholder="(555) 123-4567" ${field.is_required ? 'required' : ''} />`;
+      break;
+    case 'currency':
+      inputHtml = `<div class="req-currency-wrap">
+        <span class="req-currency-sign">$</span>
+        <input id="field_${esc(field.id)}" class="form-control req-currency-input" type="text" inputmode="decimal" placeholder="0.00" ${field.is_required ? 'required' : ''} />
+      </div>`;
+      break;
     case 'boolean':
       inputHtml = `<div style="display:flex;gap:16px;align-items:center;padding:8px 0;">
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;">
@@ -158,10 +207,47 @@ function renderFormField(field) {
   return `<div class="req-field-group">${labelHtml}${inputHtml}</div>`;
 }
 
+// Live-format phone and currency inputs as the submitter types, so what
+// they see while filling the form matches what gets stored and emailed.
+function wireSpecialInputs() {
+  document.querySelectorAll('.req-phone-input').forEach(el => {
+    el.addEventListener('input', () => {
+      const digits = el.value.replace(/\D/g, '').slice(0, 10);
+      if (digits.length > 6)      el.value = `(${digits.slice(0,3)}) ${digits.slice(3,6)}-${digits.slice(6)}`;
+      else if (digits.length > 3) el.value = `(${digits.slice(0,3)}) ${digits.slice(3)}`;
+      else if (digits.length > 0) el.value = `(${digits}`;
+      else                        el.value = '';
+    });
+  });
+
+  document.querySelectorAll('.req-currency-input').forEach(el => {
+    el.addEventListener('blur', () => {
+      if (!el.value.trim()) return;
+      const num = parseFloat(el.value.replace(/[^0-9.]/g, ''));
+      el.value = isNaN(num) ? '' : num.toFixed(2);
+    });
+  });
+}
+
 async function handleSubmit(e) {
   e.preventDefault();
   const errEl  = document.getElementById('reqFormError');
   const btn    = e.target.querySelector('button[type="submit"]');
+
+  // Currency is a free-text input (needed for the "$" prefix layout), so
+  // the browser's native required/pattern validation won't catch a
+  // non-numeric entry. Catch it here before anything is inserted.
+  for (const f of catFields) {
+    if (f.field_type !== 'currency') continue;
+    const el = document.getElementById(`field_${f.id}`);
+    const raw = el?.value.trim() ?? '';
+    if (!raw) continue;
+    if (isNaN(parseFloat(raw.replace(/[^0-9.]/g, '')))) {
+      if (errEl) { errEl.textContent = `"${f.label}" needs a valid amount, e.g. 25.00.`; errEl.style.display = ''; }
+      el.focus();
+      return;
+    }
+  }
 
   btn.disabled = true;
   btn.textContent = 'Submitting…';
@@ -224,6 +310,21 @@ async function handleSubmit(e) {
     } else if (f.field_type === 'boolean') {
       const checked = document.querySelector(`input[name="field_${f.id}"]:checked`);
       value = checked ? checked.value : '';
+    } else if (f.field_type === 'date_range') {
+      // Store the final human-readable string, same as every other
+      // field type — nothing downstream needs to know this was a range.
+      const start = document.getElementById(`field_${f.id}_start`)?.value || '';
+      const end   = document.getElementById(`field_${f.id}_end`)?.value || '';
+      if (!start) value = '';
+      else if (!end || end === start) value = fmtShortDate(start);
+      else value = `${fmtShortDate(start)} – ${fmtShortDate(end)}`;
+    } else if (f.field_type === 'time') {
+      const el = document.getElementById(`field_${f.id}`);
+      value = el?.value ? fmtTime(el.value) : '';
+    } else if (f.field_type === 'currency') {
+      const el = document.getElementById(`field_${f.id}`);
+      const num = el?.value ? parseFloat(el.value.replace(/[^0-9.]/g, '')) : NaN;
+      value = isNaN(num) ? '' : `$${num.toFixed(2)}`;
     } else {
       const el = document.getElementById(`field_${f.id}`);
       value = el ? el.value.trim() : '';
