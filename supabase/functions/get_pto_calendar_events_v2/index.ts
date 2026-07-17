@@ -117,13 +117,14 @@ const { data: requests, error } = await admin
     end_time,
     partial_day,
     pto_type,
+    status,
       employees:employees!pto_requests_employee_id_fkey (
       first_name,
       last_name
     )
   `)
   .eq("school_id", profile.school_id)
-  .eq("status", "APPROVED")
+  .in("status", ["APPROVED", "PENDING"])
   .lte("start_date", end_date)
   .gte("end_date", start_date)
   .order("start_date");
@@ -147,16 +148,18 @@ const name = r.employees
   ? `${r.employees.first_name} ${r.employees.last_name}`
   : "Unknown Employee";
 
+const suffix = r.status === "PENDING" ? " (Pending)" : "";
 
   // ✅ Partial day PTO → timed event
   if (r.partial_day && r.start_time && r.end_time) {
     return {
       id: r.id,
-      title: `${name} – ${r.pto_type}`,
+      title: `${name} – ${r.pto_type}${suffix}`,
       start: `${r.start_date}T${r.start_time}`,
       end: `${r.start_date}T${r.end_time}`,
       allDay: false,
       pto_type: r.pto_type,
+      status: r.status,
     };
   }
 
@@ -166,11 +169,12 @@ const name = r.employees
 
   return {
     id: r.id,
-    title: `${name} – ${r.pto_type}`,
+    title: `${name} – ${r.pto_type}${suffix}`,
     start: r.start_date,
     end: endExclusive.toISOString().slice(0, 10),
     allDay: true,
     pto_type: r.pto_type,
+    status: r.status,
   };
 });
 

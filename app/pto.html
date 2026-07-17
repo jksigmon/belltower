@@ -677,6 +677,24 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
+
+.pto-req-coverage {
+  font-size: 11.5px;
+  color: #6b7280;
+  background: #f3f4f6;
+  border-radius: 99px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Pending leave requests on the calendar: dashed border as a second
+   visual cue beyond amber color alone (colorblind users, grayscale
+   print) — see initPtoCalendar() in pto.js */
+.pto-cal-pending {
+  border-style: dashed !important;
+  border-width: 2px !important;
+}
 .pto-req-age.stale {
   color: #b45309;
   background: #fef3c7;
@@ -1320,6 +1338,7 @@
   <button id="calPopClose" class="cal-pop-close" aria-label="Close">&times;</button>
   <div class="cal-pop-header">
     <span id="calPopTypeBadge" class="cal-pop-badge"></span>
+    <span id="calPopPendingBadge" class="cal-pop-badge" style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;display:none;">Pending approval</span>
     <span id="calPopEmpName" class="cal-pop-emp"></span>
   </div>
   <div class="cal-pop-body">

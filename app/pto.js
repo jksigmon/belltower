@@ -599,6 +599,43 @@ async function loadPto() {
   if (toolbar) toolbar.hidden = false;
   if (titleCount) { titleCount.textContent = data.length; titleCount.hidden = false; }
 
+  // ── Coverage: "N other staff already out this day" ──────────
+  // One batched query across the date range actually needed (not one
+  // query per row), then per-day counts computed client-side. Only the
+  // request's start_date is checked, not the full range, per scope.
+  const pendingDates = [...new Set(data.map(r => r.start_date))].sort();
+  const coverageByDate = new Map(); // start_date -> Set(employee_id) with approved leave that day
+  if (pendingDates.length) {
+    const minDate = pendingDates[0];
+    const maxDate = pendingDates[pendingDates.length - 1];
+    const { data: approvedRows, error: covErr } = await supabase
+      .from('pto_requests')
+      .select('employee_id, start_date, end_date')
+      .eq('school_id', currentProfile.school_id)
+      .eq('status', 'APPROVED')
+      .lte('start_date', maxDate)
+      .gte('end_date', minDate);
+
+    if (covErr) {
+      console.error('coverage lookup failed', covErr);
+    } else {
+      (approvedRows ?? []).forEach(a => {
+        pendingDates.forEach(d => {
+          if (a.start_date <= d && a.end_date >= d) {
+            if (!coverageByDate.has(d)) coverageByDate.set(d, new Set());
+            coverageByDate.get(d).add(a.employee_id);
+          }
+        });
+      });
+    }
+  }
+
+  function otherStaffOutCount(row) {
+    const set = coverageByDate.get(row.start_date);
+    if (!set) return 0;
+    return set.size - (set.has(row.employee_id) ? 1 : 0);
+  }
+
   // ── Group requests by employee ──────────────────────────────
   const groups = new Map();
   data.forEach(r => {
@@ -651,6 +688,7 @@ async function loadPto() {
       if (r.start_time && r.end_time) {
         durationSub = `${formatTime(r.start_time)} – ${formatTime(r.end_time)}`;
       }
+      const coverageCount = otherStaffOutCount(r);
 
       const row = document.createElement('div');
       row.className = 'pto-req';
@@ -660,6 +698,7 @@ async function loadPto() {
           <div class="pto-req-date">${esc(fmtReqDates(r))}</div>
           ${durationSub ? `<div class="pto-req-duration">${esc(durationSub)}</div>` : ''}
         </div>
+        ${coverageCount > 0 ? `<span class="pto-req-coverage" title="Staff with approved leave overlapping ${esc(fmtShortDate(r.start_date))}">${coverageCount} staff already out this day</span>` : ''}
         <span class="pto-type-chip" style="background:${tint.bg};color:${tint.fg}">${esc(ptoTypeLabel(r.pto_type))}</span>
         ${r.needs_sub_coverage
           ? '<span class="pto-sub-chip" title="The requester indicated substitute coverage is needed">Sub needed</span>'
@@ -1929,12 +1968,18 @@ async function initPtoCalendar() {
 
         success(
           data.map(e => {
+            // Pending requests always render amber/dashed regardless of
+            // leave type — matches the substitutes calendar's "not yet
+            // decided" visual language. Approved events keep their
+            // existing per-type color.
+            const isPending = e.status === 'PENDING';
             const base = {
               id: e.id,
               title: e.title,
-              backgroundColor: colorForPtoType(e.pto_type),
-              borderColor:     colorForPtoType(e.pto_type),
-              extendedProps:   { pto_type: e.pto_type }
+              backgroundColor: isPending ? '#f59e0b' : colorForPtoType(e.pto_type),
+              borderColor:     isPending ? '#d97706' : colorForPtoType(e.pto_type),
+              classNames:      isPending ? ['pto-cal-pending'] : [],
+              extendedProps:   { pto_type: e.pto_type, status: e.status }
             };
             if (e.partial_day && e.start_time && e.end_time && e.start_date) {
               return { ...base, start: `${e.start_date}T${e.start_time}`, end: `${e.start_date}T${e.end_time}`, allDay: false };
@@ -2003,6 +2048,9 @@ async function openCalEventPopover(el, fcEvent) {
   badge.style.background = color + '22';
   badge.style.color      = color;
   badge.style.border     = `1px solid ${color}55`;
+
+  const pendingBadge = document.getElementById('calPopPendingBadge');
+  if (pendingBadge) pendingBadge.style.display = fcEvent.extendedProps.status === 'PENDING' ? '' : 'none';
 
   document.getElementById('calPopEmpName').textContent  = empName;
   document.getElementById('calPopDate').textContent     = dateStr;
