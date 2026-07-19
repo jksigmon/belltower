@@ -741,6 +741,17 @@ section.soft {
 .mod-tab.active .mt-num { color: var(--blue); }
 .mod-tab.active .mt-arrow { opacity: 1; transform: none; }
 
+/* Mobile module stepper (prev/next) — hidden on desktop */
+.mod-stepper { display: none; }
+.ms-btn { width: 42px; height: 42px; border-radius: 11px; border: 1px solid var(--border-2); background: #fff; display: flex; align-items: center; justify-content: center; color: var(--navy); flex-shrink: 0; cursor: pointer; transition: background 0.15s, transform 0.1s; }
+.ms-btn:active { background: var(--blue-tint); transform: scale(0.94); }
+.ms-btn svg { width: 20px; height: 20px; }
+.ms-label { flex: 1; min-width: 0; text-align: center; }
+.ms-line { display: inline-flex; align-items: baseline; gap: 0.45rem; justify-content: center; max-width: 100%; }
+.ms-num { font-family: var(--display); font-size: 0.82rem; font-weight: 600; color: var(--blue); flex-shrink: 0; }
+.ms-name { font-size: 0.98rem; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ms-count { display: block; font-size: 0.62rem; color: var(--muted); margin-top: 0.1rem; font-weight: 600; letter-spacing: 0.04em; }
+
 .ft-track { display: flex; flex-direction: column; }
 /* Active module copy (middle) — now a click-driven tab panel */
 .ft-block { display: none; flex-direction: column; }
@@ -1220,12 +1231,15 @@ footer {
   .hero-visual { max-width: 460px; }
   .hero-chip.c1 { right: 2%; } .hero-chip.c2 { left: 2%; }
   .value-inner { grid-template-columns: 1fr; gap: 3rem; }
-  .ft-layout { grid-template-columns: 1fr; gap: 1.8rem; margin-top: 2.5rem; }
-  .mod-tabs { flex-direction: row; overflow-x: auto; gap: 0.5rem; position: static; padding-bottom: 0.4rem; -webkit-overflow-scrolling: touch; }
-  .mod-tab { min-width: 210px; flex-shrink: 0; }
-  .ft-stage { position: static; order: 3; }
+  .ft-layout { grid-template-columns: 1fr; gap: 1.4rem; margin-top: 2rem; scroll-margin-top: 74px; }
+  /* Swap the tab column for a pinned prev/next stepper so every module is one tap away */
+  .mod-tabs { display: none; }
+  .mod-stepper { display: flex; align-items: center; gap: 0.7rem; position: sticky; top: 78px; z-index: 20; order: 0;
+    background: rgba(255,255,255,0.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    padding: 0.55rem 0.6rem; margin: 0 -0.3rem; border-radius: 13px; border: 1px solid var(--border); box-shadow: 0 8px 22px rgba(11,45,79,0.09); }
+  .ft-block { order: 1; }
+  .ft-stage { position: static; order: 2; }
   .ft-stage-inner { min-height: 420px; }
-  .ft-block { order: 2; }
 }
 @media (max-width: 900px) {
   .nav-links a.text-link:not(.nav-login):not(.nav-cta-link) { display: none; }
@@ -1469,6 +1483,12 @@ footer {
     </div>
 
     <div class="ft-layout">
+      <!-- Mobile-only: flip through modules one at a time (pinned, no tab-bar hunting) -->
+      <div class="mod-stepper">
+        <button class="ms-btn" id="msPrev" type="button" aria-label="Previous module"><i data-lucide="chevron-left"></i></button>
+        <div class="ms-label"><span class="ms-line"><span class="ms-num" id="msNum">01</span><span class="ms-name" id="msName">Leave Management</span></span><span class="ms-count" id="msCount">1 / 8</span></div>
+        <button class="ms-btn" id="msNext" type="button" aria-label="Next module"><i data-lucide="chevron-right"></i></button>
+      </div>
       <!-- Left: clickable module list -->
       <div class="mod-tabs" role="tablist" aria-label="Belltower modules">
         <button class="mod-tab active" data-tab="0" role="tab" aria-selected="true"><span class="mt-num">01</span><span class="mt-name">Leave Management</span><span class="mt-arrow"><i data-lucide="arrow-up-right"></i></span></button>
@@ -2129,11 +2149,20 @@ window.addEventListener('scroll', () => {
   else { io.observe(canvas); setInterval(ring, 7000); }
 })();
 
-// ---- Module explorer (click-driven) --------------------------------
+// ---- Module explorer (click-driven + mobile stepper) ---------------
 const ftBlocks = Array.from(document.querySelectorAll('.ft-block'));
 const ftMocks  = Array.from(document.querySelectorAll('.ft-mock'));
 const modTabs  = Array.from(document.querySelectorAll('.mod-tab'));
+const modTotal = modTabs.length;
+const ftLayout = document.querySelector('.ft-layout');
+const msNum = document.getElementById('msNum');
+const msName = document.getElementById('msName');
+const msCount = document.getElementById('msCount');
+const msPrev = document.getElementById('msPrev');
+const msNext = document.getElementById('msNext');
+let modCurrent = 0;
 function setFeature(i) {
+  modCurrent = i;
   ftBlocks.forEach(b => b.classList.toggle('is-active', +b.dataset.ft === i));
   ftMocks.forEach(m => m.classList.toggle('is-active', +m.dataset.mock === i));
   modTabs.forEach(t => {
@@ -2141,10 +2170,23 @@ function setFeature(i) {
     t.classList.toggle('active', on);
     t.setAttribute('aria-selected', on ? 'true' : 'false');
   });
+  const active = modTabs[i];
+  if (active && msNum) {
+    msNum.textContent = active.querySelector('.mt-num')?.textContent || '';
+    msName.textContent = active.querySelector('.mt-name')?.textContent || '';
+    msCount.textContent = (i + 1) + ' / ' + modTotal;
+  }
 }
-if (modTabs.length) {
+function stepFeature(delta) {
+  setFeature((modCurrent + delta + modTotal) % modTotal);
+  // Reset to the top of the module so you don't land mid-content
+  if (ftLayout) ftLayout.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+}
+if (modTotal) {
   setFeature(0);
   modTabs.forEach(t => t.addEventListener('click', () => setFeature(+t.dataset.tab)));
+  if (msPrev) msPrev.addEventListener('click', () => stepFeature(-1));
+  if (msNext) msNext.addEventListener('click', () => stepFeature(1));
 }
 
 // ---- Stat count-up --------------------------------------------------
