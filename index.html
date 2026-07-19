@@ -861,6 +861,80 @@ section.soft {
 .msearch { display:flex; align-items:center; gap:0.5rem; background:var(--bg-soft); border:1px solid var(--border); border-radius:8px; padding:0.38rem 0.65rem; margin-bottom:0.55rem; }
 .msearch svg { width:13px; height:13px; color:var(--muted); flex-shrink:0; }
 .msearch span { font-size:0.7rem; color:#94a3b8; }
+/* Rebuilt-from-real mock components */
+.mpill.xs { font-size:0.54rem; padding:0.14rem 0.42rem; }
+/* Leave: grouped pending requests */
+.mgroup { display:flex; align-items:center; gap:0.55rem; padding:0.5rem 0.15rem; }
+.mgroup + .mgroup { border-top:1px solid var(--border); margin-top:0.3rem; }
+.g-meta { flex:1; min-width:0; }
+.g-name { font-size:0.75rem; font-weight:700; color:var(--text); }
+.g-sub { font-size:0.56rem; color:var(--muted); margin-top:0.05rem; }
+.mghost { font-size:0.56rem; font-weight:700; color:var(--blue-h); background:var(--blue-tint); border:1px solid var(--blue-line); border-radius:100px; padding:0.28rem 0.55rem; white-space:nowrap; }
+.mreq { display:flex; align-items:center; gap:0.5rem; padding:0.5rem 0.6rem; border:1px solid var(--border); border-radius:10px; margin-bottom:0.4rem; }
+.mreq:last-child { margin-bottom:0; }
+.rq-main { flex:1; min-width:0; }
+.rq-date { font-size:0.68rem; font-weight:700; color:var(--text); }
+.rq-day { font-weight:500; color:var(--muted); }
+.rq-sub { font-size:0.56rem; color:var(--muted); margin-top:0.22rem; display:flex; align-items:center; gap:0.3rem; flex-wrap:wrap; }
+.mbtns { display:flex; gap:0.28rem; flex-shrink:0; }
+.mbtn { font-size:0.56rem; font-weight:700; border-radius:7px; padding:0.34rem 0.5rem; border:1px solid transparent; cursor:pointer; }
+.mbtn.approve { background:#16a34a; color:#fff; }
+.mbtn.deny { background:#fff; color:#dc2626; border-color:#fca5a5; }
+/* Carline: three-column board */
+.cl-open { font-size:0.5rem; font-weight:800; letter-spacing:.05em; color:#052e16; background:#4ade80; padding:0.1rem 0.34rem; border-radius:5px; margin-left:0.35rem; }
+.cl-clock { display:inline-flex; align-items:center; gap:0.4rem; font-size:0.72rem; font-weight:800; color:#fff; font-variant-numeric:tabular-nums; }
+.cl-clock .live { width:6px; height:6px; border-radius:50%; background:#34d399; animation:live 1.8s ease-out infinite; }
+.mcl { display:grid; grid-template-columns:1fr 1fr 0.82fr; gap:0.4rem; }
+.mcl-col { border-radius:10px; overflow:hidden; border:1px solid var(--border); display:flex; flex-direction:column; min-height:210px; }
+.mcl-h { display:flex; align-items:center; justify-content:space-between; padding:0.32rem 0.45rem; color:#fff; }
+.mcl-h .l { font-size:0.5rem; font-weight:800; letter-spacing:0.06em; text-transform:uppercase; }
+.mcl-h .c { font-size:0.62rem; font-weight:800; background:rgba(255,255,255,0.25); border-radius:5px; padding:0.02rem 0.32rem; }
+.mcl-b { padding:0.32rem; display:flex; flex-direction:column; gap:0.28rem; flex:1; }
+.col-wait .mcl-h { background:linear-gradient(100deg,var(--navy),var(--navy-600)); }
+.col-wait .mcl-b { background:#fff; }
+.col-call .mcl-h { background:linear-gradient(100deg,#15803d,#16a34a); }
+.col-call .mcl-b { background:#f0fdf4; }
+.col-recall .mcl-h { background:linear-gradient(100deg,#b45309,#c2620f); }
+.col-recall .mcl-b { background:#fffbeb; }
+.mcl-card { display:flex; align-items:center; gap:0.28rem; background:#fff; border:1px solid var(--border); border-radius:7px; padding:0.3rem 0.34rem; }
+.mcl-card svg { width:11px; height:11px; flex-shrink:0; color:var(--muted); }
+.mcl-card .cn { flex:1; min-width:0; font-size:0.58rem; font-weight:700; color:var(--navy-900); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mcl-card .ct { font-size:0.5rem; font-weight:700; color:var(--text-2); background:#eef1f6; border-radius:4px; padding:0.05rem 0.26rem; font-variant-numeric:tabular-nums; }
+.col-call .mcl-card { border-left:2px solid #16a34a; } .col-call .mcl-card svg { color:#16a34a; }
+.col-recall .mcl-card { border-left:2px solid var(--amber); } .col-recall .mcl-card svg { color:var(--amber-d); } .col-recall .mcl-card .cn { color:#7c2d12; }
+/* Substitutes: month schedule */
+.mcal-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem; }
+.mcal-ttl { font-size:0.8rem; font-weight:700; color:var(--text); display:inline-flex; align-items:center; gap:0.4rem; }
+.mcal-ttl svg { width:15px; height:15px; color:var(--blue); }
+.mseg { display:inline-flex; border:1px solid var(--border); border-radius:7px; overflow:hidden; }
+.mseg b { font-size:0.54rem; padding:0.2rem 0.42rem; color:var(--muted); font-weight:700; }
+.mseg b.on { background:var(--navy); color:#fff; }
+.mlegend { display:flex; gap:0.55rem; margin-bottom:0.55rem; flex-wrap:wrap; }
+.mlegend span { display:inline-flex; align-items:center; gap:0.25rem; font-size:0.52rem; color:var(--muted); font-weight:600; }
+.mlegend i { width:8px; height:8px; border-radius:3px; display:inline-block; }
+.mnav { display:inline-flex; gap:0.2rem; color:var(--muted); }
+.mnav svg { width:13px; height:13px; }
+.mgrid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.mgrid .dow { font-size:0.46rem; font-weight:700; color:var(--muted); text-align:center; padding:0.1rem 0; text-transform:uppercase; }
+.mgrid .cell { min-height:32px; border:1px solid var(--border); border-radius:4px; padding:0.12rem 0.15rem; background:#fff; }
+.mgrid .cell.mute { background:var(--bg-soft); }
+.mgrid .cell b { font-size:0.46rem; font-weight:700; color:var(--text-2); }
+.mgrid .cell.mute b { color:#c0c8d4; }
+.mcal-ev { display:block; font-size:0.42rem; font-weight:700; color:#fff; background:var(--amber); border-radius:3px; padding:0.03rem 0.18rem; margin-top:0.12rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.35; }
+/* Field Trips: chaperone clearance */
+.mtripsub { font-size:0.58rem; color:var(--muted); margin:-0.4rem 0 0.8rem; display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; }
+.mtripsub svg { width:12px; height:12px; }
+.mstats { display:grid; grid-template-columns:repeat(4,1fr); gap:0.35rem; margin-bottom:0.75rem; }
+.mstat { border:1px solid var(--border); border-radius:9px; padding:0.45rem 0.25rem; text-align:center; background:#fff; }
+.mstat b { display:block; font-family:var(--display); font-size:1.15rem; font-weight:600; line-height:1; color:var(--navy); }
+.mstat.amber b { color:var(--amber-d); } .mstat.red b { color:#dc2626; } .mstat.green b { color:#16a34a; }
+.mstat span { display:block; font-size:0.4rem; font-weight:800; letter-spacing:0.04em; text-transform:uppercase; color:var(--muted); margin-top:0.25rem; }
+.mtbl-h, .mtbl-r { display:grid; grid-template-columns:1.25fr 0.95fr 0.8fr 0.95fr; gap:0.25rem; align-items:center; }
+.mtbl-h { font-size:0.44rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); padding:0 0.15rem 0.4rem; }
+.mtbl-r { padding:0.45rem 0.15rem; border-top:1px solid var(--border); }
+.mtbl-r .nm { font-size:0.62rem; font-weight:700; color:var(--text); line-height:1.2; }
+.mtbl-r .rl { font-size:0.46rem; color:var(--muted); margin-top:0.1rem; }
+.mtbl-r .mpill { justify-self:start; }
 
 /* ============================================================
    Stats band
@@ -1533,11 +1607,29 @@ footer {
                 <span class="am-mod-label">Leave &amp; PTO</span>
               </div>
               <div class="mw-body">
-                <div class="mhead"><span class="ttl"><i data-lucide="clock-4"></i> Requests</span><span class="mpill warn">2 pending</span></div>
-                <div class="mrow"><span class="mav">JM</span><span class="mtext"><span class="mtext-name">Martinez, Julia</span><span class="mtext-sub">Personal Day · Jun 18 · 1 day</span></span><span class="mpill warn">Pending</span></div>
-                <div class="mrow"><span class="mav a2">AR</span><span class="mtext"><span class="mtext-name">Rodriguez, Amir</span><span class="mtext-sub">Sick Leave · Jun 19–20 · 2 days</span></span><span class="mpill warn">Pending</span></div>
-                <div class="mrow"><span class="mav a3">TS</span><span class="mtext"><span class="mtext-name">Singh, Trisha</span><span class="mtext-sub">Bereavement · Jun 12 · 3 days</span></span><span class="mpill ok">Approved</span></div>
-                <div class="mrow"><span class="mav">KB</span><span class="mtext"><span class="mtext-name">Brooks, Kevin</span><span class="mtext-sub">Balance: 11 days remaining</span></span><span class="mpill info">Balance</span></div>
+                <div class="mhead"><span class="ttl"><i data-lucide="clock-4"></i> Pending Leave Requests</span><span class="mpill info">9</span></div>
+                <div class="mgroup">
+                  <span class="mav">BS</span>
+                  <div class="g-meta"><div class="g-name">Becky Sherman</div><div class="g-sub">3 requests · 24 hrs</div></div>
+                  <span class="mghost">Approve all (3)</span>
+                </div>
+                <div class="mreq">
+                  <div class="rq-main"><div class="rq-date">Oct 26, 2026 <span class="rq-day">· 1 Day</span></div><div class="rq-sub"><span class="mpill info xs">Professional</span><span class="mpill mut xs">No sub</span> · 8 hrs</div></div>
+                  <div class="mbtns"><button class="mbtn approve">Approve</button><button class="mbtn deny">Deny</button></div>
+                </div>
+                <div class="mreq">
+                  <div class="rq-main"><div class="rq-date">Nov 9, 2026 <span class="rq-day">· 1 Day</span></div><div class="rq-sub"><span class="mpill info xs">Professional</span><span class="mpill mut xs">No sub</span> · 8 hrs</div></div>
+                  <div class="mbtns"><button class="mbtn approve">Approve</button><button class="mbtn deny">Deny</button></div>
+                </div>
+                <div class="mgroup">
+                  <span class="mav a3">MV</span>
+                  <div class="g-meta"><div class="g-name">Marcus Vale</div><div class="g-sub">2 requests · 6 hrs</div></div>
+                  <span class="mghost">Approve all (2)</span>
+                </div>
+                <div class="mreq">
+                  <div class="rq-main"><div class="rq-date">Nov 12, 2026 <span class="rq-day">· Half Day</span></div><div class="rq-sub"><span class="mpill info xs">Personal</span><span class="mpill ok xs">Sub assigned</span> · 4 hrs</div></div>
+                  <div class="mbtns"><button class="mbtn approve">Approve</button><button class="mbtn deny">Deny</button></div>
+                </div>
               </div>
             </div>
           </div>
@@ -1550,10 +1642,27 @@ footer {
                 <span class="am-mod-label">Substitutes</span>
               </div>
               <div class="mw-body">
-                <div class="mhead"><span class="ttl"><i data-lucide="repeat-2"></i> Coverage — Jun 18</span><span class="mpill warn">1 open</span></div>
-                <div class="mrow"><span class="mav a3">MS</span><span class="mtext"><span class="mtext-name">Smith, M. — 3rd Grade</span><span class="mtext-sub">P1, P2 · Sub: Lee, Dana</span></span><span class="mpill ok">Covered</span></div>
-                <div class="mrow"><span class="mav a2">TW</span><span class="mtext"><span class="mtext-name">Wilson, T. — 5th Grade</span><span class="mtext-sub">P3 · Internal: Carr, L.</span></span><span class="mpill ok">Covered</span></div>
-                <div class="mrow"><span class="mav">BH</span><span class="mtext"><span class="mtext-name">Hughes, B. — 7th Science</span><span class="mtext-sub">P4, P5 · No sub assigned</span></span><span class="mpill warn">Open</span></div>
+                <div class="mcal-top">
+                  <span class="mcal-ttl"><i data-lucide="calendar"></i> Schedule</span>
+                  <span class="mseg"><b class="on">Month</b><b>Week</b><b>Day</b></span>
+                </div>
+                <div class="mlegend">
+                  <span><i style="background:var(--blue)"></i> Scheduled</span>
+                  <span><i style="background:var(--amber)"></i> Needs Coverage</span>
+                  <span><i style="background:#ef4444"></i> Cancellation</span>
+                </div>
+                <div class="mcal-top" style="margin-bottom:0.4rem">
+                  <span style="font-size:0.72rem;font-weight:700;color:var(--text)">November 2026</span>
+                  <span class="mnav"><i data-lucide="chevron-left"></i><i data-lucide="chevron-right"></i></span>
+                </div>
+                <div class="mgrid">
+                  <span class="dow">S</span><span class="dow">M</span><span class="dow">T</span><span class="dow">W</span><span class="dow">T</span><span class="dow">F</span><span class="dow">S</span>
+                  <span class="cell"><b>1</b></span><span class="cell"><b>2</b></span><span class="cell"><b>3</b></span><span class="cell"><b>4</b></span><span class="cell"><b>5</b></span><span class="cell"><b>6</b></span><span class="cell"><b>7</b></span>
+                  <span class="cell"><b>8</b></span><span class="cell"><b>9</b><span class="mcal-ev">Erin V.</span><span class="mcal-ev">Rowan P.</span></span><span class="cell"><b>10</b></span><span class="cell"><b>11</b></span><span class="cell"><b>12</b></span><span class="cell"><b>13</b></span><span class="cell"><b>14</b></span>
+                  <span class="cell"><b>15</b></span><span class="cell"><b>16</b><span class="mcal-ev">Erin V.</span><span class="mcal-ev">Rowan P.</span></span><span class="cell"><b>17</b></span><span class="cell"><b>18</b></span><span class="cell"><b>19</b></span><span class="cell"><b>20</b></span><span class="cell"><b>21</b></span>
+                  <span class="cell"><b>22</b></span><span class="cell"><b>23</b></span><span class="cell"><b>24</b></span><span class="cell"><b>25</b></span><span class="cell"><b>26</b></span><span class="cell"><b>27</b></span><span class="cell"><b>28</b></span>
+                  <span class="cell"><b>29</b></span><span class="cell"><b>30</b></span><span class="cell mute"><b>1</b></span><span class="cell mute"><b>2</b></span><span class="cell mute"><b>3</b></span><span class="cell mute"><b>4</b></span><span class="cell mute"><b>5</b></span>
+                </div>
               </div>
             </div>
           </div>
@@ -1566,20 +1675,26 @@ footer {
                 <span class="am-mod-label">Field Trips</span>
               </div>
               <div class="mw-body">
-                <div class="mhead"><span class="ttl"><i data-lucide="map"></i> Science Museum · Jun 18</span><span class="mpill info">24 students</span></div>
-                <div class="mboard">
-                  <div class="mcol">
-                    <h5><i data-lucide="bus"></i> Bus 1</h5>
-                    <div class="mchip"><span class="dotc"></span> Group A (12)</div>
-                    <div class="mchip"><span class="dotc am"></span> Chaperone: Reyes</div>
-                    <div class="mchip" style="color:#047857;border-color:#a7f3d0;background:#d1fae5"><span style="width:7px;height:7px;border-radius:50%;background:#10b981;flex-shrink:0;display:inline-block"></span> Driver cleared</div>
-                  </div>
-                  <div class="mcol">
-                    <h5><i data-lucide="car"></i> Van 2</h5>
-                    <div class="mchip"><span class="dotc"></span> Group B (12)</div>
-                    <div class="mchip"><span class="dotc am"></span> Chaperone: Kim</div>
-                    <div class="mchip" style="color:#92400e;border-color:#fcd34d;background:#fef3c7"><span style="width:7px;height:7px;border-radius:50%;background:#f59e0b;flex-shrink:0;display:inline-block"></span> MVR pending</div>
-                  </div>
+                <div class="mhead"><span class="ttl"><i data-lucide="map"></i> Sound &amp; Sea</span><span class="mpill warn">Drivers needed</span></div>
+                <div class="mtripsub"><i data-lucide="calendar"></i> Jun 24–26, 2026 · Max 5 chaperones</div>
+                <div class="mstats">
+                  <div class="mstat"><b>2</b><span>Chaperones</span></div>
+                  <div class="mstat"><b>0</b><span>Cleared</span></div>
+                  <div class="mstat amber"><b>1</b><span>Action</span></div>
+                  <div class="mstat red"><b>1</b><span>Blocked</span></div>
+                </div>
+                <div class="mtbl-h"><span>Chaperone</span><span>BG Check</span><span>MVR</span><span>Forms</span></div>
+                <div class="mtbl-r">
+                  <div><div class="nm">Dana Whitfield</div><div class="rl">Driver</div></div>
+                  <span class="mpill warn xs">Action</span>
+                  <span class="mpill ok xs">Cleared</span>
+                  <span class="mpill warn xs">2 missing</span>
+                </div>
+                <div class="mtbl-r">
+                  <div><div class="nm">Theo Barrett</div><div class="rl">Driver</div></div>
+                  <span class="mpill mut xs">No record</span>
+                  <span class="mpill warn xs">Needed</span>
+                  <span class="mpill warn xs">3 missing</span>
                 </div>
               </div>
             </div>
@@ -1589,17 +1704,36 @@ footer {
           <div class="ft-mock" data-mock="3">
             <div class="mw">
               <div class="am-top">
-                <div class="am-brand"><img src="images/belltower-logo.png" alt="Belltower" style="height:19px;width:auto"></div>
-                <span style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.62rem;color:#34d399;font-weight:700"><span style="width:7px;height:7px;border-radius:50%;background:#34d399;animation:live 1.8s ease-out infinite;display:inline-block"></span> LIVE</span>
+                <div class="am-brand"><img src="images/belltower-logo.png" alt="Belltower" style="height:19px;width:auto"> <span class="cl-open">OPEN</span></div>
+                <span class="cl-clock">8:02 AM <span class="live"></span></span>
               </div>
               <div class="mw-body">
-                <div class="mcall">
-                  <small>Now Calling</small>
-                  <div class="big">#142</div>
-                  <div class="nm">Rivera Family · 2 students</div>
+                <div class="mcl">
+                  <div class="mcl-col col-wait">
+                    <div class="mcl-h"><span class="l">Waiting</span><span class="c">16</span></div>
+                    <div class="mcl-b">
+                      <div class="mcl-card"><span class="cn">Elliott B.</span><span class="ct">500</span></div>
+                      <div class="mcl-card"><span class="cn">Lillian F.</span><span class="ct">252</span></div>
+                      <div class="mcl-card"><span class="cn">Lucas H.</span><span class="ct">300</span></div>
+                      <div class="mcl-card"><span class="cn">Adeline N.</span><span class="ct">54</span></div>
+                    </div>
+                  </div>
+                  <div class="mcl-col col-call">
+                    <div class="mcl-h"><span class="l">Called</span><span class="c">4</span></div>
+                    <div class="mcl-b">
+                      <div class="mcl-card"><i data-lucide="car"></i><span class="cn">Smith D.</span><span class="ct">243</span></div>
+                      <div class="mcl-card"><i data-lucide="car"></i><span class="cn">Boone C.</span><span class="ct">222</span></div>
+                      <div class="mcl-card"><i data-lucide="car"></i><span class="cn">Sophia C.</span><span class="ct">192</span></div>
+                    </div>
+                  </div>
+                  <div class="mcl-col col-recall">
+                    <div class="mcl-h"><span class="l">Recall</span><span class="c">2</span></div>
+                    <div class="mcl-b">
+                      <div class="mcl-card"><i data-lucide="bell"></i><span class="cn">Rachel L.</span><span class="ct">429</span></div>
+                      <div class="mcl-card"><i data-lucide="bell"></i><span class="cn">Grace M.</span><span class="ct">458</span></div>
+                    </div>
+                  </div>
                 </div>
-                <div class="mrow"><span class="mpill info">#138</span><span class="mtext"><span class="mtext-name">Chen Family</span><span class="mtext-sub">1 student · called in</span></span><span class="mpill ok">Called</span></div>
-                <div class="mrow"><span class="mpill mut">#145</span><span class="mtext"><span class="mtext-name">Thompson Family</span><span class="mtext-sub">3 students · in queue</span></span><span class="mpill warn">Waiting</span></div>
               </div>
             </div>
           </div>
