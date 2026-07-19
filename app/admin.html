@@ -84,6 +84,8 @@
         <a href="/app/placement.html" data-cap="can_manage_placement"><i data-lucide="layout-grid"></i> Class Placement</a>
         <a href="#promotion" data-cap="can_manage_placement"><i data-lucide="graduation-cap"></i> Year-End Promotion</a>
         <a href="#resource-docs" data-cap="can_manage_resource_docs" data-module="resource_docs"><i data-lucide="folder-open"></i> Resource Documents</a>
+        <a href="#reservations" data-cap="can_manage_reservations" data-module="reservations"><i data-lucide="calendar-clock"></i> Reservations</a>
+        <a href="#inventory" data-cap="can_manage_inventory" data-module="inventory"><i data-lucide="package"></i> Inventory</a>
       </div>
 
       <button class="nav-section-toggle" data-group="directory">
@@ -460,6 +462,8 @@
           <label data-module="licensure"><input type="checkbox" data-field="can_manage_licensure"><span class="perm-name">Manage licensure</span><span class="perm-desc">Can view and update staff license records and expiry notifications.</span></label>
           <label data-module="compliance"><input type="checkbox" data-field="can_manage_compliance"><span class="perm-name">Manage compliance</span><span class="perm-desc">Can manage volunteer agreement forms and background check tracking.</span></label>
           <label data-module="field_trips"><input type="checkbox" data-field="can_manage_field_trips"><span class="perm-name">Manage field trips</span><span class="perm-desc">Can create and manage all field trips across the school.</span></label>
+          <label data-module="reservations"><input type="checkbox" data-field="can_manage_reservations"><span class="perm-name">Manage reservations</span><span class="perm-desc">Can manage the reservable resource catalog and approve or deny pending bookings.</span></label>
+          <label data-module="inventory"><input type="checkbox" data-field="can_manage_inventory"><span class="perm-name">Manage inventory (all classrooms)</span><span class="perm-desc">Can view and edit every teacher's inventory checkout lists across the school, not just their own.</span></label>
         </div>
       </div>
 
@@ -1217,6 +1221,91 @@
     </div>
 
     <div id="rdListWrap"></div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     RESERVATIONS
+═══════════════════════════════════════════════ -->
+<section id="reservations" class="admin-section">
+  <div class="admin-content fade-in" id="reservationsRoot">
+
+    <div class="panel">
+      <div class="directory-header" style="margin-bottom:12px;">
+        <h3 style="margin:0;">Reservable Resources</h3>
+        <button class="btn btn-primary btn-sm" id="resAddResourceBtn">+ Add Resource</button>
+      </div>
+      <p class="muted" style="font-size:13px;margin:0 0 16px;">
+        Conference rooms, the school van, the gym — anything staff can reserve on the Reservations calendar. Resources with "Requires approval" hold as pending until approved below.
+      </p>
+      <table id="reservationsResourceTable" class="admin-table">
+        <colgroup>
+          <col style="width:22%">
+          <col>
+          <col style="width:16%">
+          <col style="width:12%">
+          <col style="width:140px">
+        </colgroup>
+        <thead><tr>
+          <th>Name</th><th>Description</th><th>Approval</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody><tr><td colspan="5" class="muted" style="padding:16px;">Loading…</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="panel" id="reservationsPendingPanel">
+      <h4><i data-lucide="clock"></i> Pending Approvals</h4>
+      <div id="reservationsPendingList" class="access-card-list">
+        <p class="muted">Loading…</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     INVENTORY (admin oversight)
+═══════════════════════════════════════════════ -->
+<section id="inventory" class="admin-section">
+  <div class="admin-content fade-in" id="inventoryRoot">
+
+    <div id="inventoryListView">
+      <div class="panel">
+        <div class="directory-header" style="margin-bottom:12px;">
+          <h3 style="margin:0;">Inventory Lists</h3>
+        </div>
+        <p class="muted" style="font-size:13px;margin:0 0 16px;">
+          Every checkout list created by any teacher at this school. Open a list to view or edit its roster and checkout status the same way its owner does.
+        </p>
+        <table id="inventoryListsTable" class="admin-table">
+          <colgroup>
+            <col style="width:26%">
+            <col style="width:20%">
+            <col style="width:12%">
+            <col style="width:14%">
+            <col style="width:14%">
+            <col style="width:100px">
+          </colgroup>
+          <thead><tr>
+            <th>List</th><th>Owner</th><th>Students</th><th>Checked Out</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody><tr><td colspan="6" class="muted" style="padding:16px;">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="inventoryDetailView" style="display:none;">
+      <div class="panel">
+        <div class="directory-header" style="margin-bottom:12px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <button class="btn btn-sm" id="inventoryBackBtn">← Back</button>
+            <h3 style="margin:0;font-size:16px;" id="inventoryDetailTitle"></h3>
+          </div>
+        </div>
+        <div id="inventoryGridContainer"></div>
+      </div>
+    </div>
 
   </div>
 </section>
@@ -2495,6 +2584,46 @@
       <button id="esSchoolCancelBtn" class="btn">Cancel</button>
       <button id="esSchoolSaveBtn" class="btn btn-primary">Save Changes</button>
     </div>
+  </div>
+</div>
+
+<!-- =============================================
+     RESERVABLE RESOURCE DRAWER
+     ============================================= -->
+<div id="resourceDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Reservable Resource">
+  <div class="drawer-header">
+    <h3 id="resDrawerTitle">Add Resource</h3>
+    <button class="drawer-close" id="resCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Name <span class="required">*</span></label>
+      <input id="resNameInput" class="form-input" placeholder="e.g. Conference Room, School Van" />
+    </div>
+    <div class="drawer-field">
+      <label>Description</label>
+      <input id="resDescInput" class="form-input" placeholder="Optional details staff will see" />
+    </div>
+    <div class="drawer-field">
+      <label>Calendar Color</label>
+      <input id="resColorInput" type="color" value="#2563eb" style="width:60px;height:34px;padding:2px;" />
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="resApprovalInput">
+        <span>Requires approval before booking is confirmed</span>
+      </label>
+    </div>
+    <div class="drawer-field" id="resActiveRow" style="display:none;">
+      <label class="staff-active-label">
+        <input type="checkbox" id="resActiveInput">
+        <span>Active (accepts new bookings)</span>
+      </label>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="resCancelBtn">Cancel</button>
+    <button id="resSaveBtn" class="btn btn-primary">Save</button>
   </div>
 </div>
 

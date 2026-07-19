@@ -153,6 +153,8 @@ if (fade) {
     '#promotion':        () => import('./admin.promotion.js').then(m => m.initPromotionSection(currentProfile)),
     '#data-collection':  () => import('./admin.data-collection.js').then(m => m.initDataCollectionSection(currentProfile)),
     '#resource-docs':    () => import('./admin.resource-docs.js').then(m => m.initResourceDocsSection(currentProfile)),
+    '#reservations':     () => import('./admin.reservations.js').then(m => m.initReservationsSection(currentProfile)),
+    '#inventory':        () => import('./admin.inventory.js').then(m => m.initInventorySection(currentProfile)),
     '#requests':         () => import('./admin.requests.js').then(m => m.initRequestsSection(currentProfile)),
   };
 

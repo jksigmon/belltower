@@ -19,6 +19,8 @@
   href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
 />
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<!-- FullCalendar v6 bundles its CSS inside the JS — no separate stylesheet exists -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <link rel="stylesheet" href="/admin-ui.css" />
   <style>
 
@@ -669,6 +671,14 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   .comp-filter-actions { flex-wrap: wrap; }
 }
 
+/* Pending reservations on the calendar: dashed border as a second visual
+   cue beyond amber color alone (colorblind users, grayscale print) —
+   same convention as .pto-cal-pending in pto.html */
+.pto-cal-pending {
+  border-style: dashed !important;
+  border-width: 2px !important;
+}
+
   </style>
  </head>
 
@@ -732,6 +742,8 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="/app/placement.html" id="navPlacement" style="display:none;"><i data-lucide="layout-grid"></i> Class Placement</a>
   <a href="#data-collection"><i data-lucide="link"></i> Form Links</a>
   <a href="#resources" data-module="resource_docs"><i data-lucide="folder-open"></i> Resources</a>
+  <a href="#reservations" data-module="reservations"><i data-lucide="calendar-clock"></i> Reservations</a>
+  <a href="#inventory" data-module="inventory"><i data-lucide="package"></i> Inventory</a>
   <a href="#access-request"><i data-lucide="key"></i> Request Access</a>
 </nav>
 
@@ -1154,6 +1166,61 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       </div>
     </section>
 
+    <section id="reservations" style="display:none;">
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
+          <h3 style="margin:0;">Reservations</h3>
+          <button class="btn btn-primary btn-sm" id="resNewBookingBtn">+ New Reservation</button>
+        </div>
+        <p class="muted" style="margin:0 0 16px;font-size:13px;">
+          Reserve shared resources like the conference room, van, or gym. Some resources require admin approval before a booking is confirmed.
+        </p>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+          <label for="resFilterSelect" style="font-size:13px;font-weight:600;color:#374151;">Show:</label>
+          <select id="resFilterSelect" class="form-input" style="width:auto;min-width:180px;">
+            <option value="">All resources</option>
+          </select>
+        </div>
+        <div id="resCalendar"></div>
+      </div>
+    </section>
+
+    <section id="inventory" style="display:none;">
+      <div id="invListsView">
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
+            <h3 style="margin:0;">Inventory</h3>
+            <button class="btn btn-primary btn-sm" id="invNewListBtn">+ New List</button>
+          </div>
+          <p class="muted" style="margin:0 0 16px;font-size:13px;">
+            Track checked-out books, equipment, or other items for your students. Build a roster, add the items you're tracking, and record who has what.
+          </p>
+          <div id="invListsGrid" class="inv-cards-grid">
+            <p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="invDetailView" style="display:none;">
+        <div class="panel">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <button class="btn btn-sm" id="invBackBtn">← Back</button>
+              <h3 style="margin:0;font-size:16px;" id="invDetailTitle"></h3>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-sm" id="invRenameBtn">Rename</button>
+              <button class="btn btn-sm" id="invManageItemsBtn">Manage Items</button>
+              <button class="btn btn-sm" id="invManageStudentsBtn">Manage Students</button>
+              <button class="btn btn-sm" id="invExportBtn">Export</button>
+              <button class="btn btn-sm" id="invArchiveBtn" style="color:#dc2626;border-color:#fca5a5;">Archive</button>
+            </div>
+          </div>
+          <div id="invGridContainer"></div>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <!-- ── Resource document viewer (view/print only) ── -->
@@ -1169,6 +1236,126 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       <iframe id="resourceViewerFrame" style="flex:1;border:none;width:100%;"></iframe>
     </div>
   </div>
+
+  <!-- ── New Reservation modal ── -->
+  <div id="resBookingModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+    <div class="panel" style="width:440px;max-width:94vw;padding:24px 28px;">
+      <h3 style="margin:0 0 16px;font-size:16px;font-weight:700;">New Reservation</h3>
+      <div class="drawer-field">
+        <label>Resource <span class="required">*</span></label>
+        <select id="resBookResource" class="form-input"></select>
+      </div>
+      <div class="drawer-field">
+        <label>Title <span class="required">*</span></label>
+        <input id="resBookTitle" class="form-input" placeholder="e.g. Staff meeting" />
+      </div>
+      <div class="admin-form-row compact two" style="gap:8px;">
+        <div class="drawer-field" style="margin:0;">
+          <label>Starts</label>
+          <input id="resBookStart" type="datetime-local" class="form-input" />
+        </div>
+        <div class="drawer-field" style="margin:0;">
+          <label>Ends</label>
+          <input id="resBookEnd" type="datetime-local" class="form-input" />
+        </div>
+      </div>
+      <div class="drawer-field">
+        <label>Notes</label>
+        <textarea id="resBookNotes" class="form-input" rows="2" placeholder="Optional"></textarea>
+      </div>
+      <p id="resBookError" style="color:#dc2626;font-size:13px;display:none;margin:0 0 10px;"></p>
+      <div class="modal-actions">
+        <button class="btn" id="resBookCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="resBookSaveBtn">Reserve</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Reservation detail popover ── -->
+  <div id="resDetailModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+    <div class="panel" style="width:400px;max-width:94vw;padding:24px 28px;">
+      <h3 id="resDetailTitle" style="margin:0 0 6px;font-size:16px;font-weight:700;"></h3>
+      <p id="resDetailResource" class="muted" style="margin:0 0 12px;font-size:13px;"></p>
+      <p style="font-size:13px;margin:0 0 4px;"><strong>Booked by:</strong> <span id="resDetailBy"></span></p>
+      <p style="font-size:13px;margin:0 0 4px;"><strong>Time:</strong> <span id="resDetailTime"></span></p>
+      <p style="font-size:13px;margin:0 0 4px;"><strong>Status:</strong> <span id="resDetailStatus"></span></p>
+      <p id="resDetailNotesRow" style="font-size:13px;margin:8px 0 0;"></p>
+      <div class="modal-actions">
+        <button class="btn" id="resDetailCloseBtn">Close</button>
+        <button class="btn" id="resDetailCancelBtn" style="color:#dc2626;border-color:#fca5a5;display:none;">Cancel Reservation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── New Inventory List modal ── -->
+  <div id="invNewListModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+    <div class="panel" style="width:400px;max-width:94vw;padding:24px 28px;">
+      <h3 style="margin:0 0 16px;font-size:16px;font-weight:700;">New Inventory List</h3>
+      <div class="drawer-field">
+        <label>List Name <span class="required">*</span></label>
+        <input id="invNewListName" class="form-input" placeholder="e.g. Grade 3 Books 2026-27" />
+      </div>
+      <p id="invNewListError" style="color:#dc2626;font-size:13px;display:none;margin:0 0 10px;"></p>
+      <div class="modal-actions">
+        <button class="btn" id="invNewListCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="invNewListSaveBtn">Create List</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Manage Items modal ── -->
+  <div id="invItemsModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+    <div class="panel" style="width:420px;max-width:94vw;padding:24px 28px;">
+      <h3 style="margin:0 0 16px;font-size:16px;font-weight:700;">Manage Items</h3>
+      <div id="invItemsList" style="margin-bottom:14px;max-height:260px;overflow-y:auto;"></div>
+      <div style="display:flex;gap:8px;">
+        <input id="invNewItemLabel" class="form-input" placeholder="e.g. Skills Book" />
+        <button class="btn btn-sm" id="invAddItemBtn">Add</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="invItemsCloseBtn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Manage Students (roster) modal ── -->
+  <div id="invRosterModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
+    <div class="panel" style="width:560px;max-width:94vw;max-height:88vh;overflow-y:auto;padding:24px 28px;">
+      <h3 style="margin:0 0 16px;font-size:16px;font-weight:700;">Manage Students</h3>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="btn btn-sm" id="invAddHomeroomBtn">+ Add My Homeroom</button>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Add by grade level</label>
+        <div id="invGradeCheckboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"></div>
+        <button class="btn btn-sm" id="invAddGradesBtn">Add Selected Grades</button>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Search &amp; add individually</label>
+        <input id="invStudentSearch" class="form-input" placeholder="Type a name or student #…" />
+        <div id="invSearchResults" style="max-height:160px;overflow-y:auto;border:1px solid #f3f4f6;border-radius:6px;margin-top:6px;"></div>
+      </div>
+
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <label style="font-size:13px;font-weight:600;">Current roster (<span id="invRosterCount">0</span>)</label>
+          <button class="btn btn-sm" id="invRemoveSelectedBtn" style="color:#dc2626;border-color:#fca5a5;" disabled>Remove Selected</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid #f3f4f6;border-bottom:none;border-radius:6px 6px 0 0;background:#fafafa;">
+          <input type="checkbox" id="invRosterSelectAll" style="width:auto;" />
+          <span style="font-size:12px;color:#6b7280;font-weight:600;">Select all</span>
+        </div>
+        <div id="invCurrentRoster" style="max-height:200px;overflow-y:auto;border:1px solid #f3f4f6;border-radius:0 0 6px 6px;"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" id="invRosterCloseBtn">Done</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -1177,7 +1364,8 @@ import { initUserMenu } from '/app/user-menu.js';
 import { requireAuth } from '/app/admin.auth.js';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc } from '/app/admin.shared.js';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig } from '/app/admin.shared.js';
+import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 
 // Prevent browser from restoring a stale scroll position on load
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -1496,6 +1684,10 @@ async function loadStaffDashboard() {
     actions.push({ label: 'Submit a Request', icon: 'inbox', href: '/app/requests.html' });
   if (window.staffModules['resource_docs'] !== false)
     actions.push({ label: 'Resources', icon: 'folder-open', href: '#resources' });
+  if (window.staffModules['reservations'] === true)
+    actions.push({ label: 'Reservations', icon: 'calendar-clock', href: '#reservations' });
+  if (window.staffModules['inventory'] === true)
+    actions.push({ label: 'Inventory', icon: 'package', href: '#inventory' });
   if (currentProfile?.can_manage_placement || currentProfile?.is_superadmin)
     actions.push({ label: 'Class Placement', icon: 'layout-grid', href: '/app/placement.html' });
   if (actionsRow && actions.length) {
@@ -1739,6 +1931,8 @@ function setActive(hash) {
     if (hash === '#access-request')     subtitle.textContent = 'Request Access';
     if (hash === '#data-collection')    subtitle.textContent = 'Form Links';
     if (hash === '#resources')          subtitle.textContent = 'Resources';
+    if (hash === '#reservations')       subtitle.textContent = 'Reservations';
+    if (hash === '#inventory')          subtitle.textContent = 'Inventory';
   }
 
   document.querySelectorAll('nav a').forEach(function (a) {
@@ -1762,6 +1956,8 @@ function setActive(hash) {
   if (hash === '#access-request')      { buildAccessRequestOptions(); loadMyAccessRequests(); }
   if (hash === '#data-collection')     loadStaffFormLinks();
   if (hash === '#resources')           loadStaffResources();
+  if (hash === '#reservations')        loadStaffReservations();
+  if (hash === '#inventory')           loadStaffInventory();
 }
 
 async function loadStaffFormLinks() {
@@ -1916,6 +2112,858 @@ document.getElementById('resourceViewerPrintBtn')?.addEventListener('click', fun
 // not foolproof (screenshots always work), matches the agreed scope.
 document.getElementById('resourceViewerOverlay')?.addEventListener('contextmenu', function (e) {
   e.preventDefault();
+});
+
+/* =============================================
+   RESERVATIONS
+============================================= */
+let resCalendar = null;
+let resCatalog = [];
+let resSelectedEvent = null;
+
+async function loadStaffReservations() {
+  await loadReservableResources();
+  if (!resCalendar) {
+    initResCalendar();
+  } else {
+    resCalendar.refetchEvents();
+  }
+}
+
+async function loadReservableResources() {
+  const { data, error } = await supabase
+    .from('reservable_resources')
+    .select('id, name, color, requires_approval, active')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true)
+    .order('sort_order')
+    .order('name');
+
+  if (error) { console.error('loadReservableResources', error); return; }
+  resCatalog = data ?? [];
+
+  const filterSel = document.getElementById('resFilterSelect');
+  const bookSel = document.getElementById('resBookResource');
+  if (filterSel) {
+    const current = filterSel.value;
+    filterSel.innerHTML = '<option value="">All resources</option>' +
+      resCatalog.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');
+    filterSel.value = current;
+  }
+  if (bookSel) {
+    bookSel.innerHTML = resCatalog.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');
+  }
+}
+
+function resCalToolbar() {
+  return window.innerWidth <= 767
+    ? { left: 'prev,next', center: 'title', right: 'today' }
+    : { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' };
+}
+
+function initResCalendar() {
+  const calendarEl = document.getElementById('resCalendar');
+  if (!calendarEl) return;
+
+  resCalendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'dayGridMonth',
+    height: 'auto',
+    fixedWeekCount: false,
+    dayMaxEvents: 3,
+    headerToolbar: resCalToolbar(),
+
+    windowResize() {
+      resCalendar.setOption('headerToolbar', resCalToolbar());
+    },
+
+    events: async (info, success, failure) => {
+      try {
+        const { data, error } = await supabase
+          .from('reservations')
+          .select('id, title, notes, starts_at, ends_at, status, reserved_by_name, reserved_by_profile_id, resource_id, reservable_resources(name, color)')
+          .eq('school_id', currentProfile.school_id)
+          .in('status', ['confirmed', 'pending'])
+          .lt('starts_at', info.endStr)
+          .gt('ends_at', info.startStr);
+
+        if (error) throw error;
+
+        const filterVal = document.getElementById('resFilterSelect')?.value || '';
+        const filtered = filterVal ? data.filter(r => r.resource_id === filterVal) : data;
+
+        success(filtered.map(r => {
+          const color = r.reservable_resources?.color || '#2563eb';
+          const isPending = r.status === 'pending';
+          return {
+            id: r.id,
+            title: `${r.title} — ${r.reservable_resources?.name ?? ''}`,
+            start: r.starts_at,
+            end: r.ends_at,
+            backgroundColor: isPending ? '#f59e0b' : color,
+            borderColor: isPending ? '#d97706' : color,
+            classNames: isPending ? ['pto-cal-pending'] : [],
+            extendedProps: {
+              notes: r.notes,
+              status: r.status,
+              reservedByName: r.reserved_by_name,
+              reservedByProfileId: r.reserved_by_profile_id,
+              resourceName: r.reservable_resources?.name ?? '',
+            },
+          };
+        }));
+      } catch (err) {
+        console.error(err);
+        failure(err);
+      }
+    },
+
+    eventClick({ event, jsEvent }) {
+      jsEvent.preventDefault();
+      openResDetailModal(event);
+    },
+  });
+
+  resCalendar.render();
+}
+
+document.getElementById('resFilterSelect')?.addEventListener('change', () => {
+  resCalendar?.refetchEvents();
+});
+
+document.getElementById('resNewBookingBtn')?.addEventListener('click', openResBookingModal);
+
+function openResBookingModal() {
+  document.getElementById('resBookTitle').value = '';
+  document.getElementById('resBookNotes').value = '';
+  document.getElementById('resBookError').style.display = 'none';
+
+  const now = new Date();
+  now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
+  const end = new Date(now.getTime() + 60 * 60 * 1000);
+  document.getElementById('resBookStart').value = toLocalDatetimeInput(now);
+  document.getElementById('resBookEnd').value = toLocalDatetimeInput(end);
+
+  document.getElementById('resBookingModal').style.display = 'flex';
+}
+
+function toLocalDatetimeInput(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function closeResBookingModal() {
+  document.getElementById('resBookingModal').style.display = 'none';
+}
+
+document.getElementById('resBookCancelBtn')?.addEventListener('click', closeResBookingModal);
+
+document.getElementById('resBookSaveBtn')?.addEventListener('click', async () => {
+  const errorEl = document.getElementById('resBookError');
+  errorEl.style.display = 'none';
+
+  const resourceId = document.getElementById('resBookResource').value;
+  const title = document.getElementById('resBookTitle').value.trim();
+  const notes = document.getElementById('resBookNotes').value.trim();
+  const startVal = document.getElementById('resBookStart').value;
+  const endVal = document.getElementById('resBookEnd').value;
+
+  if (!resourceId || !title || !startVal || !endVal) {
+    errorEl.textContent = 'Resource, title, start, and end are all required.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  const startsAt = new Date(startVal);
+  const endsAt = new Date(endVal);
+
+  if (!(endsAt > startsAt)) {
+    errorEl.textContent = 'End time must be after the start time.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('resBookSaveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Reserving…';
+
+  // Overlap check: any confirmed/pending reservation on this resource that
+  // intersects the requested window blocks the booking with a clear message
+  // rather than allowing a silent double-booking (see resBookSaveBtn note
+  // in project docs — a determined double-click race is still possible).
+  const { data: conflicts, error: conflictErr } = await supabase
+    .from('reservations')
+    .select('title, starts_at, ends_at, reserved_by_name')
+    .eq('resource_id', resourceId)
+    .in('status', ['confirmed', 'pending'])
+    .lt('starts_at', endsAt.toISOString())
+    .gt('ends_at', startsAt.toISOString());
+
+  btn.disabled = false;
+  btn.textContent = 'Reserve';
+
+  if (conflictErr) {
+    errorEl.textContent = 'Could not check availability. Please try again.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  if (conflicts && conflicts.length) {
+    const c = conflicts[0];
+    const timeFmt = d => new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    errorEl.textContent = `This resource is already booked ${timeFmt(c.starts_at)} – ${timeFmt(c.ends_at)} by ${c.reserved_by_name}.`;
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  const resource = resCatalog.find(r => r.id === resourceId);
+  const reservedByName = currentProfile.display_name || currentProfile.email || 'Unknown';
+
+  btn.disabled = true;
+  btn.textContent = 'Reserving…';
+
+  const { error: insErr } = await supabase.from('reservations').insert({
+    school_id: currentProfile.school_id,
+    resource_id: resourceId,
+    reserved_by_profile_id: currentProfile.id,
+    reserved_by_name: reservedByName,
+    title,
+    notes: notes || null,
+    starts_at: startsAt.toISOString(),
+    ends_at: endsAt.toISOString(),
+    status: resource?.requires_approval ? 'pending' : 'confirmed',
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Reserve';
+
+  if (insErr) {
+    errorEl.textContent = 'Failed to reserve: ' + insErr.message;
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  closeResBookingModal();
+  resCalendar?.refetchEvents();
+});
+
+function openResDetailModal(event) {
+  resSelectedEvent = event;
+  const p = event.extendedProps;
+
+  document.getElementById('resDetailTitle').textContent = event.title.split(' — ')[0];
+  document.getElementById('resDetailResource').textContent = p.resourceName;
+  document.getElementById('resDetailBy').textContent = p.reservedByName;
+
+  const timeFmt = d => d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  document.getElementById('resDetailTime').textContent = `${timeFmt(event.start)} – ${timeFmt(event.end)}`;
+
+  const statusLabelMap = { confirmed: 'Confirmed', pending: 'Pending approval', denied: 'Denied', cancelled: 'Cancelled' };
+  document.getElementById('resDetailStatus').textContent = statusLabelMap[p.status] || p.status;
+
+  const notesRow = document.getElementById('resDetailNotesRow');
+  notesRow.innerHTML = p.notes ? `<strong>Notes:</strong> ${esc(p.notes)}` : '';
+
+  const canCancel = p.reservedByProfileId === currentProfile.id || currentProfile.can_manage_reservations || currentProfile.is_superadmin || currentProfile.role === 'admin';
+  document.getElementById('resDetailCancelBtn').style.display = canCancel && p.status !== 'cancelled' ? '' : 'none';
+
+  document.getElementById('resDetailModal').style.display = 'flex';
+}
+
+function closeResDetailModal() {
+  document.getElementById('resDetailModal').style.display = 'none';
+  resSelectedEvent = null;
+}
+
+document.getElementById('resDetailCloseBtn')?.addEventListener('click', closeResDetailModal);
+
+document.getElementById('resDetailCancelBtn')?.addEventListener('click', async () => {
+  if (!resSelectedEvent) return;
+  if (!confirm('Cancel this reservation?')) return;
+
+  const { error } = await supabase
+    .from('reservations')
+    .update({ status: 'cancelled' })
+    .eq('id', resSelectedEvent.id);
+
+  if (error) { alert('Failed to cancel: ' + error.message); return; }
+
+  closeResDetailModal();
+  resCalendar?.refetchEvents();
+});
+
+/* =============================================
+   INVENTORY
+============================================= */
+let invLists = [];
+let invCurrentList = null;
+let invCurrentItems = [];
+let invCurrentStudents = [];
+let invCurrentAssignmentMap = {};
+let invRosterStudentIds = new Set();
+
+async function loadStaffInventory() {
+  showInvListView();
+  await loadInvLists();
+}
+
+async function loadInvLists() {
+  const { data: listRows, error } = await supabase
+    .from('inventory_lists')
+    .select('id, name, owner_name, archived_at, created_at')
+    .eq('owner_profile_id', currentProfile.id)
+    .order('archived_at', { ascending: true, nullsFirst: true })
+    .order('created_at', { ascending: false });
+
+  if (error) { console.error('loadInvLists', error); return; }
+
+  const listIds = (listRows || []).map(l => l.id);
+  const [{ data: memberRows }, { data: assignmentRows }] = await Promise.all([
+    listIds.length ? supabase.from('inventory_list_members').select('list_id').in('list_id', listIds) : Promise.resolve({ data: [] }),
+    listIds.length ? supabase.from('inventory_assignments').select('list_id, status').in('list_id', listIds) : Promise.resolve({ data: [] }),
+  ]);
+
+  const memberCounts = {};
+  (memberRows || []).forEach(m => { memberCounts[m.list_id] = (memberCounts[m.list_id] || 0) + 1; });
+  const checkedOutCounts = {};
+  (assignmentRows || []).forEach(a => {
+    if (a.status === 'checked_out') checkedOutCounts[a.list_id] = (checkedOutCounts[a.list_id] || 0) + 1;
+  });
+
+  invLists = (listRows || []).map(l => ({
+    ...l,
+    studentCount: memberCounts[l.id] || 0,
+    checkedOutCount: checkedOutCounts[l.id] || 0,
+  }));
+
+  renderInvListCards();
+}
+
+function renderInvListCards() {
+  const wrap = document.getElementById('invListsGrid');
+  if (!wrap) return;
+
+  if (!invLists.length) {
+    wrap.innerHTML = `
+      <div class="admin-empty-state" style="grid-column:1/-1;">
+        <div class="admin-empty-state-icon"><i data-lucide="package"></i></div>
+        <p class="admin-empty-state-title">No inventory lists yet</p>
+        <p class="admin-empty-state-desc">Click "+ New List" to build your first roster — books, calculators, or any item you check out to students.</p>
+      </div>`;
+    if (window.lucide) lucide.createIcons({ el: wrap });
+    return;
+  }
+
+  wrap.innerHTML = invLists.map(l => `
+    <div class="inv-list-card" data-id="${esc(l.id)}">
+      <div class="inv-list-card-name">${esc(l.name)}${l.archived_at ? ' <span class="staff-cell-muted">(Archived)</span>' : ''}</div>
+      <div class="inv-list-card-meta">${l.studentCount} student${l.studentCount !== 1 ? 's' : ''} · ${l.checkedOutCount} checked out</div>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.inv-list-card').forEach(card =>
+    card.addEventListener('click', () => openInvList(card.dataset.id)));
+}
+
+function showInvListView() {
+  document.getElementById('invListsView').style.display = '';
+  document.getElementById('invDetailView').style.display = 'none';
+}
+
+function showInvDetailView() {
+  document.getElementById('invListsView').style.display = 'none';
+  document.getElementById('invDetailView').style.display = '';
+}
+
+document.getElementById('invBackBtn')?.addEventListener('click', async () => {
+  showInvListView();
+  await loadInvLists();
+});
+
+document.getElementById('invNewListBtn')?.addEventListener('click', () => {
+  document.getElementById('invNewListName').value = '';
+  document.getElementById('invNewListError').style.display = 'none';
+  document.getElementById('invNewListModal').style.display = 'flex';
+});
+
+document.getElementById('invNewListCancelBtn')?.addEventListener('click', () => {
+  document.getElementById('invNewListModal').style.display = 'none';
+});
+
+document.getElementById('invNewListSaveBtn')?.addEventListener('click', async () => {
+  const errorEl = document.getElementById('invNewListError');
+  const name = document.getElementById('invNewListName').value.trim();
+  if (!name) {
+    errorEl.textContent = 'List name is required.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  const ownerName = currentProfile.display_name || currentProfile.email || 'Unknown';
+  const { data, error } = await supabase
+    .from('inventory_lists')
+    .insert({ school_id: currentProfile.school_id, owner_profile_id: currentProfile.id, owner_name: ownerName, name })
+    .select('id')
+    .single();
+
+  if (error) {
+    errorEl.textContent = 'Failed to create list: ' + error.message;
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  document.getElementById('invNewListModal').style.display = 'none';
+  await loadInvLists();
+  openInvList(data.id);
+});
+
+async function openInvList(listId) {
+  const list = invLists.find(l => l.id === listId);
+  if (!list) return;
+  invCurrentList = list;
+  document.getElementById('invDetailTitle').textContent = list.name;
+  showInvDetailView();
+  await loadInvListDetail(listId);
+}
+
+async function loadInvListDetail(listId) {
+  const [{ data: items, error: itemsErr }, { data: members, error: membersErr }, { data: assignments, error: assignErr }] = await Promise.all([
+    supabase.from('inventory_list_items').select('id, label, sort_order').eq('list_id', listId).order('sort_order'),
+    supabase.from('inventory_list_members').select('student_id, students(id, first_name, last_name)').eq('list_id', listId),
+    supabase.from('inventory_assignments').select('student_id, item_id, identifier, status').eq('list_id', listId),
+  ]);
+
+  if (itemsErr || membersErr || assignErr) {
+    document.getElementById('invGridContainer').innerHTML = '<p class="muted" style="padding:16px;">Failed to load list.</p>';
+    return;
+  }
+
+  invCurrentItems = items || [];
+  invCurrentStudents = (members || [])
+    .map(m => m.students)
+    .filter(Boolean)
+    .sort((a, b) => a.last_name.localeCompare(b.last_name));
+  invCurrentAssignmentMap = buildAssignmentMap(assignments || []);
+
+  renderInvGrid();
+}
+
+function renderInvGrid() {
+  renderInventoryGrid(document.getElementById('invGridContainer'), {
+    students: invCurrentStudents,
+    items: invCurrentItems,
+    assignmentMap: invCurrentAssignmentMap,
+    canEdit: true,
+    onIdentifierChange: invUpdateIdentifier,
+    onStatusCycle: invCycleStatus,
+    onBulkAction: invBulkSetStatus,
+  });
+}
+
+async function invUpdateIdentifier(studentId, itemId, identifier) {
+  const key = studentId + '::' + itemId;
+  const existing = invCurrentAssignmentMap[key];
+
+  const { error } = await supabase
+    .from('inventory_assignments')
+    .upsert({
+      list_id: invCurrentList.id,
+      student_id: studentId,
+      item_id: itemId,
+      identifier: identifier || null,
+      status: existing?.status ?? 'not_assigned',
+    }, { onConflict: 'list_id,student_id,item_id' });
+
+  if (error) { alert('Failed to save identifier: ' + error.message); return; }
+
+  // Update local state only — no reload/re-render. A full re-render here
+  // would recreate every input in the grid, stealing focus from whatever
+  // the user clicks or types next (the "click twice" / vanishing-text bug).
+  invCurrentAssignmentMap[key] = { ...existing, student_id: studentId, item_id: itemId, identifier: identifier || null };
+}
+
+async function invCycleStatus(studentId, itemId, currentStatus) {
+  const status = nextStatus(currentStatus);
+  const now = new Date().toISOString();
+  const key = studentId + '::' + itemId;
+  const existing = invCurrentAssignmentMap[key];
+
+  const { error } = await supabase
+    .from('inventory_assignments')
+    .upsert({
+      list_id: invCurrentList.id,
+      student_id: studentId,
+      item_id: itemId,
+      identifier: existing?.identifier ?? null,
+      status,
+      checked_out_at: status === 'checked_out' ? now : (existing?.checked_out_at ?? null),
+      returned_at: status === 'returned' ? now : (existing?.returned_at ?? null),
+    }, { onConflict: 'list_id,student_id,item_id' });
+
+  if (error) { alert('Failed to update status: ' + error.message); return; }
+
+  invCurrentAssignmentMap[key] = {
+    ...existing,
+    student_id: studentId,
+    item_id: itemId,
+    status,
+    checked_out_at: status === 'checked_out' ? now : (existing?.checked_out_at ?? null),
+    returned_at: status === 'returned' ? now : (existing?.returned_at ?? null),
+  };
+  updateCellStatus(document.getElementById('invGridContainer'), studentId, itemId, status);
+}
+
+async function invBulkSetStatus(itemId, status) {
+  const now = new Date().toISOString();
+  const rows = invCurrentStudents.map(s => {
+    const existing = invCurrentAssignmentMap[s.id + '::' + itemId];
+    return {
+      list_id: invCurrentList.id,
+      student_id: s.id,
+      item_id: itemId,
+      identifier: existing?.identifier ?? null,
+      status,
+      checked_out_at: status === 'checked_out' ? now : (existing?.checked_out_at ?? null),
+      returned_at: status === 'returned' ? now : (existing?.returned_at ?? null),
+    };
+  });
+
+  const { error } = await supabase
+    .from('inventory_assignments')
+    .upsert(rows, { onConflict: 'list_id,student_id,item_id' });
+
+  if (error) { alert('Bulk update failed: ' + error.message); return; }
+
+  const gridEl = document.getElementById('invGridContainer');
+  rows.forEach(r => {
+    const key = r.student_id + '::' + r.item_id;
+    invCurrentAssignmentMap[key] = { ...invCurrentAssignmentMap[key], ...r };
+    updateCellStatus(gridEl, r.student_id, r.item_id, status);
+  });
+}
+
+document.getElementById('invRenameBtn')?.addEventListener('click', async () => {
+  if (!invCurrentList) return;
+  const newName = prompt('List name:', invCurrentList.name);
+  if (newName === null) return;
+  const trimmed = newName.trim();
+  if (!trimmed) return;
+
+  const { error } = await supabase.from('inventory_lists').update({ name: trimmed }).eq('id', invCurrentList.id);
+  if (error) { alert('Rename failed: ' + error.message); return; }
+  invCurrentList.name = trimmed;
+  document.getElementById('invDetailTitle').textContent = trimmed;
+});
+
+document.getElementById('invArchiveBtn')?.addEventListener('click', async () => {
+  if (!invCurrentList) return;
+  const isArchived = !!invCurrentList.archived_at;
+  const label = isArchived ? 'Unarchive' : 'Archive';
+  if (!confirm(`${label} "${invCurrentList.name}"?`)) return;
+
+  const { error } = await supabase
+    .from('inventory_lists')
+    .update({ archived_at: isArchived ? null : new Date().toISOString() })
+    .eq('id', invCurrentList.id);
+
+  if (error) { alert(`Failed to ${label.toLowerCase()}: ` + error.message); return; }
+  showInvListView();
+  await loadInvLists();
+});
+
+/* ── Manage Items ── */
+document.getElementById('invManageItemsBtn')?.addEventListener('click', () => {
+  renderInvItemsList();
+  document.getElementById('invNewItemLabel').value = '';
+  document.getElementById('invItemsModal').style.display = 'flex';
+});
+
+document.getElementById('invItemsCloseBtn')?.addEventListener('click', () => {
+  document.getElementById('invItemsModal').style.display = 'none';
+});
+
+function renderInvItemsList() {
+  const wrap = document.getElementById('invItemsList');
+  if (!invCurrentItems.length) {
+    wrap.innerHTML = '<p class="muted" style="font-size:13px;">No items yet.</p>';
+    return;
+  }
+  wrap.innerHTML = invCurrentItems.map(it => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6;">
+      <span style="font-size:13px;">${esc(it.label)}</span>
+      <button class="btn btn-sm inv-remove-item-btn" data-id="${esc(it.id)}" style="color:#dc2626;border-color:#fca5a5;">Remove</button>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.inv-remove-item-btn').forEach(btn =>
+    btn.addEventListener('click', () => removeInvItem(btn.dataset.id)));
+}
+
+document.getElementById('invAddItemBtn')?.addEventListener('click', async () => {
+  const input = document.getElementById('invNewItemLabel');
+  const label = input.value.trim();
+  if (!label || !invCurrentList) return;
+
+  const { error } = await supabase
+    .from('inventory_list_items')
+    .insert({ list_id: invCurrentList.id, label, sort_order: invCurrentItems.length });
+
+  if (error) { alert('Failed to add item: ' + error.message); return; }
+  input.value = '';
+  await loadInvListDetail(invCurrentList.id);
+  renderInvItemsList();
+});
+
+async function removeInvItem(itemId) {
+  if (!confirm('Remove this item? All checkout records for it on this list will be deleted too.')) return;
+  const { error } = await supabase.from('inventory_list_items').delete().eq('id', itemId);
+  if (error) { alert('Failed to remove item: ' + error.message); return; }
+  await loadInvListDetail(invCurrentList.id);
+  renderInvItemsList();
+}
+
+/* ── Manage Students (roster) ── */
+let invRosterSelectedForRemoval = new Set();
+
+document.getElementById('invManageStudentsBtn')?.addEventListener('click', async () => {
+  await openInvRosterModal();
+});
+
+document.getElementById('invRosterCloseBtn')?.addEventListener('click', async () => {
+  document.getElementById('invRosterModal').style.display = 'none';
+  await loadInvListDetail(invCurrentList.id);
+});
+
+async function openInvRosterModal() {
+  invRosterStudentIds = new Set(invCurrentStudents.map(s => s.id));
+  invRosterSelectedForRemoval = new Set();
+
+  const homeroomBtn = document.getElementById('invAddHomeroomBtn');
+  if (homeroomBtn) homeroomBtn.style.display = currentProfile.employee_id ? '' : 'none';
+
+  // Only offer grades this school actually has (e.g. no Pre-K/12th if the
+  // school doesn't serve them) — falls back to the full K-12 range if the
+  // school hasn't configured grade_levels.
+  const schoolConfig = await loadSchoolConfig(currentProfile.school_id);
+  const grades = schoolConfig?.grade_levels ?? GRADE_ORDER;
+
+  const gradeWrap = document.getElementById('invGradeCheckboxes');
+  gradeWrap.innerHTML = grades.map(g => `
+    <label style="display:flex;align-items:center;gap:4px;font-size:12px;font-weight:500;">
+      <input type="checkbox" class="inv-grade-cb" value="${esc(g)}" style="width:auto;"> ${esc(gradeLabel(g))}
+    </label>
+  `).join('');
+
+  document.getElementById('invStudentSearch').value = '';
+  document.getElementById('invSearchResults').innerHTML = '';
+
+  const selectAllCb = document.getElementById('invRosterSelectAll');
+  if (selectAllCb) selectAllCb.checked = false;
+
+  renderInvCurrentRoster();
+  document.getElementById('invRosterModal').style.display = 'flex';
+}
+
+function renderInvCurrentRoster() {
+  const wrap = document.getElementById('invCurrentRoster');
+  document.getElementById('invRosterCount').textContent = invCurrentStudents.length;
+
+  if (!invCurrentStudents.length) {
+    wrap.innerHTML = '<p class="muted" style="font-size:13px;padding:8px;">No students yet.</p>';
+    updateInvRemoveSelectedBtn();
+    return;
+  }
+
+  wrap.innerHTML = invCurrentStudents.map(s => `
+    <label style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid #f3f4f6;cursor:pointer;">
+      <input type="checkbox" class="inv-roster-select-cb" data-id="${esc(s.id)}" style="width:auto;" ${invRosterSelectedForRemoval.has(s.id) ? 'checked' : ''} />
+      <span style="font-size:13px;">${esc(s.last_name)}, ${esc(s.first_name)}</span>
+    </label>
+  `).join('');
+
+  wrap.querySelectorAll('.inv-roster-select-cb').forEach(cb =>
+    cb.addEventListener('change', () => {
+      if (cb.checked) invRosterSelectedForRemoval.add(cb.dataset.id);
+      else invRosterSelectedForRemoval.delete(cb.dataset.id);
+      updateInvRemoveSelectedBtn();
+    }));
+
+  updateInvRemoveSelectedBtn();
+}
+
+function updateInvRemoveSelectedBtn() {
+  const btn = document.getElementById('invRemoveSelectedBtn');
+  if (!btn) return;
+  const count = invRosterSelectedForRemoval.size;
+  btn.disabled = count === 0;
+  btn.textContent = count ? `Remove Selected (${count})` : 'Remove Selected';
+
+  const selectAllCb = document.getElementById('invRosterSelectAll');
+  if (selectAllCb) selectAllCb.checked = invCurrentStudents.length > 0 && count === invCurrentStudents.length;
+}
+
+document.getElementById('invRosterSelectAll')?.addEventListener('change', (e) => {
+  invRosterSelectedForRemoval = e.target.checked ? new Set(invCurrentStudents.map(s => s.id)) : new Set();
+  renderInvCurrentRoster();
+});
+
+document.getElementById('invRemoveSelectedBtn')?.addEventListener('click', async () => {
+  if (!invRosterSelectedForRemoval.size) return;
+  await removeStudentsFromRoster(Array.from(invRosterSelectedForRemoval));
+});
+
+async function addStudentsToRoster(students) {
+  const toAdd = students.filter(s => !invRosterStudentIds.has(s.id));
+  if (!toAdd.length) return;
+
+  const maxSort = invCurrentStudents.length;
+  const rows = toAdd.map((s, i) => ({ list_id: invCurrentList.id, student_id: s.id, sort_order: maxSort + i }));
+
+  const { error } = await supabase.from('inventory_list_members').insert(rows);
+  if (error) { alert('Failed to add students: ' + error.message); return; }
+
+  toAdd.forEach(s => invRosterStudentIds.add(s.id));
+  invCurrentStudents = [...invCurrentStudents, ...toAdd].sort((a, b) => a.last_name.localeCompare(b.last_name));
+  renderInvCurrentRoster();
+}
+
+async function removeStudentsFromRoster(studentIds) {
+  const count = studentIds.length;
+  const label = count === 1 ? 'this student' : `these ${count} students`;
+  if (!confirm(`Remove ${label} from the list? Their checkout records for this list will be deleted too.`)) return;
+
+  // inventory_assignments has no FK to inventory_list_members — only to
+  // students and inventory_list_items — so removing roster membership
+  // does not cascade-delete it. Clean it up explicitly, otherwise a
+  // re-added student would silently inherit their old identifier/status.
+  const { error: assignErr } = await supabase
+    .from('inventory_assignments')
+    .delete()
+    .eq('list_id', invCurrentList.id)
+    .in('student_id', studentIds);
+
+  if (assignErr) { alert('Failed to remove students: ' + assignErr.message); return; }
+
+  const { error } = await supabase
+    .from('inventory_list_members')
+    .delete()
+    .eq('list_id', invCurrentList.id)
+    .in('student_id', studentIds);
+
+  if (error) { alert('Failed to remove students: ' + error.message); return; }
+
+  studentIds.forEach(id => {
+    invRosterStudentIds.delete(id);
+    invRosterSelectedForRemoval.delete(id);
+  });
+  invCurrentStudents = invCurrentStudents.filter(s => !studentIds.includes(s.id));
+  renderInvCurrentRoster();
+}
+
+document.getElementById('invAddHomeroomBtn')?.addEventListener('click', async () => {
+  if (!currentProfile.employee_id) return;
+  const { data, error } = await supabase
+    .from('students')
+    .select('id, first_name, last_name')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true)
+    .eq('homeroom_teacher_id', currentProfile.employee_id);
+
+  if (error) { alert('Failed to load homeroom: ' + error.message); return; }
+  await addStudentsToRoster(data || []);
+});
+
+document.getElementById('invAddGradesBtn')?.addEventListener('click', async () => {
+  const grades = Array.from(document.querySelectorAll('.inv-grade-cb:checked')).map(cb => cb.value);
+  if (!grades.length) return;
+
+  const { data, error } = await supabase
+    .from('students')
+    .select('id, first_name, last_name')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true)
+    .in('grade_level', grades);
+
+  if (error) { alert('Failed to load grade roster: ' + error.message); return; }
+  await addStudentsToRoster(data || []);
+});
+
+let invSearchDebounce = null;
+document.getElementById('invStudentSearch')?.addEventListener('input', (e) => {
+  const term = e.target.value.trim();
+  clearTimeout(invSearchDebounce);
+  invSearchDebounce = setTimeout(() => runInvStudentSearch(term), 250);
+});
+
+async function runInvStudentSearch(term) {
+  const resultsEl = document.getElementById('invSearchResults');
+  if (!term) { resultsEl.innerHTML = ''; return; }
+
+  const { data, error } = await supabase
+    .from('students')
+    .select('id, first_name, last_name, student_number')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true)
+    .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,student_number.ilike.%${term}%`)
+    .order('last_name')
+    .limit(20);
+
+  if (error) { resultsEl.innerHTML = '<p class="muted" style="font-size:12px;padding:8px;">Search failed.</p>'; return; }
+
+  const available = (data || []).filter(s => !invRosterStudentIds.has(s.id));
+  if (!available.length) {
+    resultsEl.innerHTML = '<p class="muted" style="font-size:12px;padding:8px;">No matching students (or already on the roster).</p>';
+    return;
+  }
+
+  resultsEl.innerHTML = available.map(s => `
+    <div class="inv-search-result-row" data-id="${esc(s.id)}" style="display:flex;justify-content:space-between;padding:6px 10px;cursor:pointer;border-bottom:1px solid #f3f4f6;">
+      <span style="font-size:13px;">${esc(s.last_name)}, ${esc(s.first_name)}</span>
+      ${s.student_number ? `<span class="muted" style="font-size:12px;">#${esc(String(s.student_number))}</span>` : ''}
+    </div>
+  `).join('');
+
+  resultsEl.querySelectorAll('.inv-search-result-row').forEach(row => {
+    row.addEventListener('mouseover', () => { row.style.background = '#f0f7ff'; });
+    row.addEventListener('mouseout', () => { row.style.background = ''; });
+    row.addEventListener('click', async () => {
+      const student = available.find(s => s.id === row.dataset.id);
+      if (student) {
+        await addStudentsToRoster([student]);
+        runInvStudentSearch(document.getElementById('invStudentSearch').value.trim());
+      }
+    });
+  });
+}
+
+/* ── Export ── */
+function loadInvXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    s.onload = () => resolve(window.XLSX);
+    document.head.appendChild(s);
+  });
+}
+
+document.getElementById('invExportBtn')?.addEventListener('click', async () => {
+  if (!invCurrentList) return;
+  const XLSX = await loadInvXLSX();
+
+  const rows = invCurrentStudents.map(s => {
+    const row = { Student: `${s.last_name}, ${s.first_name}` };
+    invCurrentItems.forEach(it => {
+      const a = invCurrentAssignmentMap[s.id + '::' + it.id];
+      row[it.label + ' — ID'] = a?.identifier || '';
+      row[it.label + ' — Status'] = statusLabel(a ? a.status : 'not_assigned');
+    });
+    return row;
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(rows);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventory');
+  XLSX.writeFile(workbook, `${invCurrentList.name}.xlsx`);
 });
 
 async function loadMyLicenses() {

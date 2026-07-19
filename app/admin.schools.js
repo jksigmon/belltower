@@ -12,6 +12,8 @@ const MODULES = [
   { key: 'licensure',   label: 'Licensure Tracking' },
   { key: 'compliance',  label: 'Volunteer Compliance' },
   { key: 'field_trips', label: 'Field Trip Planning' },
+  { key: 'reservations', label: 'Reservations' },
+  { key: 'inventory',    label: 'Inventory Tracking' },
 ];
 
 /* ===============================
