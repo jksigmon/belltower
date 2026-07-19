@@ -5,13 +5,16 @@
 -- works for any school's set of bookable spaces/equipment. Each
 -- resource can optionally require admin approval before a booking
 -- is confirmed.
+--
+-- Idempotent: safe to re-run (guards on tables, indexes, and policies)
+-- so it succeeds even where these objects were already created by hand.
 -- ============================================================
 
 -- New permission (must exist before the policies below reference it)
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS can_manage_reservations boolean NOT NULL DEFAULT false;
 
-CREATE TABLE public.reservable_resources (
+CREATE TABLE IF NOT EXISTS public.reservable_resources (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id          uuid NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
   name               text NOT NULL,
@@ -23,9 +26,9 @@ CREATE TABLE public.reservable_resources (
   created_at         timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_reservable_resources_school ON public.reservable_resources (school_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_reservable_resources_school ON public.reservable_resources (school_id, sort_order);
 
-CREATE TABLE public.reservations (
+CREATE TABLE IF NOT EXISTS public.reservations (
   id                       uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id                uuid NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
   resource_id              uuid NOT NULL REFERENCES public.reservable_resources(id) ON DELETE CASCADE,
@@ -47,8 +50,8 @@ CREATE TABLE public.reservations (
   CHECK (ends_at > starts_at)
 );
 
-CREATE INDEX idx_reservations_resource_time ON public.reservations (resource_id, starts_at, ends_at);
-CREATE INDEX idx_reservations_school ON public.reservations (school_id);
+CREATE INDEX IF NOT EXISTS idx_reservations_resource_time ON public.reservations (resource_id, starts_at, ends_at);
+CREATE INDEX IF NOT EXISTS idx_reservations_school ON public.reservations (school_id);
 
 ALTER TABLE public.reservable_resources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reservations ENABLE ROW LEVEL SECURITY;
@@ -56,6 +59,7 @@ ALTER TABLE public.reservations ENABLE ROW LEVEL SECURITY;
 -- ── reservable_resources ──────────────────────────────────────
 
 -- Read: any active, login-enabled staff member at the same school
+DROP POLICY IF EXISTS reservable_resources_read ON public.reservable_resources;
 CREATE POLICY reservable_resources_read ON public.reservable_resources
   FOR SELECT USING (
     EXISTS (
@@ -68,6 +72,7 @@ CREATE POLICY reservable_resources_read ON public.reservable_resources
   );
 
 -- Write: superadmin, admin role, or can_manage_reservations — scoped to school
+DROP POLICY IF EXISTS reservable_resources_write ON public.reservable_resources;
 CREATE POLICY reservable_resources_write ON public.reservable_resources
   FOR ALL USING (
     EXISTS (
@@ -98,6 +103,7 @@ CREATE POLICY reservable_resources_write ON public.reservable_resources
 
 -- Read: any active, login-enabled staff member at the same school —
 -- everyone needs to see what's booked to avoid double-booking.
+DROP POLICY IF EXISTS reservations_read ON public.reservations;
 CREATE POLICY reservations_read ON public.reservations
   FOR SELECT USING (
     EXISTS (
@@ -111,6 +117,7 @@ CREATE POLICY reservations_read ON public.reservations
 
 -- Insert: any active staff member at the same school, only as themselves
 -- (reserved_by_profile_id must be their own profile id), unless superadmin.
+DROP POLICY IF EXISTS reservations_insert ON public.reservations;
 CREATE POLICY reservations_insert ON public.reservations
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -129,6 +136,7 @@ CREATE POLICY reservations_insert ON public.reservations
 -- Update/Delete: the reserving user can modify/cancel their own booking;
 -- superadmin / admin role / can_manage_reservations can modify or cancel
 -- ANY booking at their school (needed to approve/deny pending requests).
+DROP POLICY IF EXISTS reservations_update ON public.reservations;
 CREATE POLICY reservations_update ON public.reservations
   FOR UPDATE USING (
     EXISTS (
@@ -155,6 +163,7 @@ CREATE POLICY reservations_update ON public.reservations
     )
   );
 
+DROP POLICY IF EXISTS reservations_delete ON public.reservations;
 CREATE POLICY reservations_delete ON public.reservations
   FOR DELETE USING (
     EXISTS (

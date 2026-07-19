@@ -7,13 +7,16 @@
 -- returned status for each student x item combination. Deliberately
 -- freeform (no hardcoded item types) so this works for any school's
 -- asset-tracking need, not just books.
+--
+-- Idempotent: safe to re-run (guards on tables, indexes, and policies)
+-- so it succeeds even where these objects were already created by hand.
 -- ============================================================
 
 -- New permission (must exist before the policies below reference it)
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS can_manage_inventory boolean NOT NULL DEFAULT false;
 
-CREATE TABLE public.inventory_lists (
+CREATE TABLE IF NOT EXISTS public.inventory_lists (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   school_id          uuid NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
   owner_profile_id   uuid REFERENCES public.profiles(id),
@@ -27,24 +30,24 @@ CREATE TABLE public.inventory_lists (
   created_at         timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_inventory_lists_school ON public.inventory_lists (school_id);
-CREATE INDEX idx_inventory_lists_owner ON public.inventory_lists (owner_profile_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_lists_school ON public.inventory_lists (school_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_lists_owner ON public.inventory_lists (owner_profile_id);
 
 -- Tracked item TYPES/columns for a list (e.g. "Skills Book") — not
 -- individual physical copies.
-CREATE TABLE public.inventory_list_items (
+CREATE TABLE IF NOT EXISTS public.inventory_list_items (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   list_id     uuid NOT NULL REFERENCES public.inventory_lists(id) ON DELETE CASCADE,
   label       text NOT NULL,
   sort_order  integer NOT NULL DEFAULT 0
 );
 
-CREATE INDEX idx_inventory_list_items_list ON public.inventory_list_items (list_id, sort_order);
+CREATE INDEX IF NOT EXISTS idx_inventory_list_items_list ON public.inventory_list_items (list_id, sort_order);
 
 -- Roster membership — snapshotted at add-time (not a live homeroom
 -- query), so a list stays stable even if a student's homeroom changes
 -- later in the year.
-CREATE TABLE public.inventory_list_members (
+CREATE TABLE IF NOT EXISTS public.inventory_list_members (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   list_id     uuid NOT NULL REFERENCES public.inventory_lists(id) ON DELETE CASCADE,
   student_id  uuid NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
@@ -52,10 +55,10 @@ CREATE TABLE public.inventory_list_members (
   UNIQUE (list_id, student_id)
 );
 
-CREATE INDEX idx_inventory_list_members_list ON public.inventory_list_members (list_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_list_members_list ON public.inventory_list_members (list_id);
 
 -- The actual checkout record for a given student x item on a list.
-CREATE TABLE public.inventory_assignments (
+CREATE TABLE IF NOT EXISTS public.inventory_assignments (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   list_id         uuid NOT NULL REFERENCES public.inventory_lists(id) ON DELETE CASCADE,
   student_id      uuid NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
@@ -70,7 +73,7 @@ CREATE TABLE public.inventory_assignments (
   UNIQUE (list_id, student_id, item_id)
 );
 
-CREATE INDEX idx_inventory_assignments_list ON public.inventory_assignments (list_id);
+CREATE INDEX IF NOT EXISTS idx_inventory_assignments_list ON public.inventory_assignments (list_id);
 
 ALTER TABLE public.inventory_lists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_list_items ENABLE ROW LEVEL SECURITY;
@@ -82,6 +85,7 @@ ALTER TABLE public.inventory_assignments ENABLE ROW LEVEL SECURITY;
 -- (or admin/superadmin) see and manage ALL lists in their school —
 -- global oversight, no per-teacher assignment mapping in this version.
 
+DROP POLICY IF EXISTS inventory_lists_all ON public.inventory_lists;
 CREATE POLICY inventory_lists_all ON public.inventory_lists
   FOR ALL USING (
     EXISTS (
@@ -113,6 +117,7 @@ CREATE POLICY inventory_lists_all ON public.inventory_lists
 -- owner, via the same nested-EXISTS pattern used for
 -- request_category_fields → request_categories in this repo.
 
+DROP POLICY IF EXISTS inventory_list_items_all ON public.inventory_list_items;
 CREATE POLICY inventory_list_items_all ON public.inventory_list_items
   FOR ALL USING (
     EXISTS (
@@ -141,6 +146,7 @@ CREATE POLICY inventory_list_items_all ON public.inventory_list_items
     )
   );
 
+DROP POLICY IF EXISTS inventory_list_members_all ON public.inventory_list_members;
 CREATE POLICY inventory_list_members_all ON public.inventory_list_members
   FOR ALL USING (
     EXISTS (
@@ -169,6 +175,7 @@ CREATE POLICY inventory_list_members_all ON public.inventory_list_members
     )
   );
 
+DROP POLICY IF EXISTS inventory_assignments_all ON public.inventory_assignments;
 CREATE POLICY inventory_assignments_all ON public.inventory_assignments
   FOR ALL USING (
     EXISTS (
