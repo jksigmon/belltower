@@ -1539,6 +1539,10 @@ durationSelect.addEventListener('change', () => {
 
   if (ptoDatePicker) {
     ptoDatePicker.set('mode', isMulti ? 'range' : 'single');
+    // Multi-day may bridge a weekend, so allow weekend selection in range mode;
+    // single/half/partial keep weekends blocked so no one can request a lone
+    // weekend day.
+    ptoDatePicker.set('disable', isMulti ? [] : [isWeekend]);
     ptoDatePicker.clear();
     selectedStartDate = null;
     selectedEndDate = null;
@@ -1893,14 +1897,17 @@ let selectedStartDate = null;
 let selectedEndDate = null;
 let ptoDatePicker = null;
 
+// A weekend day is never valid on its own, but a multi-day range may bridge a
+// weekend (e.g. Fri–Mon). In multi-day (range) mode weekends become selectable
+// so the range can span them; the weekend days are still excluded from the
+// hours total by calculateRequestedHours().
+const isWeekend = (date) => date.getDay() === 0 || date.getDay() === 6;
 
 requestAnimationFrame(() => {
   ptoDatePicker = flatpickr('#ptoDateRange', {
     mode: 'single',
     dateFormat: 'm-d-Y',
-    disable: [
-      date => date.getDay() === 0 || date.getDay() === 6
-    ],
+    disable: [isWeekend],
     onChange: (selectedDates) => {
       if (!selectedDates.length) return;
       selectedStartDate = selectedDates[0];
@@ -3453,6 +3460,11 @@ const requestedHours = calculateRequestedHours({
       : null
 });
 
+  // A multi-day range that lands entirely on a weekend has no countable days.
+  if (isMultiDay && requestedHours <= 0) {
+    message.textContent = 'Your selected dates fall on a weekend only. Please include at least one weekday.';
+    return;
+  }
 
   let durationLabel;
   if (isHalfDay) {
