@@ -1883,6 +1883,10 @@
       <div id="efStudentsList" class="family-related-list">
         <span class="muted" style="font-size:13px;">Loading…</span>
       </div>
+      <div class="ft-typeahead-wrap" style="margin-top:8px;">
+        <input type="text" id="efStudentSearch" class="form-input" placeholder="Link a student by name…" autocomplete="off">
+        <div id="efStudentResults" class="ft-typeahead-results" style="display:none;"></div>
+      </div>
     </div>
 
     <div class="drawer-field">
@@ -1890,6 +1894,17 @@
       <div id="efGuardiansList" class="family-related-list">
         <span class="muted" style="font-size:13px;">Loading…</span>
       </div>
+    </div>
+
+    <hr class="drawer-divider" />
+
+    <div class="drawer-field">
+      <button id="efReleaseBtn" class="btn btn-outline" type="button">Release Tag &amp; Reassign…</button>
+      <p class="muted" style="font-size:12px;margin-top:6px;">
+        Unlinks every student currently on this tag — including inactive/withdrawn students — so you can rename
+        this family and link the new one to the same tag number. Guardians aren't affected; reassign or deactivate
+        them separately.
+      </p>
     </div>
   </div>
   <div class="drawer-footer-split">
@@ -1909,6 +1924,18 @@
     <div class="confirm-modal-actions">
       <button id="deleteFamilyCancel" class="btn">Cancel</button>
       <button id="deleteFamilyConfirm" class="btn danger">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- Release family tag confirmation -->
+<div id="releaseFamilyModal" class="confirm-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="releaseFamilyModalTitle" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title" id="releaseFamilyModalTitle">Release This Tag?</h3>
+    <p class="confirm-modal-body" id="releaseFamilyMsg"></p>
+    <div class="confirm-modal-actions">
+      <button id="releaseFamilyCancel" class="btn">Cancel</button>
+      <button id="releaseFamilyConfirm" class="btn danger">Unlink Everyone</button>
     </div>
   </div>
 </div>

@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
-import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError, GRADE_ORDER } from './admin.shared.js';
+import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError, showToast, GRADE_ORDER } from './admin.shared.js';
 
 let currentProfile;
 let schoolConfig = null;
@@ -149,6 +149,10 @@ function openEditFamilyDrawer(f) {
   // Reset lists to loading state before opening
   document.getElementById('efStudentsList').innerHTML  = '<span class="muted" style="font-size:13px;">Loading…</span>';
   document.getElementById('efGuardiansList').innerHTML = '<span class="muted" style="font-size:13px;">Loading…</span>';
+  const searchEl = document.getElementById('efStudentSearch');
+  const resultsEl = document.getElementById('efStudentResults');
+  if (searchEl) searchEl.value = '';
+  if (resultsEl) { resultsEl.innerHTML = ''; resultsEl.style.display = 'none'; }
 
   window.openDrawer?.('editFamilyDrawer');
   loadFamilyRelated(f.id);
@@ -156,11 +160,13 @@ function openEditFamilyDrawer(f) {
 
 async function loadFamilyRelated(familyId) {
   const [studentsRes, guardiansRes] = await Promise.all([
+    // Intentionally NOT filtered on active — withdrawn students keep family_id
+    // set, and staff need to see them here to notice a tag is still "occupied"
+    // before reassigning it (see Release Tag action below).
     supabase
       .from('students')
-      .select('id, first_name, last_name, grade_level')
+      .select('id, first_name, last_name, grade_level, active')
       .eq('family_id', familyId)
-      .eq('active', true)
       .order('last_name'),
     supabase
       .from('guardians')
@@ -174,12 +180,13 @@ async function loadFamilyRelated(familyId) {
   const guardiansList = document.getElementById('efGuardiansList');
 
   if (studentsRes.error || !studentsRes.data?.length) {
-    studentsList.innerHTML = '<span class="muted" style="font-size:13px;">No active students.</span>';
+    studentsList.innerHTML = '<span class="muted" style="font-size:13px;">No students linked.</span>';
   } else {
     studentsList.innerHTML = studentsRes.data.map(s => `
       <div class="family-related-chip">
         <span class="family-chip-name">${esc(s.last_name)}, ${esc(s.first_name)}</span>
         ${s.grade_level ? `<span class="family-chip-meta">${esc(s.grade_level)}</span>` : ''}
+        ${s.active === false ? '<span class="staff-inactive-badge">Withdrawn</span>' : ''}
       </div>
     `).join('');
   }
@@ -224,6 +231,110 @@ async function saveEditFamily() {
 
   if (error) { dbError(error, 'Failed to save family'); return; }
   window.closeDrawer?.('editFamilyDrawer');
+  familiesDirectory.load();
+}
+
+/* ===============================
+   RELEASE TAG & REASSIGN
+================================ */
+
+function confirmReleaseFamily() {
+  if (!editingFamilyId) return;
+  const tag  = document.getElementById('efTag').value.trim();
+  const name = document.getElementById('efName').value.trim() || '(Unnamed)';
+  document.getElementById('releaseFamilyMsg').textContent =
+    `This unlinks every student currently on tag #${tag} (${name}) — including inactive/withdrawn students — ` +
+    `so you can rename this family and link the new one to the same tag. Guardians are not affected, since a ` +
+    `guardian record must always belong to a family; deactivate or reassign them separately if needed. This cannot be undone from here.`;
+  document.getElementById('releaseFamilyModal').hidden = false;
+}
+
+async function executeReleaseFamily() {
+  if (!editingFamilyId) return;
+
+  const btn = document.getElementById('releaseFamilyConfirm');
+  btn.disabled = true;
+  btn.textContent = 'Unlinking…';
+
+  const { error } = await supabase
+    .from('students')
+    .update({ family_id: null })
+    .eq('family_id', editingFamilyId);
+
+  btn.disabled = false;
+  btn.textContent = 'Unlink Everyone';
+  document.getElementById('releaseFamilyModal').hidden = true;
+
+  if (error) { dbError(error, 'Failed to release tag'); return; }
+
+  showToast('Tag released. Rename this family and link the new students below.', 'success');
+  loadFamilyRelated(editingFamilyId);
+  familiesDirectory.load();
+}
+
+/* ===============================
+   LINK STUDENT (SEARCH)
+================================ */
+
+async function searchStudentsForFamily(term) {
+  if (!term || term.length < 2) return [];
+  const { data, error } = await supabase
+    .from('students')
+    .select('id, first_name, last_name, grade_level, active, family_id, families(carline_tag_number, family_name)')
+    .eq('school_id', currentProfile.school_id)
+    .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%`)
+    .limit(8);
+
+  if (error) { console.error('Student search failed', error); return []; }
+  return (data || []).filter(s => s.family_id !== editingFamilyId);
+}
+
+function renderStudentSearchResults(matches) {
+  const resultsEl = document.getElementById('efStudentResults');
+  if (!resultsEl) return;
+
+  if (!matches.length) {
+    resultsEl.innerHTML = `<div class="ft-typeahead-empty">No students found.</div>`;
+    resultsEl.style.display = 'block';
+    return;
+  }
+
+  resultsEl.innerHTML = matches.map(s => {
+    const name = `${s.first_name ?? ''} ${s.last_name ?? ''}`.trim();
+    const meta = [];
+    if (s.grade_level) meta.push(esc(s.grade_level));
+    if (s.active === false) meta.push('withdrawn');
+    if (s.family_id && s.families) {
+      meta.push(`currently #${esc(s.families.carline_tag_number)} ${esc(s.families.family_name ?? '')}`.trim());
+    }
+    return `<div class="ft-typeahead-item" data-id="${esc(s.id)}"><strong>${esc(name)}</strong>${meta.length ? `<span>${meta.join(' · ')}</span>` : ''}</div>`;
+  }).join('');
+
+  resultsEl.querySelectorAll('.ft-typeahead-item').forEach(item => {
+    item.addEventListener('mousedown', () => linkStudentToFamily(item.dataset.id));
+  });
+  resultsEl.style.display = 'block';
+}
+
+async function onEfStudentSearchInput(e) {
+  const term = e.target.value.trim();
+  const resultsEl = document.getElementById('efStudentResults');
+  if (!term) { if (resultsEl) resultsEl.style.display = 'none'; return; }
+  renderStudentSearchResults(await searchStudentsForFamily(term));
+}
+
+async function linkStudentToFamily(studentId) {
+  if (!editingFamilyId) return;
+  const { error } = await supabase.from('students').update({ family_id: editingFamilyId }).eq('id', studentId);
+  if (error) { dbError(error, 'Failed to link student'); return; }
+
+  const searchEl = document.getElementById('efStudentSearch');
+  const resultsEl = document.getElementById('efStudentResults');
+  if (searchEl) searchEl.value = '';
+  if (resultsEl) { resultsEl.innerHTML = ''; resultsEl.style.display = 'none'; }
+
+  showToast('Student linked.', 'success');
+  loadFamilyRelated(editingFamilyId);
   familiesDirectory.load();
 }
 
@@ -305,4 +416,15 @@ function wireFamilyEvents() {
   // Delete modal
   document.getElementById('deleteFamilyCancel')?.addEventListener('click',  () => { document.getElementById('deleteFamilyModal').hidden = true; });
   document.getElementById('deleteFamilyConfirm')?.addEventListener('click', executeDeleteFamily);
+
+  // Release tag & reassign
+  document.getElementById('efReleaseBtn')?.addEventListener('click', confirmReleaseFamily);
+  document.getElementById('releaseFamilyCancel')?.addEventListener('click',  () => { document.getElementById('releaseFamilyModal').hidden = true; });
+  document.getElementById('releaseFamilyConfirm')?.addEventListener('click', executeReleaseFamily);
+
+  // Link student search
+  document.getElementById('efStudentSearch')?.addEventListener('input', debounce(onEfStudentSearchInput, 250));
+  document.getElementById('efStudentSearch')?.addEventListener('blur', () => {
+    setTimeout(() => { const r = document.getElementById('efStudentResults'); if (r) r.style.display = 'none'; }, 150);
+  });
 }

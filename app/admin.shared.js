@@ -54,7 +54,7 @@ export async function loadFamilyOptions(selectors = [], schoolId) {
       .select('id, carline_tag_number, family_name')
       .eq('school_id', schoolId)
       .eq('active', true)
-      .order('carline_tag_number');
+      .order('carline_tag_sort', { ascending: true, nullsFirst: false });
 
     if (error) {
       console.error('Failed to load family options', error);
