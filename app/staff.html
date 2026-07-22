@@ -46,6 +46,49 @@
   }
 }
 
+/* ─── Resources: list/grid view toggle + thumbnail tiles ─── */
+.rd-view-toggle { display: flex; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; flex-shrink: 0; }
+.rd-view-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; background: #fff; border: none; cursor: pointer;
+  color: #9ca3af; transition: background 0.15s, color 0.15s;
+}
+.rd-view-btn + .rd-view-btn { border-left: 1px solid #e5e7eb; }
+.rd-view-btn:hover { background: #f8fafc; color: #6b7280; }
+.rd-view-btn.active { background: #eff6ff; color: #2563eb; }
+
+.rd-doc-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+}
+.rd-doc-tile {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+  padding: 18px 12px 14px;
+  min-width: 0; overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.rd-doc-tile:hover { border-color: #c7d2fe; box-shadow: 0 2px 8px rgba(15,23,42,0.05); }
+.rd-doc-tile-icon {
+  width: 88px; height: 114px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 10px; flex-shrink: 0;
+  overflow: hidden;
+}
+.rd-doc-tile-icon--pdf   { background: #fee2e2; color: #b91c1c; }
+.rd-doc-tile-icon--image { background: #ede9fe; color: #6d28d9; }
+.rd-doc-tile-icon--other { background: #eff6ff; color: #2563eb; }
+.rd-doc-tile-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; border: 1px solid rgba(15,23,42,0.08); }
+.rd-doc-tile-title {
+  width: 100%;
+  font-weight: 700; font-size: 13.5px; color: #111827; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow-wrap: break-word; word-break: break-word;
+}
+.rd-doc-tile-actions { margin-top: 12px; }
+
 /* ─── PTO Form — Premium ─────────────────────────── */
 
 .pto-form {
@@ -1156,7 +1199,17 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
     <!-- ── Resources ── -->
     <section id="resources" style="display:none;">
       <div class="panel">
-        <h3 style="margin:0 0 6px;">Operations Manual</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
+          <h3 style="margin:0;">Operations Manual</h3>
+          <div class="rd-view-toggle" id="staffRdViewToggle" role="group" aria-label="View mode">
+            <button type="button" class="rd-view-btn" data-view="list" title="List view" aria-label="List view">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </button>
+            <button type="button" class="rd-view-btn" data-view="grid" title="Thumbnail view" aria-label="Thumbnail view">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            </button>
+          </div>
+        </div>
         <p class="muted" style="margin:0 0 20px;font-size:13px;">
           View and print these documents. What you see here is always the current version.
         </p>
@@ -1366,6 +1419,7 @@ import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
 import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig } from '/app/admin.shared.js';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
+import { fileKind as rdFileKind, tileIconSvg as rdTileIconSvg, getThumbnailUrl as rdGetThumbnailUrl, withThumbnailConcurrency as rdWithThumbnailConcurrency } from '/app/resource-doc-thumbnails.js';
 
 // Prevent browser from restoring a stale scroll position on load
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -2012,6 +2066,9 @@ window.staffCopyLink = function (btn) {
 };
 
 /* ── Resource Documents (view/print only) ── */
+const STAFF_RD_VIEW_KEY = 'rdViewMode';
+let staffRdViewMode = localStorage.getItem(STAFF_RD_VIEW_KEY) === 'grid' ? 'grid' : 'list';
+
 async function loadStaffResources() {
   const list = document.getElementById('staffResourcesList');
   if (!list) return;
@@ -2020,7 +2077,7 @@ async function loadStaffResources() {
 
   const { data, error } = await supabase
     .from('resource_documents')
-    .select('id, title, file_path, original_filename')
+    .select('id, title, file_path, original_filename, updated_at')
     .eq('school_id', currentProfile.school_id)
     .order('sort_order')
     .order('title');
@@ -2030,8 +2087,32 @@ async function loadStaffResources() {
     return;
   }
 
+  window._staffResourceDocs = data;
+  renderStaffResources(data);
+  wireStaffResourceViewToggle();
+}
+
+function renderStaffResources(data) {
+  const list = document.getElementById('staffResourcesList');
+  if (!list) return;
+
+  if (staffRdViewMode === 'grid') {
+    list.innerHTML = '<div class="rd-doc-tiles">' + data.map(function (d) {
+      var kind = rdFileKind(d.original_filename);
+      var btnLabel = kind === 'other' ? 'Download' : 'View &amp; Print';
+      var handler = kind === 'other' ? 'staffDownloadResource(this)' : 'staffViewResource(this)';
+      return '<div class="rd-doc-tile" data-id="' + esc(d.id) + '">' +
+        '<div class="rd-doc-tile-icon rd-doc-tile-icon--' + kind + '" data-thumb-icon="' + esc(d.id) + '">' + rdTileIconSvg(kind) + '</div>' +
+        '<div class="rd-doc-tile-title">' + esc(d.title) + '</div>' +
+        '<div class="rd-doc-tile-actions"><button class="btn btn-sm btn-primary" data-id="' + esc(d.id) + '" onclick="' + handler + '">' + btnLabel + '</button></div>' +
+      '</div>';
+    }).join('') + '</div>';
+    loadStaffResourceThumbnails(data);
+    return;
+  }
+
   list.innerHTML = data.map(function (d) {
-    var kind = staffFileKind(d.original_filename);
+    var kind = rdFileKind(d.original_filename);
     var btnLabel = kind === 'other' ? 'Download' : 'View &amp; Print';
     var handler = kind === 'other' ? 'staffDownloadResource(this)' : 'staffViewResource(this)';
     return '<div style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #f3f4f6;">' +
@@ -2039,18 +2120,43 @@ async function loadStaffResources() {
       '<button class="btn btn-sm btn-primary" data-id="' + esc(d.id) + '" onclick="' + handler + '">' + btnLabel + '</button>' +
     '</div>';
   }).join('');
-
-  window._staffResourceDocs = data;
 }
 
-// Only PDFs and images can be shown in the print-only viewer — browsers
-// have no built-in in-page viewer for Word/Excel/etc. Matches the same
-// classification used in admin.resource-docs.js.
-function staffFileKind(filename) {
-  var ext = (filename || '').toLowerCase().split('.').pop();
-  if (ext === 'pdf') return 'pdf';
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].indexOf(ext) !== -1) return 'image';
-  return 'other';
+async function loadStaffResourceThumbnails(data) {
+  const candidates = data.filter(function (d) { return rdFileKind(d.original_filename) !== 'other'; });
+  if (!candidates.length) return;
+
+  await rdWithThumbnailConcurrency(candidates, 3, async function (d) {
+    const url = await rdGetThumbnailUrl(supabase, 'resource-docs', d);
+    if (!url) return;
+    const iconEl = document.querySelector('.rd-doc-tile-icon[data-thumb-icon="' + CSS.escape(d.id) + '"]');
+    if (!iconEl) return;
+    iconEl.innerHTML = '<img src="' + esc(url) + '" alt="" />';
+  });
+}
+
+function wireStaffResourceViewToggle() {
+  const toggle = document.getElementById('staffRdViewToggle');
+  if (!toggle || toggle.dataset.wired) {
+    updateStaffRdViewButtons();
+    return;
+  }
+  toggle.dataset.wired = '1';
+  toggle.addEventListener('click', function (e) {
+    const btn = e.target.closest('.rd-view-btn');
+    if (!btn) return;
+    staffRdViewMode = btn.dataset.view === 'grid' ? 'grid' : 'list';
+    localStorage.setItem(STAFF_RD_VIEW_KEY, staffRdViewMode);
+    updateStaffRdViewButtons();
+    renderStaffResources(window._staffResourceDocs || []);
+  });
+  updateStaffRdViewButtons();
+}
+
+function updateStaffRdViewButtons() {
+  document.querySelectorAll('#staffRdViewToggle .rd-view-btn').forEach(function (btn) {
+    btn.classList.toggle('active', btn.dataset.view === staffRdViewMode);
+  });
 }
 
 window.staffViewResource = async function (btn) {
@@ -2066,7 +2172,7 @@ window.staffViewResource = async function (btn) {
     return;
   }
 
-  const kind = staffFileKind(doc.original_filename);
+  const kind = rdFileKind(doc.original_filename);
   const url  = kind === 'pdf' ? data.signedUrl + '#toolbar=0' : data.signedUrl;
 
   document.getElementById('resourceViewerTitle').textContent = doc.title;

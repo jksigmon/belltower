@@ -1,21 +1,11 @@
 // admin.resource-docs.js
 import { supabase } from './admin.supabase.js';
 import { esc, dbError, fmtShortDate, debounce } from './admin.shared.js';
+import { fileKind, tileIconSvg, getThumbnailUrl, withThumbnailConcurrency } from './resource-doc-thumbnails.js';
 
 const BUCKET = 'resource-docs';
 const MAX_BYTES = 15 * 1024 * 1024; // 15MB
-const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
 const VIEW_MODE_KEY = 'rdViewMode';
-
-// Only PDFs and images can be shown in the print-only viewer (browsers have
-// no built-in in-page viewer for Word/Excel/etc.); everything else gets a
-// plain, clearly-labeled download instead of a false "protected" promise.
-function fileKind(filename) {
-  const ext = (filename || '').toLowerCase().split('.').pop();
-  if (ext === 'pdf') return 'pdf';
-  if (IMAGE_EXTS.includes(ext)) return 'image';
-  return 'other';
-}
 
 function fileExt(filename) {
   const parts = (filename || '').toLowerCase().split('.');
@@ -84,12 +74,6 @@ async function loadDocs() {
 }
 
 const FILE_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
-const IMAGE_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`;
-
-function iconForKind(kind) {
-  if (kind === 'image') return IMAGE_ICON;
-  return FILE_ICON;
-}
 
 function filteredDocs() {
   if (!searchTerm) return docs;
@@ -124,7 +108,7 @@ function renderTile(d) {
   const kind = fileKind(d.original_filename);
   return `
     <div class="rd-doc-tile" data-id="${esc(d.id)}">
-      <div class="rd-doc-tile-icon rd-doc-tile-icon--${kind}">${iconForKind(kind)}</div>
+      <div class="rd-doc-tile-icon rd-doc-tile-icon--${kind}" data-thumb-icon="${esc(d.id)}">${tileIconSvg(kind)}</div>
       <div class="rd-doc-tile-title">${esc(d.title)}</div>
       <div class="rd-doc-tile-meta">${esc(d.original_filename ?? 'file')}</div>
       <div class="rd-doc-tile-actions">
@@ -134,6 +118,19 @@ function renderTile(d) {
         <input type="file" class="rd-replace-input" data-id="${esc(d.id)}" hidden />
       </div>
     </div>`;
+}
+
+async function loadGridThumbnails(list) {
+  const candidates = list.filter(d => fileKind(d.original_filename) !== 'other');
+  if (!candidates.length) return;
+
+  await withThumbnailConcurrency(candidates, 3, async d => {
+    const url = await getThumbnailUrl(supabase, BUCKET, d);
+    if (!url) return;
+    const iconEl = document.querySelector(`.rd-doc-tile-icon[data-thumb-icon="${CSS.escape(d.id)}"]`);
+    if (!iconEl) return;
+    iconEl.innerHTML = `<img src="${esc(url)}" alt="" />`;
+  });
 }
 
 function renderList() {
@@ -169,6 +166,8 @@ function renderList() {
   wrap.innerHTML = viewMode === 'grid'
     ? `<div class="rd-doc-tiles">${visible.map(renderTile).join('')}</div>`
     : `<div class="rd-doc-grid">${visible.map(renderCard).join('')}</div>`;
+
+  if (viewMode === 'grid') loadGridThumbnails(visible);
 
   wrap.querySelectorAll('.rd-rename-btn').forEach(btn =>
     btn.addEventListener('click', () => renameDoc(btn.dataset.id)));
