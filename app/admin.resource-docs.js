@@ -1,10 +1,11 @@
 // admin.resource-docs.js
 import { supabase } from './admin.supabase.js';
-import { esc, dbError, fmtShortDate } from './admin.shared.js';
+import { esc, dbError, fmtShortDate, debounce } from './admin.shared.js';
 
 const BUCKET = 'resource-docs';
 const MAX_BYTES = 15 * 1024 * 1024; // 15MB
 const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+const VIEW_MODE_KEY = 'rdViewMode';
 
 // Only PDFs and images can be shown in the print-only viewer (browsers have
 // no built-in in-page viewer for Word/Excel/etc.); everything else gets a
@@ -23,6 +24,8 @@ function fileExt(filename) {
 
 let profile = null;
 let docs = [];
+let searchTerm = '';
+let viewMode = localStorage.getItem(VIEW_MODE_KEY) === 'grid' ? 'grid' : 'list';
 
 /* ===============================
    ENTRY POINT
@@ -37,7 +40,31 @@ export async function initResourceDocsSection(p) {
   }
 
   wireUploadForm();
+  wireHeaderControls();
   await loadDocs();
+}
+
+function wireHeaderControls() {
+  document.getElementById('rdSearch')?.addEventListener('input', debounce(e => {
+    searchTerm = e.target.value.trim().toLowerCase();
+    renderList();
+  }, 200));
+
+  document.getElementById('rdViewToggle')?.addEventListener('click', e => {
+    const btn = e.target.closest('.rd-view-btn');
+    if (!btn) return;
+    viewMode = btn.dataset.view === 'grid' ? 'grid' : 'list';
+    localStorage.setItem(VIEW_MODE_KEY, viewMode);
+    updateViewToggleButtons();
+    renderList();
+  });
+
+  updateViewToggleButtons();
+}
+
+function updateViewToggleButtons() {
+  document.querySelectorAll('#rdViewToggle .rd-view-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.view === viewMode));
 }
 
 /* ===============================
@@ -57,6 +84,57 @@ async function loadDocs() {
 }
 
 const FILE_ICON = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+const IMAGE_ICON = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>`;
+
+function iconForKind(kind) {
+  if (kind === 'image') return IMAGE_ICON;
+  return FILE_ICON;
+}
+
+function filteredDocs() {
+  if (!searchTerm) return docs;
+  return docs.filter(d =>
+    (d.title ?? '').toLowerCase().includes(searchTerm) ||
+    (d.original_filename ?? '').toLowerCase().includes(searchTerm));
+}
+
+function renderCard(d) {
+  const uploader = d.uploaded_by_name || 'Unknown';
+  const kind = fileKind(d.original_filename);
+  const kindBadge = kind === 'other'
+    ? '<span class="rd-doc-badge rd-doc-badge--dl" title="No in-browser viewer exists for this file type — staff get a plain download link">Downloadable</span>'
+    : '<span class="rd-doc-badge rd-doc-badge--view" title="Staff can view and print this, but not download it">Print-only</span>';
+  return `
+    <div class="rd-doc-card" data-id="${esc(d.id)}">
+      <div class="rd-doc-icon">${FILE_ICON}</div>
+      <div class="rd-doc-info">
+        <div class="rd-doc-title">${esc(d.title)}</div>
+        <div class="rd-doc-meta">${esc(d.original_filename ?? 'file')} · Uploaded ${fmtShortDate(d.created_at)} by ${esc(uploader)} · ${kindBadge}</div>
+      </div>
+      <div class="rd-doc-actions">
+        <button class="btn btn-sm rd-rename-btn" data-id="${esc(d.id)}">Rename</button>
+        <button class="btn btn-sm rd-replace-btn" data-id="${esc(d.id)}">Replace File</button>
+        <button class="btn btn-sm rd-delete-btn" data-id="${esc(d.id)}" style="color:#dc2626;border-color:#fca5a5;">Delete</button>
+        <input type="file" class="rd-replace-input" data-id="${esc(d.id)}" hidden />
+      </div>
+    </div>`;
+}
+
+function renderTile(d) {
+  const kind = fileKind(d.original_filename);
+  return `
+    <div class="rd-doc-tile" data-id="${esc(d.id)}">
+      <div class="rd-doc-tile-icon rd-doc-tile-icon--${kind}">${iconForKind(kind)}</div>
+      <div class="rd-doc-tile-title">${esc(d.title)}</div>
+      <div class="rd-doc-tile-meta">${esc(d.original_filename ?? 'file')}</div>
+      <div class="rd-doc-tile-actions">
+        <button class="btn btn-sm rd-rename-btn" data-id="${esc(d.id)}">Rename</button>
+        <button class="btn btn-sm rd-replace-btn" data-id="${esc(d.id)}">Replace</button>
+        <button class="btn btn-sm rd-delete-btn" data-id="${esc(d.id)}" style="color:#dc2626;border-color:#fca5a5;">Delete</button>
+        <input type="file" class="rd-replace-input" data-id="${esc(d.id)}" hidden />
+      </div>
+    </div>`;
+}
 
 function renderList() {
   const wrap = document.getElementById('rdListWrap');
@@ -74,30 +152,23 @@ function renderList() {
     return;
   }
 
-  wrap.innerHTML = `
-    <div class="rd-doc-grid">
-      ${docs.map(d => {
-        const uploader = d.uploaded_by_name || 'Unknown';
-        const kind = fileKind(d.original_filename);
-        const kindBadge = kind === 'other'
-          ? '<span class="rd-doc-badge rd-doc-badge--dl" title="No in-browser viewer exists for this file type — staff get a plain download link">Downloadable</span>'
-          : '<span class="rd-doc-badge rd-doc-badge--view" title="Staff can view and print this, but not download it">Print-only</span>';
-        return `
-          <div class="rd-doc-card" data-id="${esc(d.id)}">
-            <div class="rd-doc-icon">${FILE_ICON}</div>
-            <div class="rd-doc-info">
-              <div class="rd-doc-title">${esc(d.title)}</div>
-              <div class="rd-doc-meta">${esc(d.original_filename ?? 'file')} · Uploaded ${fmtShortDate(d.created_at)} by ${esc(uploader)} · ${kindBadge}</div>
-            </div>
-            <div class="rd-doc-actions">
-              <button class="btn btn-sm rd-rename-btn" data-id="${esc(d.id)}">Rename</button>
-              <button class="btn btn-sm rd-replace-btn" data-id="${esc(d.id)}">Replace File</button>
-              <button class="btn btn-sm rd-delete-btn" data-id="${esc(d.id)}" style="color:#dc2626;border-color:#fca5a5;">Delete</button>
-              <input type="file" class="rd-replace-input" data-id="${esc(d.id)}" hidden />
-            </div>
-          </div>`;
-      }).join('')}
-    </div>`;
+  const visible = filteredDocs();
+
+  if (!visible.length) {
+    wrap.innerHTML = `
+      <div class="rd-doc-empty">
+        <div class="rd-doc-empty-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <p class="rd-doc-empty-title">No documents match "${esc(document.getElementById('rdSearch')?.value ?? '')}"</p>
+        <p class="rd-doc-empty-desc">Try a different title or file name.</p>
+      </div>`;
+    return;
+  }
+
+  wrap.innerHTML = viewMode === 'grid'
+    ? `<div class="rd-doc-tiles">${visible.map(renderTile).join('')}</div>`
+    : `<div class="rd-doc-grid">${visible.map(renderCard).join('')}</div>`;
 
   wrap.querySelectorAll('.rd-rename-btn').forEach(btn =>
     btn.addEventListener('click', () => renameDoc(btn.dataset.id)));
