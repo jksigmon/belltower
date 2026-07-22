@@ -243,9 +243,9 @@ function confirmReleaseFamily() {
   const tag  = document.getElementById('efTag').value.trim();
   const name = document.getElementById('efName').value.trim() || '(Unnamed)';
   document.getElementById('releaseFamilyMsg').textContent =
-    `This unlinks every student currently on tag #${tag} (${name}) — including inactive/withdrawn students — ` +
-    `so you can rename this family and link the new one to the same tag. Guardians are not affected, since a ` +
-    `guardian record must always belong to a family; deactivate or reassign them separately if needed. This cannot be undone from here.`;
+    `This unlinks every student currently on tag #${tag} (${name}), including inactive and withdrawn students. ` +
+    `Afterward you can rename this family and link the new one to the same tag. Guardians are not affected: a ` +
+    `guardian record must always belong to a family, so deactivate or reassign them separately if needed. This cannot be undone from here.`;
   document.getElementById('releaseFamilyModal').hidden = false;
 }
 
