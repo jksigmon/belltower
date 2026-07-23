@@ -29,7 +29,8 @@ export async function initFamiliesSection(profile) {
         carline_tag_number,
         family_name,
         active,
-        students ( first_name, last_name, grade_level, active )
+        students ( first_name, last_name, grade_level, active ),
+        guardians ( active )
       `,
 
       searchFields: hasCarline ? ['carline_tag_number', 'family_name'] : ['family_name'],
@@ -90,6 +91,25 @@ function exportFamilyRow(f) {
    RENDER ROW
 ================================ */
 
+// A family with no linked students or guardians is usually a sign of an
+// incomplete/orphaned record (created but never populated, or everyone on
+// it withdrew and no one relinked) — flagged distinctly rather than shown
+// as a silent "0", so it's visible without opening the row.
+function familyMetaBadges(f) {
+  const activeStudents  = (f.students  ?? []).filter(s => s.active !== false).length;
+  const activeGuardians = (f.guardians ?? []).filter(g => g.active !== false).length;
+
+  const studentBadge = activeStudents === 0
+    ? '<span class="fam-risk-badge">No students linked</span>'
+    : `<span class="fam-count-badge">${activeStudents} student${activeStudents === 1 ? '' : 's'}</span>`;
+
+  const guardianBadge = activeGuardians === 0
+    ? '<span class="fam-risk-badge">No guardians linked</span>'
+    : `<span class="fam-count-badge">${activeGuardians} guardian${activeGuardians === 1 ? '' : 's'}</span>`;
+
+  return `${studentBadge}${guardianBadge}`;
+}
+
 function renderFamilyRow(f) {
   const initial = (f.family_name ?? '?')[0].toUpperCase();
   const color   = getAvatarColor(f.family_name ?? '');
@@ -110,6 +130,7 @@ function renderFamilyRow(f) {
           ${inactive}
         </div>
         ${tagBadge}
+        ${familyMetaBadges(f)}
       </div>
     </td>
     <td class="staff-cell-chevron">
