@@ -2050,7 +2050,6 @@ window.addEventListener('scroll', () => {
   if (!canvas) return;
   const hero = canvas.closest('.hero');
   const ctx = canvas.getContext('2d');
-  const DPR = Math.min(window.devicePixelRatio || 1, 2);
   const LINK = 132, MOUSE_LINK = 170;
   let W = 0, H = 0, pts = [], ripples = [], mouse = { x: -9999, y: -9999 }, running = false;
 
@@ -2059,6 +2058,13 @@ window.addEventListener('scroll', () => {
   function build() {
     const rect = canvas.getBoundingClientRect();
     W = rect.width; H = rect.height;
+    // Re-read devicePixelRatio on every rebuild rather than freezing it once
+    // at load — it can change independently of the window's CSS size (e.g.
+    // dragging the window to a display with a different pixel density), and
+    // a stale value here is exactly what makes the drawn points drift out
+    // of sync with the cursor: the canvas's CSS box resizes to match, but
+    // its drawing buffer stays at the old resolution and gets stretched.
+    const DPR = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = W * DPR; canvas.height = H * DPR;
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     const density = Math.min(150, Math.round(W * H / 10000));
@@ -2129,6 +2135,13 @@ window.addEventListener('scroll', () => {
   }
 
   window.addEventListener('resize', build);
+  // Catches any change to the canvas's rendered box — a window resize, a
+  // display/DPR change, a web-font swap reflowing the hero — not just the
+  // window resizing, so the drawing buffer never drifts out of sync with
+  // where the browser reports the cursor to be.
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(build).observe(canvas);
+  }
   if (hero) {
     hero.addEventListener('pointermove', e => {
       const r = canvas.getBoundingClientRect();
