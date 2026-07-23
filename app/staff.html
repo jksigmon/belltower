@@ -1201,13 +1201,16 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       <div class="panel">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
           <h3 style="margin:0;">Operations Manual</h3>
-          <div class="rd-view-toggle" id="staffRdViewToggle" role="group" aria-label="View mode">
-            <button type="button" class="rd-view-btn" data-view="list" title="List view" aria-label="List view">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            </button>
-            <button type="button" class="rd-view-btn" data-view="grid" title="Thumbnail view" aria-label="Thumbnail view">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-            </button>
+          <div class="directory-filters">
+            <input id="staffRdSearch" type="text" placeholder="Search by title or file name…" />
+            <div class="rd-view-toggle" id="staffRdViewToggle" role="group" aria-label="View mode">
+              <button type="button" class="rd-view-btn" data-view="list" title="List view" aria-label="List view">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+              <button type="button" class="rd-view-btn" data-view="grid" title="Thumbnail view" aria-label="Thumbnail view">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+              </button>
+            </div>
           </div>
         </div>
         <p class="muted" style="margin:0 0 20px;font-size:13px;">
@@ -1417,7 +1420,7 @@ import { initUserMenu } from '/app/user-menu.js';
 import { requireAuth } from '/app/admin.auth.js';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig } from '/app/admin.shared.js';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce } from '/app/admin.shared.js';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { fileKind as rdFileKind, tileIconSvg as rdTileIconSvg, getThumbnailUrl as rdGetThumbnailUrl, withThumbnailConcurrency as rdWithThumbnailConcurrency } from '/app/resource-doc-thumbnails.js';
 
@@ -2068,6 +2071,7 @@ window.staffCopyLink = function (btn) {
 /* ── Resource Documents (view/print only) ── */
 const STAFF_RD_VIEW_KEY = 'rdViewMode';
 let staffRdViewMode = localStorage.getItem(STAFF_RD_VIEW_KEY) === 'grid' ? 'grid' : 'list';
+let staffRdSearchTerm = '';
 
 async function loadStaffResources() {
   const list = document.getElementById('staffResourcesList');
@@ -2083,18 +2087,35 @@ async function loadStaffResources() {
     .order('title');
 
   if (error || !data || !data.length) {
+    window._staffResourceDocs = [];
     list.innerHTML = '<p class="muted" style="text-align:center;padding:24px 0;">No documents available yet.</p>';
     return;
   }
 
   window._staffResourceDocs = data;
-  renderStaffResources(data);
+  renderStaffResources();
   wireStaffResourceViewToggle();
+  wireStaffResourceSearch();
 }
 
-function renderStaffResources(data) {
+function renderStaffResources() {
   const list = document.getElementById('staffResourcesList');
   if (!list) return;
+
+  const all = window._staffResourceDocs || [];
+  const term = staffRdSearchTerm;
+  const data = term
+    ? all.filter(function (d) {
+        return (d.title || '').toLowerCase().indexOf(term) !== -1 ||
+               (d.original_filename || '').toLowerCase().indexOf(term) !== -1;
+      })
+    : all;
+
+  if (!data.length) {
+    list.innerHTML = '<p class="muted" style="text-align:center;padding:24px 0;">' +
+      (all.length ? 'No documents match your search.' : 'No documents available yet.') + '</p>';
+    return;
+  }
 
   if (staffRdViewMode === 'grid') {
     list.innerHTML = '<div class="rd-doc-tiles">' + data.map(function (d) {
@@ -2120,6 +2141,16 @@ function renderStaffResources(data) {
       '<button class="btn btn-sm btn-primary" data-id="' + esc(d.id) + '" onclick="' + handler + '">' + btnLabel + '</button>' +
     '</div>';
   }).join('');
+}
+
+function wireStaffResourceSearch() {
+  const input = document.getElementById('staffRdSearch');
+  if (!input || input.dataset.wired) return;
+  input.dataset.wired = '1';
+  input.addEventListener('input', debounce(function (e) {
+    staffRdSearchTerm = e.target.value.trim().toLowerCase();
+    renderStaffResources();
+  }, 200));
 }
 
 async function loadStaffResourceThumbnails(data) {
@@ -2148,7 +2179,7 @@ function wireStaffResourceViewToggle() {
     staffRdViewMode = btn.dataset.view === 'grid' ? 'grid' : 'list';
     localStorage.setItem(STAFF_RD_VIEW_KEY, staffRdViewMode);
     updateStaffRdViewButtons();
-    renderStaffResources(window._staffResourceDocs || []);
+    renderStaffResources();
   });
   updateStaffRdViewButtons();
 }
