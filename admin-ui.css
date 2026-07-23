@@ -7050,38 +7050,127 @@ select.admin-input {
 /* ── Inventory checkout grid (shared by admin.inventory.js + staff.html
    inventory-grid.js renderer) ── */
 .inv-status-btn {
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
   border: 1px solid transparent;
   cursor: pointer;
   white-space: nowrap;
+  transition: filter 0.1s;
 }
+.inv-status-btn:not(:disabled):hover { filter: brightness(0.97); }
 .inv-status-btn:disabled { cursor: default; opacity: 0.7; }
 .inv-status--none {
   background: #f3f4f6;
   color: #6b7280;
   border-color: #e5e7eb;
 }
+/* Checked out is the normal, expected state for most rows — not a problem —
+   so it reads as neutral/in-progress (blue) rather than a warning (amber). */
 .inv-status--out {
-  background: #fef3c7;
-  color: #92400e;
-  border-color: #fde68a;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
 }
 .inv-status--returned {
   background: #dcfce7;
   color: #15803d;
   border-color: #bbf7d0;
 }
-.inv-grid-table {
-  width: auto;
+
+/* Lists sit side by side as compact columns, anchored to the left edge and
+   wrapping as needed — instead of being spread across the full screen width
+   with large gaps between them (each item is still its own self-contained
+   table rather than one wide matrix with an item per column). */
+.inv-list-stack {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 24px;
 }
+.inv-list-block {
+  flex: 0 0 auto;
+  width: 456px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.inv-list-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+}
+.inv-list-block-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #111827;
+}
+.inv-bulk-actions { display: flex; gap: 6px; }
+
+.inv-grid-table {
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.inv-col-student     { width: 176px; }
+.inv-col-identifier  { width: 130px; }
+.inv-col-status      { width: 150px; }
 .inv-grid-table th, .inv-grid-table td {
   text-align: left;
   vertical-align: middle;
-  padding: 8px 10px;
+  padding: 9px 14px;
+  overflow: hidden;
 }
+.inv-grid-table th:last-child, .inv-grid-table td:last-child {
+  padding-right: 24px;
+}
+.inv-grid-table th {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #9ca3af;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+.inv-grid-table tbody tr:not(:last-child) td { border-bottom: 1px solid #f3f4f6; }
+.inv-grid-table tbody tr:nth-child(even) { background: #fafbfc; }
+.inv-student-cell {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.inv-identifier-input {
+  width: 100%;
+  max-width: 100px;
+  padding: 5px 9px;
+  font-size: 12px;
+  border-radius: 7px;
+}
+/* Items column on the oversight list table — wraps as chips instead of a
+   long comma-separated string, so it stays scannable even with 5-6 items. */
+.inv-items-cell { display: flex; flex-wrap: wrap; gap: 5px; }
+.inv-item-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #4b5563;
+  white-space: nowrap;
+}
+
 .inv-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

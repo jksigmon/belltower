@@ -44,13 +44,16 @@ async function loadLists() {
   if (error) { console.error('loadLists', error); return; }
   const listIds = (listRows || []).map(l => l.id);
 
-  // Two bulk queries (not one per list) to compute per-list counts.
-  const [{ data: memberRows }, { data: assignmentRows }] = await Promise.all([
+  // Bulk queries (not one per list) to compute per-list counts and item labels.
+  const [{ data: memberRows }, { data: assignmentRows }, { data: itemRows }] = await Promise.all([
     listIds.length
       ? supabase.from('inventory_list_members').select('list_id').in('list_id', listIds)
       : Promise.resolve({ data: [] }),
     listIds.length
       ? supabase.from('inventory_assignments').select('list_id, status').in('list_id', listIds)
+      : Promise.resolve({ data: [] }),
+    listIds.length
+      ? supabase.from('inventory_list_items').select('list_id, label, sort_order').in('list_id', listIds).order('sort_order')
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -62,10 +65,16 @@ async function loadLists() {
     if (a.status === 'checked_out') checkedOutCounts[a.list_id] = (checkedOutCounts[a.list_id] || 0) + 1;
   });
 
+  const itemsByList = {};
+  (itemRows || []).forEach(it => {
+    (itemsByList[it.list_id] ||= []).push(it.label);
+  });
+
   lists = (listRows || []).map(l => ({
     ...l,
     studentCount: memberCounts[l.id] || 0,
     checkedOutCount: checkedOutCounts[l.id] || 0,
+    items: itemsByList[l.id] || [],
   }));
 
   renderLists();
@@ -77,7 +86,7 @@ function renderLists() {
 
   if (!lists.length) {
     tbody.innerHTML = `
-      <tr><td colspan="6">
+      <tr><td colspan="7">
         <div class="admin-empty-state">
           <div class="admin-empty-state-icon"><i data-lucide="package"></i></div>
           <p class="admin-empty-state-title">No inventory lists yet</p>
@@ -88,16 +97,30 @@ function renderLists() {
     return;
   }
 
-  tbody.innerHTML = lists.map(l => `
+  tbody.innerHTML = lists.map(l => {
+    const itemsHtml = l.items.length
+      ? `<div class="inv-items-cell">${l.items.map(label => `<span class="inv-item-chip">${esc(label)}</span>`).join('')}</div>`
+      : '<span class="muted" style="font-size:12px;">No items yet</span>';
+
+    // Denominator is students × items — the max possible checkouts — so the
+    // count reads as a completion ratio instead of a bare, contextless number.
+    const maxPossible = l.studentCount * l.items.length;
+    const checkedOutHtml = maxPossible
+      ? `${l.checkedOutCount} / ${maxPossible}`
+      : '<span class="muted">—</span>';
+
+    return `
     <tr>
       <td>${esc(l.name)}</td>
       <td class="staff-cell-muted">${esc(l.owner_name)}</td>
+      <td>${itemsHtml}</td>
       <td>${l.studentCount}</td>
-      <td>${l.checkedOutCount}</td>
+      <td>${checkedOutHtml}</td>
       <td>${l.archived_at ? `<span class="staff-cell-muted">Archived ${fmtShortDate(l.archived_at)}</span>` : '<span class="module-pill">Active</span>'}</td>
       <td><button class="btn btn-sm inv-open-btn" data-id="${esc(l.id)}">Open</button></td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   tbody.querySelectorAll('.inv-open-btn').forEach(btn =>
     btn.addEventListener('click', () => openList(btn.dataset.id)));

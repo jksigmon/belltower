@@ -71,56 +71,54 @@ export function renderInventoryGrid(container, { students, items, assignmentMap,
     return;
   }
 
-  const header = `
-    <tr>
-      <th style="text-align:left;min-width:150px;">Student</th>
-      ${items.map(it => `
-        <th style="min-width:150px;text-align:left;">
-          <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">
-            <span>${esc(it.label)}</span>
-            ${canEdit ? `
-              <div style="display:flex;gap:4px;">
-                <button type="button" class="btn btn-sm inv-bulk-out" data-item="${esc(it.id)}" title="Check out all">Out all</button>
-                <button type="button" class="btn btn-sm inv-bulk-return" data-item="${esc(it.id)}" title="Mark all returned">Return all</button>
-              </div>
-            ` : ''}
-          </div>
-        </th>
-      `).join('')}
-    </tr>
-  `;
-
-  const rows = students.map(s => `
-    <tr>
-      <td style="font-weight:600;white-space:nowrap;text-align:left;">${esc(s.last_name)}, ${esc(s.first_name)}</td>
-      ${items.map(it => {
-        const a = assignmentMap[keyOf(s.id, it.id)];
-        const status = a?.status || 'not_assigned';
-        const identifier = a?.identifier || '';
-        return `
-          <td style="text-align:left;">
-            <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-start;">
-              <input class="form-input inv-identifier-input" data-student="${esc(s.id)}" data-item="${esc(it.id)}"
-                     value="${esc(identifier)}" placeholder="ID / #" ${canEdit ? '' : 'disabled'}
-                     style="text-align:left;padding:4px 6px;font-size:12px;width:100px;" />
-              <button type="button" class="inv-status-btn ${STATUS_CLASS[status]}" data-student="${esc(s.id)}" data-item="${esc(it.id)}" data-status="${esc(status)}" ${canEdit ? '' : 'disabled'}>
-                ${statusLabel(status)}
-              </button>
-            </div>
+  // One self-contained, compact block per item (ELA Books, Math Books,
+  // etc.), laid out as columns anchored to the left edge — rather than one
+  // wide table with an item per column stretched across the full screen,
+  // which read as a spreadsheet dump instead of a set of discrete lists.
+  const blocks = items.map(it => {
+    const rows = students.map(s => {
+      const a = assignmentMap[keyOf(s.id, it.id)];
+      const status = a?.status || 'not_assigned';
+      const identifier = a?.identifier || '';
+      return `
+        <tr>
+          <td class="inv-student-cell">${esc(s.last_name)}, ${esc(s.first_name)}</td>
+          <td>
+            <input class="form-input inv-identifier-input" data-student="${esc(s.id)}" data-item="${esc(it.id)}"
+                   value="${esc(identifier)}" placeholder="ID / #" ${canEdit ? '' : 'disabled'} />
           </td>
-        `;
-      }).join('')}
-    </tr>
-  `).join('');
+          <td>
+            <button type="button" class="inv-status-btn ${STATUS_CLASS[status]}" data-student="${esc(s.id)}" data-item="${esc(it.id)}" data-status="${esc(status)}" ${canEdit ? '' : 'disabled'}>
+              ${statusLabel(status)}
+            </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
 
-  container.innerHTML = `
-    <div style="overflow-x:auto;">
-      <table class="admin-table inv-grid-table">
-        <thead>${header}</thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-  `;
+    return `
+      <div class="inv-list-block">
+        <div class="inv-list-block-header">
+          <h4 class="inv-list-block-title">${esc(it.label)}</h4>
+          ${canEdit ? `
+            <div class="inv-bulk-actions">
+              <button type="button" class="btn btn-sm inv-bulk-out" data-item="${esc(it.id)}" title="Check out all">Out all</button>
+              <button type="button" class="btn btn-sm inv-bulk-return" data-item="${esc(it.id)}" title="Mark all returned">Return all</button>
+            </div>
+          ` : ''}
+        </div>
+        <table class="admin-table inv-grid-table">
+          <colgroup>
+            <col class="inv-col-student"><col class="inv-col-identifier"><col class="inv-col-status">
+          </colgroup>
+          <thead><tr><th>Student</th><th>Identifier</th><th>Status</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `<div class="inv-list-stack">${blocks}</div>`;
 
   if (!canEdit) return;
 
