@@ -96,6 +96,7 @@ function renderCard(d) {
         <div class="rd-doc-meta">${esc(d.original_filename ?? 'file')} · Uploaded ${fmtShortDate(d.created_at)} by ${esc(uploader)} · ${kindBadge}</div>
       </div>
       <div class="rd-doc-actions">
+        <button class="btn btn-sm btn-primary rd-open-btn" data-id="${esc(d.id)}">Open</button>
         <button class="btn btn-sm rd-rename-btn" data-id="${esc(d.id)}">Rename</button>
         <button class="btn btn-sm rd-replace-btn" data-id="${esc(d.id)}">Replace File</button>
         <button class="btn btn-sm rd-delete-btn" data-id="${esc(d.id)}" style="color:#dc2626;border-color:#fca5a5;">Delete</button>
@@ -112,6 +113,7 @@ function renderTile(d) {
       <div class="rd-doc-tile-title">${esc(d.title)}</div>
       <div class="rd-doc-tile-meta">${esc(d.original_filename ?? 'file')}</div>
       <div class="rd-doc-tile-actions">
+        <button class="btn btn-sm btn-primary rd-open-btn" data-id="${esc(d.id)}">Open</button>
         <button class="btn btn-sm rd-rename-btn" data-id="${esc(d.id)}">Rename</button>
         <button class="btn btn-sm rd-replace-btn" data-id="${esc(d.id)}">Replace</button>
         <button class="btn btn-sm rd-delete-btn" data-id="${esc(d.id)}" style="color:#dc2626;border-color:#fca5a5;">Delete</button>
@@ -168,6 +170,9 @@ function renderList() {
     : `<div class="rd-doc-grid">${visible.map(renderCard).join('')}</div>`;
 
   if (viewMode === 'grid') loadGridThumbnails(visible);
+
+  wrap.querySelectorAll('.rd-open-btn').forEach(btn =>
+    btn.addEventListener('click', () => openResourceDoc(btn.dataset.id)));
 
   wrap.querySelectorAll('.rd-rename-btn').forEach(btn =>
     btn.addEventListener('click', () => renameDoc(btn.dataset.id)));
@@ -306,6 +311,21 @@ async function uploadDoc() {
   fileInput.value = '';
   updateFileNameDisplay(null);
   await loadDocs();
+}
+
+/* ===============================
+   OPEN
+================================ */
+async function openResourceDoc(id) {
+  const doc = docs.find(d => d.id === id);
+  if (!doc) return;
+
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(doc.file_path, 300);
+
+  if (error || !data?.signedUrl) { dbError(error, 'Failed to open document'); return; }
+  window.open(data.signedUrl, '_blank', 'noopener');
 }
 
 /* ===============================
