@@ -367,12 +367,12 @@ async function createFamily() {
   const hasCarline = schoolConfig?.modules?.carline !== false;
   if (hasCarline && !tag) { alert('Carline tag number is required.'); return; }
 
-  const { error } = await supabase.from('families').insert({
+  const { data, error } = await supabase.from('families').insert({
     school_id:          currentProfile.school_id,
     carline_tag_number: tag,
     family_name:        name || null,
     active:             true
-  });
+  }).select().single();
 
   if (error) { dbError(error, 'Failed to add family'); return; }
 
@@ -381,6 +381,10 @@ async function createFamily() {
 
   window.closeDrawer?.('familyDrawer');
   familiesDirectory.load();
+
+  // Hand off straight into the edit drawer so the admin can search and link
+  // students to this family immediately, without a second trip back in.
+  openEditFamilyDrawer(data);
 }
 
 /* ===============================
