@@ -1567,11 +1567,12 @@ function buildPaymentTable(rows, type) {
         <th>Due</th><th>Paid</th><th>Balance</th><th>Status</th><th>Last payment</th><th></th>
       </tr></thead><tbody>`;
 
-  const statusCls = { paid: 'pay-status-paid', partial: 'pay-status-partial', unpaid: 'pay-status-unpaid', waived: 'pay-status-waived' };
+  const statusCls   = { paid: 'pay-status-paid', partial: 'pay-status-partial', unpaid: 'pay-status-unpaid', waived: 'pay-status-waived' };
+  const statusLabel = { paid: 'Paid', partial: 'Partial', unpaid: 'Unpaid', waived: 'Waived' };
 
   rows.forEach(p => {
     const balance    = Math.max(0, (p.amount_due || 0) - (p.amount_paid || 0));
-    const badge      = `<span class="comp-chip ${statusCls[p.status] ?? ''}">${p.status}</span>`;
+    const badge      = `<span class="comp-chip ${statusCls[p.status] ?? ''}">${statusLabel[p.status] ?? p.status}</span>`;
     const lastDate   = p.last_payment_date
       ? new Date(p.last_payment_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       : '—';
@@ -1585,8 +1586,10 @@ function buildPaymentTable(rows, type) {
     }
     const canAct = p.status !== 'paid' && p.status !== 'waived';
     const actions = canAct
-      ? `<button class="btn btn-sm" data-record-payment="${p.id}" data-name="${name}" data-balance="${balance}" style="font-size:11px;">Record</button>
-         <button data-waive-payment="${p.id}" data-name="${name}" style="background:none;border:none;cursor:pointer;font-size:11px;color:#9ca3af;padding:4px 6px;">Waive</button>`
+      ? `<div style="display:inline-flex;gap:6px;">
+           <button class="btn btn-sm" data-record-payment="${p.id}" data-name="${name}" data-balance="${balance}" style="font-size:11px;">Record</button>
+           <button class="btn btn-sm btn-outline" data-waive-payment="${p.id}" data-name="${name}" style="font-size:11px;">Waive</button>
+         </div>`
       : '';
 
     html += `<tr>
