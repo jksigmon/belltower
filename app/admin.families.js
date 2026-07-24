@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js';
 import { createDirectory } from './admin.directory.js';
-import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError, showToast, GRADE_ORDER } from './admin.shared.js';
+import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError, showToast, GRADE_ORDER, invalidateFamilyCache } from './admin.shared.js';
 
 let currentProfile;
 let schoolConfig = null;
@@ -254,6 +254,7 @@ async function saveEditFamily() {
   saveBtn.textContent = 'Save Changes';
 
   if (error) { dbError(error, 'Failed to save family'); return; }
+  invalidateFamilyCache(currentProfile.school_id);
   window.closeDrawer?.('editFamilyDrawer');
   familiesDirectory.load();
 }
@@ -375,6 +376,7 @@ async function executeDeleteFamily() {
   const { error } = await supabase.from('families').delete().eq('id', editingFamilyId);
   document.getElementById('deleteFamilyModal').hidden = true;
   if (error) { dbError(error, 'Failed to delete family'); return; }
+  invalidateFamilyCache(currentProfile.school_id);
   window.closeDrawer?.('editFamilyDrawer');
   editingFamilyId = null;
   familiesDirectory.load();
@@ -399,6 +401,7 @@ async function createFamily() {
   }).select().single();
 
   if (error) { dbError(error, 'Failed to add family'); return; }
+  invalidateFamilyCache(currentProfile.school_id);
 
   document.getElementById('familyTag').value  = '';
   document.getElementById('familyName').value = '';
