@@ -6310,6 +6310,12 @@ body.placement-fs .wrap {
 }
 .guardian-chip-phone:hover { text-decoration: underline; }
 
+/* Forces the browser to respect the <colgroup> widths instead of computing
+   column widths from content (default "auto" table layout treats <col>
+   widths as hints only) — without this, columns can end up inconsistently
+   sized between the header row and body rows. */
+#familiesTable { table-layout: fixed; }
+
 /* ================================================================
    MOBILE — @media (max-width: 767px)
    Moved from admin.html inline <style> block

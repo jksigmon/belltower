@@ -94,20 +94,22 @@ function exportFamilyRow(f) {
 // A family with no linked students or guardians is usually a sign of an
 // incomplete/orphaned record (created but never populated, or everyone on
 // it withdrew and no one relinked) — flagged distinctly rather than shown
-// as a silent "0", so it's visible without opening the row.
-function familyMetaBadges(f) {
-  const activeStudents  = (f.students  ?? []).filter(s => s.active !== false).length;
-  const activeGuardians = (f.guardians ?? []).filter(g => g.active !== false).length;
-
-  const studentBadge = activeStudents === 0
+// as a silent "0", so it's visible without opening the row. Rendered as
+// their own table columns (not packed inline after the name) so the
+// badges line up in a straight column down the page instead of drifting
+// left/right with each row's name length.
+function studentCountBadge(f) {
+  const activeStudents = (f.students ?? []).filter(s => s.active !== false).length;
+  return activeStudents === 0
     ? '<span class="fam-risk-badge">No students linked</span>'
     : `<span class="fam-count-badge">${activeStudents} student${activeStudents === 1 ? '' : 's'}</span>`;
+}
 
-  const guardianBadge = activeGuardians === 0
+function guardianCountBadge(f) {
+  const activeGuardians = (f.guardians ?? []).filter(g => g.active !== false).length;
+  return activeGuardians === 0
     ? '<span class="fam-risk-badge">No guardians linked</span>'
     : `<span class="fam-count-badge">${activeGuardians} guardian${activeGuardians === 1 ? '' : 's'}</span>`;
-
-  return `${studentBadge}${guardianBadge}`;
 }
 
 function renderFamilyRow(f) {
@@ -129,10 +131,11 @@ function renderFamilyRow(f) {
           <span class="staff-fullname">${esc(f.family_name ?? '(Unnamed)')}</span>
           ${inactive}
         </div>
-        ${tagBadge}
-        ${familyMetaBadges(f)}
       </div>
     </td>
+    <td>${tagBadge}</td>
+    <td>${studentCountBadge(f)}</td>
+    <td>${guardianCountBadge(f)}</td>
     <td class="staff-cell-chevron">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </td>
