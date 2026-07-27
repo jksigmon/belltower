@@ -18,6 +18,13 @@ let mgSearchTimeout = null;
 ═══════════════════════════════════════════════════════════ */
 export async function initRequestsSection(profile) {
   currentProfile = profile;
+
+  if (!profile.is_superadmin && profile.role !== 'admin' && !profile.can_manage_requests) {
+    document.getElementById('requestsSectionRoot').innerHTML =
+      '<p class="muted" style="padding:40px;">You are not authorized to manage request forms.</p>';
+    return;
+  }
+
   await loadCategories();
   renderRoot();
   document.getElementById('reqCatDrawerClose')?.addEventListener('click', closeCatDrawer);

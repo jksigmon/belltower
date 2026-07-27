@@ -77,7 +77,7 @@
         <a href="/pto.html?from=admin" data-cap-group="pto" data-module="pto"><i data-lucide="calendar"></i> Leave Management</a>
         <a href="/substitutes.html?from=admin" data-cap-group="substitutes" data-module="substitutes"><i data-lucide="repeat-2"></i> Substitutes</a>
         <a href="/carline.html" data-cap-group="carline" data-module="carline"><i data-lucide="car"></i> Carline</a>
-        <a href="#requests" data-cap="can_access_admin" data-module="requests"><i data-lucide="inbox"></i> Requests</a>
+        <a href="#requests" data-cap="can_manage_requests" data-module="requests"><i data-lucide="inbox"></i> Requests</a>
         <a href="/app/licensure.html" data-cap="can_manage_licensure" data-module="licensure"><i data-lucide="badge-check"></i> Licensure</a>
         <a href="/app/compliance.html" data-cap="can_manage_compliance" data-module="compliance"><i data-lucide="shield-check"></i> Compliance</a>
         <a href="/app/field-trips.html" data-cap="can_manage_field_trips" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
@@ -457,6 +457,7 @@
           <label><input type="checkbox" data-field="can_manage_campuses"><span class="perm-name">Manage campuses</span><span class="perm-desc">Can add and edit school campus locations and their settings.</span></label>
           <label><input type="checkbox" data-field="can_manage_calendar"><span class="perm-name">Manage school calendar</span><span class="perm-desc">Can add and edit events on the dashboard school calendar.</span></label>
           <label><input type="checkbox" data-field="can_manage_resource_docs"><span class="perm-name">Manage resource documents</span><span class="perm-desc">Can upload, rename, replace, and delete the PDF documents staff see under Resources.</span></label>
+          <label><input type="checkbox" data-field="can_manage_requests"><span class="perm-name">Manage request forms</span><span class="perm-desc">Can create and edit request categories/forms and assign category managers. Doesn't affect who can submit requests or who can respond to ones they're already assigned to manage.</span></label>
           <label><input type="checkbox" data-field="can_bulk_upload"><span class="perm-name">Bulk upload</span><span class="perm-desc">Can import students, staff, and other records in bulk via CSV.</span></label>
           <label><input type="checkbox" data-field="can_export_data"><span class="perm-name">Export data</span><span class="perm-desc">Can export student, staff, and other records to spreadsheets.</span></label>
           <label data-module="licensure"><input type="checkbox" data-field="can_manage_licensure"><span class="perm-name">Manage licensure</span><span class="perm-desc">Can view and update staff license records and expiry notifications.</span></label>

@@ -37,7 +37,8 @@ const ACCESS_ROLE_PRESETS = {
     can_bulk_upload: false,
     can_export_data: false,
     can_manage_licensure: false,
-    can_manage_compliance: false
+    can_manage_compliance: false,
+    can_manage_requests: false
   },
   office: {
     can_login: true,
@@ -65,7 +66,8 @@ const ACCESS_ROLE_PRESETS = {
     can_bulk_upload: false,
     can_export_data: true,
     can_manage_licensure: false,
-    can_manage_compliance: false
+    can_manage_compliance: false,
+    can_manage_requests: false
   },
   admin: {
     can_login: true,
@@ -94,7 +96,8 @@ const ACCESS_ROLE_PRESETS = {
     can_bulk_upload: true,
     can_export_data: true,
     can_manage_licensure: true,
-    can_manage_compliance: true
+    can_manage_compliance: true,
+    can_manage_requests: true
   }
 };
 

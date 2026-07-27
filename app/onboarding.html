@@ -589,7 +589,7 @@ td strong { color: #111827; }
 
     <div class="note" style="margin-bottom:10px;">
       <span class="note-icon">ℹ</span>
-      <p><strong>Permissions are layered.</strong> <code>can_access_admin</code> is the door key — it lets the user into the Admin Panel at all. The granular permissions below are the room keys — they control which tabs and sections appear once inside. A user with <em>only</em> <code>can_access_admin</code> and no other permissions will see an essentially empty admin panel with just the Setup Checklist and Requests form management nav links.</p>
+      <p><strong>Permissions are layered.</strong> <code>can_access_admin</code> is the door key — it lets the user into the Admin Panel at all. The granular permissions below are the room keys — they control which tabs and sections appear once inside. A user with <em>only</em> <code>can_access_admin</code> and no other permissions will see an essentially empty admin panel with just the Setup Checklist nav link.</p>
     </div>
 
     <table>
@@ -597,7 +597,8 @@ td strong { color: #111827; }
         <th style="width:38%;">Permission</th>
         <th>What it grants access to</th>
       </tr>
-      <tr><td><code>can_access_admin</code></td><td>The Admin Panel itself. Without this, staff only see the Staff Portal. Also unlocks the <strong>Setup Checklist</strong> and the <strong>Requests</strong> form management section (create/edit request forms and assign category managers).</td></tr>
+      <tr><td><code>can_access_admin</code></td><td>The Admin Panel itself. Without this, staff only see the Staff Portal. Also unlocks the <strong>Setup Checklist</strong>.</td></tr>
+      <tr><td><code>can_manage_requests</code></td><td>Requests tab — create/edit request categories (forms) and assign category managers. Doesn't affect who can submit requests, or who can respond to submissions in a category they're already assigned to manage.</td></tr>
       <tr><td><code>can_manage_staff</code></td><td>Staff tab — add, edit, deactivate employee records.</td></tr>
       <tr><td><code>can_manage_students</code></td><td>Students tab — add, edit, manage student records.</td></tr>
       <tr><td><code>can_manage_families</code></td><td>Families tab + Data Collection (Guardian Intake campaigns).</td></tr>
@@ -677,7 +678,7 @@ td strong { color: #111827; }
       <tr>
         <td><code>requests</code></td>
         <td>Requests form management (admin panel nav), Submit a Request (staff portal nav)</td>
-        <td>Admin form management: <code>can_access_admin</code>. Staff submission: none — any authenticated staff member can submit. Defaults to enabled (no explicit school toggle required).</td>
+        <td>Admin form management: <code>can_access_admin</code> + <code>can_manage_requests</code>. Staff submission: none — any authenticated staff member can submit. Defaults to enabled (no explicit school toggle required).</td>
       </tr>
       <tr>
         <td><code>reservations</code></td>
