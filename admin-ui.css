@@ -4257,6 +4257,86 @@ a.staff-dash-request-row:hover {
   margin-top: 0;
 }
 
+/* ── Access & Permissions: By Person / Grid / Change Log toggle ── */
+.access-view-toggle {
+  display: inline-flex;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.access-view-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  transition: background 0.15s, color 0.15s;
+}
+.access-view-btn + .access-view-btn { border-left: 1px solid #e5e7eb; }
+.access-view-btn:hover { background: #f8fafc; }
+.access-view-btn.active { background: #eff6ff; color: #2563eb; }
+
+/* ── Bulk permission toggle (pick one permission, list of staff) ── */
+#accessGridPermSelect { min-width: 260px; }
+#accessGridSearch { flex: 1; max-width: 360px; }
+.access-grid-wrap {
+  overflow: auto;
+  max-height: 72vh;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+.access-toggle-list { display: flex; flex-direction: column; }
+.access-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.access-toggle-row:last-child { border-bottom: none; }
+.access-toggle-row:hover { background: #f8fafc; }
+.access-toggle-name {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--text, #111827);
+}
+
+/* Toggle switch — matches the By Person checkbox style */
+.access-toggle-switch {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 36px;
+  min-width: 36px;
+  height: 20px;
+  background: #d1d5db;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.access-toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  background: white;
+  border-radius: 50%;
+  transition: left 0.18s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+}
+.access-toggle-switch:checked { background: var(--primary); }
+.access-toggle-switch:checked::after { left: 18px; }
+.access-toggle-switch:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* Toggle switches */
 #accessPermissions input[type="checkbox"] {
   -webkit-appearance: none;

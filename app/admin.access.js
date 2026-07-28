@@ -1,10 +1,17 @@
 // admin.access.js
 import { supabase } from './admin.supabase.js';
-import { esc, getAvatarColor } from './admin.shared.js';
+import { esc, getAvatarColor, dbError, debounce } from './admin.shared.js';
 
 let currentProfile;
 let currentModules = {};
 let initialized = false;
+
+let currentAccessView = 'person';
+let gridProfiles      = [];
+let gridSearchTerm    = '';
+let gridSelectedField = '';
+let gridLoaded        = false;
+let auditLoaded       = false;
 
 /* ===============================
    ROLE PRESETS
@@ -121,6 +128,11 @@ export async function initAccessSection(profile, modules = {}) {
 
   await loadAccessUserOptions();
   await loadPendingUsers();
+
+  // Match the always-fresh behavior above for whichever view is currently
+  // showing, in case permissions changed elsewhere since last visit.
+  if (currentAccessView === 'grid') { gridLoaded = false; await loadAccessGrid(); }
+  if (currentAccessView === 'audit') { auditLoaded = false; await loadAuditLog(); }
 }
 
 function applyModuleGating() {
@@ -188,7 +200,8 @@ async function loadAccessProfile(profileId) {
       can_manage_families, can_manage_guardians, can_manage_bus_groups,
       can_manage_carpools, can_manage_substitutes, can_manage_campuses,
       can_manage_calendar, can_manage_resource_docs, can_manage_reservations, can_manage_inventory,
-      can_bulk_upload, can_export_data, can_manage_licensure, can_manage_compliance, can_manage_field_trips
+      can_bulk_upload, can_export_data, can_manage_licensure, can_manage_compliance, can_manage_field_trips,
+      can_manage_requests
     `)
     .eq('id', profileId)
     .single();
@@ -512,4 +525,256 @@ function wireAccessEvents() {
     .addEventListener('change', e =>
       changeAccountStatus(e.target)
     );
+
+  document.querySelectorAll('#accessViewToggle .access-view-btn').forEach(btn =>
+    btn.addEventListener('click', () => switchAccessView(btn.dataset.view)));
+
+  document.getElementById('accessGridSearch')?.addEventListener('input', debounce(e => {
+    gridSearchTerm = e.target.value.trim().toLowerCase();
+    renderPermissionGridFiltered();
+  }, 200));
+
+  document.getElementById('accessGridPermSelect')?.addEventListener('change', e => {
+    gridSelectedField = e.target.value;
+    renderPermissionGridFiltered();
+  });
+}
+
+/* ===============================
+   VIEW TOGGLE (By Person / Grid / Change Log)
+================================ */
+async function switchAccessView(view) {
+  currentAccessView = view;
+
+  document.getElementById('accessByPersonView').style.display = view === 'person' ? '' : 'none';
+  document.getElementById('accessGridView').style.display     = view === 'grid'   ? '' : 'none';
+  document.getElementById('accessAuditLogView').style.display = view === 'audit'  ? '' : 'none';
+
+  document.querySelectorAll('#accessViewToggle .access-view-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.view === view));
+
+  if (view === 'grid' && !gridLoaded) await loadAccessGrid();
+  if (view === 'audit' && !auditLoaded) await loadAuditLog();
+}
+
+/* ===============================
+   PERMISSIONS GRID
+   Reads the field/group/module structure straight from the existing
+   By Person checkbox markup (rather than duplicating a second hardcoded
+   list here) so the grid can never drift out of sync with it.
+================================ */
+function readPermissionFieldGroups() {
+  const groups = [];
+  document.querySelectorAll('#accessPermissions > .panel').forEach(panel => {
+    const groupLabel = panel.querySelector('h4')?.textContent?.trim() ?? '';
+    const fields = [];
+    panel.querySelectorAll('input[type="checkbox"][data-field]').forEach(input => {
+      const label = input.closest('label');
+      const name = label?.querySelector('.perm-name')?.textContent?.trim() ?? input.dataset.field;
+      fields.push({ field: input.dataset.field, label: name, module: label?.dataset.module || null });
+    });
+    if (fields.length) groups.push({ label: groupLabel, fields });
+  });
+  return groups;
+}
+
+function visiblePermissionFieldGroups() {
+  const groups = readPermissionFieldGroups();
+  if (currentProfile.is_superadmin) return groups;
+  return groups
+    .map(g => ({ ...g, fields: g.fields.filter(f => !f.module || currentModules[f.module] !== false) }))
+    .filter(g => g.fields.length);
+}
+
+function populatePermSelect() {
+  const select = document.getElementById('accessGridPermSelect');
+  if (!select || select.dataset.populated) return;
+  select.dataset.populated = '1';
+
+  visiblePermissionFieldGroups().forEach(g => {
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = g.label;
+    g.fields.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.field;
+      opt.textContent = f.label;
+      optgroup.appendChild(opt);
+    });
+    select.appendChild(optgroup);
+  });
+}
+
+async function loadAccessGrid() {
+  const wrap = document.getElementById('accessGridTableWrap');
+  populatePermSelect();
+
+  const allFields = visiblePermissionFieldGroups().flatMap(g => g.fields).map(f => f.field);
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(`id, user_id, display_name, email, is_superadmin, employees!profiles_employee_id_fkey(position), ${allFields.join(', ')}`)
+    .eq('school_id', currentProfile.school_id)
+    .order('display_name');
+
+  if (error) {
+    dbError(error, 'Failed to load permissions grid');
+    if (wrap) wrap.innerHTML = '<p class="muted" style="padding:16px 0;">Failed to load.</p>';
+    return;
+  }
+
+  gridProfiles = data ?? [];
+  gridLoaded = true;
+  renderPermissionGridFiltered();
+}
+
+function renderPermissionGridFiltered() {
+  const wrap = document.getElementById('accessGridTableWrap');
+  if (!wrap) return;
+
+  if (!gridSelectedField) {
+    wrap.innerHTML = `
+      <div class="admin-empty-state">
+        <div class="admin-empty-state-icon"><i data-lucide="list-checks"></i></div>
+        <p class="admin-empty-state-title">Pick a permission to get started</p>
+        <p class="admin-empty-state-desc">Choose one from the dropdown above and every staff member will appear here with a toggle you can flip right in the list.</p>
+      </div>`;
+    if (window.lucide) lucide.createIcons({ el: wrap });
+    return;
+  }
+
+  const term = gridSearchTerm;
+  const filtered = term
+    ? gridProfiles.filter(p =>
+        (p.display_name ?? '').toLowerCase().includes(term) ||
+        (p.email ?? '').toLowerCase().includes(term))
+    : gridProfiles;
+
+  renderPermissionToggleList(filtered);
+}
+
+function renderPermissionToggleList(profiles) {
+  const wrap = document.getElementById('accessGridTableWrap');
+  const field = gridSelectedField;
+
+  if (!profiles.length) {
+    wrap.innerHTML = `
+      <div class="admin-empty-state">
+        <div class="admin-empty-state-icon"><i data-lucide="search-x"></i></div>
+        <p class="admin-empty-state-title">No staff match your search</p>
+        <p class="admin-empty-state-desc">Try a different name or email.</p>
+      </div>`;
+    if (window.lucide) lucide.createIcons({ el: wrap });
+    return;
+  }
+
+  const rows = profiles.map(p => {
+    const name = p.display_name || p.email || '—';
+    const initials = name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const checked  = p[field] === true;
+    const disabled = p.is_superadmin || (p.user_id === currentProfile.user_id && field === 'can_manage_access');
+    const position = p.employees?.position
+      ? `<span class="staff-position-badge">${esc(p.employees.position)}</span>`
+      : '';
+    return `
+      <div class="access-toggle-row">
+        <div class="access-toggle-name">
+          <div class="access-user-avatar" style="background:${getAvatarColor(name)}">${esc(initials)}</div>
+          <span>${esc(name)}</span>
+          ${position}
+        </div>
+        <input type="checkbox" class="access-toggle-switch"
+               data-profile="${esc(p.id)}" data-user="${esc(p.user_id)}" data-field="${esc(field)}"
+               ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+      </div>`;
+  }).join('');
+
+  wrap.innerHTML = `<div class="access-toggle-list">${rows}</div>`;
+
+  wrap.querySelectorAll('.access-toggle-switch').forEach(cb =>
+    cb.addEventListener('change', () => toggleGridPermission(cb)));
+}
+
+async function toggleGridPermission(cb) {
+  const profileId = cb.dataset.profile;
+  const userId    = cb.dataset.user;
+  const field     = cb.dataset.field;
+
+  if (field === 'can_manage_access' && userId === currentProfile.user_id && !cb.checked) {
+    alert('You cannot remove your own access.');
+    cb.checked = true;
+    return;
+  }
+
+  const { error } = await supabase.from('profiles').update({ [field]: cb.checked }).eq('id', profileId);
+
+  if (error) {
+    dbError(error, 'Failed to update permission');
+    cb.checked = !cb.checked;
+    return;
+  }
+
+  const cached = gridProfiles.find(p => p.id === profileId);
+  if (cached) cached[field] = cb.checked;
+}
+
+/* ===============================
+   CHANGE LOG
+================================ */
+async function loadAuditLog() {
+  const wrap = document.getElementById('accessAuditLogWrap');
+
+  const { data, error } = await supabase
+    .from('permission_audit_log')
+    .select(`
+      id, field_name, old_value, new_value, changed_at,
+      target:profiles!permission_audit_log_target_profile_id_fkey(display_name, email),
+      changer:profiles!permission_audit_log_changed_by_profile_id_fkey(display_name, email)
+    `)
+    .eq('school_id', currentProfile.school_id)
+    .order('changed_at', { ascending: false })
+    .limit(200);
+
+  if (error) {
+    dbError(error, 'Failed to load change log');
+    if (wrap) wrap.innerHTML = '<p class="muted" style="padding:16px 0;">Failed to load.</p>';
+    return;
+  }
+
+  auditLoaded = true;
+  renderAuditLog(data ?? []);
+}
+
+function renderAuditLog(entries) {
+  const wrap = document.getElementById('accessAuditLogWrap');
+  if (!wrap) return;
+
+  if (!entries.length) {
+    wrap.innerHTML = '<p class="muted" style="padding:16px 0;">No permission changes recorded yet.</p>';
+    return;
+  }
+
+  wrap.innerHTML = `
+    <table class="admin-table">
+      <thead><tr><th>Date</th><th>Changed By</th><th>Staff Member</th><th>Permission</th><th>Change</th></tr></thead>
+      <tbody>
+        ${entries.map(e => {
+          const when = new Date(e.changed_at).toLocaleString('en-US', {
+            month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit'
+          });
+          const before = e.old_value === null ? '<span class="muted">—</span>' : (e.old_value ? 'On' : 'Off');
+          const after  = e.new_value
+            ? '<strong style="color:#15803d;">On</strong>'
+            : '<strong style="color:#dc2626;">Off</strong>';
+          return `
+            <tr>
+              <td style="font-size:12px;color:#6b7280;white-space:nowrap;">${esc(when)}</td>
+              <td>${esc(e.changer?.display_name ?? 'System')}</td>
+              <td>${esc(e.target?.display_name ?? '—')}</td>
+              <td style="font-size:12px;"><code>${esc(e.field_name)}</code></td>
+              <td>${before} → ${after}</td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
 }

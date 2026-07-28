@@ -385,6 +385,14 @@
   <!-- Real content -->
   <div class="admin-content fade-in">
 
+    <div class="access-view-toggle" id="accessViewToggle" role="tablist">
+      <button type="button" class="access-view-btn active" data-view="person">By Person</button>
+      <button type="button" class="access-view-btn" data-view="grid">By Permission</button>
+      <button type="button" class="access-view-btn" data-view="audit">Change Log</button>
+    </div>
+
+    <div id="accessByPersonView">
+
     <!-- User selection + Account Status side by side -->
     <div class="access-top-row">
 
@@ -470,6 +478,25 @@
 
     </div>
 
+    </div> <!-- /accessByPersonView -->
+
+    <!-- Grid view: pick one permission, toggle it for everyone in a plain list -->
+    <div id="accessGridView" style="display:none;">
+      <div class="panel">
+        <h3 style="margin:0 0 4px;">Bulk Permission Toggle</h3>
+        <p class="muted" style="font-size:13px;margin:0 0 14px;">Pick a permission, then toggle it for as many staff as you need without opening each person individually. Includes staff who haven't signed in yet — permissions granted here take effect on their first login.</p>
+        <div class="directory-filters" style="margin-bottom:12px;">
+          <select id="accessGridPermSelect">
+            <option value="">Select a permission…</option>
+          </select>
+          <input id="accessGridSearch" type="text" placeholder="Search staff…" />
+        </div>
+        <div id="accessGridTableWrap" class="access-grid-wrap">
+          <p class="muted" style="padding:16px 0;">Select a permission above to see who has it.</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Access Requests -->
     <div class="panel" id="accessRequestsPanel">
       <h4><i data-lucide="inbox"></i> Access Requests</h4>
@@ -483,6 +510,17 @@
       <h4><i data-lucide="clock"></i> Pending Users</h4>
       <div id="pendingUsersTable" class="access-card-list">
         <p class="muted">Loading…</p>
+      </div>
+    </div>
+
+    <!-- Change log: who changed what permission, for whom, and when -->
+    <div id="accessAuditLogView" style="display:none;">
+      <div class="panel">
+        <h3 style="margin:0 0 4px;">Permission Change Log</h3>
+        <p class="muted" style="font-size:13px;margin:0 0 14px;">Most recent 200 permission changes across the school, newest first.</p>
+        <div id="accessAuditLogWrap">
+          <p class="muted" style="padding:16px 0;">Loading…</p>
+        </div>
       </div>
     </div>
 

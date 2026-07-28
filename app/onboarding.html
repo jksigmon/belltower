@@ -587,6 +587,8 @@ td strong { color: #111827; }
     <div class="section-header">Permissions Reference</div>
     <p style="font-size:12px;color:#374151;margin:0 0 8px;">All permissions are toggles on the <code>profiles</code> table. The Admin Panel → User Access &amp; Permissions panel manages these. Role Presets apply a predefined bundle.</p>
 
+    <p style="font-size:12px;color:#374151;margin:0 0 10px;"><strong>Three views are available:</strong> <strong>By Person</strong> (pick one staff member, edit their full permission set — the original flow), <strong>Grid</strong> (every staff member × every permission in one spreadsheet-style table, click any cell to toggle it), and <strong>Change Log</strong> (the last 200 permission changes school-wide, showing who changed what for whom and when). The Grid and Change Log read/write the exact same underlying data as By Person — there's no separate permission model, just a different view onto it.</p>
+
     <div class="note" style="margin-bottom:10px;">
       <span class="note-icon">ℹ</span>
       <p><strong>Permissions are layered.</strong> <code>can_access_admin</code> is the door key — it lets the user into the Admin Panel at all. The granular permissions below are the room keys — they control which tabs and sections appear once inside. A user with <em>only</em> <code>can_access_admin</code> and no other permissions will see an essentially empty admin panel with just the Setup Checklist nav link.</p>
