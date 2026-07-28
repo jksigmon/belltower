@@ -1970,17 +1970,27 @@ footer {
      ============================================================ -->
 <div class="modal" id="emailModal">
   <div class="modal-box">
-    <h2 id="modalTitle">Request a Demo</h2>
-    <p class="modal-lead">Tell us a little about your school and we'll be in touch shortly.</p>
-    <label for="name">Name</label>
-    <input id="name" placeholder="Your name" />
-    <label for="email">Email</label>
-    <input id="email" placeholder="you@school.org" />
-    <label for="message">Message <span style="font-weight:400;color:#94a3b8;">(optional)</span></label>
-    <textarea id="message" rows="3" placeholder="What would you like to see?"></textarea>
-    <div class="modal-actions">
-      <button class="cancel" onclick="closeModal()">Cancel</button>
-      <button class="submit" onclick="sendEmail()">Send</button>
+    <div id="modalForm">
+      <h2 id="modalTitle">Request a Demo</h2>
+      <p class="modal-lead">Tell us a little about your school and we'll be in touch shortly.</p>
+      <label for="name">Name</label>
+      <input id="name" placeholder="Your name" />
+      <label for="email">Email</label>
+      <input id="email" placeholder="you@school.org" />
+      <label for="message">Message <span style="font-weight:400;color:#94a3b8;">(optional)</span></label>
+      <textarea id="message" rows="3" placeholder="What would you like to see?"></textarea>
+      <p id="modalError" style="display:none;color:#dc2626;font-size:13px;margin:10px 0 0;"></p>
+      <div class="modal-actions">
+        <button class="cancel" onclick="closeModal()">Cancel</button>
+        <button class="submit" id="modalSubmitBtn" onclick="sendEmail()">Send</button>
+      </div>
+    </div>
+    <div id="modalSuccess" style="display:none;text-align:center;padding:12px 0;">
+      <h2 style="margin-bottom:8px;">Thanks!</h2>
+      <p class="modal-lead" style="margin-bottom:20px;">We've got your message and will be in touch shortly.</p>
+      <div class="modal-actions" style="justify-content:center;">
+        <button class="submit" onclick="closeModal()">Close</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1990,24 +2000,65 @@ footer {
      ============================================================ -->
 <script>
 // ---- Modal ----------------------------------------------------------
+// Always points at the production project — the marketing site's contact
+// form should send real leads to prod regardless of which environment
+// happens to be serving this page (unlike app/config.js, which is
+// per-environment for the internal admin tool).
+const SUPABASE_URL      = 'https://xrhwjjkxlshfarlxuxsa.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyaHdqamt4bHNoZmFybHh1eHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3MzY0OTcsImV4cCI6MjA5MTMxMjQ5N30.Gf4oUa33DzIkc3fHwbyq-xc6Ptqq1jMFBzPCQM8dT-s';
+
 let modalContext = "";
 function openModal(type) {
   modalContext = type;
   document.getElementById("modalTitle").textContent = type;
+  document.getElementById("modalForm").style.display = "";
+  document.getElementById("modalSuccess").style.display = "none";
+  document.getElementById("modalError").style.display = "none";
+  document.getElementById("name").value = "";
+  document.getElementById("email").value = "";
+  document.getElementById("message").value = "";
   document.getElementById("emailModal").classList.add("active");
 }
 function closeModal() {
   document.getElementById("emailModal").classList.remove("active");
 }
-function sendEmail() {
-  const body =
-    `Request Type: ${modalContext}\n` +
-    `Name: ${document.getElementById('name').value}\n` +
-    `Email: ${document.getElementById('email').value}\n\n` +
-    document.getElementById('message').value;
-  window.location.href =
-    `mailto:jksigmon@gmail.com?subject=${encodeURIComponent(modalContext)}&body=${encodeURIComponent(body)}`;
-  closeModal();
+async function sendEmail() {
+  const name    = document.getElementById('name').value.trim();
+  const email   = document.getElementById('email').value.trim();
+  const message = document.getElementById('message').value.trim();
+  const errorEl = document.getElementById('modalError');
+  const btn     = document.getElementById('modalSubmitBtn');
+
+  errorEl.style.display = 'none';
+  if (!name)  { errorEl.textContent = 'Please enter your name.'; errorEl.style.display = ''; return; }
+  if (!email || !email.includes('@')) { errorEl.textContent = 'Please enter a valid email.'; errorEl.style.display = ''; return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/marketing_lead_submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY,
+      },
+      body: JSON.stringify({ requestType: modalContext, name, email, message }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) throw new Error(data?.error || 'Something went wrong. Please try again.');
+
+    document.getElementById('modalForm').style.display = 'none';
+    document.getElementById('modalSuccess').style.display = '';
+  } catch (err) {
+    errorEl.textContent = err.message || 'Something went wrong. Please try again.';
+    errorEl.style.display = '';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send';
+  }
 }
 document.getElementById('emailModal').addEventListener('click', (e) => {
   if (e.target.id === 'emailModal') closeModal();
