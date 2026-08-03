@@ -1,0 +1,94 @@
+name: Storage Backup (prod)
+
+# Off-site backup of the prod Supabase Storage buckets to Cloudflare R2.
+#
+# Why this exists: Supabase managed backups cover Postgres only. The DB backup
+# has the file_path/storage_path rows but NOT the file bytes, so without this
+# the Operations Manual documents, staff license files, request attachments,
+# and school assets are unrecoverable after a loss. This mirrors them to an
+# external bucket we own. (Same setup as tpms-platform's storage-backup.yml.)
+#
+# Design: `rclone copy` is additive - it never deletes from the destination, so
+# a bad delete / bug / ransomware in Supabase cannot propagate and wipe the
+# backup. Enable VERSIONING on the R2 bucket for extra protection of overwrites.
+#
+# One-time setup:
+#   1. belltower-prod -> Storage -> S3 Connection: create access key; note region.
+#   2. Cloudflare R2: create a bucket (versioning on); create an R2 API token.
+#   3. Add these GitHub Actions secrets:
+#        SUPABASE_S3_ACCESS_KEY_ID, SUPABASE_S3_SECRET_ACCESS_KEY,
+#        SUPABASE_S3_REGION, R2_ENDPOINT, R2_ACCESS_KEY_ID,
+#        R2_SECRET_ACCESS_KEY, R2_BUCKET
+#   4. Trigger once via "Run workflow" to seed and verify.
+#
+# Restore (manual, run rclone locally with the same remotes):
+#   rclone copy r2:<bucket>/resource-docs  supabase:resource-docs
+# i.e. swap source and destination. Test this at least once so you know it works.
+
+on:
+  schedule:
+    - cron: '0 7 * * *'    # 07:00 UTC nightly (~02:00-03:00 America/New_York)
+  workflow_dispatch: {}     # allow manual runs from the Actions tab
+
+# Never let two backups overlap; let a running one finish.
+concurrency:
+  group: storage-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # ----- Source: Supabase prod Storage (S3-compatible) -----
+      RCLONE_CONFIG_SUPABASE_TYPE: s3
+      RCLONE_CONFIG_SUPABASE_PROVIDER: Other
+      RCLONE_CONFIG_SUPABASE_ENDPOINT: https://xrhwjjkxlshfarlxuxsa.supabase.co/storage/v1/s3
+      RCLONE_CONFIG_SUPABASE_REGION: ${{ secrets.SUPABASE_S3_REGION }}
+      RCLONE_CONFIG_SUPABASE_ACCESS_KEY_ID: ${{ secrets.SUPABASE_S3_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_SUPABASE_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_S3_SECRET_ACCESS_KEY }}
+      # ----- Destination: Cloudflare R2 -----
+      RCLONE_CONFIG_R2_TYPE: s3
+      RCLONE_CONFIG_R2_PROVIDER: Cloudflare
+      RCLONE_CONFIG_R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+      RCLONE_CONFIG_R2_REGION: auto
+      RCLONE_CONFIG_R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      RCLONE_CONFIG_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+    steps:
+      - name: Verify required secrets are present
+        run: |
+          missing=()
+          for v in SUPABASE_S3_ACCESS_KEY_ID SUPABASE_S3_SECRET_ACCESS_KEY \
+                   SUPABASE_S3_REGION R2_ENDPOINT R2_ACCESS_KEY_ID \
+                   R2_SECRET_ACCESS_KEY R2_BUCKET; do
+            if [ -z "${!v:-}" ]; then missing+=("$v"); fi
+          done
+          if [ ${#missing[@]} -ne 0 ]; then
+            echo "Missing required secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+        env:
+          SUPABASE_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_S3_ACCESS_KEY_ID }}
+          SUPABASE_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_S3_SECRET_ACCESS_KEY }}
+          SUPABASE_S3_REGION: ${{ secrets.SUPABASE_S3_REGION }}
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+
+      - name: Install rclone
+        run: curl -fsSL https://rclone.org/install.sh | sudo bash
+
+      - name: Back up Storage buckets to R2
+        run: |
+          set -euo pipefail
+          for bucket in resource-docs license-files request-attachments school-assets; do
+            echo "::group::Backing up $bucket"
+            rclone copy "supabase:$bucket" "r2:${R2_BUCKET}/$bucket" \
+              --s3-no-check-bucket \
+              --transfers 8 --checkers 16 \
+              --stats-one-line --stats 30s -v
+            echo "::endgroup::"
+          done
+          echo "Storage backup complete: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
