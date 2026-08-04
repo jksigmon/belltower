@@ -110,6 +110,7 @@
         <a href="/setup.html" data-cap="can_access_admin"><i data-lucide="circle-check-big"></i> Setup Checklist</a>
         <a href="#access" id="navAccess" data-cap="can_manage_access"><i data-lucide="shield-check"></i> Manage Access <span class="badge-count" id="accessRequestBadge"></span></a>
         <a href="#bulk-upload" data-cap="can_bulk_upload"><i data-lucide="upload"></i> Bulk Upload</a>
+        <a href="/app/ic-sync.html" data-cap="can_bulk_upload"><i data-lucide="refresh-cw"></i> Infinite Campus Sync</a>
         <a href="#exports" data-cap="can_export_data"><i data-lucide="download"></i> Exports</a>
       </div>
     </nav>
@@ -1376,6 +1377,19 @@
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button class="btn" id="dcCancelCampaignBtn" style="height:36px;padding:0 16px;">Cancel</button>
       <button class="btn btn-primary" id="dcSaveCampaignBtn" style="height:36px;padding:0 16px;">Create &amp; Get Link</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Campaign Modal ── -->
+<div id="dcEditCampaignModal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);">
+  <div class="panel" style="width:440px;max-width:94vw;padding:28px 32px;">
+    <h3 style="margin:0 0 18px;font-size:16px;font-weight:700;">Edit Campaign</h3>
+    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Campaign name</label>
+    <input type="text" id="dcEditCampaignName" class="form-control" placeholder="e.g. Fall 2026 Open House" style="width:100%;margin-bottom:20px;" />
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn" id="dcCancelEditCampaignBtn" style="height:36px;padding:0 16px;">Cancel</button>
+      <button class="btn btn-primary" id="dcSaveEditCampaignBtn" style="height:36px;padding:0 16px;">Save</button>
     </div>
   </div>
 </div>

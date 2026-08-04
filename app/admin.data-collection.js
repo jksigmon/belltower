@@ -42,7 +42,7 @@ async function loadCampaigns() {
   renderCampaigns();
 }
 
-function renderCampaigns() {
+function renderCampaigns({ skipCounts = false } = {}) {
   const tbody = document.getElementById('dcCampaignTable');
   if (!tbody) return;
 
@@ -65,10 +65,14 @@ function renderCampaigns() {
       ? `<button class="btn btn-sm" onclick="window.__dcCopyLink('${c.token}')" title="Copy shareable link">Copy Link</button>`
       : `<span style="font-size:12px;color:#9ca3af;">—</span>`;
 
+    const editBtn = (c._count === 0)
+      ? `<button class="btn btn-sm" onclick="window.__dcEditCampaign('${c.id}')">Edit</button>`
+      : '';
+
     const actionBtns = c.status === 'active'
-      ? `<button class="btn btn-sm" onclick="window.__dcCloseCapaign('${c.id}')">Close</button>`
+      ? `${editBtn}<button class="btn btn-sm" onclick="window.__dcCloseCapaign('${c.id}')">Close</button>`
       : c.status === 'closed'
-      ? `<button class="btn btn-sm" onclick="window.__dcArchiveCampaign('${c.id}')">Archive</button>`
+      ? `${editBtn}<button class="btn btn-sm" onclick="window.__dcArchiveCampaign('${c.id}')">Archive</button>`
       : `<button class="btn btn-sm" style="color:#b91c1c;border-color:#fecaca;" onclick="window.__dcDeleteCampaign('${c.id}', '${esc(c.name)}')">Delete</button>`;
 
     return `<tr>
@@ -83,8 +87,8 @@ function renderCampaigns() {
     </tr>`;
   }).join('');
 
-  // Load submission counts async
-  loadCampaignCounts();
+  // Load submission counts async, then re-render so count-dependent UI (e.g. Edit) updates
+  if (!skipCounts) loadCampaignCounts();
 }
 
 async function loadCampaignCounts() {
@@ -99,16 +103,11 @@ async function loadCampaignCounts() {
   const counts = {};
   if (data) data.forEach(r => { counts[r.campaign_id] = (counts[r.campaign_id] ?? 0) + 1; });
 
-  // Re-render only the count cells rather than full re-render
   campaigns.forEach(c => {
     c._count = counts[c.id] ?? 0;
   });
 
-  // Update Review button text
-  document.querySelectorAll('#dcCampaignTable tr').forEach((tr, i) => {
-    const btn = tr.querySelector('.btn-primary');
-    if (btn && campaigns[i]) btn.textContent = `Review (${campaigns[i]._count ?? 0})`;
-  });
+  renderCampaigns({ skipCounts: true });
 }
 
 /* ===============================
@@ -170,6 +169,44 @@ window.__dcDeleteCampaign = async function(id, name) {
   if (error) { alert('Failed to delete campaign: ' + error.message); return; }
   await loadCampaigns();
 };
+
+let editingCampaignId = null;
+
+window.__dcEditCampaign = function(id) {
+  const c = campaigns.find(c => c.id === id);
+  if (!c) return;
+  editingCampaignId = id;
+  document.getElementById('dcEditCampaignName').value = c.name;
+  document.getElementById('dcEditCampaignModal').style.display = 'flex';
+  document.getElementById('dcEditCampaignName').focus();
+};
+
+function closeEditCampaignModal() {
+  document.getElementById('dcEditCampaignModal').style.display = 'none';
+  editingCampaignId = null;
+}
+
+async function saveEditCampaign() {
+  if (!editingCampaignId) return;
+  const name = document.getElementById('dcEditCampaignName').value.trim();
+  if (!name) { document.getElementById('dcEditCampaignName').focus(); return; }
+
+  const btn = document.getElementById('dcSaveEditCampaignBtn');
+  btn.disabled = true;
+
+  const { error } = await supabase
+    .from('guardian_intake_campaigns')
+    .update({ name })
+    .eq('id', editingCampaignId);
+
+  btn.disabled = false;
+
+  if (error) { alert('Failed to update campaign.'); console.error(error); return; }
+
+  closeEditCampaignModal();
+  await loadCampaigns();
+  showToast('Campaign updated.');
+}
 
 window.__dcViewSubmissions = async function(id) {
   currentCampaign = campaigns.find(c => c.id === id) ?? null;
@@ -803,6 +840,11 @@ function wireEvents() {
   document.getElementById('dcCancelCampaignBtn')?.addEventListener('click', closeNewCampaignModal);
   document.getElementById('dcSaveCampaignBtn')?.addEventListener('click', saveNewCampaign);
   document.getElementById('dcNewCampaignName')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveNewCampaign(); });
+
+  // Edit campaign modal
+  document.getElementById('dcCancelEditCampaignBtn')?.addEventListener('click', closeEditCampaignModal);
+  document.getElementById('dcSaveEditCampaignBtn')?.addEventListener('click', saveEditCampaign);
+  document.getElementById('dcEditCampaignName')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveEditCampaign(); });
 
   // Share link modal
   document.getElementById('dcShareLinkClose')?.addEventListener('click', () => { document.getElementById('dcShareLinkModal').style.display = 'none'; });
