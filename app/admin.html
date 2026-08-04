@@ -555,6 +555,11 @@
       <option value="family_name.asc">Family name (A–Z)</option>
       <option value="family_name.desc">Family name (Z–A)</option>
     </select>
+
+    <label class="directory-checkbox-filter" for="familyReleasableOnly">
+      <input type="checkbox" id="familyReleasableOnly" />
+      Releasable only (no active students)
+    </label>
   </div>
 
   <div class="directory-actions">
@@ -1381,6 +1386,7 @@
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldRelationship" checked /> Relationship to student(s)</label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldSecondGuardian" checked /> Allow a second parent/guardian</label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldStudents" checked /> Student list</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldHomeroom" /> Homeroom teacher dropdown (per student, based on grade)</label>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button class="btn" id="dcCancelCampaignBtn" style="height:36px;padding:0 16px;">Cancel</button>
@@ -1402,6 +1408,7 @@
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldRelationship" /> Relationship to student(s)</label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldSecondGuardian" /> Allow a second parent/guardian</label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldStudents" /> Student list</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldHomeroom" /> Homeroom teacher dropdown (per student, based on grade)</label>
     </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button class="btn" id="dcCancelEditCampaignBtn" style="height:36px;padding:0 16px;">Cancel</button>

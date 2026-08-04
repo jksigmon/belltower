@@ -3673,6 +3673,23 @@ a.staff-dash-request-row:hover {
   flex-shrink: 0;
 }
 
+.directory-checkbox-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.directory-checkbox-filter input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
 /* Match .btn height when used alongside regular buttons */
 .directory-actions .btn-primary {
   height: 34px;

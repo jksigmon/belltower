@@ -9,6 +9,33 @@ let initialized = false;
 let familiesDirectory;
 let editingFamilyId = null;
 
+// Family IDs that currently have at least one active student — used to power
+// the "Releasable only" filter (families with none of their students active,
+// including families with no students at all). Refetched whenever the filter
+// is toggled on or the directory reloads while the filter is active, since
+// staff actions (withdrawing a student, linking/unlinking) change membership.
+let releasableFilterOn = false;
+let activeStudentFamilyIds = new Set();
+
+async function fetchActiveStudentFamilyIds() {
+  const { data, error } = await supabase
+    .from('students')
+    .select('family_id')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true)
+    .not('family_id', 'is', null);
+
+  if (error) { console.error('Failed to load active student family ids', error); return; }
+  activeStudentFamilyIds = new Set((data || []).map(r => r.family_id));
+}
+
+// Central reload used everywhere the directory refreshes, so the releasable
+// filter's underlying id set stays in sync with the latest student edits.
+async function reloadFamilies() {
+  if (releasableFilterOn) await fetchActiveStudentFamilyIds();
+  familiesDirectory.load();
+}
+
 /* ===============================
    ENTRY POINT
 ================================ */
@@ -34,6 +61,18 @@ export async function initFamiliesSection(profile) {
       `,
 
       searchFields: hasCarline ? ['carline_tag_number', 'family_name'] : ['family_name'],
+
+      // "Releasable only" isn't a plain column filter — it excludes families
+      // whose id appears in the active-student id set fetched above. Handled
+      // here (not via the generic `filters` config) because that engine only
+      // supports single-arg comparisons, not a "not in (...)" exclusion.
+      augmentQuery(query) {
+        if (releasableFilterOn && activeStudentFamilyIds.size > 0) {
+          const list = Array.from(activeStudentFamilyIds).join(',');
+          query = query.not('id', 'in', `(${list})`);
+        }
+        return { query };
+      },
 
       defaultSort: hasCarline
         ? { column: 'carline_tag_sort', ascending: true }   // numeric: 23 < 233
@@ -99,10 +138,14 @@ function exportFamilyRow(f) {
 // badges line up in a straight column down the page instead of drifting
 // left/right with each row's name length.
 function studentCountBadge(f) {
+  const total = (f.students ?? []).length;
   const activeStudents = (f.students ?? []).filter(s => s.active !== false).length;
-  return activeStudents === 0
-    ? '<span class="fam-risk-badge">No students linked</span>'
-    : `<span class="fam-count-badge">${activeStudents} student${activeStudents === 1 ? '' : 's'}</span>`;
+  if (activeStudents === 0) {
+    return total === 0
+      ? '<span class="fam-risk-badge">No students linked</span>'
+      : `<span class="fam-risk-badge">0 active (${total} withdrawn)</span>`;
+  }
+  return `<span class="fam-count-badge">${activeStudents} student${activeStudents === 1 ? '' : 's'}</span>`;
 }
 
 function guardianCountBadge(f) {
@@ -256,7 +299,7 @@ async function saveEditFamily() {
   if (error) { dbError(error, 'Failed to save family'); return; }
   invalidateFamilyCache(currentProfile.school_id);
   window.closeDrawer?.('editFamilyDrawer');
-  familiesDirectory.load();
+  reloadFamilies();
 }
 
 /* ===============================
@@ -294,7 +337,7 @@ async function executeReleaseFamily() {
 
   showToast('Tag released. Rename this family and link the new students below.', 'success');
   loadFamilyRelated(editingFamilyId);
-  familiesDirectory.load();
+  reloadFamilies();
 }
 
 /* ===============================
@@ -360,7 +403,7 @@ async function linkStudentToFamily(studentId) {
 
   showToast('Student linked.', 'success');
   loadFamilyRelated(editingFamilyId);
-  familiesDirectory.load();
+  reloadFamilies();
 }
 
 function confirmDeleteFamily() {
@@ -379,7 +422,7 @@ async function executeDeleteFamily() {
   invalidateFamilyCache(currentProfile.school_id);
   window.closeDrawer?.('editFamilyDrawer');
   editingFamilyId = null;
-  familiesDirectory.load();
+  reloadFamilies();
 }
 
 /* ===============================
@@ -432,6 +475,14 @@ function wireFamilyEvents() {
     sortSelect.addEventListener('change', e => {
       const [column, dir] = e.target.value.split('.');
       familiesDirectory.setSort(column, dir === 'asc');
+    });
+  }
+
+  const releasableCheckbox = document.getElementById('familyReleasableOnly');
+  if (releasableCheckbox) {
+    releasableCheckbox.addEventListener('change', async e => {
+      releasableFilterOn = e.target.checked;
+      await reloadFamilies();
     });
   }
 
