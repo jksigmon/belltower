@@ -1374,6 +1374,14 @@
     <h3 style="margin:0 0 18px;font-size:16px;font-weight:700;">New Data Collection Campaign</h3>
     <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Campaign name</label>
     <input type="text" id="dcNewCampaignName" class="form-control" placeholder="e.g. Fall 2026 Open House" style="width:100%;margin-bottom:20px;" />
+    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Fields to collect</label>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldEmail" checked /> Email address</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldPhone" checked /> Cell phone</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldRelationship" checked /> Relationship to student(s)</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldSecondGuardian" checked /> Allow a second parent/guardian</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldStudents" checked /> Student list</label>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button class="btn" id="dcCancelCampaignBtn" style="height:36px;padding:0 16px;">Cancel</button>
       <button class="btn btn-primary" id="dcSaveCampaignBtn" style="height:36px;padding:0 16px;">Create &amp; Get Link</button>
@@ -1387,6 +1395,14 @@
     <h3 style="margin:0 0 18px;font-size:16px;font-weight:700;">Edit Campaign</h3>
     <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Campaign name</label>
     <input type="text" id="dcEditCampaignName" class="form-control" placeholder="e.g. Fall 2026 Open House" style="width:100%;margin-bottom:20px;" />
+    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Fields to collect</label>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldEmail" /> Email address</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldPhone" /> Cell phone</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldRelationship" /> Relationship to student(s)</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldSecondGuardian" /> Allow a second parent/guardian</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldStudents" /> Student list</label>
+    </div>
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button class="btn" id="dcCancelEditCampaignBtn" style="height:36px;padding:0 16px;">Cancel</button>
       <button class="btn btn-primary" id="dcSaveEditCampaignBtn" style="height:36px;padding:0 16px;">Save</button>

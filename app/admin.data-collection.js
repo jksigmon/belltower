@@ -11,6 +11,8 @@ let activeFilter = 'all';
 
 const FORM_BASE = `${location.origin}/app/guardian-intake.html`;
 
+const DEFAULT_FIELD_CONFIG = { email: true, phone: true, relationship: true, second_guardian: true, students: true };
+
 /* ===============================
    ENTRY POINT
 ================================ */
@@ -33,7 +35,7 @@ export async function initDataCollectionSection(p) {
 async function loadCampaigns() {
   const { data, error } = await supabase
     .from('guardian_intake_campaigns')
-    .select('id, name, status, token, created_at, closed_at')
+    .select('id, name, status, token, created_at, closed_at, field_config')
     .eq('school_id', profile.school_id)
     .order('created_at', { ascending: false });
 
@@ -176,7 +178,13 @@ window.__dcEditCampaign = function(id) {
   const c = campaigns.find(c => c.id === id);
   if (!c) return;
   editingCampaignId = id;
+  const fc = { ...DEFAULT_FIELD_CONFIG, ...(c.field_config ?? {}) };
   document.getElementById('dcEditCampaignName').value = c.name;
+  document.getElementById('dcEditFieldEmail').checked = fc.email;
+  document.getElementById('dcEditFieldPhone').checked = fc.phone;
+  document.getElementById('dcEditFieldRelationship').checked = fc.relationship;
+  document.getElementById('dcEditFieldSecondGuardian').checked = fc.second_guardian;
+  document.getElementById('dcEditFieldStudents').checked = fc.students;
   document.getElementById('dcEditCampaignModal').style.display = 'flex';
   document.getElementById('dcEditCampaignName').focus();
 };
@@ -191,12 +199,20 @@ async function saveEditCampaign() {
   const name = document.getElementById('dcEditCampaignName').value.trim();
   if (!name) { document.getElementById('dcEditCampaignName').focus(); return; }
 
+  const field_config = {
+    email:            document.getElementById('dcEditFieldEmail').checked,
+    phone:            document.getElementById('dcEditFieldPhone').checked,
+    relationship:     document.getElementById('dcEditFieldRelationship').checked,
+    second_guardian:  document.getElementById('dcEditFieldSecondGuardian').checked,
+    students:         document.getElementById('dcEditFieldStudents').checked,
+  };
+
   const btn = document.getElementById('dcSaveEditCampaignBtn');
   btn.disabled = true;
 
   const { error } = await supabase
     .from('guardian_intake_campaigns')
-    .update({ name })
+    .update({ name, field_config })
     .eq('id', editingCampaignId);
 
   btn.disabled = false;
@@ -223,6 +239,11 @@ window.__dcViewSubmissions = async function(id) {
 ================================ */
 function openNewCampaignModal() {
   document.getElementById('dcNewCampaignName').value = '';
+  document.getElementById('dcNewFieldEmail').checked = true;
+  document.getElementById('dcNewFieldPhone').checked = true;
+  document.getElementById('dcNewFieldRelationship').checked = true;
+  document.getElementById('dcNewFieldSecondGuardian').checked = true;
+  document.getElementById('dcNewFieldStudents').checked = true;
   document.getElementById('dcNewCampaignModal').style.display = 'flex';
   document.getElementById('dcNewCampaignName').focus();
 }
@@ -235,12 +256,20 @@ async function saveNewCampaign() {
   const name = document.getElementById('dcNewCampaignName').value.trim();
   if (!name) { document.getElementById('dcNewCampaignName').focus(); return; }
 
+  const field_config = {
+    email:            document.getElementById('dcNewFieldEmail').checked,
+    phone:            document.getElementById('dcNewFieldPhone').checked,
+    relationship:     document.getElementById('dcNewFieldRelationship').checked,
+    second_guardian:  document.getElementById('dcNewFieldSecondGuardian').checked,
+    students:         document.getElementById('dcNewFieldStudents').checked,
+  };
+
   const btn = document.getElementById('dcSaveCampaignBtn');
   btn.disabled = true;
 
   const { data, error } = await supabase
     .from('guardian_intake_campaigns')
-    .insert({ school_id: profile.school_id, name, created_by: profile.id })
+    .insert({ school_id: profile.school_id, name, created_by: profile.id, field_config })
     .select('id, name, token')
     .single();
 

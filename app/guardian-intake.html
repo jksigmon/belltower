@@ -279,19 +279,19 @@
           </div>
         </div>
 
-        <div class="form-row">
-          <div class="form-field">
+        <div class="form-row" id="rowEmailPhone">
+          <div class="form-field" id="fieldEmailWrap">
             <label for="email">Email Address</label>
             <input type="email" id="email" autocomplete="email" />
             <span class="field-error" id="errEmail"></span>
           </div>
-          <div class="form-field">
+          <div class="form-field" id="fieldPhoneWrap">
             <label for="phoneCell">Cell Phone</label>
             <input type="tel" id="phoneCell" autocomplete="tel" placeholder="(555) 000-0000" />
           </div>
         </div>
 
-        <div class="form-row full">
+        <div class="form-row full" id="fieldRelationshipWrap">
           <div class="form-field">
             <label for="relationship">Relationship to Student(s)</label>
             <select id="relationship">
@@ -330,19 +330,19 @@
             </div>
           </div>
 
-          <div class="form-row">
-            <div class="form-field">
+          <div class="form-row" id="row2EmailPhone">
+            <div class="form-field" id="field2EmailWrap">
               <label for="email2">Email Address</label>
               <input type="email" id="email2" autocomplete="email" />
               <span class="field-error" id="errEmail2"></span>
             </div>
-            <div class="form-field">
+            <div class="form-field" id="field2PhoneWrap">
               <label for="phoneCell2">Cell Phone</label>
               <input type="tel" id="phoneCell2" autocomplete="tel" placeholder="(555) 000-0000" />
             </div>
           </div>
 
-          <div class="form-row full">
+          <div class="form-row full" id="field2RelationshipWrap">
             <div class="form-field">
               <label for="relationship2">Relationship to Student(s)</label>
               <select id="relationship2">
@@ -358,13 +358,15 @@
         </div>
 
         <!-- ── Your Student(s) ── -->
-        <div class="form-section-title" style="margin-top:28px;">Your Student(s)</div>
-        <p style="font-size:13px;color:#6b7280;margin:0 0 14px;">
-          List the students enrolled at this school so we can connect your information to the right records.
-        </p>
+        <div id="studentsSection">
+          <div class="form-section-title" style="margin-top:28px;">Your Student(s)</div>
+          <p style="font-size:13px;color:#6b7280;margin:0 0 14px;">
+            List the students enrolled at this school so we can connect your information to the right records.
+          </p>
 
-        <div id="studentList"></div>
-        <button type="button" class="add-student-btn" id="addStudentBtn">+ Add another student</button>
+          <div id="studentList"></div>
+          <button type="button" class="add-student-btn" id="addStudentBtn">+ Add another student</button>
+        </div>
 
         <button type="button" class="submit-btn" id="submitBtn">Submit</button>
       </div>
@@ -458,6 +460,30 @@
   // ── Campaign state (set during init, used during submit) ────
   let campaignId = null;
   let schoolId   = null;
+  let fieldConfig = { email: true, phone: true, relationship: true, second_guardian: true, students: true };
+
+  // ── Apply per-campaign field toggles ─────────────────────────
+  function applyFieldConfig(fc) {
+    fieldConfig = fc;
+
+    const setVisible = (id, visible) => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = visible ? '' : 'none';
+    };
+
+    setVisible('fieldEmailWrap', fc.email);
+    setVisible('fieldPhoneWrap', fc.phone);
+    setVisible('rowEmailPhone', fc.email || fc.phone);
+    setVisible('fieldRelationshipWrap', fc.relationship);
+
+    setVisible('field2EmailWrap', fc.email);
+    setVisible('field2PhoneWrap', fc.phone);
+    setVisible('row2EmailPhone', fc.email || fc.phone);
+    setVisible('field2RelationshipWrap', fc.relationship);
+
+    setVisible('addSecondParentBtn', fc.second_guardian);
+    setVisible('studentsSection', fc.students);
+  }
 
   // ── Init ────────────────────────────────────────────────────
   async function init() {
@@ -467,7 +493,7 @@
     }
 
     const { ok, status, data } = await restGet(
-      `guardian_intake_campaigns?token=eq.${encodeURIComponent(token)}&status=eq.active&select=id,school_id,name,schools(name,logo_url)&limit=1`
+      `guardian_intake_campaigns?token=eq.${encodeURIComponent(token)}&status=eq.active&select=id,school_id,name,field_config,schools(name,logo_url)&limit=1`
     );
 
     console.log('[intake] campaign lookup', { ok, status, data });
@@ -480,6 +506,9 @@
     const school   = campaign.schools ?? {};
     campaignId = campaign.id;
     schoolId   = campaign.school_id;
+
+    const fieldConfig = { email: true, phone: true, relationship: true, second_guardian: true, students: true, ...(campaign.field_config ?? {}) };
+    applyFieldConfig(fieldConfig);
 
     // Populate header — school name + logo
     document.getElementById('schoolName').textContent   = school.name   ?? '';
@@ -547,7 +576,7 @@
 
     const firstName = document.getElementById('firstName').value.trim();
     const lastName  = document.getElementById('lastName').value.trim();
-    const email     = document.getElementById('email').value.trim();
+    const email     = fieldConfig.email ? document.getElementById('email').value.trim() : '';
 
     if (!firstName) { setError('errFirstName', 'Required'); document.getElementById('firstName').classList.add('error'); valid = false; }
     if (!lastName)  { setError('errLastName',  'Required'); document.getElementById('lastName').classList.add('error'); valid = false; }
@@ -556,12 +585,12 @@
     // Second parent/guardian: only validated (and only submitted) if the
     // section is open AND has something entered — an opened-but-empty
     // section is treated as "changed their mind", not an error.
-    const secondOpen = document.getElementById('secondParentSection').style.display !== 'none';
-    const firstName2 = document.getElementById('firstName2').value.trim();
-    const lastName2  = document.getElementById('lastName2').value.trim();
-    const email2     = document.getElementById('email2').value.trim();
-    const phoneCell2 = document.getElementById('phoneCell2').value.trim();
-    const relationship2 = document.getElementById('relationship2').value;
+    const secondOpen = fieldConfig.second_guardian && document.getElementById('secondParentSection').style.display !== 'none';
+    const firstName2 = secondOpen ? document.getElementById('firstName2').value.trim() : '';
+    const lastName2  = secondOpen ? document.getElementById('lastName2').value.trim() : '';
+    const email2     = secondOpen && fieldConfig.email ? document.getElementById('email2').value.trim() : '';
+    const phoneCell2 = secondOpen && fieldConfig.phone ? document.getElementById('phoneCell2').value.trim() : '';
+    const relationship2 = secondOpen && fieldConfig.relationship ? document.getElementById('relationship2').value : '';
     const includeSecond = secondOpen && (firstName2 || lastName2 || email2 || phoneCell2 || relationship2);
 
     if (includeSecond) {
@@ -576,7 +605,9 @@
     btn.disabled = true;
     btn.textContent = 'Submitting…';
 
-    const students = getStudents();
+    const students = fieldConfig.students ? getStudents() : [];
+    const phoneCell = fieldConfig.phone ? document.getElementById('phoneCell').value.trim() : '';
+    const relationship = fieldConfig.relationship ? document.getElementById('relationship').value : '';
 
     const primary = await restInsert('guardian_intake_submissions', {
       campaign_id:  campaignId,
@@ -584,8 +615,8 @@
       first_name:   firstName,
       last_name:    lastName,
       email:        email || null,
-      phone_cell:   document.getElementById('phoneCell').value.trim() || null,
-      relationship: document.getElementById('relationship').value || null,
+      phone_cell:   phoneCell || null,
+      relationship: relationship || null,
       students,
     });
 
