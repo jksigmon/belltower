@@ -9,30 +9,42 @@ let initialized = false;
 let familiesDirectory;
 let editingFamilyId = null;
 
-// Family IDs that currently have at least one active student — used to power
-// the "Releasable only" filter (families with none of their students active,
-// including families with no students at all). Refetched whenever the filter
-// is toggled on or the directory reloads while the filter is active, since
-// staff actions (withdrawing a student, linking/unlinking) change membership.
+// IDs of families with no active students (including families with no
+// students at all) — powers the "Releasable only" filter. Computed as a set
+// difference (all family ids minus ids with an active student) rather than
+// sent to Postgres as a "not in (...)" exclusion: most families DO have an
+// active student, so that list is large and turned into a huge query-string
+// that made the request hang. The releasable set is normally the minority,
+// so filtering with a plain "in (...)" on it is both correct and fast.
+// Refetched whenever the filter is toggled on or the directory reloads while
+// the filter is active, since staff actions (withdrawing/linking a student)
+// change membership.
 let releasableFilterOn = false;
-let activeStudentFamilyIds = new Set();
+let releasableFamilyIds = [];
 
-async function fetchActiveStudentFamilyIds() {
-  const { data, error } = await supabase
-    .from('students')
-    .select('family_id')
-    .eq('school_id', currentProfile.school_id)
-    .eq('active', true)
-    .not('family_id', 'is', null);
+async function fetchReleasableFamilyIds() {
+  const [familiesRes, activeStudentsRes] = await Promise.all([
+    supabase.from('families').select('id').eq('school_id', currentProfile.school_id),
+    supabase.from('students').select('family_id')
+      .eq('school_id', currentProfile.school_id)
+      .eq('active', true)
+      .not('family_id', 'is', null)
+  ]);
 
-  if (error) { console.error('Failed to load active student family ids', error); return; }
-  activeStudentFamilyIds = new Set((data || []).map(r => r.family_id));
+  if (familiesRes.error || activeStudentsRes.error) {
+    console.error('Failed to load releasable family ids', familiesRes.error || activeStudentsRes.error);
+    releasableFamilyIds = [];
+    return;
+  }
+
+  const activeIds = new Set((activeStudentsRes.data || []).map(r => r.family_id));
+  releasableFamilyIds = (familiesRes.data || []).map(f => f.id).filter(id => !activeIds.has(id));
 }
 
 // Central reload used everywhere the directory refreshes, so the releasable
 // filter's underlying id set stays in sync with the latest student edits.
 async function reloadFamilies() {
-  if (releasableFilterOn) await fetchActiveStudentFamilyIds();
+  if (releasableFilterOn) await fetchReleasableFamilyIds();
   familiesDirectory.load();
 }
 
@@ -62,14 +74,16 @@ export async function initFamiliesSection(profile) {
 
       searchFields: hasCarline ? ['carline_tag_number', 'family_name'] : ['family_name'],
 
-      // "Releasable only" isn't a plain column filter — it excludes families
-      // whose id appears in the active-student id set fetched above. Handled
-      // here (not via the generic `filters` config) because that engine only
-      // supports single-arg comparisons, not a "not in (...)" exclusion.
+      // "Releasable only" isn't a plain column filter — it restricts to the
+      // precomputed releasable id set above. Handled here (not via the
+      // generic `filters` config) because that engine only supports
+      // single-arg comparisons.
       augmentQuery(query) {
-        if (releasableFilterOn && activeStudentFamilyIds.size > 0) {
-          const list = Array.from(activeStudentFamilyIds).join(',');
-          query = query.not('id', 'in', `(${list})`);
+        if (releasableFilterOn) {
+          // Empty set legitimately means "no releasable families" — filter
+          // on an id that can't exist rather than skipping the filter
+          // (skipping would show the unfiltered list instead of zero rows).
+          query = query.in('id', releasableFamilyIds.length ? releasableFamilyIds : ['00000000-0000-0000-0000-000000000000']);
         }
         return { query };
       },
