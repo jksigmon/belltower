@@ -111,7 +111,9 @@
       align-items: end;
       margin-bottom: 10px;
     }
+    .student-row.has-homeroom { grid-template-columns: 1fr 1fr auto auto auto; }
     .student-row .grade-col { min-width: 90px; }
+    .student-row .homeroom-col { min-width: 160px; }
 
     .remove-student-btn {
       background: none;
@@ -238,11 +240,13 @@
         grid-template-columns: 1fr 1fr auto;
         grid-template-areas:
           "fname lname remove"
-          "grade grade    .  ";
+          "grade grade    .  "
+          "homeroom homeroom . ";
       }
       .student-row > div:nth-child(1) { grid-area: fname; }
       .student-row > div:nth-child(2) { grid-area: lname; }
       .student-row > .grade-col       { grid-area: grade; }
+      .student-row > .homeroom-col    { grid-area: homeroom; }
       .student-row > .remove-student-btn { grid-area: remove; align-self: end; }
     }
   </style>
@@ -393,13 +397,24 @@
   import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
   const REST = `${SUPABASE_URL}/rest/v1`;
+  const EDGE = `${SUPABASE_URL}/functions/v1`;
   const HEADERS = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
 
   const token = new URLSearchParams(location.search).get('token');
 
-  // ── Direct REST helpers ─────────────────────────────────────
+  // ── Direct REST / edge function helpers ──────────────────────
   async function restGet(path) {
     const res = await fetch(`${REST}/${path}`, { headers: HEADERS });
+    const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
+    return { ok: res.ok, status: res.status, data };
+  }
+
+  async function edgePost(fn, body) {
+    const res = await fetch(`${EDGE}/${fn}`, {
+      method: 'POST',
+      headers: { ...HEADERS, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
     const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
     return { ok: res.ok, status: res.status, data };
   }
@@ -417,11 +432,18 @@
   let studentCount = 0;
   const GRADES = ['K','1st','2nd','3rd','4th','5th','6th','7th','8th','9th','10th','11th','12th'];
 
+  function homeroomOptionsFor(grade) {
+    const list = homerooms[grade] ?? [];
+    if (!list.length) return `<option value="">${grade ? 'No homerooms found' : 'Select a grade first'}</option>`;
+    return `<option value="">— Select —</option>` +
+      list.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  }
+
   function addStudentRow(firstName = '', lastName = '', grade = '') {
     studentCount++;
     const id  = studentCount;
     const div = document.createElement('div');
-    div.className = 'student-row';
+    div.className = 'student-row' + (fieldConfig.homeroom_teacher ? ' has-homeroom' : '');
     div.dataset.studentId = id;
     div.innerHTML = `
       <div class="form-field">
@@ -439,6 +461,11 @@
           ${GRADES.map(g => `<option value="${g}" ${g === grade ? 'selected' : ''}>${g}</option>`).join('')}
         </select>
       </div>
+      ${fieldConfig.homeroom_teacher ? `
+      <div class="form-field homeroom-col">
+        <label>Homeroom Teacher</label>
+        <select class="stu-homeroom">${homeroomOptionsFor(grade)}</select>
+      </div>` : ''}
       <button type="button" class="remove-student-btn" title="Remove" style="margin-top:20px;">×</button>
     `;
     div.querySelector('.remove-student-btn').addEventListener('click', () => {
@@ -446,21 +473,33 @@
         div.remove();
       }
     });
+    if (fieldConfig.homeroom_teacher) {
+      div.querySelector('.stu-grade').addEventListener('change', (e) => {
+        div.querySelector('.stu-homeroom').innerHTML = homeroomOptionsFor(e.target.value);
+      });
+    }
     document.getElementById('studentList').appendChild(div);
   }
 
   function getStudents() {
-    return Array.from(document.querySelectorAll('#studentList .student-row')).map(row => ({
-      first_name: row.querySelector('.stu-first').value.trim(),
-      last_name:  row.querySelector('.stu-last').value.trim(),
-      grade:      row.querySelector('.stu-grade').value,
-    })).filter(s => s.first_name || s.last_name);
+    return Array.from(document.querySelectorAll('#studentList .student-row')).map(row => {
+      const homeroomSelect = row.querySelector('.stu-homeroom');
+      const homeroomId = homeroomSelect?.value || null;
+      const homeroomName = homeroomId ? homeroomSelect.selectedOptions[0]?.textContent : null;
+      return {
+        first_name: row.querySelector('.stu-first').value.trim(),
+        last_name:  row.querySelector('.stu-last').value.trim(),
+        grade:      row.querySelector('.stu-grade').value,
+        ...(fieldConfig.homeroom_teacher ? { homeroom_teacher_id: homeroomId, homeroom_teacher: homeroomName } : {}),
+      };
+    }).filter(s => s.first_name || s.last_name);
   }
 
   // ── Campaign state (set during init, used during submit) ────
   let campaignId = null;
   let schoolId   = null;
-  let fieldConfig = { email: true, phone: true, relationship: true, second_guardian: true, students: true };
+  let homerooms  = {};
+  let fieldConfig = { email: true, phone: true, relationship: true, second_guardian: true, students: true, homeroom_teacher: false };
 
   // ── Apply per-campaign field toggles ─────────────────────────
   function applyFieldConfig(fc) {
@@ -492,44 +531,27 @@
       return;
     }
 
-    const { ok, status, data } = await restGet(
-      `guardian_intake_campaigns?token=eq.${encodeURIComponent(token)}&status=eq.active&select=id,school_id,name,field_config,schools(name,logo_url)&limit=1`
-    );
+    const { ok, status, data } = await edgePost('guardian_intake_lookup', { token });
 
     console.log('[intake] campaign lookup', { ok, status, data });
-    if (!ok || !Array.isArray(data) || !data.length) {
-      showError('Form unavailable', 'This link is no longer active or could not be found.');
+    if (!ok || !data || data.error) {
+      showError('Form unavailable', data?.error ?? 'This link is no longer active or could not be found.');
       return;
     }
 
-    const campaign = data[0];
-    const school   = campaign.schools ?? {};
-    campaignId = campaign.id;
-    schoolId   = campaign.school_id;
+    campaignId = data.campaign_id;
+    schoolId   = data.school_id;
+    homerooms  = data.homerooms ?? {};
 
-    const fieldConfig = { email: true, phone: true, relationship: true, second_guardian: true, students: true, ...(campaign.field_config ?? {}) };
-    applyFieldConfig(fieldConfig);
+    const fc = { email: true, phone: true, relationship: true, second_guardian: true, students: true, homeroom_teacher: false, ...(data.field_config ?? {}) };
+    applyFieldConfig(fc);
 
     // Populate header — school name + logo
-    document.getElementById('schoolName').textContent   = school.name   ?? '';
-    document.getElementById('campaignName').textContent = campaign.name ?? '';
-
-    let logoUrl = school.logo_url ?? null;
-
-    // If the join didn't return logo_url (anon can't read schools directly),
-    // try a separate schools query with the anon key.
-    if (!logoUrl) {
-      const { ok: sOk, data: sData } = await restGet(
-        `schools?id=eq.${schoolId}&select=name,logo_url&limit=1`
-      );
-      if (sOk && Array.isArray(sData) && sData.length) {
-        logoUrl = sData[0].logo_url ?? null;
-        if (!school.name) document.getElementById('schoolName').textContent = sData[0].name ?? '';
-      }
-    }
+    document.getElementById('schoolName').textContent   = data.school_name   ?? '';
+    document.getElementById('campaignName').textContent = data.campaign_name ?? '';
 
     const logoEl = document.getElementById('schoolLogo');
-    logoEl.src = logoUrl ?? '/images/belltower-logo.png';
+    logoEl.src = data.school_logo ?? '/images/belltower-logo.png';
     logoEl.style.display = '';
 
     // Show form

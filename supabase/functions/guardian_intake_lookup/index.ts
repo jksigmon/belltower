@@ -31,7 +31,7 @@ serve(async (req) => {
     const { data: campaign, error } = await supabase
       .from("guardian_intake_campaigns")
       .select(`
-        id, name, status,
+        id, name, status, school_id, field_config,
         schools!inner ( name, logo_url )
       `)
       .eq("token", token)
@@ -46,12 +46,44 @@ serve(async (req) => {
     }
 
     const school = campaign.schools as Record<string, unknown>;
+    const fieldConfig = (campaign.field_config as Record<string, boolean>) ?? {};
+
+    // Homeroom teachers grouped by grade — derived from active students'
+    // homeroom assignments, not a standalone roster table. Only computed
+    // when the campaign has opted into the homeroom dropdown, since it's
+    // the one field that needs a privileged (service-role) query.
+    let homerooms: Record<string, { id: string; name: string }[]> = {};
+    if (fieldConfig.homeroom_teacher) {
+      const { data: rows } = await supabase
+        .from("students")
+        .select("grade_level, employees:homeroom_teacher_id ( id, first_name, last_name )")
+        .eq("school_id", campaign.school_id)
+        .eq("active", true)
+        .not("homeroom_teacher_id", "is", null);
+
+      const seen = new Set<string>();
+      for (const row of rows ?? []) {
+        const grade = row.grade_level as string | null;
+        const teacher = row.employees as { id: string; first_name: string; last_name: string } | null;
+        if (!grade || !teacher) continue;
+        const key = `${grade}::${teacher.id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        (homerooms[grade] ??= []).push({ id: teacher.id, name: `${teacher.first_name} ${teacher.last_name}` });
+      }
+      for (const grade of Object.keys(homerooms)) {
+        homerooms[grade].sort((a, b) => a.name.localeCompare(b.name));
+      }
+    }
 
     return json({
       campaign_id:   campaign.id,
+      school_id:     campaign.school_id,
       campaign_name: campaign.name,
       school_name:   school.name,
       school_logo:   school.logo_url ?? null,
+      field_config:  fieldConfig,
+      homerooms,
     });
 
   } catch (err) {

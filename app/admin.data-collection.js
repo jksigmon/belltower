@@ -1,6 +1,7 @@
 // admin.data-collection.js
 import { supabase } from './admin.supabase.js';
 import { esc } from './admin.shared.js';
+import qrcode from './vendor/qrcode.js';
 
 let profile = null;
 let campaigns = [];
@@ -11,7 +12,7 @@ let activeFilter = 'all';
 
 const FORM_BASE = `${location.origin}/app/guardian-intake.html`;
 
-const DEFAULT_FIELD_CONFIG = { email: true, phone: true, relationship: true, second_guardian: true, students: true };
+const DEFAULT_FIELD_CONFIG = { email: true, phone: true, relationship: true, second_guardian: true, students: true, homeroom_teacher: false };
 
 /* ===============================
    ENTRY POINT
@@ -64,7 +65,10 @@ function renderCampaigns({ skipCounts = false } = {}) {
     const link = `${FORM_BASE}?token=${c.token}`;
 
     const copyBtn = c.status === 'active'
-      ? `<button class="btn btn-sm" onclick="window.__dcCopyLink('${c.token}')" title="Copy shareable link">Copy Link</button>`
+      ? `<div style="display:flex;gap:6px;flex-wrap:wrap;">
+           <button class="btn btn-sm" onclick="window.__dcCopyLink('${c.token}')" title="Copy shareable link">Copy Link</button>
+           <button class="btn btn-sm" onclick="window.__dcDownloadQR('${c.token}', '${esc(c.name)}')" title="Download QR code">QR Code</button>
+         </div>`
       : `<span style="font-size:12px;color:#9ca3af;">—</span>`;
 
     const editBtn = (c._count === 0)
@@ -142,6 +146,40 @@ window.__dcCopyLink = function(token) {
   copyText(link, () => showToast('Link copied to clipboard'));
 };
 
+window.__dcDownloadQR = function(token, name) {
+  const link = `${FORM_BASE}?token=${token}`;
+  const qr = qrcode(0, 'M'); // type 0 = auto-detect smallest size, M = medium error correction
+  qr.addData(link);
+  qr.make();
+
+  const cellSize = 8;
+  const margin = 4 * cellSize;
+  const count = qr.getModuleCount();
+  const size = count * cellSize + margin * 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#000';
+  for (let row = 0; row < count; row++) {
+    for (let col = 0; col < count; col++) {
+      if (qr.isDark(row, col)) {
+        ctx.fillRect(margin + col * cellSize, margin + row * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = `${name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-qr-code.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
+
 window.__dcCloseCapaign = async function(id) {
   if (!confirm('Close this campaign? Parents will no longer be able to submit.')) return;
   const { error } = await supabase
@@ -185,6 +223,7 @@ window.__dcEditCampaign = function(id) {
   document.getElementById('dcEditFieldRelationship').checked = fc.relationship;
   document.getElementById('dcEditFieldSecondGuardian').checked = fc.second_guardian;
   document.getElementById('dcEditFieldStudents').checked = fc.students;
+  document.getElementById('dcEditFieldHomeroom').checked = fc.homeroom_teacher;
   document.getElementById('dcEditCampaignModal').style.display = 'flex';
   document.getElementById('dcEditCampaignName').focus();
 };
@@ -205,6 +244,7 @@ async function saveEditCampaign() {
     relationship:     document.getElementById('dcEditFieldRelationship').checked,
     second_guardian:  document.getElementById('dcEditFieldSecondGuardian').checked,
     students:         document.getElementById('dcEditFieldStudents').checked,
+    homeroom_teacher: document.getElementById('dcEditFieldHomeroom').checked,
   };
 
   const btn = document.getElementById('dcSaveEditCampaignBtn');
@@ -244,6 +284,7 @@ function openNewCampaignModal() {
   document.getElementById('dcNewFieldRelationship').checked = true;
   document.getElementById('dcNewFieldSecondGuardian').checked = true;
   document.getElementById('dcNewFieldStudents').checked = true;
+  document.getElementById('dcNewFieldHomeroom').checked = false;
   document.getElementById('dcNewCampaignModal').style.display = 'flex';
   document.getElementById('dcNewCampaignName').focus();
 }
@@ -262,6 +303,7 @@ async function saveNewCampaign() {
     relationship:     document.getElementById('dcNewFieldRelationship').checked,
     second_guardian:  document.getElementById('dcNewFieldSecondGuardian').checked,
     students:         document.getElementById('dcNewFieldStudents').checked,
+    homeroom_teacher: document.getElementById('dcNewFieldHomeroom').checked,
   };
 
   const btn = document.getElementById('dcSaveCampaignBtn');
@@ -807,6 +849,200 @@ async function reopenSubmission(id) {
 }
 
 /* ===============================
+   PRINT REPORT
+================================ */
+// Matches the exact grade values the public intake form lets a parent
+// pick (see GRADES in guardian-intake.html) — not admin.shared's
+// GRADE_ORDER, whose codes ('K','1','2'…) don't match what's stored here.
+const PRINT_GRADE_ORDER = ['K','1st','2nd','3rd','4th','5th','6th','7th','8th','9th','10th','11th','12th'];
+
+function openPrintReportModal() {
+  document.getElementById('dcPrintIncludeDiscarded').checked = false;
+  document.querySelector('input[name="dcPrintGroupBy"][value="grade"]').checked = true;
+  document.getElementById('dcPrintReportModal').style.display = 'flex';
+}
+
+function closePrintReportModal() {
+  document.getElementById('dcPrintReportModal').style.display = 'none';
+}
+
+// Fetches submissions for the current campaign, flattens to one row per
+// (guardian, student) pair, and groups/sorts per the modal's options.
+// Shared by both the print report and the CSV export.
+async function buildReportData() {
+  const groupBy = document.querySelector('input[name="dcPrintGroupBy"]:checked')?.value ?? 'grade';
+  const includeDiscarded = document.getElementById('dcPrintIncludeDiscarded').checked;
+
+  let query = supabase
+    .from('guardian_intake_submissions')
+    .select('first_name, last_name, email, phone_cell, review_status, students, submitted_at')
+    .eq('campaign_id', currentCampaign.id)
+    .order('submitted_at', { ascending: true });
+
+  if (!includeDiscarded) query = query.not('review_status', 'in', '(discarded,merged)');
+
+  const { data, error } = await query;
+  if (error) { alert('Failed to load submissions for report.'); console.error(error); return null; }
+
+  // Flatten to one row per (guardian, student) pair — a guardian with no
+  // students listed still gets a row, bucketed as "No student listed".
+  const rows = [];
+  (data ?? []).forEach(s => {
+    const guardianName = `${s.first_name} ${s.last_name}`;
+    const students = Array.isArray(s.students) ? s.students : [];
+    if (!students.length) {
+      rows.push({ guardianName, guardianEmail: s.email, guardianPhone: s.phone_cell, studentName: null, grade: null, homeroom: null });
+      return;
+    }
+    students.forEach(st => {
+      const studentName = `${st.first_name ?? ''} ${st.last_name ?? ''}`.trim();
+      rows.push({
+        guardianName,
+        guardianEmail: s.email,
+        guardianPhone: s.phone_cell,
+        studentName: studentName || null,
+        grade: st.grade || null,
+        homeroom: st.homeroom_teacher || null,
+      });
+    });
+  });
+
+  const groups = new Map();
+  rows.forEach(r => {
+    let key;
+    if (groupBy === 'grade')          key = r.grade || 'No grade listed';
+    else if (groupBy === 'homeroom')  key = r.homeroom || 'No homeroom listed';
+    else                              key = 'All Attendees';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(r);
+  });
+
+  const groupKeys = Array.from(groups.keys()).sort((a, b) => {
+    if (groupBy === 'grade') {
+      const ai = PRINT_GRADE_ORDER.indexOf(a), bi = PRINT_GRADE_ORDER.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    }
+    return a.localeCompare(b);
+  });
+
+  groupKeys.forEach(key => {
+    groups.get(key).sort((a, b) => (a.studentName ?? a.guardianName).localeCompare(b.studentName ?? b.guardianName));
+  });
+
+  return { groupBy, rows, groups, groupKeys };
+}
+
+function csvCell(val) {
+  const str = val == null ? '' : String(val);
+  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
+
+function downloadBlob(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function exportReportCSV() {
+  if (!currentCampaign) return;
+
+  const report = await buildReportData();
+  if (!report) return;
+  const { groupBy, groupKeys, groups } = report;
+
+  const header = ['Group', 'Student', 'Grade', 'Homeroom', 'Guardian', 'Guardian Email', 'Guardian Phone'];
+  const lines = [header.map(csvCell).join(',')];
+
+  groupKeys.forEach(key => {
+    groups.get(key).forEach(r => {
+      lines.push([
+        groupBy === 'none' ? '' : key,
+        r.studentName ?? '',
+        r.grade ?? '',
+        r.homeroom ?? '',
+        r.guardianName,
+        r.guardianEmail ?? '',
+        r.guardianPhone ?? '',
+      ].map(csvCell).join(','));
+    });
+  });
+
+  const filename = `${currentCampaign.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-attendance.csv`;
+  // Excel needs a UTF-8 BOM to render non-ASCII characters correctly.
+  downloadBlob('﻿' + lines.join('\r\n'), filename, 'text/csv;charset=utf-8');
+
+  closePrintReportModal();
+}
+
+async function generatePrintReport() {
+  if (!currentCampaign) return;
+
+  const report = await buildReportData();
+  if (!report) return;
+  const { groupBy, groupKeys, groups, rows } = report;
+
+  const totalRows = rows.length;
+  const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>${esc(currentCampaign.name)} — Attendance Report</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #111827; padding: 32px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .meta { font-size: 13px; color: #6b7280; margin-bottom: 24px; }
+  h2 { font-size: 15px; margin: 28px 0 8px; padding-bottom: 6px; border-bottom: 2px solid #111827; }
+  h2:first-of-type { margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+  th, td { text-align: left; padding: 6px 8px; font-size: 13px; border-bottom: 1px solid #e5e7eb; }
+  th { color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
+  .group-count { font-weight: 400; color: #6b7280; font-size: 12px; }
+  @media print { body { padding: 0; } h2 { break-after: avoid; } tr { break-inside: avoid; } }
+</style>
+</head>
+<body>
+  <h1>${esc(currentCampaign.name)} — Attendance Report</h1>
+  <div class="meta">Generated ${esc(generatedAt)} · ${totalRows} ${totalRows === 1 ? 'entry' : 'entries'}${groupBy !== 'none' ? ` · Grouped by ${groupBy === 'grade' ? 'grade' : 'homeroom teacher'}` : ''}</div>
+  ${groupKeys.map(key => `
+    <h2>${esc(key)} <span class="group-count">(${groups.get(key).length})</span></h2>
+    <table>
+      <thead><tr><th>Student</th>${groupBy !== 'grade' ? '<th>Grade</th>' : ''}${groupBy !== 'homeroom' ? '<th>Homeroom</th>' : ''}<th>Guardian</th><th>Guardian Email</th></tr></thead>
+      <tbody>
+        ${groups.get(key).map(r => `<tr>
+          <td>${r.studentName ? esc(r.studentName) : '<em>No student listed</em>'}</td>
+          ${groupBy !== 'grade' ? `<td>${r.grade ? esc(r.grade) : '—'}</td>` : ''}
+          ${groupBy !== 'homeroom' ? `<td>${r.homeroom ? esc(r.homeroom) : '—'}</td>` : ''}
+          <td>${esc(r.guardianName)}</td>
+          <td>${r.guardianEmail ? esc(r.guardianEmail) : '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+  `).join('')}
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { alert('Please allow pop-ups to generate the report.'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+
+  closePrintReportModal();
+}
+
+/* ===============================
    MERGE MODAL
 ================================ */
 function openMergeModal(selected) {
@@ -874,6 +1110,12 @@ function wireEvents() {
   document.getElementById('dcCancelEditCampaignBtn')?.addEventListener('click', closeEditCampaignModal);
   document.getElementById('dcSaveEditCampaignBtn')?.addEventListener('click', saveEditCampaign);
   document.getElementById('dcEditCampaignName')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveEditCampaign(); });
+
+  // Print report modal
+  document.getElementById('dcPrintReportBtn')?.addEventListener('click', openPrintReportModal);
+  document.getElementById('dcCancelPrintReportBtn')?.addEventListener('click', closePrintReportModal);
+  document.getElementById('dcGeneratePrintReportBtn')?.addEventListener('click', generatePrintReport);
+  document.getElementById('dcExportCsvReportBtn')?.addEventListener('click', exportReportCSV);
 
   // Share link modal
   document.getElementById('dcShareLinkClose')?.addEventListener('click', () => { document.getElementById('dcShareLinkModal').style.display = 'none'; });

@@ -1198,6 +1198,7 @@
           <button class="btn btn-sm" id="dcBackToCampaigns">← Back</button>
           <h2 style="margin:0;font-size:18px;font-weight:700;" id="dcReviewCampaignName"></h2>
         </div>
+        <button class="btn btn-sm" id="dcPrintReportBtn">🖨️ Print / Export</button>
       </div>
 
       <!-- Filter bar -->
@@ -1413,6 +1414,30 @@
     <div style="display:flex;gap:10px;justify-content:flex-end;">
       <button class="btn" id="dcCancelEditCampaignBtn" style="height:36px;padding:0 16px;">Cancel</button>
       <button class="btn btn-primary" id="dcSaveEditCampaignBtn" style="height:36px;padding:0 16px;">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Print Report Modal ── -->
+<div id="dcPrintReportModal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);">
+  <div class="panel" style="width:420px;max-width:94vw;padding:28px 32px;">
+    <h3 style="margin:0 0 18px;font-size:16px;font-weight:700;">Print Report</h3>
+
+    <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Group by</label>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="radio" name="dcPrintGroupBy" value="grade" checked /> Grade</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="radio" name="dcPrintGroupBy" value="homeroom" /> Homeroom teacher</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="radio" name="dcPrintGroupBy" value="none" /> No grouping</label>
+    </div>
+
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;margin-bottom:20px;">
+      <input type="checkbox" id="dcPrintIncludeDiscarded" /> Include discarded / merged submissions
+    </label>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn" id="dcCancelPrintReportBtn" style="height:36px;padding:0 16px;">Cancel</button>
+      <button class="btn" id="dcExportCsvReportBtn" style="height:36px;padding:0 16px;">Export to Excel</button>
+      <button class="btn btn-primary" id="dcGeneratePrintReportBtn" style="height:36px;padding:0 16px;">Print</button>
     </div>
   </div>
 </div>
