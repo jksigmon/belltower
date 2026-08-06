@@ -52,6 +52,13 @@ serve(async (req) => {
     // homeroom assignments, not a standalone roster table. Only computed
     // when the campaign has opted into the homeroom dropdown, since it's
     // the one field that needs a privileged (service-role) query.
+    //
+    // A teacher can have students split across two grades mid-transition
+    // (class placements not yet finalized) and would otherwise show up
+    // under both. MIN_STUDENTS_FOR_HOMEROOM filters out grades where a
+    // teacher only has a stray student or two, while still showing them
+    // under any grade where they have a real number of students.
+    const MIN_STUDENTS_FOR_HOMEROOM = 2;
     let homerooms: Record<string, { id: string; name: string }[]> = {};
     if (fieldConfig.homeroom_teacher) {
       const { data: rows } = await supabase
@@ -61,14 +68,19 @@ serve(async (req) => {
         .eq("active", true)
         .not("homeroom_teacher_id", "is", null);
 
-      const seen = new Set<string>();
+      const counts = new Map<string, { grade: string; teacher: { id: string; first_name: string; last_name: string }; count: number }>();
       for (const row of rows ?? []) {
         const grade = row.grade_level as string | null;
         const teacher = row.employees as { id: string; first_name: string; last_name: string } | null;
         if (!grade || !teacher) continue;
         const key = `${grade}::${teacher.id}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
+        const entry = counts.get(key);
+        if (entry) entry.count++;
+        else counts.set(key, { grade, teacher, count: 1 });
+      }
+
+      for (const { grade, teacher, count } of counts.values()) {
+        if (count < MIN_STUDENTS_FOR_HOMEROOM) continue;
         (homerooms[grade] ??= []).push({ id: teacher.id, name: `${teacher.first_name} ${teacher.last_name}` });
       }
       for (const grade of Object.keys(homerooms)) {
