@@ -22,13 +22,32 @@ let editingFamilyId = null;
 let releasableFilterOn = false;
 let releasableFamilyIds = [];
 
+const RELEASABLE_BATCH_SIZE = 1000;
+
+// PostgREST caps unranged selects at 1000 rows, so both queries below must
+// page through with .range() — otherwise schools with >1000 families or
+// >1000 active students silently lose rows off the end, and families whose
+// active student fell past the cap get misclassified as releasable.
+async function fetchAllIds(builder) {
+  const ids = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await builder().range(from, from + RELEASABLE_BATCH_SIZE - 1);
+    if (error) return { error };
+    ids.push(...data);
+    if (data.length < RELEASABLE_BATCH_SIZE) break;
+    from += RELEASABLE_BATCH_SIZE;
+  }
+  return { data: ids };
+}
+
 async function fetchReleasableFamilyIds() {
   const [familiesRes, activeStudentsRes] = await Promise.all([
-    supabase.from('families').select('id').eq('school_id', currentProfile.school_id),
-    supabase.from('students').select('family_id')
+    fetchAllIds(() => supabase.from('families').select('id').eq('school_id', currentProfile.school_id)),
+    fetchAllIds(() => supabase.from('students').select('family_id')
       .eq('school_id', currentProfile.school_id)
       .eq('active', true)
-      .not('family_id', 'is', null)
+      .not('family_id', 'is', null))
   ]);
 
   if (familiesRes.error || activeStudentsRes.error) {
@@ -103,6 +122,12 @@ export async function initFamiliesSection(profile) {
     wireFamilyEvents();
     initialized = true;
     familiesDirectory.load();
+  } else {
+    // Revisiting the tab: the releasable snapshot can be stale if a
+    // student's active status or family link changed elsewhere (e.g. the
+    // Students tab) since it was last computed, since nothing outside this
+    // module invalidates it. Re-verify against current data on every visit.
+    reloadFamilies();
   }
 }
 
