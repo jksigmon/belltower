@@ -204,11 +204,24 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
     });
   }
 
+  const EXPORT_BATCH_SIZE = 1000;
+
+  async function fetchAllRows({ all }) {
+    const rows = [];
+    let from = 0;
+    while (true) {
+      const to = from + EXPORT_BATCH_SIZE - 1;
+      const { data, error } = await buildQuery({ paged: false, all }).range(from, to);
+      if (error) return { error };
+      rows.push(...data);
+      if (data.length < EXPORT_BATCH_SIZE) break;
+      from += EXPORT_BATCH_SIZE;
+    }
+    return { data: rows };
+  }
+
   async function exportXlsx({ all = false, filename }) {
-    const { data, error } = await buildQuery({
-      paged: false,
-      all
-    });
+    const { data, error } = await fetchAllRows({ all });
 
     if (error) {
       console.error('Export failed', error);
