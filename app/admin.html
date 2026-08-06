@@ -1204,7 +1204,10 @@
           <button class="btn btn-sm" id="dcBackToCampaigns">← Back</button>
           <h2 style="margin:0;font-size:18px;font-weight:700;" id="dcReviewCampaignName"></h2>
         </div>
-        <button class="btn btn-sm" id="dcPrintReportBtn">🖨️ Print / Export</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-sm" id="dcNonResponderBtn">🚩 Non-Responders</button>
+          <button class="btn btn-sm" id="dcPrintReportBtn">🖨️ Print / Export</button>
+        </div>
       </div>
 
       <!-- Filter bar -->
@@ -1388,8 +1391,14 @@
     <input type="text" id="dcNewCampaignName" class="form-control" placeholder="e.g. Fall 2026 Open House" style="width:100%;margin-bottom:20px;" />
     <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Fields to collect</label>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldEmail" checked /> Email address</label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldPhone" checked /> Cell phone</label>
+      <div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldEmail" checked /> Email address</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:400;color:#6b7280;margin:4px 0 0 24px;"><input type="checkbox" id="dcNewFieldEmailRequired" /> Required</label>
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldPhone" checked /> Cell phone</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:400;color:#6b7280;margin:4px 0 0 24px;"><input type="checkbox" id="dcNewFieldPhoneRequired" /> Required</label>
+      </div>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldRelationship" checked /> Relationship to student(s)</label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldSecondGuardian" checked /> Allow a second parent/guardian</label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcNewFieldStudents" checked /> Student list</label>
@@ -1410,8 +1419,14 @@
     <input type="text" id="dcEditCampaignName" class="form-control" placeholder="e.g. Fall 2026 Open House" style="width:100%;margin-bottom:20px;" />
     <label style="display:block;font-size:13px;font-weight:600;margin-bottom:8px;">Fields to collect</label>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldEmail" /> Email address</label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldPhone" /> Cell phone</label>
+      <div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldEmail" /> Email address</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:400;color:#6b7280;margin:4px 0 0 24px;"><input type="checkbox" id="dcEditFieldEmailRequired" /> Required</label>
+      </div>
+      <div>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldPhone" /> Cell phone</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:400;color:#6b7280;margin:4px 0 0 24px;"><input type="checkbox" id="dcEditFieldPhoneRequired" /> Required</label>
+      </div>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldRelationship" /> Relationship to student(s)</label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldSecondGuardian" /> Allow a second parent/guardian</label>
       <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;"><input type="checkbox" id="dcEditFieldStudents" /> Student list</label>
@@ -1444,6 +1459,25 @@
       <button class="btn" id="dcCancelPrintReportBtn" style="height:36px;padding:0 16px;">Cancel</button>
       <button class="btn" id="dcExportCsvReportBtn" style="height:36px;padding:0 16px;">Export to Excel</button>
       <button class="btn btn-primary" id="dcGeneratePrintReportBtn" style="height:36px;padding:0 16px;">Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Non-Responders Modal ── -->
+<div id="dcNonResponderModal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);">
+  <div class="panel" style="width:440px;max-width:94vw;padding:28px 32px;">
+    <h3 style="margin:0 0 10px;font-size:16px;font-weight:700;">Non-Responder Report</h3>
+    <p style="font-size:13px;color:#6b7280;margin:0 0 20px;line-height:1.5;">
+      Lists families at this school with no submission to this campaign — grouped by family, so a family isn't
+      flagged if any one guardian responded. A family counts as responded if either the guardian name/email/phone
+      matches (accepted, or high/medium confidence even before you've reviewed it), or a student name typed on the
+      form exactly matches one student school-wide (skipped if that name matches students in more than one family).
+    </p>
+    <div id="dcNonResponderSummary" style="font-size:13px;font-weight:600;margin-bottom:20px;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn" id="dcCancelNonResponderBtn" style="height:36px;padding:0 16px;">Cancel</button>
+      <button class="btn" id="dcExportNonResponderCsvBtn" style="height:36px;padding:0 16px;">Export to Excel</button>
+      <button class="btn btn-primary" id="dcPrintNonResponderBtn" style="height:36px;padding:0 16px;">Print</button>
     </div>
   </div>
 </div>

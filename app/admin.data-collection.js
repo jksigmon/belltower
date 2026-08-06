@@ -1,6 +1,6 @@
 // admin.data-collection.js
 import { supabase } from './admin.supabase.js';
-import { esc } from './admin.shared.js';
+import { esc, GRADE_ORDER, gradeLabel } from './admin.shared.js';
 import qrcode from './vendor/qrcode.js';
 
 let profile = null;
@@ -12,7 +12,7 @@ let activeFilter = 'all';
 
 const FORM_BASE = `${location.origin}/app/guardian-intake.html`;
 
-const DEFAULT_FIELD_CONFIG = { email: true, phone: true, relationship: true, second_guardian: true, students: true, homeroom_teacher: false };
+const DEFAULT_FIELD_CONFIG = { email: true, email_required: false, phone: true, phone_required: false, relationship: true, second_guardian: true, students: true, homeroom_teacher: false };
 
 /* ===============================
    ENTRY POINT
@@ -219,7 +219,11 @@ window.__dcEditCampaign = function(id) {
   const fc = { ...DEFAULT_FIELD_CONFIG, ...(c.field_config ?? {}) };
   document.getElementById('dcEditCampaignName').value = c.name;
   document.getElementById('dcEditFieldEmail').checked = fc.email;
+  document.getElementById('dcEditFieldEmailRequired').checked = fc.email_required;
+  document.getElementById('dcEditFieldEmailRequired').disabled = !fc.email;
   document.getElementById('dcEditFieldPhone').checked = fc.phone;
+  document.getElementById('dcEditFieldPhoneRequired').checked = fc.phone_required;
+  document.getElementById('dcEditFieldPhoneRequired').disabled = !fc.phone;
   document.getElementById('dcEditFieldRelationship').checked = fc.relationship;
   document.getElementById('dcEditFieldSecondGuardian').checked = fc.second_guardian;
   document.getElementById('dcEditFieldStudents').checked = fc.students;
@@ -240,7 +244,9 @@ async function saveEditCampaign() {
 
   const field_config = {
     email:            document.getElementById('dcEditFieldEmail').checked,
+    email_required:   document.getElementById('dcEditFieldEmail').checked && document.getElementById('dcEditFieldEmailRequired').checked,
     phone:            document.getElementById('dcEditFieldPhone').checked,
+    phone_required:   document.getElementById('dcEditFieldPhone').checked && document.getElementById('dcEditFieldPhoneRequired').checked,
     relationship:     document.getElementById('dcEditFieldRelationship').checked,
     second_guardian:  document.getElementById('dcEditFieldSecondGuardian').checked,
     students:         document.getElementById('dcEditFieldStudents').checked,
@@ -280,7 +286,11 @@ window.__dcViewSubmissions = async function(id) {
 function openNewCampaignModal() {
   document.getElementById('dcNewCampaignName').value = '';
   document.getElementById('dcNewFieldEmail').checked = true;
+  document.getElementById('dcNewFieldEmailRequired').checked = false;
+  document.getElementById('dcNewFieldEmailRequired').disabled = false;
   document.getElementById('dcNewFieldPhone').checked = true;
+  document.getElementById('dcNewFieldPhoneRequired').checked = false;
+  document.getElementById('dcNewFieldPhoneRequired').disabled = false;
   document.getElementById('dcNewFieldRelationship').checked = true;
   document.getElementById('dcNewFieldSecondGuardian').checked = true;
   document.getElementById('dcNewFieldStudents').checked = true;
@@ -299,7 +309,9 @@ async function saveNewCampaign() {
 
   const field_config = {
     email:            document.getElementById('dcNewFieldEmail').checked,
+    email_required:   document.getElementById('dcNewFieldEmail').checked && document.getElementById('dcNewFieldEmailRequired').checked,
     phone:            document.getElementById('dcNewFieldPhone').checked,
+    phone_required:   document.getElementById('dcNewFieldPhone').checked && document.getElementById('dcNewFieldPhoneRequired').checked,
     relationship:     document.getElementById('dcNewFieldRelationship').checked,
     second_guardian:  document.getElementById('dcNewFieldSecondGuardian').checked,
     students:         document.getElementById('dcNewFieldStudents').checked,
@@ -851,10 +863,13 @@ async function reopenSubmission(id) {
 /* ===============================
    PRINT REPORT
 ================================ */
-// Matches the exact grade values the public intake form lets a parent
-// pick (see GRADES in guardian-intake.html) — not admin.shared's
-// GRADE_ORDER, whose codes ('K','1','2'…) don't match what's stored here.
-const PRINT_GRADE_ORDER = ['K','1st','2nd','3rd','4th','5th','6th','7th','8th','9th','10th','11th','12th'];
+// Group keys for grade are the raw codes stored in students[].grade
+// (matches GRADE_ORDER); display label is resolved separately via
+// groupLabel() so sorting and rendering share one source of truth.
+function groupLabel(groupBy, key) {
+  if (groupBy === 'grade' && key !== 'No grade listed') return gradeLabel(key);
+  return key;
+}
 
 function openPrintReportModal() {
   document.getElementById('dcPrintIncludeDiscarded').checked = false;
@@ -919,7 +934,7 @@ async function buildReportData() {
 
   const groupKeys = Array.from(groups.keys()).sort((a, b) => {
     if (groupBy === 'grade') {
-      const ai = PRINT_GRADE_ORDER.indexOf(a), bi = PRINT_GRADE_ORDER.indexOf(b);
+      const ai = GRADE_ORDER.indexOf(a), bi = GRADE_ORDER.indexOf(b);
       if (ai === -1 && bi === -1) return a.localeCompare(b);
       if (ai === -1) return 1;
       if (bi === -1) return -1;
@@ -933,6 +948,13 @@ async function buildReportData() {
   });
 
   return { groupBy, rows, groups, groupKeys };
+}
+
+// Strips only characters that are actually invalid in filenames, so
+// downloaded reports keep human-readable spacing/casing instead of a
+// lowercase-hyphenated slug.
+function sanitizeFilename(name) {
+  return name.replace(/[\/\\:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 function csvCell(val) {
@@ -965,9 +987,9 @@ async function exportReportCSV() {
   groupKeys.forEach(key => {
     groups.get(key).forEach(r => {
       lines.push([
-        groupBy === 'none' ? '' : key,
+        groupBy === 'none' ? '' : groupLabel(groupBy, key),
         r.studentName ?? '',
-        r.grade ?? '',
+        r.grade ? gradeLabel(r.grade) : '',
         r.homeroom ?? '',
         r.guardianName,
         r.guardianEmail ?? '',
@@ -976,7 +998,7 @@ async function exportReportCSV() {
     });
   });
 
-  const filename = `${currentCampaign.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-attendance.csv`;
+  const filename = `${sanitizeFilename(currentCampaign.name)} - Entries.csv`;
   // Excel needs a UTF-8 BOM to render non-ASCII characters correctly.
   downloadBlob('﻿' + lines.join('\r\n'), filename, 'text/csv;charset=utf-8');
 
@@ -997,7 +1019,7 @@ async function generatePrintReport() {
 <html>
 <head>
 <meta charset="UTF-8" />
-<title>${esc(currentCampaign.name)} — Attendance Report</title>
+<title>${esc(currentCampaign.name)} — Entries</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #111827; padding: 32px; }
   h1 { font-size: 20px; margin: 0 0 4px; }
@@ -1012,16 +1034,16 @@ async function generatePrintReport() {
 </style>
 </head>
 <body>
-  <h1>${esc(currentCampaign.name)} — Attendance Report</h1>
+  <h1>${esc(currentCampaign.name)} — Entries</h1>
   <div class="meta">Generated ${esc(generatedAt)} · ${totalRows} ${totalRows === 1 ? 'entry' : 'entries'}${groupBy !== 'none' ? ` · Grouped by ${groupBy === 'grade' ? 'grade' : 'homeroom teacher'}` : ''}</div>
   ${groupKeys.map(key => `
-    <h2>${esc(key)} <span class="group-count">(${groups.get(key).length})</span></h2>
+    <h2>${esc(groupLabel(groupBy, key))} <span class="group-count">(${groups.get(key).length})</span></h2>
     <table>
       <thead><tr><th>Student</th>${groupBy !== 'grade' ? '<th>Grade</th>' : ''}${groupBy !== 'homeroom' ? '<th>Homeroom</th>' : ''}<th>Guardian</th><th>Guardian Email</th></tr></thead>
       <tbody>
         ${groups.get(key).map(r => `<tr>
           <td>${r.studentName ? esc(r.studentName) : '<em>No student listed</em>'}</td>
-          ${groupBy !== 'grade' ? `<td>${r.grade ? esc(r.grade) : '—'}</td>` : ''}
+          ${groupBy !== 'grade' ? `<td>${r.grade ? esc(gradeLabel(r.grade)) : '—'}</td>` : ''}
           ${groupBy !== 'homeroom' ? `<td>${r.homeroom ? esc(r.homeroom) : '—'}</td>` : ''}
           <td>${esc(r.guardianName)}</td>
           <td>${r.guardianEmail ? esc(r.guardianEmail) : '—'}</td>
@@ -1040,6 +1062,197 @@ async function generatePrintReport() {
   win.print();
 
   closePrintReportModal();
+}
+
+/* ===============================
+   NON-RESPONDER REPORT
+================================ */
+// Normalizes a name for matching — trims, lowercases, and collapses
+// internal whitespace so "  Sam   Steelman" and "sam steelman" match.
+function normalizeName(first, last) {
+  return `${first ?? ''} ${last ?? ''}`.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+// Fetches the full active family/guardian/student roster for the school,
+// plus this campaign's submissions, and returns families with no response.
+// A family "responded" via either of two independent signals:
+//   1. Guardian match — an accepted match, or a pending High/Medium-
+//      confidence match (so review backlog doesn't falsely flag a family).
+//   2. Student match — a student name typed on the form exactly matches
+//      exactly one active student school-wide. Skipped if the name matches
+//      students in more than one family, rather than guessing which.
+// Either signal alone is enough; they're not a fallback chain.
+async function buildNonResponderData() {
+  const [guardiansRes, studentsRes, submissionsRes] = await Promise.all([
+    supabase
+      .from('guardians')
+      .select('id, first_name, last_name, email, phone, family_id, families(family_name, carline_tag_number)')
+      .eq('school_id', profile.school_id)
+      .eq('active', true),
+    supabase
+      .from('students')
+      .select('family_id, first_name, last_name, grade_level')
+      .eq('school_id', profile.school_id)
+      .eq('active', true),
+    supabase
+      .from('guardian_intake_submissions')
+      .select('matched_guardian_id, match_confidence, match_candidates, review_status, students')
+      .eq('campaign_id', currentCampaign.id)
+      .not('review_status', 'in', '(discarded,merged)'),
+  ]);
+
+  if (guardiansRes.error || studentsRes.error || submissionsRes.error) {
+    alert('Failed to load roster for report.');
+    console.error(guardiansRes.error ?? studentsRes.error ?? submissionsRes.error);
+    return null;
+  }
+
+  const respondedGuardianIds = new Set();
+  (submissionsRes.data ?? []).forEach(s => {
+    if (s.matched_guardian_id) {
+      respondedGuardianIds.add(s.matched_guardian_id);
+    } else if (s.review_status === 'pending' && (s.match_confidence === 'high' || s.match_confidence === 'medium') && s.match_candidates?.length) {
+      // Medium counts too: campaigns that only collect a name (email/phone
+      // off) can never produce a High match — capping at Medium would make
+      // this report always show 0 responses for those campaigns.
+      respondedGuardianIds.add(s.match_candidates[0].guardian_id);
+    }
+  });
+
+  const families = new Map();
+  (guardiansRes.data ?? []).forEach(g => {
+    if (!families.has(g.family_id)) {
+      families.set(g.family_id, {
+        familyName: g.families?.family_name || 'Unnamed Family',
+        tag: g.families?.carline_tag_number ?? '',
+        guardians: [],
+        students: [],
+        responded: false,
+      });
+    }
+    const fam = families.get(g.family_id);
+    fam.guardians.push({ name: `${g.first_name ?? ''} ${g.last_name ?? ''}`.trim(), email: g.email, phone: g.phone });
+    if (respondedGuardianIds.has(g.id)) fam.responded = true;
+  });
+
+  // Name -> set of family ids, to detect same-name students across
+  // different families (ambiguous — skipped rather than guessed).
+  const nameToFamilyIds = new Map();
+  (studentsRes.data ?? []).forEach(st => {
+    const fam = families.get(st.family_id);
+    if (fam) fam.students.push({ name: `${st.first_name ?? ''} ${st.last_name ?? ''}`.trim(), grade: st.grade_level });
+
+    const key = normalizeName(st.first_name, st.last_name);
+    if (!key) return;
+    if (!nameToFamilyIds.has(key)) nameToFamilyIds.set(key, new Set());
+    nameToFamilyIds.get(key).add(st.family_id);
+  });
+
+  (submissionsRes.data ?? []).forEach(s => {
+    const submittedStudents = Array.isArray(s.students) ? s.students : [];
+    submittedStudents.forEach(st => {
+      const key = normalizeName(st.first_name, st.last_name);
+      const matchingFamilyIds = nameToFamilyIds.get(key);
+      if (!matchingFamilyIds || matchingFamilyIds.size !== 1) return; // no match, or ambiguous across families
+      const [familyId] = matchingFamilyIds;
+      const fam = families.get(familyId);
+      if (fam) fam.responded = true;
+    });
+  });
+
+  const allFamilies = Array.from(families.values());
+  const nonResponders = allFamilies.filter(f => !f.responded).sort((a, b) => a.familyName.localeCompare(b.familyName));
+
+  return { totalFamilies: allFamilies.length, respondedCount: allFamilies.length - nonResponders.length, nonResponders };
+}
+
+let nonResponderData = null;
+
+async function openNonResponderModal() {
+  if (!currentCampaign) return;
+  document.getElementById('dcNonResponderSummary').textContent = 'Loading roster…';
+  document.getElementById('dcNonResponderModal').style.display = 'flex';
+
+  nonResponderData = await buildNonResponderData();
+  if (!nonResponderData) { closeNonResponderModal(); return; }
+
+  const { totalFamilies, respondedCount, nonResponders } = nonResponderData;
+  document.getElementById('dcNonResponderSummary').textContent =
+    `${respondedCount} of ${totalFamilies} families responded — ${nonResponders.length} to follow up with.`;
+}
+
+function closeNonResponderModal() {
+  document.getElementById('dcNonResponderModal').style.display = 'none';
+}
+
+function exportNonResponderCSV() {
+  if (!currentCampaign || !nonResponderData) return;
+
+  const header = ['Family', 'Tag #', 'Guardians', 'Guardian Emails', 'Guardian Phones', 'Students'];
+  const lines = [header.map(csvCell).join(',')];
+
+  nonResponderData.nonResponders.forEach(f => {
+    lines.push([
+      f.familyName,
+      f.tag,
+      f.guardians.map(g => g.name).join('; '),
+      f.guardians.map(g => g.email).filter(Boolean).join('; '),
+      f.guardians.map(g => g.phone).filter(Boolean).join('; '),
+      f.students.map(s => `${s.name}${s.grade ? ` (${gradeLabel(s.grade)})` : ''}`).join('; '),
+    ].map(csvCell).join(','));
+  });
+
+  const filename = `${sanitizeFilename(currentCampaign.name)} - Non-Responders.csv`;
+  downloadBlob('﻿' + lines.join('\r\n'), filename, 'text/csv;charset=utf-8');
+  closeNonResponderModal();
+}
+
+function printNonResponderReport() {
+  if (!currentCampaign || !nonResponderData) return;
+
+  const { totalFamilies, respondedCount, nonResponders } = nonResponderData;
+  const generatedAt = new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>${esc(currentCampaign.name)} — Non-Responders</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #111827; padding: 32px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .meta { font-size: 13px; color: #6b7280; margin-bottom: 24px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 6px 8px; font-size: 13px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  th { color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.04em; }
+  @media print { body { padding: 0; } tr { break-inside: avoid; } }
+</style>
+</head>
+<body>
+  <h1>${esc(currentCampaign.name)} — Non-Responders</h1>
+  <div class="meta">Generated ${esc(generatedAt)} · ${respondedCount} of ${totalFamilies} families responded · ${nonResponders.length} to follow up with</div>
+  <table>
+    <thead><tr><th>Family</th><th>Tag #</th><th>Guardians</th><th>Students</th></tr></thead>
+    <tbody>
+      ${nonResponders.map(f => `<tr>
+        <td>${esc(f.familyName)}</td>
+        <td>${f.tag ? esc(f.tag) : '—'}</td>
+        <td>${f.guardians.map(g => `${esc(g.name)}${g.email ? ` — ${esc(g.email)}` : ''}${g.phone ? ` — ${esc(g.phone)}` : ''}`).join('<br>')}</td>
+        <td>${f.students.map(s => `${esc(s.name)}${s.grade ? ` (${esc(gradeLabel(s.grade))})` : ''}`).join('<br>') || '—'}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { alert('Please allow pop-ups to generate the report.'); return; }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+
+  closeNonResponderModal();
 }
 
 /* ===============================
@@ -1106,6 +1319,19 @@ function wireEvents() {
   document.getElementById('dcSaveCampaignBtn')?.addEventListener('click', saveNewCampaign);
   document.getElementById('dcNewCampaignName')?.addEventListener('keydown', e => { if (e.key === 'Enter') saveNewCampaign(); });
 
+  // Required checkboxes only make sense while their field is included
+  const wireRequiredToggle = (fieldId, requiredId) => {
+    document.getElementById(fieldId)?.addEventListener('change', (e) => {
+      const req = document.getElementById(requiredId);
+      req.disabled = !e.target.checked;
+      if (!e.target.checked) req.checked = false;
+    });
+  };
+  wireRequiredToggle('dcNewFieldEmail', 'dcNewFieldEmailRequired');
+  wireRequiredToggle('dcNewFieldPhone', 'dcNewFieldPhoneRequired');
+  wireRequiredToggle('dcEditFieldEmail', 'dcEditFieldEmailRequired');
+  wireRequiredToggle('dcEditFieldPhone', 'dcEditFieldPhoneRequired');
+
   // Edit campaign modal
   document.getElementById('dcCancelEditCampaignBtn')?.addEventListener('click', closeEditCampaignModal);
   document.getElementById('dcSaveEditCampaignBtn')?.addEventListener('click', saveEditCampaign);
@@ -1116,6 +1342,12 @@ function wireEvents() {
   document.getElementById('dcCancelPrintReportBtn')?.addEventListener('click', closePrintReportModal);
   document.getElementById('dcGeneratePrintReportBtn')?.addEventListener('click', generatePrintReport);
   document.getElementById('dcExportCsvReportBtn')?.addEventListener('click', exportReportCSV);
+
+  // Non-responder report
+  document.getElementById('dcNonResponderBtn')?.addEventListener('click', openNonResponderModal);
+  document.getElementById('dcCancelNonResponderBtn')?.addEventListener('click', closeNonResponderModal);
+  document.getElementById('dcExportNonResponderCsvBtn')?.addEventListener('click', exportNonResponderCSV);
+  document.getElementById('dcPrintNonResponderBtn')?.addEventListener('click', printNonResponderReport);
 
   // Share link modal
   document.getElementById('dcShareLinkClose')?.addEventListener('click', () => { document.getElementById('dcShareLinkModal').style.display = 'none'; });

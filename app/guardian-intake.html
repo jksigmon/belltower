@@ -90,6 +90,7 @@
     input[type="tel"],
     select {
       width: 100%;
+      height: 40px;
       padding: 9px 12px;
       border: 1px solid #d1d5db;
       border-radius: 7px;
@@ -100,33 +101,91 @@
       outline: none;
       transition: border-color 0.15s;
     }
-    input:focus, select:focus { border-color: #2563eb; }
+    select {
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b7280'><path fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 16px;
+      padding-right: 32px;
+    }
+    input:focus, select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
     input.error, select.error { border-color: #dc2626; }
+    input.error:focus, select.error:focus { box-shadow: 0 0 0 3px rgba(220,38,38,0.12); }
 
-    /* ── Student rows ── */
+    /* ── Student cards ──
+       Each student gets its own bordered card so entries read as distinct
+       records instead of bleeding into one long stack of fields. */
+    .student-card {
+      background: #fbfbfc;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 14px 16px 16px;
+      margin-bottom: 12px;
+      animation: card-in 0.2s ease-out;
+    }
+    @keyframes card-in {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .student-card { animation: none; }
+    }
+    .student-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .student-eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #9ca3af;
+    }
+
     .student-row {
       display: grid;
-      grid-template-columns: 1fr 1fr auto auto;
+      grid-template-columns: 1fr 1fr auto;
       gap: 10px;
       align-items: end;
-      margin-bottom: 10px;
     }
-    .student-row.has-homeroom { grid-template-columns: 1fr 1fr auto auto auto; }
+    .student-row.has-homeroom { grid-template-columns: 1fr 1fr auto auto; }
     .student-row .grade-col { min-width: 90px; }
     .student-row .homeroom-col { min-width: 160px; }
 
     .remove-student-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
+      width: 26px;
+      height: 26px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 50%;
       color: #9ca3af;
-      font-size: 18px;
-      padding: 8px 4px;
+      font-size: 15px;
       line-height: 1;
-      border-radius: 4px;
-      transition: color 0.15s;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, background-color 0.15s;
     }
-    .remove-student-btn:hover { color: #dc2626; }
+    .remove-student-btn:hover { color: #dc2626; border-color: #fecaca; background: #fef2f2; }
+    .remove-student-btn:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+
+    /* ── Second parent/guardian card (same visual language as student cards) ── */
+    #secondParentSection {
+      background: #fbfbfc;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 16px;
+      animation: card-in 0.2s ease-out;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #secondParentSection { animation: none; }
+    }
 
     .add-student-btn {
       background: none;
@@ -176,10 +235,19 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background-color 0.15s, box-shadow 0.15s, transform 0.15s;
     }
-    .submit-btn:hover:not(:disabled) { background: #1a3a5c; }
+    .submit-btn:hover:not(:disabled) {
+      background: #1a3a5c;
+      box-shadow: 0 4px 14px rgba(11,45,79,0.25);
+      transform: translateY(-1px);
+    }
+    .submit-btn:active:not(:disabled) { transform: none; box-shadow: none; }
     .submit-btn:disabled { opacity: 0.6; cursor: default; }
+    @media (prefers-reduced-motion: reduce) {
+      .submit-btn { transition: background-color 0.15s; }
+      .submit-btn:hover:not(:disabled) { transform: none; }
+    }
 
     /* ── Error / loading states ── */
     .form-error {
@@ -233,21 +301,24 @@
       line-height: 1.6;
     }
 
-    @media (max-width: 480px) {
+    /* Covers phones in both orientations and tablets (including iPad
+       portrait at exactly 768px) — the desktop grid (student-row.has-homeroom
+       especially) squeezes First/Last Name down to a few characters once
+       "Select a grade first" and similar select content compete for space. */
+    @media (max-width: 900px) {
       .form-card { padding: 20px 18px; }
       .form-row { grid-template-columns: 1fr; }
       .student-row {
-        grid-template-columns: 1fr 1fr auto;
+        grid-template-columns: 1fr 1fr;
         grid-template-areas:
-          "fname lname remove"
-          "grade grade    .  "
-          "homeroom homeroom . ";
+          "fname lname"
+          "grade grade"
+          "homeroom homeroom";
       }
       .student-row > div:nth-child(1) { grid-area: fname; }
       .student-row > div:nth-child(2) { grid-area: lname; }
       .student-row > .grade-col       { grid-area: grade; }
       .student-row > .homeroom-col    { grid-area: homeroom; }
-      .student-row > .remove-student-btn { grid-area: remove; align-self: end; }
     }
   </style>
 </head>
@@ -285,13 +356,14 @@
 
         <div class="form-row" id="rowEmailPhone">
           <div class="form-field" id="fieldEmailWrap">
-            <label for="email">Email Address</label>
+            <label for="email">Email Address <span class="req" id="emailReq" style="display:none;">*</span></label>
             <input type="email" id="email" autocomplete="email" />
             <span class="field-error" id="errEmail"></span>
           </div>
           <div class="form-field" id="fieldPhoneWrap">
-            <label for="phoneCell">Cell Phone</label>
+            <label for="phoneCell">Cell Phone <span class="req" id="phoneReq" style="display:none;">*</span></label>
             <input type="tel" id="phoneCell" autocomplete="tel" placeholder="(555) 000-0000" />
+            <span class="field-error" id="errPhoneCell"></span>
           </div>
         </div>
 
@@ -336,13 +408,14 @@
 
           <div class="form-row" id="row2EmailPhone">
             <div class="form-field" id="field2EmailWrap">
-              <label for="email2">Email Address</label>
+              <label for="email2">Email Address <span class="req" id="email2Req" style="display:none;">*</span></label>
               <input type="email" id="email2" autocomplete="email" />
               <span class="field-error" id="errEmail2"></span>
             </div>
             <div class="form-field" id="field2PhoneWrap">
-              <label for="phoneCell2">Cell Phone</label>
+              <label for="phoneCell2">Cell Phone <span class="req" id="phone2Req" style="display:none;">*</span></label>
               <input type="tel" id="phoneCell2" autocomplete="tel" placeholder="(555) 000-0000" />
+              <span class="field-error" id="errPhoneCell2"></span>
             </div>
           </div>
 
@@ -430,7 +503,24 @@
 
   // ── Student row management ──────────────────────────────────
   let studentCount = 0;
-  const GRADES = ['K','1st','2nd','3rd','4th','5th','6th','7th','8th','9th','10th','11th','12th'];
+  // Populated from the school's own schools.grade_levels (via the edge
+  // function lookup) — not a hardcoded PK-12 list, since not every school
+  // uses every grade (e.g. no Pre-K). Values are the same codes stored in
+  // students.grade_level elsewhere in the app (see GRADE_ORDER in
+  // admin.shared.js), so the homeroom lookup keys off them directly.
+  let GRADES = [];
+
+  function gradeLabel(code) {
+    if (code === 'PK') return 'Pre-K';
+    if (code === 'K')  return 'Kindergarten';
+    const n = parseInt(code, 10);
+    if (!isNaN(n)) {
+      const v = n % 100;
+      const suffix = (v >= 11 && v <= 13) ? 'th' : (['th','st','nd','rd'][v % 10] || 'th');
+      return `${n}${suffix} Grade`;
+    }
+    return code;
+  }
 
   function homeroomOptionsFor(grade) {
     const list = homerooms[grade] ?? [];
@@ -439,46 +529,63 @@
       list.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
   }
 
+  // Keeps the "Student 1 / 2 / …" label accurate as cards are added or
+  // removed, and disables the remove button once only one card is left.
+  function renumberStudentCards() {
+    const cards = document.querySelectorAll('#studentList .student-card');
+    cards.forEach((card, i) => {
+      card.querySelector('.student-index').textContent = i + 1;
+      card.querySelector('.remove-student-btn').disabled = cards.length === 1;
+    });
+  }
+
   function addStudentRow(firstName = '', lastName = '', grade = '') {
     studentCount++;
-    const id  = studentCount;
-    const div = document.createElement('div');
-    div.className = 'student-row' + (fieldConfig.homeroom_teacher ? ' has-homeroom' : '');
-    div.dataset.studentId = id;
-    div.innerHTML = `
-      <div class="form-field">
-        <label>First Name</label>
-        <input type="text" class="stu-first" placeholder="First name" value="${firstName}" />
+    const id = studentCount;
+    const card = document.createElement('div');
+    card.className = 'student-card';
+    card.dataset.studentId = id;
+    card.innerHTML = `
+      <div class="student-card-header">
+        <span class="student-eyebrow">Student <span class="student-index"></span></span>
+        <button type="button" class="remove-student-btn" title="Remove student" aria-label="Remove student">×</button>
       </div>
-      <div class="form-field grade-col">
-        <label>Last Name</label>
-        <input type="text" class="stu-last" placeholder="Last name" value="${lastName}" />
+      <div class="student-row${fieldConfig.homeroom_teacher ? ' has-homeroom' : ''}">
+        <div class="form-field">
+          <label>First Name</label>
+          <input type="text" class="stu-first" placeholder="First name" value="${firstName}" />
+        </div>
+        <div class="form-field grade-col">
+          <label>Last Name</label>
+          <input type="text" class="stu-last" placeholder="Last name" value="${lastName}" />
+        </div>
+        <div class="form-field grade-col">
+          <label>Grade</label>
+          <select class="stu-grade">
+            <option value="">Grade</option>
+            ${GRADES.map(code => `<option value="${code}" ${code === grade ? 'selected' : ''}>${gradeLabel(code)}</option>`).join('')}
+          </select>
+        </div>
+        ${fieldConfig.homeroom_teacher ? `
+        <div class="form-field homeroom-col">
+          <label>Homeroom Teacher</label>
+          <select class="stu-homeroom">${homeroomOptionsFor(grade)}</select>
+        </div>` : ''}
       </div>
-      <div class="form-field grade-col">
-        <label>Grade</label>
-        <select class="stu-grade">
-          <option value="">Grade</option>
-          ${GRADES.map(g => `<option value="${g}" ${g === grade ? 'selected' : ''}>${g}</option>`).join('')}
-        </select>
-      </div>
-      ${fieldConfig.homeroom_teacher ? `
-      <div class="form-field homeroom-col">
-        <label>Homeroom Teacher</label>
-        <select class="stu-homeroom">${homeroomOptionsFor(grade)}</select>
-      </div>` : ''}
-      <button type="button" class="remove-student-btn" title="Remove" style="margin-top:20px;">×</button>
     `;
-    div.querySelector('.remove-student-btn').addEventListener('click', () => {
-      if (document.querySelectorAll('#studentList .student-row').length > 1) {
-        div.remove();
+    card.querySelector('.remove-student-btn').addEventListener('click', () => {
+      if (document.querySelectorAll('#studentList .student-card').length > 1) {
+        card.remove();
+        renumberStudentCards();
       }
     });
     if (fieldConfig.homeroom_teacher) {
-      div.querySelector('.stu-grade').addEventListener('change', (e) => {
-        div.querySelector('.stu-homeroom').innerHTML = homeroomOptionsFor(e.target.value);
+      card.querySelector('.stu-grade').addEventListener('change', (e) => {
+        card.querySelector('.stu-homeroom').innerHTML = homeroomOptionsFor(e.target.value);
       });
     }
-    document.getElementById('studentList').appendChild(div);
+    document.getElementById('studentList').appendChild(card);
+    renumberStudentCards();
   }
 
   function getStudents() {
@@ -499,7 +606,7 @@
   let campaignId = null;
   let schoolId   = null;
   let homerooms  = {};
-  let fieldConfig = { email: true, phone: true, relationship: true, second_guardian: true, students: true, homeroom_teacher: false };
+  let fieldConfig = { email: true, email_required: false, phone: true, phone_required: false, relationship: true, second_guardian: true, students: true, homeroom_teacher: false };
 
   // ── Apply per-campaign field toggles ─────────────────────────
   function applyFieldConfig(fc) {
@@ -522,6 +629,11 @@
 
     setVisible('addSecondParentBtn', fc.second_guardian);
     setVisible('studentsSection', fc.students);
+
+    setVisible('emailReq', fc.email_required);
+    setVisible('phoneReq', fc.phone_required);
+    setVisible('email2Req', fc.email_required);
+    setVisible('phone2Req', fc.phone_required);
   }
 
   // ── Init ────────────────────────────────────────────────────
@@ -542,8 +654,9 @@
     campaignId = data.campaign_id;
     schoolId   = data.school_id;
     homerooms  = data.homerooms ?? {};
+    GRADES     = Array.isArray(data.grade_levels) && data.grade_levels.length ? data.grade_levels : ['K','1','2','3','4','5','6','7','8','9','10','11','12'];
 
-    const fc = { email: true, phone: true, relationship: true, second_guardian: true, students: true, homeroom_teacher: false, ...(data.field_config ?? {}) };
+    const fc = { email: true, email_required: false, phone: true, phone_required: false, relationship: true, second_guardian: true, students: true, homeroom_teacher: false, ...(data.field_config ?? {}) };
     applyFieldConfig(fc);
 
     // Populate header — school name + logo
@@ -598,11 +711,14 @@
 
     const firstName = document.getElementById('firstName').value.trim();
     const lastName  = document.getElementById('lastName').value.trim();
-    const email     = fieldConfig.email ? document.getElementById('email').value.trim() : '';
+    const email      = fieldConfig.email ? document.getElementById('email').value.trim() : '';
+    const phoneCell  = fieldConfig.phone ? document.getElementById('phoneCell').value.trim() : '';
 
     if (!firstName) { setError('errFirstName', 'Required'); document.getElementById('firstName').classList.add('error'); valid = false; }
     if (!lastName)  { setError('errLastName',  'Required'); document.getElementById('lastName').classList.add('error'); valid = false; }
-    if (email && !email.includes('@')) { setError('errEmail', 'Enter a valid email address'); document.getElementById('email').classList.add('error'); valid = false; }
+    if (fieldConfig.email_required && !email) { setError('errEmail', 'Required'); document.getElementById('email').classList.add('error'); valid = false; }
+    else if (email && !email.includes('@')) { setError('errEmail', 'Enter a valid email address'); document.getElementById('email').classList.add('error'); valid = false; }
+    if (fieldConfig.phone_required && !phoneCell) { setError('errPhoneCell', 'Required'); document.getElementById('phoneCell').classList.add('error'); valid = false; }
 
     // Second parent/guardian: only validated (and only submitted) if the
     // section is open AND has something entered — an opened-but-empty
@@ -618,7 +734,9 @@
     if (includeSecond) {
       if (!firstName2) { setError('errFirstName2', 'Required'); document.getElementById('firstName2').classList.add('error'); valid = false; }
       if (!lastName2)  { setError('errLastName2',  'Required'); document.getElementById('lastName2').classList.add('error'); valid = false; }
-      if (email2 && !email2.includes('@')) { setError('errEmail2', 'Enter a valid email address'); document.getElementById('email2').classList.add('error'); valid = false; }
+      if (fieldConfig.email_required && !email2) { setError('errEmail2', 'Required'); document.getElementById('email2').classList.add('error'); valid = false; }
+      else if (email2 && !email2.includes('@')) { setError('errEmail2', 'Enter a valid email address'); document.getElementById('email2').classList.add('error'); valid = false; }
+      if (fieldConfig.phone_required && !phoneCell2) { setError('errPhoneCell2', 'Required'); document.getElementById('phoneCell2').classList.add('error'); valid = false; }
     }
 
     if (!valid) return;
@@ -628,7 +746,6 @@
     btn.textContent = 'Submitting…';
 
     const students = fieldConfig.students ? getStudents() : [];
-    const phoneCell = fieldConfig.phone ? document.getElementById('phoneCell').value.trim() : '';
     const relationship = fieldConfig.relationship ? document.getElementById('relationship').value : '';
 
     const primary = await restInsert('guardian_intake_submissions', {

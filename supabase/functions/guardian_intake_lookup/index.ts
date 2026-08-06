@@ -32,7 +32,7 @@ serve(async (req) => {
       .from("guardian_intake_campaigns")
       .select(`
         id, name, status, school_id, field_config,
-        schools!inner ( name, logo_url )
+        schools!inner ( name, logo_url, grade_levels )
       `)
       .eq("token", token)
       .single();
@@ -76,6 +76,13 @@ serve(async (req) => {
       }
     }
 
+    // Fallback only covers schools that haven't configured grade_levels yet
+    // (see schools.grade_levels, set via admin onboarding) — PK is
+    // deliberately excluded since it isn't a real grade at most schools.
+    const gradeLevels = (school.grade_levels as string[] | null)?.length
+      ? school.grade_levels as string[]
+      : ['K','1','2','3','4','5','6','7','8','9','10','11','12'];
+
     return json({
       campaign_id:   campaign.id,
       school_id:     campaign.school_id,
@@ -83,6 +90,7 @@ serve(async (req) => {
       school_name:   school.name,
       school_logo:   school.logo_url ?? null,
       field_config:  fieldConfig,
+      grade_levels:  gradeLevels,
       homerooms,
     });
 
