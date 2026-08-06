@@ -67,6 +67,10 @@ export async function initStudentsSection(profile) {
       searchFields: ['first_name', 'last_name', 'student_number'],
 
       filters: {
+        active:   val =>
+          val === 'true' || val === 'false'
+            ? { column: 'active', op: 'eq', value: val === 'true' }
+            : null,
         grade:    val => val ? { column: 'grade_level',        op: 'eq', value: val } : null,
         homeroom: val => val ? { column: 'homeroom_teacher_id', op: 'eq', value: val } : null,
         campus:   val => val ? { column: 'campus_id',           op: 'eq', value: val } : null,
@@ -538,6 +542,7 @@ function wireStudentEvents() {
 
   const searchInput    = document.getElementById('studentSearch');
   const sortSelect     = document.getElementById('studentSort');
+  const activeFilter   = document.getElementById('studentActiveFilter');
   const gradeFilter    = document.getElementById('studentGradeFilter');
   const homeroomFilter = document.getElementById('studentHomeroomFilter');
   const campusFilter   = document.getElementById('studentCampusFilter');
@@ -553,6 +558,7 @@ function wireStudentEvents() {
       studentsDirectory.setSort(column, dir === 'asc');
     });
   }
+  if (activeFilter)   activeFilter.addEventListener('change',   e => studentsDirectory.setFilter('active',   e.target.value));
   if (gradeFilter)    gradeFilter.addEventListener('change',    e => studentsDirectory.setFilter('grade',    e.target.value));
   if (homeroomFilter) homeroomFilter.addEventListener('change', e => studentsDirectory.setFilter('homeroom', e.target.value));
   if (campusFilter)   campusFilter.addEventListener('change',   e => studentsDirectory.setFilter('campus',   e.target.value));
