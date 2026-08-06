@@ -654,15 +654,17 @@ async function saveCategoryDrawer() {
   }
 
   // Sync managers: delete all, re-insert
-  await supabase.from('request_category_managers').delete().eq('category_id', catId);
+  const { error: mgDelErr } = await supabase.from('request_category_managers').delete().eq('category_id', catId);
+  if (mgDelErr) { showToast('Failed to save managers: ' + mgDelErr.message, 'error'); fieldErrReset(); return; }
+
   if (draftManagers.length) {
     const mgRows = draftManagers.map(m => ({
       category_id: catId,
       profile_id:  m.profile_id,
       added_by:    currentProfile.id,
     }));
-    const { error } = await supabase.from('request_category_managers').insert(mgRows);
-    if (error) console.error('manager insert', error);
+    const { error: mgInsErr } = await supabase.from('request_category_managers').insert(mgRows);
+    if (mgInsErr) { showToast('Failed to save managers: ' + mgInsErr.message, 'error'); fieldErrReset(); return; }
   }
 
   closeCatDrawer();

@@ -671,10 +671,15 @@ function renderPermissionToggleList(profiles) {
     const name = p.display_name || p.email || '—';
     const initials = name.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase();
     const checked  = p[field] === true;
-    const disabled = p.is_superadmin || (p.user_id === currentProfile.user_id && field === 'can_manage_access');
+    const lockedForSelf = p.user_id === currentProfile.user_id && field === 'can_manage_access';
     const position = p.employees?.position
       ? `<span class="staff-position-badge">${esc(p.employees.position)}</span>`
       : '';
+    const toggle = p.is_superadmin
+      ? `<span class="access-always-on-badge" title="Superadmins always have every permission">Always On</span>`
+      : `<input type="checkbox" class="access-toggle-switch"
+               data-profile="${esc(p.id)}" data-user="${esc(p.user_id)}" data-field="${esc(field)}"
+               ${checked ? 'checked' : ''} ${lockedForSelf ? 'disabled' : ''}>`;
     return `
       <div class="access-toggle-row">
         <div class="access-toggle-name">
@@ -682,9 +687,7 @@ function renderPermissionToggleList(profiles) {
           <span>${esc(name)}</span>
           ${position}
         </div>
-        <input type="checkbox" class="access-toggle-switch"
-               data-profile="${esc(p.id)}" data-user="${esc(p.user_id)}" data-field="${esc(field)}"
-               ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+        ${toggle}
       </div>`;
   }).join('');
 
