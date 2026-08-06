@@ -5,6 +5,24 @@ import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, todayISO, dbErro
 let profile = null;
 let schoolConfig = null;
 
+const FETCH_ALL_BATCH_SIZE = 1000;
+
+// PostgREST caps unranged selects at 1000 rows. Queries here can select every
+// active student in a set of grade levels, which can exceed that cap in a
+// large school — paginate with .range() so results aren't silently truncated.
+async function fetchAllRows(builder) {
+  const rows = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await builder().range(from, from + FETCH_ALL_BATCH_SIZE - 1);
+    if (error) return { error };
+    rows.push(...data);
+    if (data.length < FETCH_ALL_BATCH_SIZE) break;
+    from += FETCH_ALL_BATCH_SIZE;
+  }
+  return { data: rows };
+}
+
 // ── Module-level state ──────────────────────────────────────────────────
 let tripCache            = [];
 let currentTrip          = null;
@@ -750,17 +768,15 @@ async function loadStudents() {
     return;
   }
 
-  let query = supabase
-    .from('students')
-    .select('id, first_name, last_name, grade_level, homeroom_teacher_id, employees!left(first_name, last_name)')
-    .eq('school_id', profile.school_id)
-    .eq('active', true)
-    .in('grade_level', grades)
-    .order('last_name', { ascending: true });
-
   const [{ data: students, error: sErr }, { data: ftStudents }] = await Promise.all([
-    query,
-    supabase.from('field_trip_students').select('student_id, attending').eq('field_trip_id', currentTrip.id),
+    fetchAllRows(() => supabase
+      .from('students')
+      .select('id, first_name, last_name, grade_level, homeroom_teacher_id, employees!left(first_name, last_name)')
+      .eq('school_id', profile.school_id)
+      .eq('active', true)
+      .in('grade_level', grades)
+      .order('last_name', { ascending: true })),
+    fetchAllRows(() => supabase.from('field_trip_students').select('student_id, attending').eq('field_trip_id', currentTrip.id)),
   ]);
 
   if (sErr) {
@@ -1459,8 +1475,8 @@ async function ensurePaymentRows() {
 
   if (grades.length) {
     const [{ data: allStudents }, { data: excluded }] = await Promise.all([
-      supabase.from('students').select('id').eq('school_id', profile.school_id).eq('active', true).in('grade_level', grades),
-      supabase.from('field_trip_students').select('student_id').eq('field_trip_id', currentTrip.id).eq('attending', false),
+      fetchAllRows(() => supabase.from('students').select('id').eq('school_id', profile.school_id).eq('active', true).in('grade_level', grades)),
+      fetchAllRows(() => supabase.from('field_trip_students').select('student_id').eq('field_trip_id', currentTrip.id).eq('attending', false)),
     ]);
     const excludedIds = new Set((excluded ?? []).map(r => r.student_id));
     const attending   = (allStudents ?? []).filter(s => !excludedIds.has(s.id));
