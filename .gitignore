@@ -7,6 +7,7 @@
 .env.local
 .env.production
 .env.*.local
+.env.oneroster
 supabase/functions/.env
 
 # Generated at build time by scripts/build-config.js

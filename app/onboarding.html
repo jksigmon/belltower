@@ -540,6 +540,32 @@ td strong { color: #111827; }
     </div>
 
     <div class="step no-break">
+      <div class="step-num">12b</div>
+      <div class="step-body">
+        <div class="step-title">Infinite Campus Sync setup — only for schools with an IC OneRoster integration</div>
+        <span class="step-where">Admin Panel → IC Sync</span>
+        <p>Belltower is the day-to-day system of record for student/guardian data at these schools — Infinite Campus changes go through a third-party support request (Polaris), so nothing this sync finds is ever written to Belltower without a human explicitly approving it first, and even an approved match only applies its data on the <strong>next</strong> sync run, not at the moment of approval.</p>
+        <ol>
+          <li>Before the first real run, go to <strong>Field Sync Settings</strong> and confirm every checkbox (Grade, DOB, Student #, Guardian Email, Guardian Phone) is unchecked. They default to off, but always double check for a new school — a checked box means that field will auto-overwrite Belltower's value on every already-matched record going forward.</li>
+          <li>Click <strong>Preview Sync</strong> first, every time, before <strong>Run Sync Now</strong>. Preview never writes anything — it just shows what a real run would do.</li>
+          <li>Run the real sync. Anything new or ambiguous lands in the <strong>Needs Review</strong> queue — approve or reject each one (bulk actions available). Approving does not apply the change; it just records the decision.</li>
+          <li>Run the sync again to actually apply what was just approved.</li>
+          <li>Check <strong>Missing in Infinite Campus</strong> periodically — fields IC is sending blank where Belltower already has a value (which is preserved, never wiped). Worth flagging to whoever manages IC data.</li>
+          <li>Check <strong>Field Differences</strong> periodically — already-linked records where both sides have a value but disagree (e.g. IC has a newer grade than Belltower). Nothing here applies automatically; use "Pull in IC's value" per field, per record, whenever you're ready — this works any time, not just right after approving a match.</li>
+          <li>Use <strong>Export Diff Report</strong> to generate a CSV of everything currently different between Belltower and IC — handy to email Polaris as one consolidated correction list instead of one-off requests.</li>
+        </ol>
+        <div class="pitfall">
+          <span class="pitfall-icon">⚠</span>
+          <p><strong>This sync currently runs manually only — there is no schedule.</strong> Nobody's data changes unless someone in the admin panel clicks Run Sync Now. Access requires the <code>can_bulk_upload</code> permission.</p>
+        </div>
+        <div class="note">
+          <span class="note-icon">ℹ</span>
+          <p>Family/household reassignment (e.g. a custody change moving a student to a different household) is never applied automatically, even after approval — the sync will only ever flag it (a "Family" entry in Field Differences) so a human can move the student/guardians in the Admin Panel directly. Same idea for a guardian who's been removed from a student in IC but still exists as a Belltower record — it shows up as a "Linked to student" difference rather than being silently dropped.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step no-break">
       <div class="step-num">13</div>
       <div class="step-body">
         <div class="step-title">Verify setup with the Setup Checklist</div>
@@ -606,7 +632,7 @@ td strong { color: #111827; }
       <tr><td><code>can_manage_families</code></td><td>Families tab + Data Collection (Guardian Intake campaigns).</td></tr>
       <tr><td><code>can_manage_guardians</code></td><td>Guardians tab + Data Collection tab.</td></tr>
       <tr><td><code>can_manage_access</code></td><td>User Access &amp; Permissions tab — can activate users and change anyone's permissions. <strong>Grant carefully.</strong></td></tr>
-      <tr><td><code>can_bulk_upload</code></td><td>Bulk Upload tab.</td></tr>
+      <tr><td><code>can_bulk_upload</code></td><td>Bulk Upload tab, and (for schools with the integration) the IC Sync page — previewing/running syncs, reviewing matches, and pulling in field differences.</td></tr>
       <tr><td><code>can_export_data</code></td><td>Exports tab — rosters, class placements, contact lists.</td></tr>
       <tr><td><code>can_manage_bus_groups</code></td><td>Bus Groups tab.</td></tr>
       <tr><td><code>can_manage_carpools</code></td><td>Carpools tab.</td></tr>

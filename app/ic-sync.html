@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Infinite Campus Sync</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+  <link rel="stylesheet" href="/admin-ui.css">
+  <style>
+    .ic-main { height: 100%; overflow-y: auto; }
+    .ic-page-body { padding: 0; }
+    .ic-status-badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: capitalize;
+    }
+    .ic-status-success { background: #dcfce7; color: #166534; }
+    .ic-status-preview { background: #dbeafe; color: #1e40af; }
+    .ic-status-error { background: #fee2e2; color: #991b1b; }
+    .ic-status-running, .ic-status-previewing { background: #fef9c3; color: #854d0e; }
+    .ic-sample-list {
+      max-height: 160px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      background: #f9fafb;
+      font-size: 13px;
+      margin-top: 6px;
+    }
+    .ic-compare-table {
+      font-size: 12px;
+      border-collapse: collapse;
+      margin: 4px 0;
+    }
+    .ic-compare-table td {
+      padding: 2px 0;
+      border: none;
+    }
+  </style>
+</head>
+<body class="admin-page">
+
+<header>
+  <div class="header-left">
+    <a href="/admin.html" class="btn btn-admin back-to-admin" aria-label="Home">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </a>
+    <img src="/images/belltower-logo.png" alt="Belltower" class="admin-logo" />
+  </div>
+  <div class="header-actions">
+    <div class="user-menu" id="userMenu">
+      <button class="user-avatar" id="userAvatar" aria-label="Account menu" aria-expanded="false">
+        <span id="userInitials"></span>
+      </button>
+      <div class="user-dropdown" id="userDropdown" hidden>
+        <div class="user-dropdown-header">
+          <div class="user-dropdown-name" id="userDropdownName"></div>
+        </div>
+        <a href="/help.html" class="user-dropdown-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Help
+        </a>
+        <div class="user-dropdown-divider"></div>
+        <button class="user-dropdown-item signout" id="signOut">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="ic-main">
+
+<div id="loadingScreen" style="display:flex;align-items:center;justify-content:center;height:100%;font-size:14px;color:#6b7280;">
+  Loading…
+</div>
+
+<div id="accessDenied" hidden style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;text-align:center;padding:20px;">
+  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+  <div style="font-size:16px;font-weight:600;color:#111827;">Access denied</div>
+  <div style="font-size:14px;color:#6b7280;">You don't have permission to manage the Infinite Campus sync.</div>
+  <a href="/admin.html" class="btn btn-outline btn-sm" style="margin-top:8px;">Back to admin</a>
+</div>
+
+<div id="appShell" style="display:none;height:100%;overflow-y:auto;">
+  <div class="ic-page-body">
+    <div class="admin-content">
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+          <div>
+            <h3 style="margin:0 0 4px;">Infinite Campus Sync</h3>
+            <p class="muted" style="font-size:13px;margin:0;">
+              Pulls students and guardians from Infinite Campus (OneRoster) and keeps
+              Belltower's records in sync. Runs automatically on a daily schedule —
+              use Preview to see what the next run would change before it happens.
+            </p>
+          </div>
+          <div style="display:flex;gap:8px;flex-shrink:0;">
+            <button class="btn btn-outline btn-sm" id="icExportBtn">Export Diff Report (CSV)</button>
+            <button class="btn btn-outline btn-sm" id="icPreviewBtn">Preview Sync</button>
+            <button class="btn btn-primary btn-sm" id="icRunBtn">Run Sync Now</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h4 style="margin:0 0 4px;">Field Sync Settings</h4>
+        <p class="muted" style="font-size:13px;margin:0 0 12px;">
+          Belltower is the day-to-day system of record — changing something in Infinite Campus
+          requires a support request. Only check a field below if IC should be allowed to
+          overwrite it automatically on confirmed matches. Unchecked fields never get
+          auto-applied — differences still show in the diff report.
+        </p>
+        <div id="icFieldSettingsBody" style="display:flex;flex-wrap:wrap;gap:16px;">
+          <p class="muted" style="font-size:13px;">Loading…</p>
+        </div>
+      </div>
+
+      <div class="panel" id="icPreviewPanel" hidden>
+        <h4 style="margin:0 0 10px;">Preview Result</h4>
+        <div id="icPreviewBody"></div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <h4 style="margin:0;">Needs Review <span id="icReviewCount" class="muted" style="font-weight:400;font-size:13px;"></span></h4>
+        </div>
+        <p class="muted" style="font-size:13px;margin:0 0 12px;">
+          These are existing Belltower records that look like they might be the same person as an
+          incoming Infinite Campus record (matched by name), but weren't linked automatically.
+          Approve to link and update; reject to keep them as separate, unrelated records.
+        </p>
+        <div id="icReviewQueueWrap">
+          <p class="muted" style="font-size:13px;">Loading…</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <h4 style="margin:0;">Missing in Infinite Campus <span id="icGapsCount" class="muted" style="font-weight:400;font-size:13px;"></span></h4>
+        </div>
+        <p class="muted" style="font-size:13px;margin:0 0 12px;">
+          Fields Infinite Campus is currently sending blank, where Belltower already has a value
+          we've kept instead of overwriting it. Worth flagging with whoever manages data in IC.
+        </p>
+        <div id="icGapsWrap">
+          <p class="muted" style="font-size:13px;">Loading…</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <h4 style="margin:0;">Field Differences <span id="icDiffsCount" class="muted" style="font-weight:400;font-size:13px;"></span></h4>
+        </div>
+        <p class="muted" style="font-size:13px;margin:0 0 12px;">
+          Already-linked records where Belltower and Infinite Campus both have a value, but they
+          disagree. Nothing here is ever applied automatically — pull in IC's value for a single
+          field on a single record any time, whether or not you checked it during approval.
+        </p>
+        <div id="icDiffsWrap">
+          <p class="muted" style="font-size:13px;">Loading…</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h4 style="margin:0 0 12px;">Sync History</h4>
+        <div id="icRunsTableWrap">
+          <p class="muted" style="font-size:13px;">Loading…</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div><!-- /.ic-main -->
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>if (window.lucide) lucide.createIcons();</script>
+<script type="module">
+  import { supabase } from './admin.supabase.js';
+  import { initUserMenu } from './user-menu.js';
+  import { initIcSyncSection } from './admin.ic-sync.js';
+
+  (async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { location.href = '/app/login.html'; return; }
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .single();
+
+    document.getElementById('loadingScreen').style.display = 'none';
+
+    if (error || !profile) {
+      console.error('IC Sync: profile load failed', error);
+      document.getElementById('accessDenied').hidden = false;
+      return;
+    }
+
+    if (!profile.is_superadmin && !profile.can_bulk_upload) {
+      document.getElementById('accessDenied').hidden = false;
+      return;
+    }
+
+    const displayName = profile.display_name || profile.email || '';
+    initUserMenu(displayName);
+
+    document.getElementById('signOut').addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      location.href = '/app/login.html';
+    });
+
+    document.getElementById('appShell').style.display = '';
+    if (window.lucide) lucide.createIcons();
+
+    try {
+      await initIcSyncSection(profile);
+    } catch (err) {
+      console.error('IC Sync init error:', err);
+      document.getElementById('icRunsTableWrap').innerHTML =
+        `<p class="muted" style="padding:1rem;">Failed to load: ${err?.message || err}</p>`;
+    }
+  })();
+</script>
+</body>
+</html>

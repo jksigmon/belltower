@@ -463,6 +463,10 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Admin Panel
     </a>
+    <a href="#section-ic-sync" class="help-cat-card">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+      Infinite Campus Sync
+    </a>
     <a href="#section-access" class="help-cat-card">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
       Access &amp; Roles
@@ -844,6 +848,81 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <p>Every directory table (Staff, Students, Families, etc.) has a search bar that filters by name and key fields. Use the sort dropdown to change the sort order. Results are paginated and you can use the arrows at the bottom to move between pages.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ IC SYNC ══════════ -->
+  <div class="faq-section" id="section-ic-sync">
+    <div class="faq-section-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+      Infinite Campus Sync
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        Does the Infinite Campus sync ever change my data automatically?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>No. Belltower is treated as the day-to-day system of record — nothing is ever created, updated, or deactivated without someone explicitly approving it first in the Needs Review queue. The sync only runs when someone in the Admin Panel clicks <strong>Run Sync Now</strong>; there is no automatic schedule.</p>
+        <p>Even an approved match doesn't apply immediately — approving records the decision, and it's applied the next time the sync is run. Always click <strong>Preview Sync</strong> first to see what a run would do before actually running it.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What shows up in the Needs Review queue?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Anything the sync isn't sure about: a new student/guardian from Infinite Campus that might already exist in Belltower under a different record, a brand-new person Infinite Campus has that Belltower doesn't, a student who's disappeared from the Infinite Campus roster (recommended for deactivation), or a possible household match. Approve to link/create/deactivate, or reject to keep the records as-is. You can select multiple rows and approve or reject them together.</p>
+        <p>When approving a match, you can check individual field boxes (like Grade or Date of Birth) to pull in just that data for that one record, without turning that field on globally for everyone.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What's the difference between "Missing in Infinite Campus" and "Field Differences"?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p><strong>Missing in Infinite Campus</strong> is fields IC is currently sending blank where Belltower already has a value — Belltower's value is always preserved, never wiped out. Worth flagging to whoever manages Infinite Campus data so it gets filled in on their end.</p>
+        <p><strong>Field Differences</strong> is the opposite kind of gap: fields where both sides have a value, but they disagree (e.g. Infinite Campus has a newer grade than Belltower). Nothing here is applied automatically — use the <strong>Pull in IC's value</strong> button on any row, any time, to bring in just that one field for that one record (you can also select several rows and pull them all at once).</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        I approved a match without checking any field boxes — how do I pull in that data later?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Once a record is linked, the field checkboxes from the approval step are gone for good — but any field where Belltower and IC still disagree will show up in the <strong>Field Differences</strong> panel after the next sync run. Use <strong>Pull in IC's value</strong> there whenever you're ready; it isn't limited to the moment right after approval.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        A student shows a "Family" or "Linked to student" difference — what does that mean?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>These are informational-only flags, never applied automatically:</p>
+        <ul>
+          <li><strong>Family</strong> — the student's linked guardian(s) actually belong to a different Belltower family than the student does. This usually means a household changed in Infinite Campus (e.g. a custody change). Go move the student or guardians to the correct family in the Admin Panel directly.</li>
+          <li><strong>Linked to student</strong> — a guardian that's linked in Belltower is no longer attached to any student in the current Infinite Campus pull. Check whether they should be removed from that family in the Admin Panel.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I access IC Sync?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>It requires the <code>can_bulk_upload</code> permission and only appears for schools with the Infinite Campus integration set up. If you don't see it in the Admin Panel nav, ask your administrator to grant that permission.</p>
       </div>
     </div>
   </div>
