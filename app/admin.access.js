@@ -128,6 +128,7 @@ export async function initAccessSection(profile, modules = {}) {
 
   await loadAccessUserOptions();
   await loadPendingUsers();
+  await loadUnlinkedAccounts();
 
   // Match the always-fresh behavior above for whichever view is currently
   // showing, in case permissions changed elsewhere since last visit.
@@ -494,6 +495,93 @@ async function loadPendingUsers() {
   });
 }
 
+
+/* ===============================
+   UNLINKED ACCOUNTS
+   Profiles that have signed in (user_id set) and are active, but have
+   no employee_id — they hit a dead end in staff.html until linked.
+================================ */
+
+async function loadUnlinkedAccounts() {
+  const container = document.getElementById('unlinkedAccountsTable');
+  if (!container) return;
+
+  container.innerHTML = '';
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, user_id, display_name, email')
+    .eq('status', 'active')
+    .eq('school_id', currentProfile.school_id)
+    .is('employee_id', null)
+    .not('user_id', 'is', null)
+    .order('email');
+
+  if (error || !data.length) {
+    container.innerHTML = '<p class="muted">No unlinked accounts</p>';
+    return;
+  }
+
+  const { data: candidateEmployees } = await supabase
+    .from('employees')
+    .select('id, first_name, last_name, email')
+    .eq('school_id', currentProfile.school_id)
+    .is('profile_id', null)
+    .order('last_name');
+
+  data.forEach(p => {
+    const card = document.createElement('div');
+    card.className = 'access-req-card';
+
+    const options = (candidateEmployees ?? [])
+      .map(e => `<option value="${esc(e.id)}">${esc(`${e.first_name ?? ''} ${e.last_name ?? ''}`.trim() || e.email)} — ${esc(e.email ?? '')}</option>`)
+      .join('');
+
+    card.innerHTML = `
+      <div class="access-req-card-main">
+        <div class="access-req-name">${esc(p.display_name ?? '—')}</div>
+        <div class="access-req-email">${esc(p.email)}</div>
+      </div>
+      <div class="access-req-actions" style="gap:8px;">
+        <select class="unlinked-employee-select">
+          <option value="">Link to existing employee…</option>
+          ${options}
+        </select>
+        <button class="btn btn-sm btn-primary">Link</button>
+      </div>
+    `;
+
+    card.querySelector('button').onclick = async () => {
+      const select = card.querySelector('.unlinked-employee-select');
+      const employeeId = select.value;
+
+      if (!employeeId) {
+        alert('Select an employee to link first.');
+        return;
+      }
+
+      const { error: linkError } = await supabase
+        .from('profiles')
+        .update({ employee_id: employeeId })
+        .eq('id', p.id);
+
+      if (linkError) {
+        console.error('Failed to link profile to employee:', linkError);
+        alert('Failed to link account.');
+        return;
+      }
+
+      await supabase
+        .from('employees')
+        .update({ profile_id: p.id })
+        .eq('id', employeeId);
+
+      await loadUnlinkedAccounts();
+    };
+
+    container.appendChild(card);
+  });
+}
 
 /* ===============================
    EVENTS
