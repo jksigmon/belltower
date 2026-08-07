@@ -515,6 +515,7 @@ async function loadUnlinkedAccounts() {
     .select('id, user_id, display_name, email')
     .eq('status', 'active')
     .eq('school_id', currentProfile.school_id)
+    .eq('can_login', true)
     .is('employee_id', null)
     .order('email');
 
@@ -599,11 +600,12 @@ async function loadUnlinkedAccounts() {
           <option value="">Link to existing employee…</option>
           ${options}
         </select>
-        <button class="btn btn-sm btn-primary">Link</button>
+        <button class="btn btn-sm btn-primary unlinked-link-btn">Link</button>
+        <button class="btn btn-sm btn-outline unlinked-dismiss-btn" title="Revoke login — use for former staff no longer at the school">Not an employee</button>
       </div>
     `;
 
-    card.querySelector('button').onclick = async () => {
+    card.querySelector('.unlinked-link-btn').onclick = async () => {
       const select = card.querySelector('.unlinked-employee-select');
       const employeeId = select.value;
 
@@ -617,6 +619,23 @@ async function loadUnlinkedAccounts() {
 
       if (!ok) {
         alert('Failed to link account.');
+        return;
+      }
+
+      await loadUnlinkedAccounts();
+    };
+
+    card.querySelector('.unlinked-dismiss-btn').onclick = async () => {
+      if (!confirm(`Revoke login for ${p.display_name ?? p.email}? Use this for former staff who are no longer with the school.`)) return;
+
+      const { error: dismissError } = await supabase
+        .from('profiles')
+        .update({ can_login: false })
+        .eq('id', p.id);
+
+      if (dismissError) {
+        console.error('Failed to revoke login:', dismissError);
+        alert('Failed to update account.');
         return;
       }
 
