@@ -498,8 +498,10 @@ async function loadPendingUsers() {
 
 /* ===============================
    UNLINKED ACCOUNTS
-   Profiles that have signed in (user_id set) and are active, but have
-   no employee_id — they hit a dead end in staff.html until linked.
+   Active profiles with no employee_id. Includes people who already
+   signed in and hit the dead end in staff.html (user_id set), plus
+   preloaded profiles that will hit it the moment they first log in
+   (user_id still null) — both are fixed the same way.
 ================================ */
 
 async function loadUnlinkedAccounts() {
@@ -514,7 +516,6 @@ async function loadUnlinkedAccounts() {
     .eq('status', 'active')
     .eq('school_id', currentProfile.school_id)
     .is('employee_id', null)
-    .not('user_id', 'is', null)
     .order('email');
 
   if (error || !data.length) {
@@ -529,17 +530,68 @@ async function loadUnlinkedAccounts() {
     .is('profile_id', null)
     .order('last_name');
 
+  const emailMatch = p =>
+    (candidateEmployees ?? []).find(e => (e.email ?? '').toLowerCase() === (p.email ?? '').toLowerCase());
+
+  const matchCount = data.filter(emailMatch).length;
+
+  const headerHtml = matchCount
+    ? `<div class="access-req-card" style="background:#eff6ff;">
+         <div class="access-req-card-main">
+           <div class="access-req-name">${matchCount} account${matchCount === 1 ? '' : 's'} have a matching employee record by email</div>
+           <div class="access-req-email">Auto-link fills in the matches below; review before saving, or link individually.</div>
+         </div>
+         <div class="access-req-actions">
+           <button class="btn btn-sm btn-primary" id="autoLinkUnlinkedBtn">Auto-link all matches</button>
+         </div>
+       </div>`
+    : '';
+
+  container.innerHTML = headerHtml;
+
+  const doLink = async (p, employeeId, employee) => {
+    const employeeName = employee
+      ? `${employee.first_name ?? ''} ${employee.last_name ?? ''}`.trim()
+      : '';
+
+    const { error: linkError } = await supabase
+      .from('profiles')
+      .update({
+        employee_id: employeeId,
+        ...(employeeName ? { display_name: employeeName } : {})
+      })
+      .eq('id', p.id);
+
+    if (linkError) {
+      console.error('Failed to link profile to employee:', linkError);
+      return false;
+    }
+
+    await supabase
+      .from('employees')
+      .update({ profile_id: p.id })
+      .eq('id', employeeId);
+
+    return true;
+  };
+
   data.forEach(p => {
     const card = document.createElement('div');
     card.className = 'access-req-card';
 
+    const match = emailMatch(p);
+
     const options = (candidateEmployees ?? [])
-      .map(e => `<option value="${esc(e.id)}">${esc(`${e.first_name ?? ''} ${e.last_name ?? ''}`.trim() || e.email)} — ${esc(e.email ?? '')}</option>`)
+      .map(e => `<option value="${esc(e.id)}" ${match && e.id === match.id ? 'selected' : ''}>${esc(`${e.first_name ?? ''} ${e.last_name ?? ''}`.trim() || e.email)} — ${esc(e.email ?? '')}</option>`)
       .join('');
+
+    const statusBadge = p.user_id
+      ? `<span class="staff-position-badge" style="background:#fee2e2;color:#991b1b;">Already hit the error</span>`
+      : `<span class="staff-position-badge" style="background:#fef9c3;color:#854d0e;">Not yet logged in</span>`;
 
     card.innerHTML = `
       <div class="access-req-card-main">
-        <div class="access-req-name">${esc(p.display_name ?? '—')}</div>
+        <div class="access-req-name">${esc(p.display_name ?? '—')} ${statusBadge}</div>
         <div class="access-req-email">${esc(p.email)}</div>
       </div>
       <div class="access-req-actions" style="gap:8px;">
@@ -560,26 +612,29 @@ async function loadUnlinkedAccounts() {
         return;
       }
 
-      const { error: linkError } = await supabase
-        .from('profiles')
-        .update({ employee_id: employeeId })
-        .eq('id', p.id);
+      const employee = (candidateEmployees ?? []).find(e => e.id === employeeId);
+      const ok = await doLink(p, employeeId, employee);
 
-      if (linkError) {
-        console.error('Failed to link profile to employee:', linkError);
+      if (!ok) {
         alert('Failed to link account.');
         return;
       }
-
-      await supabase
-        .from('employees')
-        .update({ profile_id: p.id })
-        .eq('id', employeeId);
 
       await loadUnlinkedAccounts();
     };
 
     container.appendChild(card);
+  });
+
+  document.getElementById('autoLinkUnlinkedBtn')?.addEventListener('click', async () => {
+    if (!confirm(`Auto-link ${matchCount} account${matchCount === 1 ? '' : 's'} by matching email?`)) return;
+
+    for (const p of data) {
+      const match = emailMatch(p);
+      if (match) await doLink(p, match.id, match);
+    }
+
+    await loadUnlinkedAccounts();
   });
 }
 
