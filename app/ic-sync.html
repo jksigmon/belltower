@@ -140,6 +140,10 @@
           incoming Infinite Campus record (matched by name), but weren't linked automatically.
           Approve to link and update; reject to keep them as separate, unrelated records.
         </p>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <button class="btn btn-sm btn-primary" id="icReviewTabPending">Pending</button>
+          <button class="btn btn-sm btn-outline" id="icReviewTabRejected">Rejected <span id="icRejectedCount" class="muted" style="font-weight:400;"></span></button>
+        </div>
         <div id="icReviewQueueWrap">
           <p class="muted" style="font-size:13px;">Loading…</p>
         </div>

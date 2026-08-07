@@ -464,14 +464,14 @@ async function buildPlan() {
   const unlinkedStudentByName = new Map<string, (typeof allStudents)[number] | null>();
   for (const s of allStudents) {
     if (s.ic_sourced_id) continue;
-    const key = `${(s.first_name ?? "").toLowerCase()}|${(s.last_name ?? "").toLowerCase()}`;
+    const key = `${(s.first_name ?? "").trim().toLowerCase()}|${(s.last_name ?? "").trim().toLowerCase()}`;
     unlinkedStudentByName.set(key, unlinkedStudentByName.has(key) ? null : s);
   }
 
   const unlinkedGuardianByEmail = new Map<string, (typeof allGuardians)[number] | null>();
   for (const g of allGuardians) {
     if (g.ic_sourced_id || !g.email) continue;
-    const key = g.email.toLowerCase();
+    const key = g.email.trim().toLowerCase();
     unlinkedGuardianByEmail.set(key, unlinkedGuardianByEmail.has(key) ? null : g);
   }
 
@@ -508,7 +508,7 @@ async function buildPlan() {
         return cand.existing_record_id ? { kind: "rejected" } : { kind: "new_rejected" };
       }
       if (cand.status === "pending" && !cand.existing_record_id) {
-        const key = `${(student.givenName ?? "").toLowerCase()}|${(student.familyName ?? "").toLowerCase()}`;
+        const key = `${(student.givenName ?? "").trim().toLowerCase()}|${(student.familyName ?? "").trim().toLowerCase()}`;
         const heuristic = unlinkedStudentByName.get(key);
         if (heuristic) {
           unlinkedStudentByName.delete(key);
@@ -529,7 +529,7 @@ async function buildPlan() {
     // Matching on name only (not grade too): a stale manual record may be a grade
     // behind IC after a promotion, and since every match goes through human review
     // anyway, there's no auto-apply risk in casting a wider net here.
-    const key = `${(student.givenName ?? "").toLowerCase()}|${(student.familyName ?? "").toLowerCase()}`;
+    const key = `${(student.givenName ?? "").trim().toLowerCase()}|${(student.familyName ?? "").trim().toLowerCase()}`;
     const heuristic = unlinkedStudentByName.get(key);
     if (heuristic) {
       unlinkedStudentByName.delete(key); // consume so it's matched at most once
@@ -555,7 +555,7 @@ async function buildPlan() {
         return cand.existing_record_id ? { kind: "rejected" } : { kind: "new_rejected" };
       }
       if (cand.status === "pending" && !cand.existing_record_id) {
-        const email = guardian.email?.toLowerCase();
+        const email = guardian.email?.trim().toLowerCase();
         const heuristic = email ? unlinkedGuardianByEmail.get(email) : null;
         if (heuristic) {
           unlinkedGuardianByEmail.delete(email);
@@ -573,7 +573,7 @@ async function buildPlan() {
         : { kind: "new_pending" };
     }
 
-    const email = guardian.email?.toLowerCase();
+    const email = guardian.email?.trim().toLowerCase();
     const heuristic = email ? unlinkedGuardianByEmail.get(email) : null;
     if (heuristic) {
       unlinkedGuardianByEmail.delete(email);

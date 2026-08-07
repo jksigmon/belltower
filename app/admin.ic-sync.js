@@ -15,7 +15,17 @@ export async function initIcSyncSection(currentProfile) {
   });
   document.getElementById('icExportBtn').addEventListener('click', exportDiffReport);
 
+  document.getElementById('icReviewTabPending').addEventListener('click', () => switchReviewTab('pending'));
+  document.getElementById('icReviewTabRejected').addEventListener('click', () => switchReviewTab('rejected'));
+
   await Promise.all([loadRuns(), loadReviewQueue(), loadDataGaps(), loadFieldDiffs(), loadFieldSettings()]);
+}
+
+function switchReviewTab(status) {
+  reviewStatusFilter = status;
+  document.getElementById('icReviewTabPending').className = status === 'pending' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  document.getElementById('icReviewTabRejected').className = status === 'rejected' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-outline';
+  loadReviewQueue();
 }
 
 const FIELD_SETTINGS_META = [
@@ -180,18 +190,20 @@ function sampleList(label, items) {
 
 const REVIEW_PAGE_SIZE = 50;
 const selectedCandidateIds = new Set();
+let reviewStatusFilter = 'pending';
 
 async function loadReviewQueue() {
   const wrap = document.getElementById('icReviewQueueWrap');
   const countEl = document.getElementById('icReviewCount');
+  const rejectedCountEl = document.getElementById('icRejectedCount');
   selectedCandidateIds.clear();
 
   const { data: candidates, error, count } = await supabase
     .from('ic_reconciliation_candidates')
     .select('*', { count: 'exact' })
     .eq('school_id', profile.school_id)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true })
+    .eq('status', reviewStatusFilter)
+    .order(reviewStatusFilter === 'rejected' ? 'reviewed_at' : 'created_at', { ascending: false })
     .limit(REVIEW_PAGE_SIZE);
 
   if (error) {
@@ -199,14 +211,26 @@ async function loadReviewQueue() {
     return;
   }
 
-  countEl.textContent = count ? `(${count})` : '';
+  if (reviewStatusFilter === 'pending') {
+    countEl.textContent = count ? `(${count})` : '';
+  } else {
+    rejectedCountEl.textContent = count ? `(${count})` : '';
+  }
 
   if (!candidates?.length) {
-    wrap.innerHTML = `<p class="muted" style="font-size:13px;">Nothing needs review right now.</p>`;
+    wrap.innerHTML = `<p class="muted" style="font-size:13px;">${reviewStatusFilter === 'rejected' ? "Nothing rejected — you're not sitting on anything you meant to come back to." : 'Nothing needs review right now.'}</p>`;
     return;
   }
 
-  const bulkBar = `
+  const mode = reviewStatusFilter;
+  const bulkBar = mode === 'rejected'
+    ? `
+    <div style="display:flex;align-items:center;gap:10px;margin:10px 0;">
+      <button class="btn btn-sm btn-primary" data-bulk-restore disabled>Restore Selected to Review</button>
+      <span class="muted ic-selected-count" style="font-size:12px;"></span>
+    </div>
+  `
+    : `
     <div style="display:flex;align-items:center;gap:10px;margin:10px 0;">
       <button class="btn btn-sm btn-primary" data-bulk-approve disabled>Approve Selected</button>
       <button class="btn btn-sm btn-outline" data-bulk-reject disabled>Reject Selected</button>
@@ -226,10 +250,10 @@ async function loadReviewQueue() {
         </tr>
       </thead>
       <tbody>
-        ${candidates.map(candidateRowHtml).join('')}
+        ${candidates.map((c) => candidateRowHtml(c, mode)).join('')}
       </tbody>
     </table>
-    ${count > REVIEW_PAGE_SIZE ? `<p class="muted" style="font-size:12px;margin-top:8px;">Showing ${REVIEW_PAGE_SIZE} of ${count} — approve or reject these to see more.</p>` : ''}
+    ${count > REVIEW_PAGE_SIZE ? `<p class="muted" style="font-size:12px;margin-top:8px;">Showing ${REVIEW_PAGE_SIZE} of ${count}.</p>` : ''}
     ${bulkBar}
   `;
 
@@ -238,6 +262,9 @@ async function loadReviewQueue() {
   );
   wrap.querySelectorAll('[data-reject]').forEach((btn) =>
     btn.addEventListener('click', () => reviewCandidates([btn.dataset.reject], 'rejected'))
+  );
+  wrap.querySelectorAll('[data-restore]').forEach((btn) =>
+    btn.addEventListener('click', () => reviewCandidates([btn.dataset.restore], 'pending'))
   );
   wireFamilyOverrideControls(wrap);
   wrap.querySelectorAll('[data-field-override]').forEach((cb) =>
@@ -255,12 +282,14 @@ async function loadReviewQueue() {
   const selectAll = document.getElementById('icSelectAllCheckbox');
   const bulkApproveBtns = [...wrap.querySelectorAll('[data-bulk-approve]')];
   const bulkRejectBtns = [...wrap.querySelectorAll('[data-bulk-reject]')];
+  const bulkRestoreBtns = [...wrap.querySelectorAll('[data-bulk-restore]')];
   const selectedCountEls = [...wrap.querySelectorAll('.ic-selected-count')];
 
   const updateBulkButtons = () => {
     const n = selectedCandidateIds.size;
     bulkApproveBtns.forEach((btn) => (btn.disabled = n === 0));
     bulkRejectBtns.forEach((btn) => (btn.disabled = n === 0));
+    bulkRestoreBtns.forEach((btn) => (btn.disabled = n === 0));
     selectedCountEls.forEach((el) => (el.textContent = n ? `${n} selected` : ''));
   };
 
@@ -286,6 +315,9 @@ async function loadReviewQueue() {
   );
   bulkRejectBtns.forEach((btn) =>
     btn.addEventListener('click', () => reviewCandidates([...selectedCandidateIds], 'rejected'))
+  );
+  bulkRestoreBtns.forEach((btn) =>
+    btn.addEventListener('click', () => reviewCandidates([...selectedCandidateIds], 'pending'))
   );
 }
 
@@ -343,7 +375,19 @@ function compareFieldsHtml(candidateId, existing, proposed, fields) {
 // candidateId -> family id chosen as an override for the auto-suggested match
 const familyOverrideTarget = new Map();
 
-function familyRowHtml(c) {
+// Rejected rows get a single "Restore to Review" action instead of Approve/Reject —
+// there's nothing to approve directly from here, just a way back into the normal flow.
+function actionCellHtml(c, mode, approveLabel, rejectLabel) {
+  if (mode === 'rejected') {
+    return `<button class="btn btn-sm btn-outline" data-restore="${c.id}">Restore to Review</button>`;
+  }
+  return `
+    <button class="btn btn-sm btn-primary" data-approve="${c.id}">${approveLabel}</button>
+    <button class="btn btn-sm btn-outline" data-reject="${c.id}">${rejectLabel}</button>
+  `;
+}
+
+function familyRowHtml(c, mode) {
   const existing = c.existing_data || {};
   const proposed = c.proposed_data || {};
   const overrideId = familyOverrideTarget.get(c.id);
@@ -367,14 +411,13 @@ function familyRowHtml(c) {
         </div>
       </td>
       <td style="white-space:nowrap;">
-        <button class="btn btn-sm btn-primary" data-approve="${c.id}">Approve</button>
-        <button class="btn btn-sm btn-outline" data-reject="${c.id}">Reject</button>
+        ${actionCellHtml(c, mode, 'Approve', 'Reject')}
       </td>
     </tr>
   `;
 }
 
-function newRecordRowHtml(c) {
+function newRecordRowHtml(c, mode) {
   const proposed = c.proposed_data || {};
   const isStudent = c.entity_type === 'student';
   const summary = isStudent
@@ -387,14 +430,13 @@ function newRecordRowHtml(c) {
       <td style="text-transform:capitalize;">${esc(c.entity_type)} <span class="muted" style="font-size:11px;">(new)</span></td>
       <td colspan="2" style="font-size:13px;">New in Infinite Campus, not yet in Belltower: ${esc(summary)}</td>
       <td style="white-space:nowrap;">
-        <button class="btn btn-sm btn-primary" data-approve="${c.id}">Accept</button>
-        <button class="btn btn-sm btn-outline" data-reject="${c.id}">Don't add</button>
+        ${actionCellHtml(c, mode, 'Accept', "Don't add")}
       </td>
     </tr>
   `;
 }
 
-function deactivateRowHtml(c) {
+function deactivateRowHtml(c, mode) {
   const existing = c.existing_data || {};
   const name = `${existing.first_name ?? ''} ${existing.last_name ?? ''}`.trim();
 
@@ -406,17 +448,16 @@ function deactivateRowHtml(c) {
         <strong>${esc(name)}</strong> is no longer in Infinite Campus's roster. Approve to mark inactive in Belltower; reject to keep active (e.g. if this looks like a data glitch on IC's side).
       </td>
       <td style="white-space:nowrap;">
-        <button class="btn btn-sm btn-primary" data-approve="${c.id}">Deactivate</button>
-        <button class="btn btn-sm btn-outline" data-reject="${c.id}">Keep active</button>
+        ${actionCellHtml(c, mode, 'Deactivate', 'Keep active')}
       </td>
     </tr>
   `;
 }
 
-function candidateRowHtml(c) {
-  if (c.entity_type === 'family') return familyRowHtml(c);
-  if (c.match_reason === 'new_record') return newRecordRowHtml(c);
-  if (c.match_reason === 'deactivate') return deactivateRowHtml(c);
+function candidateRowHtml(c, mode = 'pending') {
+  if (c.entity_type === 'family') return familyRowHtml(c, mode);
+  if (c.match_reason === 'new_record') return newRecordRowHtml(c, mode);
+  if (c.match_reason === 'deactivate') return deactivateRowHtml(c, mode);
 
   const existing = c.existing_data || {};
   const proposed = c.proposed_data || {};
@@ -429,8 +470,7 @@ function candidateRowHtml(c) {
       <td style="text-transform:capitalize;">${esc(c.entity_type)}</td>
       <td colspan="2">${compareFieldsHtml(c.id, existing, proposed, fields)}</td>
       <td style="white-space:nowrap;">
-        <button class="btn btn-sm btn-primary" data-approve="${c.id}">Approve</button>
-        <button class="btn btn-sm btn-outline" data-reject="${c.id}">Reject</button>
+        ${actionCellHtml(c, mode, 'Approve', 'Reject')}
       </td>
     </tr>
   `;
