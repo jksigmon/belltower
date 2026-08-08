@@ -401,31 +401,33 @@ async function buildPlan() {
   // needed to reconcile against records entered manually before this integration
   // existed (e.g. via bulk upload), so the first sync updates them instead of
   // creating duplicates.
-  const allStudents = await fetchAllRows<any>("students", (q) =>
-    q
-      .select("id, ic_sourced_id, family_id, first_name, last_name, student_number, grade_level, birthdate, active")
-      .eq("school_id", IC_SCHOOL_ID)
-  );
-
-  const allGuardians = await fetchAllRows<any>("guardians", (q) =>
-    q.select("id, ic_sourced_id, family_id, first_name, last_name, email, phone").eq("school_id", IC_SCHOOL_ID)
-  );
-
-  const candidates = await fetchAllRows<any>("ic_reconciliation_candidates", (q) =>
-    q.select("*").eq("school_id", IC_SCHOOL_ID)
-  );
-
-  // So a "resolved" check only fires a DB call when a gap could actually be open —
-  // without this, every already-fine field on every already-linked student would
-  // trigger a no-op resolve call every single run (thousands of wasted round-trips).
-  const openGaps = await fetchAllRows<any>("ic_data_gaps", (q) =>
-    q.select("entity_type, entity_id, field").eq("school_id", IC_SCHOOL_ID).is("resolved_at", null)
-  );
+  //
+  // These five reads are all independent (different tables, no data dependency
+  // between them), so they run in parallel rather than one after another — with
+  // ic_reconciliation_candidates and ic_field_diffs both running into the thousands
+  // of rows (each needing multiple paginated round trips on their own), sequential
+  // awaits here were a real contributor to runs taking long enough to time out.
+  const [allStudents, allGuardians, candidates, openGaps, openDiffs] = await Promise.all([
+    fetchAllRows<any>("students", (q) =>
+      q
+        .select("id, ic_sourced_id, family_id, first_name, last_name, student_number, grade_level, birthdate, active")
+        .eq("school_id", IC_SCHOOL_ID)
+    ),
+    fetchAllRows<any>("guardians", (q) =>
+      q.select("id, ic_sourced_id, family_id, first_name, last_name, email, phone").eq("school_id", IC_SCHOOL_ID)
+    ),
+    fetchAllRows<any>("ic_reconciliation_candidates", (q) => q.select("*").eq("school_id", IC_SCHOOL_ID)),
+    // So a "resolved" check only fires a DB call when a gap could actually be open —
+    // without this, every already-fine field on every already-linked student would
+    // trigger a no-op resolve call every single run (thousands of wasted round-trips).
+    fetchAllRows<any>("ic_data_gaps", (q) =>
+      q.select("entity_type, entity_id, field").eq("school_id", IC_SCHOOL_ID).is("resolved_at", null)
+    ),
+    fetchAllRows<any>("ic_field_diffs", (q) =>
+      q.select("entity_type, entity_id, field").eq("school_id", IC_SCHOOL_ID).is("resolved_at", null)
+    ),
+  ]);
   const openGapKeys = new Set(openGaps.map((g) => `${g.entity_type}:${g.entity_id}:${g.field}`));
-
-  const openDiffs = await fetchAllRows<any>("ic_field_diffs", (q) =>
-    q.select("entity_type, entity_id, field").eq("school_id", IC_SCHOOL_ID).is("resolved_at", null)
-  );
   const openDiffKeys = new Set(openDiffs.map((d) => `${d.entity_type}:${d.entity_id}:${d.field}`));
 
   // Which fields the sync is even allowed to touch on already-linked people. Belltower
@@ -646,7 +648,24 @@ async function buildPlan() {
     [...familyPlans.values()].map((f) => f.existingFamilyId).filter((id): id is string => !!id)
   );
 
-  const familyCandidatesToStage: Record<string, unknown>[] = [];
+  // O(1) lookup instead of icStudents.find() inside the loop below — with a full
+  // district's worth of students and groups, the repeated linear scan added up.
+  const icStudentBySourcedId = new Map(icStudents.map((s: any) => [s.sourcedId, s]));
+
+  // First pass: figure out which groups need a target-family candidate staged, without
+  // awaiting anything yet — the student/guardian count lookups for every qualifying
+  // group get batched into a single Promise.all afterward instead of blocking the loop
+  // one group at a time. With a first sync potentially involving hundreds of new
+  // households, sequential per-group round trips here were very likely a major
+  // contributor to runs timing out.
+  const familyMatchesPending: {
+    root: string;
+    stableGroupKey: string;
+    derivedName: string;
+    targetFamily: any;
+    newMembers: any[];
+  }[] = [];
+
   for (const [root, studentSourcedIds] of groups) {
     const familyPlan = familyPlans.get(root)!;
     if (!familyPlan.isNew) continue; // already resolved to a real household
@@ -656,7 +675,7 @@ async function buildPlan() {
     // still an unapproved "new_needs_staging"/"new_pending", there's nothing to home
     // yet and no reason to suggest a family match before that's resolved.
     const newMembers = studentSourcedIds
-      .map((sid) => icStudents.find((s: any) => s.sourcedId === sid))
+      .map((sid) => icStudentBySourcedId.get(sid))
       .filter((s: any) => {
         const cls = studentClassBySourcedId.get(s.sourcedId);
         return cls?.kind === "new_approved" || cls?.kind === "rejected";
@@ -694,31 +713,40 @@ async function buildPlan() {
     );
     if (nameMatches.length !== 1) continue; // none or ambiguous — just create fresh, as before
 
-    const targetFamily = nameMatches[0];
-    const [{ count: studentCount }, { count: guardianCount }] = await Promise.all([
-      supabase.from("students").select("id", { count: "exact", head: true }).eq("family_id", targetFamily.id),
-      supabase.from("guardians").select("id", { count: "exact", head: true }).eq("family_id", targetFamily.id),
-    ]);
+    familyMatchesPending.push({ root, stableGroupKey, derivedName, targetFamily: nameMatches[0], newMembers });
+  }
 
+  const familyMatchCounts = await Promise.all(
+    familyMatchesPending.map((m) =>
+      Promise.all([
+        supabase.from("students").select("id", { count: "exact", head: true }).eq("family_id", m.targetFamily.id),
+        supabase.from("guardians").select("id", { count: "exact", head: true }).eq("family_id", m.targetFamily.id),
+      ])
+    )
+  );
+
+  const familyCandidatesToStage: Record<string, unknown>[] = [];
+  familyMatchesPending.forEach((m, i) => {
+    const [{ count: studentCount }, { count: guardianCount }] = familyMatchCounts[i];
     familyCandidatesToStage.push({
       school_id: IC_SCHOOL_ID,
       entity_type: "family",
-      ic_sourced_id: `family:${stableGroupKey}`,
-      existing_record_id: targetFamily.id,
+      ic_sourced_id: `family:${m.stableGroupKey}`,
+      existing_record_id: m.targetFamily.id,
       match_reason: "family_name_match",
       existing_data: {
-        family_name: targetFamily.family_name,
-        carline_tag_number: targetFamily.carline_tag_number,
+        family_name: m.targetFamily.family_name,
+        carline_tag_number: m.targetFamily.carline_tag_number,
         student_count: studentCount ?? 0,
         guardian_count: guardianCount ?? 0,
       },
       proposed_data: {
-        family_name: derivedName,
-        students: newMembers.map((m: any) => `${m.givenName} ${m.familyName}`),
+        family_name: m.derivedName,
+        students: m.newMembers.map((s: any) => `${s.givenName} ${s.familyName}`),
       },
     });
-    heldBackFamilyKeys.add(root);
-  }
+    heldBackFamilyKeys.add(m.root);
+  });
 
   // Audit trail of fields IC is currently blank on where Belltower has a value we're
   // preserving (see preferExistingWhenBlank) — surfaced in the admin UI so staff can
@@ -841,8 +869,16 @@ async function buildPlan() {
       // Field is disabled for auto-sync — leave Belltower's value untouched on this
       // update, unless the reviewer specifically opted this one record in when
       // approving (a per-record override doesn't change the global setting).
-      if (!fieldSettings.email && !fieldOverrides.includes("email")) delete record.email;
-      if (!fieldSettings.phone && !fieldOverrides.includes("phone")) delete record.phone;
+      //
+      // IMPORTANT: re-assign to the existing value here rather than `delete`ing the
+      // key. bulkUpdate sends a whole batch of these records in one upsert call —
+      // if some records in the batch have a key and others don't, Postgres needs a
+      // single column list for the batch and silently writes NULL for whichever rows
+      // are missing that key, wiping data on every record in the batch that didn't
+      // have the override checked. Keeping the key with its current value avoids that
+      // entirely, since every record in the batch has the same shape either way.
+      if (!fieldSettings.email && !fieldOverrides.includes("email")) record.email = existing.email;
+      if (!fieldSettings.phone && !fieldOverrides.includes("phone")) record.phone = existing.phone;
 
       // IC has no per-guardian "active" flag we sync on — the real signal that a
       // guardian was dropped from a student (e.g. a custody change) is that they no
@@ -997,9 +1033,17 @@ async function buildPlan() {
       }
       // Field is disabled globally, unless the reviewer opted this one record in when
       // approving — a per-record override doesn't flip the global setting.
-      if (!fieldSettings.grade_level && !fieldOverrides.includes("grade_level")) delete record.grade_level;
-      if (!fieldSettings.birthdate && !fieldOverrides.includes("birthdate")) delete record.birthdate;
-      if (!fieldSettings.student_number && !fieldOverrides.includes("student_number")) delete record.student_number;
+      //
+      // IMPORTANT: re-assign to the existing value here rather than `delete`ing the
+      // key. bulkUpdate sends a whole batch of these records in one upsert call —
+      // if some records in the batch have a key and others don't, Postgres needs a
+      // single column list for the batch and silently writes NULL for whichever rows
+      // are missing that key, wiping data on every record in the batch that didn't
+      // have the override checked. Keeping the key with its current value avoids that
+      // entirely, since every record in the batch has the same shape either way.
+      if (!fieldSettings.grade_level && !fieldOverrides.includes("grade_level")) record.grade_level = existing.grade_level;
+      if (!fieldSettings.birthdate && !fieldOverrides.includes("birthdate")) record.birthdate = existing.birthdate;
+      if (!fieldSettings.student_number && !fieldOverrides.includes("student_number")) record.student_number = existing.student_number;
 
       // Name, active status, and family assignment are never checkbox-controlled —
       // treated as identity/status changes that always require a human, same tier as
@@ -1088,7 +1132,7 @@ async function buildPlan() {
 
       record.first_name = existing.first_name;
       record.last_name = existing.last_name;
-      delete record.active;
+      record.active = existing.active;
     }
     studentPlans.push({
       sourcedId: student.sourcedId,
@@ -1248,13 +1292,19 @@ async function executePlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
   // Self-heal stale "new record" candidates: if a matching manual record has since
   // shown up in Belltower, upgrade the candidate in place to a real reconciliation
   // match instead of leaving it stuck showing "new" forever.
-  for (const u of candidateUpgrades) {
-    const { error: upgradeErr } = await supabase
-      .from("ic_reconciliation_candidates")
-      .update({ existing_record_id: u.existing_record_id, existing_data: u.existing_data, match_reason: u.match_reason })
-      .eq("id", u.id);
-    if (upgradeErr) console.error(`Failed to upgrade candidate ${u.id}:`, upgradeErr);
-  }
+  //
+  // Fired in parallel rather than one-at-a-time — each is an independent single-row
+  // update by id, and with a large first sync there can be hundreds of these; awaiting
+  // them sequentially was a real contributor to runs taking long enough to time out.
+  await Promise.all(
+    candidateUpgrades.map(async (u) => {
+      const { error: upgradeErr } = await supabase
+        .from("ic_reconciliation_candidates")
+        .update({ existing_record_id: u.existing_record_id, existing_data: u.existing_data, match_reason: u.match_reason })
+        .eq("id", u.id);
+      if (upgradeErr) console.error(`Failed to upgrade candidate ${u.id}:`, upgradeErr);
+    })
+  );
 
   // Open/refresh data-gap audit rows, and close ones IC has since filled in. Also
   // independent of the main sync outcome below — this is just bookkeeping.
@@ -1271,9 +1321,10 @@ async function executePlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
       resolved_at: null,
     }));
   await upsertGaps(gapsToOpen);
-  for (const g of dataGapChecks.filter((g) => !g.hasGap)) {
-    await resolveGap(IC_SCHOOL_ID, g.entityType, g.entityId, g.field);
-  }
+  // Parallel, not sequential — same reasoning as the candidate-upgrade loop above.
+  await Promise.all(
+    dataGapChecks.filter((g) => !g.hasGap).map((g) => resolveGap(IC_SCHOOL_ID, g.entityType, g.entityId, g.field))
+  );
 
   // Same bookkeeping for field-diff audit rows — open/refresh ones that still
   // disagree, close ones that now match.
@@ -1291,9 +1342,12 @@ async function executePlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
       resolved_at: null,
     }));
   await upsertDiffs(diffsToOpen);
-  for (const d of fieldDiffChecks.filter((d) => !d.hasDiff)) {
-    await resolveDiff(IC_SCHOOL_ID, d.entityType, d.entityId, d.field);
-  }
+  // Parallel, not sequential — same reasoning as the candidate-upgrade loop above.
+  // With ~2,600 approved candidates and thousands of tracked diffs on a run this size,
+  // this loop alone could be hundreds of sequential round trips.
+  await Promise.all(
+    fieldDiffChecks.filter((d) => !d.hasDiff).map((d) => resolveDiff(IC_SCHOOL_ID, d.entityType, d.entityId, d.field))
+  );
 
   // The supabase-js REST client can't wrap these across-table writes in a single
   // DB transaction, so a crash partway through (see the 2026-08-04 dev incident:
