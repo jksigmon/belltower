@@ -31,6 +31,20 @@ export async function initRequestsSection(profile) {
   document.getElementById('reqCatOverlay')?.addEventListener('click', closeCatDrawer);
   document.getElementById('reqSubDrawerClose')?.addEventListener('click', closeSubDrawer);
   document.getElementById('reqSubOverlay')?.addEventListener('click', closeSubDrawer);
+  document.getElementById('reqDeactivateCancel')?.addEventListener('click', () => {
+    document.getElementById('reqDeactivateModal').hidden = true;
+  });
+  document.getElementById('reqDeactivateConfirm')?.addEventListener('click', async () => {
+    document.getElementById('reqDeactivateModal').hidden = true;
+    await toggleCatActive();
+  });
+  document.getElementById('reqDeleteCancel')?.addEventListener('click', () => {
+    document.getElementById('reqDeleteModal').hidden = true;
+  });
+  document.getElementById('reqDeleteConfirm')?.addEventListener('click', async () => {
+    document.getElementById('reqDeleteModal').hidden = true;
+    await deleteCategory();
+  });
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -39,7 +53,7 @@ export async function initRequestsSection(profile) {
 async function loadCategories() {
   const { data, error } = await supabase
     .from('request_categories')
-    .select('id, name, description, is_active, notify_managers, created_at, request_category_fields(count), request_category_managers(count)')
+    .select('id, name, description, is_active, notify_managers, created_at, request_category_fields(count), request_category_managers(count), staff_requests(count)')
     .eq('school_id', currentProfile.school_id)
     .order('name');
   if (error) console.error('loadCategories', error);
@@ -227,6 +241,8 @@ function renderCatDrawerBody(cat) {
   const bodyEl = document.getElementById('reqCatDrawerBody');
   if (!bodyEl) return;
 
+  const submissionCount = cat?.staff_requests?.[0]?.count ?? 0;
+
   bodyEl.innerHTML = `
     <div class="form-group">
       <label class="form-label">Form Name *</label>
@@ -268,8 +284,10 @@ function renderCatDrawerBody(cat) {
     <div style="margin-top:24px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <button class="btn btn-primary" id="reqSaveCatBtn" style="height:36px;">${cat ? 'Save Changes' : 'Create Form'}</button>
       ${cat ? `<button class="btn" id="reqToggleActiveBtn" style="height:36px;">${cat.is_active ? 'Deactivate Form' : 'Activate Form'}</button>` : ''}
+      ${cat && submissionCount === 0 ? `<button class="btn danger" id="reqDeleteCatBtn" style="height:36px;">Delete Form</button>` : ''}
       <button class="btn" id="reqCancelCatBtn" style="height:36px;">Cancel</button>
     </div>
+    ${cat && submissionCount > 0 ? `<p style="font-size:12px;color:#9ca3af;margin-top:6px;">This form has ${submissionCount} submission${submissionCount === 1 ? '' : 's'}, so it can't be deleted — deactivate it instead.</p>` : ''}
     <p id="reqCatError" style="color:#dc2626;font-size:13px;margin-top:8px;display:none;"></p>
   `;
 
@@ -279,7 +297,18 @@ function renderCatDrawerBody(cat) {
   document.getElementById('reqAddFieldBtn').addEventListener('click', addField);
   document.getElementById('reqSaveCatBtn').addEventListener('click', saveCategoryDrawer);
   document.getElementById('reqCancelCatBtn').addEventListener('click', closeCatDrawer);
-  document.getElementById('reqToggleActiveBtn')?.addEventListener('click', toggleCatActive);
+  document.getElementById('reqToggleActiveBtn')?.addEventListener('click', () => {
+    if (editingCat?.is_active) {
+      document.getElementById('reqDeactivateModal').hidden = false;
+    } else {
+      toggleCatActive();
+    }
+  });
+  document.getElementById('reqDeleteCatBtn')?.addEventListener('click', () => {
+    document.getElementById('reqDeleteModalMsg').textContent =
+      `This permanently deletes "${editingCat.name}", including its fields and manager list. This cannot be undone.`;
+    document.getElementById('reqDeleteModal').hidden = false;
+  });
 
   const mgrSearch = document.getElementById('reqMgrSearch');
   mgrSearch.addEventListener('input', () => {
@@ -677,6 +706,19 @@ async function toggleCatActive() {
   if (!editingCat) return;
   const newActive = !editingCat.is_active;
   await supabase.from('request_categories').update({ is_active: newActive }).eq('id', editingCat.id);
+  closeCatDrawer();
+  await loadCategories();
+  renderRoot();
+  renderFormsView();
+}
+
+async function deleteCategory() {
+  if (!editingCat) return;
+  const { error } = await supabase.from('request_categories').delete().eq('id', editingCat.id);
+  if (error) {
+    showToast('Failed to delete form: ' + error.message, 'error');
+    return;
+  }
   closeCatDrawer();
   await loadCategories();
   renderRoot();

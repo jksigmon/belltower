@@ -2834,6 +2834,30 @@
 </div>
 <div id="reqCatOverlay" class="drawer-overlay"></div>
 
+<div id="reqDeactivateModal" class="confirm-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reqDeactivateModalTitle" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title" id="reqDeactivateModalTitle">Deactivate this form?</h3>
+    <p class="confirm-modal-body">
+      Staff will no longer see this form when submitting a new request — it disappears from their "New Request" list. This does <strong>not</strong> delete anything: the form's fields, managers, and every submission already made stay exactly as they are, and managers can keep working existing submissions to resolution. You can reactivate the form at any time to make it available again.
+    </p>
+    <div class="confirm-modal-actions">
+      <button id="reqDeactivateCancel" class="btn">Cancel</button>
+      <button id="reqDeactivateConfirm" class="btn danger">Deactivate Form</button>
+    </div>
+  </div>
+</div>
+
+<div id="reqDeleteModal" class="confirm-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="reqDeleteModalTitle" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title" id="reqDeleteModalTitle">Delete this form?</h3>
+    <p class="confirm-modal-body" id="reqDeleteModalMsg"></p>
+    <div class="confirm-modal-actions">
+      <button id="reqDeleteCancel" class="btn">Cancel</button>
+      <button id="reqDeleteConfirm" class="btn danger">Delete Form</button>
+    </div>
+  </div>
+</div>
+
 <div id="reqSubDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Request Detail">
   <div class="drawer-header">
     <span id="reqSubDrawerTitle" style="font-size:1.05rem;font-weight:700;">Request Detail</span>
