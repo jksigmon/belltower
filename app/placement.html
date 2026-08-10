@@ -302,6 +302,7 @@
                 <i data-lucide="plus" style="width:15px;height:15px;"></i> Column
               </button>
               <button class="btn btn-primary btn-sm" id="commitPlacementBtn">Commit Placement</button>
+              <button class="btn btn-primary btn-sm" id="commitNewPlacementBtn" hidden>Commit New Students</button>
               <button class="btn btn-outline btn-sm" id="undoCommitPlacementBtn" hidden style="color:#dc2626;border-color:#fca5a5;">Undo Commit</button>
             </div>
           </div>
@@ -521,6 +522,18 @@
       <div class="confirm-modal-actions">
         <button id="commitConfirmCancelBtn" class="btn btn-outline">Cancel</button>
         <button id="commitConfirmOkBtn" class="btn btn-primary">Commit Placement</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Commit new students confirmation modal -->
+  <div id="commitNewConfirmModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:460px;width:100%;">
+      <h3 class="confirm-modal-title">Commit New Students</h3>
+      <div id="commitNewConfirmBody" style="font-size:14px;line-height:1.6;color:#374151;"></div>
+      <div class="confirm-modal-actions">
+        <button id="commitNewConfirmCancelBtn" class="btn btn-outline">Cancel</button>
+        <button id="commitNewConfirmOkBtn" class="btn btn-primary">Commit New Students</button>
       </div>
     </div>
   </div>

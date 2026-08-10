@@ -93,6 +93,8 @@ function wireGlobalEvents() {
     ?.addEventListener('click', confirmCommit);
   document.getElementById('undoCommitPlacementBtn')
     ?.addEventListener('click', confirmUndoCommit);
+  document.getElementById('commitNewPlacementBtn')
+    ?.addEventListener('click', confirmCommitNew);
   document.getElementById('placementHistoryBtn')
     ?.addEventListener('click', openAuditLog);
   document.getElementById('closeAuditLogBtn')
@@ -389,6 +391,23 @@ function renderBoard() {
     board.appendChild(buildColumn(t.id, name));
   });
   if (window.lucide) lucide.createIcons({ nodes: [board] });
+  updateCommitNewBtn();
+}
+
+function getUncommittedNewStudents() {
+  if (!_session || _session.status !== 'committed') return [];
+  return _students.filter(s => {
+    const assigned = _assignments[s.id];
+    return assigned != null && !_placeholderColIds.has(assigned) && s.homeroom_teacher_id == null;
+  });
+}
+
+function updateCommitNewBtn() {
+  const btn = document.getElementById('commitNewPlacementBtn');
+  if (!btn) return;
+  const newStudents = getUncommittedNewStudents();
+  btn.hidden = newStudents.length === 0;
+  btn.textContent = `Commit New Students (${newStudents.length})`;
 }
 
 function buildColumn(teacherId, name) {
@@ -1897,6 +1916,86 @@ async function runCommit() {
 
   const placed = placedEntries.length;
   showToast(`Done! ${placed} student${placed !== 1 ? 's' : ''} assigned to their homeroom teacher.`, 'success');
+}
+
+/* ── Commit New Students Only ── */
+async function confirmCommitNew() {
+  const newStudents = getUncommittedNewStudents();
+  if (!newStudents.length) return;
+
+  const modal   = document.getElementById('commitNewConfirmModal');
+  const body    = document.getElementById('commitNewConfirmBody');
+  const okBtn   = document.getElementById('commitNewConfirmOkBtn');
+  const cancelBtn = document.getElementById('commitNewConfirmCancelBtn');
+
+  let html = `<p style="margin:0 0 12px;">${newStudents.length} student${newStudents.length !== 1 ? 's' : ''} will be assigned to ` +
+    `their homeroom teacher. This will not affect any student already committed.</p>`;
+  html += `<ul style="margin:0;padding-left:20px;">`;
+  newStudents.forEach(s => { html += `<li>${esc(s.last_name)}, ${esc(s.first_name)}</li>`; });
+  html += `</ul>`;
+
+  body.innerHTML = html;
+  modal.hidden = false;
+
+  const cleanup = () => { modal.hidden = true; okBtn.removeEventListener('click', onOk); cancelBtn.removeEventListener('click', onCancel); };
+  const onOk = async () => { cleanup(); await runCommitNew(); };
+  const onCancel = () => cleanup();
+
+  okBtn.addEventListener('click', onOk);
+  cancelBtn.addEventListener('click', onCancel);
+}
+
+async function runCommitNew() {
+  const btn = document.getElementById('commitNewPlacementBtn');
+  const newStudents = getUncommittedNewStudents();
+  if (!newStudents.length) return;
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Committing…'; }
+
+  if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; }
+  await saveAssignments();
+
+  // These students have never had a homeroom teacher, so their "previous" snapshot is null
+  const prevRows = newStudents.map(s => ({
+    session_id: _currentSessionId,
+    student_id: s.id,
+    prev_homeroom_teacher_id: null,
+  }));
+  await supabase
+    .from('placement_assignments')
+    .upsert(prevRows, { onConflict: 'session_id,student_id' });
+
+  const byTeacher = {};
+  newStudents.forEach(s => {
+    const tid = _assignments[s.id];
+    if (!byTeacher[tid]) byTeacher[tid] = [];
+    byTeacher[tid].push(s.id);
+  });
+
+  const errors = [];
+  for (const [tid, sids] of Object.entries(byTeacher)) {
+    const { error } = await supabase
+      .from('students')
+      .update({ homeroom_teacher_id: tid })
+      .eq('school_id', _profile.school_id)
+      .in('id', sids);
+    if (error) errors.push(error);
+  }
+
+  if (errors.length) {
+    console.error('Commit new students errors:', errors);
+    showToast('Some student updates failed. Check the console for details.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = `Commit New Students (${newStudents.length})`; }
+    return;
+  }
+
+  // Reflect the new homeroom assignments locally so the button updates without a reload
+  newStudents.forEach(s => { s.homeroom_teacher_id = _assignments[s.id]; });
+  if (btn) btn.disabled = false;
+  updateCommitNewBtn();
+  updateSaveStatus('');
+
+  showToast(`Done! ${newStudents.length} student${newStudents.length !== 1 ? 's' : ''} committed.`, 'success');
 }
 
 /* ── Flag editor ── */
