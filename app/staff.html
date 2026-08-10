@@ -1894,7 +1894,8 @@ function hasAdminAccess(profile) {
     profile.can_manage_access === true ||
     profile.can_approve_pto === true ||
     profile.can_adjust_pto === true ||
-    profile.can_bulk_upload === true
+    profile.can_bulk_upload === true ||
+    profile.can_manage_requests === true
   );
 }
 
@@ -3158,12 +3159,12 @@ async function loadMyLicenses() {
             : '';
 
     return `<tr>
-      <td>${lic.license_type}</td>
-      <td>${lic.license_area ?? '—'}</td>
-      <td>${lic.grade_authorization ?? '—'}</td>
-      <td>${lic.license_number ?? '—'}</td>
+      <td>${esc(lic.license_type)}</td>
+      <td>${lic.license_area ? esc(lic.license_area) : '—'}</td>
+      <td>${lic.grade_authorization ? esc(lic.grade_authorization) : '—'}</td>
+      <td>${lic.license_number ? esc(lic.license_number) : '—'}</td>
       <td>${lic.expiration_date ? lic.expiration_date.split('-').slice(1).concat(lic.expiration_date.split('-')[0]).join('/') : '—'}<br>${expiryNote}</td>
-      <td><span style="background:${bg};color:${color};padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;text-transform:uppercase;">${lic.status.replace('_',' ')}</span></td>
+      <td><span style="background:${bg};color:${color};padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;text-transform:uppercase;">${esc(lic.status.replace('_',' '))}</span></td>
       <td>${lic.is_provisional ? '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">Provisional</span>' : '—'}</td>
     </tr>`;
   }).join('');

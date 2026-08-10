@@ -156,7 +156,8 @@ function hasAdminAccess(profile) {
     profile.can_approve_pto === true ||
     profile.can_adjust_pto === true ||
     profile.can_manage_pto_balances === true ||
-    profile.can_bulk_upload === true
+    profile.can_bulk_upload === true ||
+    profile.can_manage_requests === true
   );
 }
 
@@ -1371,7 +1372,7 @@ async function loadStaffPtoHistory(employeeId) {
         <td>${dates}</td>
         <td>${formatHoursWithTime(r)}</td>
         <td>${decisionHtml}</td>
-        <td>${r.notes || '—'}</td>
+        <td>${r.notes ? esc(r.notes) : '—'}</td>
         <td>${fmtDate(r.submitted_at?.split('T')[0])}</td>
       `;
       tbody.appendChild(tr);
