@@ -8,10 +8,12 @@ let editingCat   = null;   // category being edited in drawer
 let draftFields  = [];     // field rows in open drawer
 let dragSrcIdx   = null;   // index of field row being dragged
 let draftManagers = [];    // manager chips in open drawer
+let draftVisibility = [];  // "visible to" chips in open drawer (when restricted)
 let submissions  = [];
 let filterCatId  = '';
 let filterStatus = '';
 let mgSearchTimeout = null;
+let visSearchTimeout = null;
 
 /* ═══════════════════════════════════════════════════════════
    ENTRY POINT
@@ -53,7 +55,7 @@ export async function initRequestsSection(profile) {
 async function loadCategories() {
   const { data, error } = await supabase
     .from('request_categories')
-    .select('id, name, description, is_active, notify_managers, resolved_label, allow_denial, denied_label, created_at, request_category_fields(count), request_category_managers(count), staff_requests(count)')
+    .select('id, name, description, is_active, is_restricted, notify_managers, resolved_label, allow_denial, denied_label, created_at, request_category_fields(count), request_category_managers(count), staff_requests(count)')
     .eq('school_id', currentProfile.school_id)
     .order('name');
   if (error) console.error('loadCategories', error);
@@ -81,7 +83,7 @@ async function loadSubmissions() {
 }
 
 async function loadCategoryDetail(catId) {
-  const [fieldsRes, managersRes] = await Promise.all([
+  const [fieldsRes, managersRes, visibilityRes] = await Promise.all([
     supabase
       .from('request_category_fields')
       .select('id, label, field_type, options, is_required, sort_order')
@@ -91,12 +93,18 @@ async function loadCategoryDetail(catId) {
       .from('request_category_managers')
       .select('profile_id, profiles!request_category_managers_profile_id_fkey ( display_name, email )')
       .eq('category_id', catId),
+    supabase
+      .from('request_category_visibility')
+      .select('profile_id, profiles!request_category_visibility_profile_id_fkey ( display_name, email )')
+      .eq('category_id', catId),
   ]);
-  if (fieldsRes.error)   console.error('loadCategoryDetail fields',   fieldsRes.error);
-  if (managersRes.error) console.error('loadCategoryDetail managers', managersRes.error);
+  if (fieldsRes.error)     console.error('loadCategoryDetail fields',     fieldsRes.error);
+  if (managersRes.error)   console.error('loadCategoryDetail managers',   managersRes.error);
+  if (visibilityRes.error) console.error('loadCategoryDetail visibility', visibilityRes.error);
   return {
-    fields:   fieldsRes.data   ?? [],
-    managers: managersRes.data ?? [],
+    fields:     fieldsRes.data     ?? [],
+    managers:   managersRes.data   ?? [],
+    visibility: visibilityRes.data ?? [],
   };
 }
 
@@ -175,7 +183,10 @@ function renderFormsView() {
         <div class="req-cat-card${c.is_active ? '' : ' req-cat-card--inactive'}" data-id="${esc(c.id)}" role="button" tabindex="0">
           <div class="req-cat-card-header">
             <span class="req-cat-name">${esc(c.name)}</span>
-            <span class="status-badge ${c.is_active ? 'badge-green' : 'badge-gray'}">${c.is_active ? 'Active' : 'Inactive'}</span>
+            <span style="display:flex;gap:6px;flex-shrink:0;">
+              ${c.is_restricted ? `<span class="status-badge badge-amber" title="Only specific people can see and submit this form">Restricted</span>` : ''}
+              <span class="status-badge ${c.is_active ? 'badge-green' : 'badge-gray'}">${c.is_active ? 'Active' : 'Inactive'}</span>
+            </span>
           </div>
           ${c.description ? `<p class="req-cat-desc">${esc(c.description)}</p>` : ''}
           <div class="req-cat-meta">
@@ -222,16 +233,22 @@ async function openCatDrawer(cat) {
   document.getElementById('reqCatOverlay').classList.add('open');
 
   if (cat) {
-    const { fields, managers } = await loadCategoryDetail(cat.id);
+    const { fields, managers, visibility } = await loadCategoryDetail(cat.id);
     draftFields   = fields.map(f => ({ ...f }));
     draftManagers = managers.map(m => ({
       profile_id:   m.profile_id,
       display_name: m.profiles?.display_name ?? m.profiles?.email ?? 'Unknown',
       email:        m.profiles?.email ?? '',
     }));
+    draftVisibility = visibility.map(v => ({
+      profile_id:   v.profile_id,
+      display_name: v.profiles?.display_name ?? v.profiles?.email ?? 'Unknown',
+      email:        v.profiles?.email ?? '',
+    }));
   } else {
-    draftFields   = [];
-    draftManagers = [];
+    draftFields     = [];
+    draftManagers   = [];
+    draftVisibility = [];
   }
 
   renderCatDrawerBody(cat);
@@ -316,6 +333,23 @@ function renderCatDrawerBody(cat) {
       <div id="reqMgrDropdown" class="req-mgr-dropdown" style="display:none;"></div>
     </div>
 
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
+    <div class="req-drawer-section-header">
+      <strong>Visibility</strong>
+    </div>
+    <div class="form-group form-row" style="align-items:center;gap:10px;margin-top:10px;">
+      <label class="form-label" style="margin:0;">Restrict to specific people</label>
+      <input id="reqCatRestricted" type="checkbox" ${cat?.is_restricted ? 'checked' : ''} />
+      <span style="font-size:13px;color:#6b7280;">Only the people picked below (plus managers and admins) can see and submit this form. Off = everyone at the school.</span>
+    </div>
+    <div id="reqVisibilityPicker" style="${cat?.is_restricted ? '' : 'display:none;'}margin-top:10px;">
+      <div id="reqVisibilityChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+      <div style="position:relative;">
+        <input id="reqVisSearch" class="form-control" type="text" placeholder="Search staff by name or email…" autocomplete="off" />
+        <div id="reqVisDropdown" class="req-mgr-dropdown" style="display:none;"></div>
+      </div>
+    </div>
+
     <div style="margin-top:24px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <button class="btn btn-primary" id="reqSaveCatBtn" style="height:36px;">${cat ? 'Save Changes' : 'Create Form'}</button>
       ${cat ? `<button class="btn" id="reqToggleActiveBtn" style="height:36px;">${cat.is_active ? 'Deactivate Form' : 'Activate Form'}</button>` : ''}
@@ -328,6 +362,11 @@ function renderCatDrawerBody(cat) {
 
   renderFieldsList();
   renderManagerChips();
+  renderVisibilityChips();
+
+  document.getElementById('reqCatRestricted').addEventListener('change', (e) => {
+    document.getElementById('reqVisibilityPicker').style.display = e.target.checked ? '' : 'none';
+  });
 
   document.getElementById('reqAddFieldBtn').addEventListener('click', addField);
   document.getElementById('reqSaveCatBtn').addEventListener('click', saveCategoryDrawer);
@@ -362,6 +401,15 @@ function renderCatDrawerBody(cat) {
   });
   mgrSearch.addEventListener('blur', () => {
     setTimeout(() => { document.getElementById('reqMgrDropdown').style.display = 'none'; }, 150);
+  });
+
+  const visSearch = document.getElementById('reqVisSearch');
+  visSearch.addEventListener('input', () => {
+    clearTimeout(visSearchTimeout);
+    visSearchTimeout = setTimeout(() => searchVisibility(visSearch.value.trim()), 220);
+  });
+  visSearch.addEventListener('blur', () => {
+    setTimeout(() => { document.getElementById('reqVisDropdown').style.display = 'none'; }, 150);
   });
 }
 
@@ -610,12 +658,67 @@ function renderManagerChips() {
   });
 }
 
+/* Visibility search + chips (same pattern as managers, separate list) */
+async function searchVisibility(term) {
+  const dropdown = document.getElementById('reqVisDropdown');
+  if (!term || term.length < 2) { dropdown.style.display = 'none'; return; }
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('id, display_name, email')
+    .eq('school_id', currentProfile.school_id)
+    .or(`display_name.ilike.%${term}%,email.ilike.%${term}%`)
+    .limit(8);
+
+  const already = new Set(draftVisibility.map(m => m.profile_id));
+  const results = (data ?? []).filter(p => !already.has(p.id));
+
+  if (!results.length) { dropdown.style.display = 'none'; return; }
+
+  dropdown.innerHTML = results.map(p => `
+    <div class="req-mgr-option" data-id="${esc(p.id)}" data-name="${esc(p.display_name ?? p.email)}" data-email="${esc(p.email ?? '')}">
+      <span class="req-mgr-avatar" style="background:${getAvatarColor(p.display_name ?? p.email)};">${(p.display_name ?? p.email ?? '?')[0].toUpperCase()}</span>
+      <span>${esc(p.display_name ?? p.email)}</span>
+      ${p.display_name ? `<span style="color:#9ca3af;font-size:12px;">${esc(p.email ?? '')}</span>` : ''}
+    </div>
+  `).join('');
+  dropdown.style.display = '';
+
+  dropdown.querySelectorAll('.req-mgr-option').forEach(opt => {
+    opt.addEventListener('mousedown', () => {
+      draftVisibility.push({ profile_id: opt.dataset.id, display_name: opt.dataset.name, email: opt.dataset.email });
+      document.getElementById('reqVisSearch').value = '';
+      dropdown.style.display = 'none';
+      renderVisibilityChips();
+    });
+  });
+}
+
+function renderVisibilityChips() {
+  const chips = document.getElementById('reqVisibilityChips');
+  if (!chips) return;
+  chips.innerHTML = draftVisibility.map((m, i) => `
+    <span class="req-mgr-chip">
+      <span class="req-mgr-avatar" style="background:${getAvatarColor(m.display_name)};width:20px;height:20px;font-size:11px;">${m.display_name[0].toUpperCase()}</span>
+      ${esc(m.display_name)}
+      <button class="req-mgr-chip-remove" data-idx="${i}">&times;</button>
+    </span>
+  `).join('');
+  chips.querySelectorAll('.req-mgr-chip-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      draftVisibility.splice(parseInt(btn.dataset.idx), 1);
+      renderVisibilityChips();
+    });
+  });
+}
+
 /* Save category + fields + managers */
 async function saveCategoryDrawer() {
   const name    = document.getElementById('reqCatName')?.value.trim();
   const desc    = document.getElementById('reqCatDesc')?.value.trim();
   const active  = document.getElementById('reqCatActive')?.checked;
   const notify  = document.getElementById('reqCatNotify')?.checked ?? true;
+  const restricted = document.getElementById('reqCatRestricted')?.checked ?? false;
   const errEl   = document.getElementById('reqCatError');
   const saveBtn = document.getElementById('reqSaveCatBtn');
 
@@ -634,6 +737,10 @@ async function saveCategoryDrawer() {
   if (allowDenial && deniedSel === '__custom' && !deniedLabel) { showCatError('Enter a custom label for the denied status, or pick a preset.'); return; }
   const invalidFields = draftFields.some(f => !f.label.trim());
   if (invalidFields) { showCatError('All fields must have a label.'); return; }
+  if (restricted && !draftVisibility.length) {
+    showCatError('Add at least one person this restricted form should be visible to (managers and admins always have access).');
+    return;
+  }
 
   // Routing field: re-validate options against the current manager list.
   // Options pointing at removed managers are pruned (the builder flags
@@ -669,6 +776,7 @@ async function saveCategoryDrawer() {
       .from('request_categories')
       .update({
         name, description: desc || null, is_active: active, notify_managers: notify,
+        is_restricted:  restricted,
         resolved_label: resolvedLabel || null,
         allow_denial:   allowDenial,
         denied_label:   allowDenial ? (deniedLabel || null) : null,
@@ -680,6 +788,7 @@ async function saveCategoryDrawer() {
       .from('request_categories')
       .insert({
         school_id: currentProfile.school_id, name, description: desc || null, is_active: active, notify_managers: notify,
+        is_restricted:  restricted,
         resolved_label: resolvedLabel || null,
         allow_denial:   allowDenial,
         denied_label:   allowDenial ? (deniedLabel || null) : null,
@@ -764,6 +873,21 @@ async function saveCategoryDrawer() {
     if (mgInsErr) { showToast('Failed to save managers: ' + mgInsErr.message, 'error'); fieldErrReset(); return; }
   }
 
+  // Sync visibility list: delete all, re-insert (irrelevant when not restricted, but
+  // clearing it keeps stale rows from lingering if the admin toggles restriction off/on)
+  const { error: visDelErr } = await supabase.from('request_category_visibility').delete().eq('category_id', catId);
+  if (visDelErr) { showToast('Failed to save visibility list: ' + visDelErr.message, 'error'); fieldErrReset(); return; }
+
+  if (restricted && draftVisibility.length) {
+    const visRows = draftVisibility.map(v => ({
+      category_id: catId,
+      profile_id:  v.profile_id,
+      added_by:    currentProfile.id,
+    }));
+    const { error: visInsErr } = await supabase.from('request_category_visibility').insert(visRows);
+    if (visInsErr) { showToast('Failed to save visibility list: ' + visInsErr.message, 'error'); fieldErrReset(); return; }
+  }
+
   closeCatDrawer();
   await loadCategories();
   renderRoot();
@@ -803,9 +927,10 @@ function showCatError(msg) {
 function closeCatDrawer() {
   document.getElementById('reqCatDrawer').classList.remove('open');
   document.getElementById('reqCatOverlay').classList.remove('open');
-  editingCat    = null;
-  draftFields   = [];
-  draftManagers = [];
+  editingCat      = null;
+  draftFields     = [];
+  draftManagers   = [];
+  draftVisibility = [];
 }
 
 /* ═══════════════════════════════════════════════════════════
