@@ -53,7 +53,7 @@ export async function initRequestsSection(profile) {
 async function loadCategories() {
   const { data, error } = await supabase
     .from('request_categories')
-    .select('id, name, description, is_active, notify_managers, created_at, request_category_fields(count), request_category_managers(count), staff_requests(count)')
+    .select('id, name, description, is_active, notify_managers, resolved_label, allow_denial, denied_label, created_at, request_category_fields(count), request_category_managers(count), staff_requests(count)')
     .eq('school_id', currentProfile.school_id)
     .order('name');
   if (error) console.error('loadCategories', error);
@@ -65,7 +65,7 @@ async function loadSubmissions() {
     .from('staff_requests')
     .select(`
       id, status, created_at, manager_notes,
-      request_categories ( name ),
+      request_categories ( name, resolved_label, allow_denial, denied_label ),
       profiles!staff_requests_submitted_by_fkey ( display_name, email ),
       staff_request_responses ( value, request_category_fields ( label, field_type, sort_order ) )
     `)
@@ -265,6 +265,41 @@ function renderCatDrawerBody(cat) {
 
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
     <div class="req-drawer-section-header">
+      <strong>Status Wording</strong>
+    </div>
+    <div class="form-group" style="margin-top:10px;">
+      <label class="form-label">Label for completed status</label>
+      <select id="reqCatResolvedLabel" class="form-control" style="width:220px;">
+        ${['Resolved', 'Approved', 'Completed', 'Closed'].map(opt =>
+          `<option value="${esc(opt)}" ${cat && cat.resolved_label === opt ? 'selected' : ''}>${esc(opt)}</option>`
+        ).join('')}
+        <option value="__custom" ${cat && cat.resolved_label && !['Resolved','Approved','Completed','Closed'].includes(cat.resolved_label) ? 'selected' : ''}>Custom…</option>
+      </select>
+      <input id="reqCatResolvedLabelCustom" class="form-control" type="text" style="width:220px;margin-top:6px;
+        ${cat && cat.resolved_label && !['Resolved','Approved','Completed','Closed'].includes(cat.resolved_label) ? '' : 'display:none;'}"
+        placeholder="Custom word" value="${cat && cat.resolved_label && !['Resolved','Approved','Completed','Closed'].includes(cat.resolved_label) ? esc(cat.resolved_label) : ''}" />
+      <p style="font-size:12px;color:#9ca3af;margin-top:4px;">Shown to both managers and staff once a request reaches this status.</p>
+    </div>
+    <div class="form-group form-row" style="align-items:center;gap:10px;">
+      <label class="form-label" style="margin:0;">This form can be denied</label>
+      <input id="reqCatAllowDenial" type="checkbox" ${cat?.allow_denial ? 'checked' : ''} />
+      <span style="font-size:13px;color:#6b7280;">Adds a Deny option alongside the completed status (for approval-style forms).</span>
+    </div>
+    <div class="form-group" id="reqCatDeniedLabelWrap" style="${cat?.allow_denial ? '' : 'display:none;'}">
+      <label class="form-label">Label for denied status</label>
+      <select id="reqCatDeniedLabel" class="form-control" style="width:220px;">
+        ${['Denied', 'Rejected', 'Declined'].map(opt =>
+          `<option value="${esc(opt)}" ${cat && cat.denied_label === opt ? 'selected' : ''}>${esc(opt)}</option>`
+        ).join('')}
+        <option value="__custom" ${cat && cat.denied_label && !['Denied','Rejected','Declined'].includes(cat.denied_label) ? 'selected' : ''}>Custom…</option>
+      </select>
+      <input id="reqCatDeniedLabelCustom" class="form-control" type="text" style="width:220px;margin-top:6px;
+        ${cat && cat.denied_label && !['Denied','Rejected','Declined'].includes(cat.denied_label) ? '' : 'display:none;'}"
+        placeholder="Custom word" value="${cat && cat.denied_label && !['Denied','Rejected','Declined'].includes(cat.denied_label) ? esc(cat.denied_label) : ''}" />
+    </div>
+
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
+    <div class="req-drawer-section-header">
       <strong>Form Fields</strong>
       <button class="btn btn-sm btn-secondary" id="reqAddFieldBtn">+ Add Field</button>
     </div>
@@ -308,6 +343,16 @@ function renderCatDrawerBody(cat) {
     document.getElementById('reqDeleteModalMsg').textContent =
       `This permanently deletes "${editingCat.name}", including its fields and manager list. This cannot be undone.`;
     document.getElementById('reqDeleteModal').hidden = false;
+  });
+
+  document.getElementById('reqCatResolvedLabel').addEventListener('change', (e) => {
+    document.getElementById('reqCatResolvedLabelCustom').style.display = e.target.value === '__custom' ? '' : 'none';
+  });
+  document.getElementById('reqCatDeniedLabel').addEventListener('change', (e) => {
+    document.getElementById('reqCatDeniedLabelCustom').style.display = e.target.value === '__custom' ? '' : 'none';
+  });
+  document.getElementById('reqCatAllowDenial').addEventListener('change', (e) => {
+    document.getElementById('reqCatDeniedLabelWrap').style.display = e.target.checked ? '' : 'none';
   });
 
   const mgrSearch = document.getElementById('reqMgrSearch');
@@ -574,7 +619,19 @@ async function saveCategoryDrawer() {
   const errEl   = document.getElementById('reqCatError');
   const saveBtn = document.getElementById('reqSaveCatBtn');
 
+  const resolvedSel    = document.getElementById('reqCatResolvedLabel')?.value;
+  const resolvedLabel  = resolvedSel === '__custom'
+    ? document.getElementById('reqCatResolvedLabelCustom')?.value.trim()
+    : resolvedSel;
+  const allowDenial    = document.getElementById('reqCatAllowDenial')?.checked ?? false;
+  const deniedSel      = document.getElementById('reqCatDeniedLabel')?.value;
+  const deniedLabel    = deniedSel === '__custom'
+    ? document.getElementById('reqCatDeniedLabelCustom')?.value.trim()
+    : deniedSel;
+
   if (!name) { showCatError('Form name is required.'); return; }
+  if (resolvedSel === '__custom' && !resolvedLabel) { showCatError('Enter a custom label for the completed status, or pick a preset.'); return; }
+  if (allowDenial && deniedSel === '__custom' && !deniedLabel) { showCatError('Enter a custom label for the denied status, or pick a preset.'); return; }
   const invalidFields = draftFields.some(f => !f.label.trim());
   if (invalidFields) { showCatError('All fields must have a label.'); return; }
 
@@ -610,13 +667,24 @@ async function saveCategoryDrawer() {
   if (catId) {
     const { error } = await supabase
       .from('request_categories')
-      .update({ name, description: desc || null, is_active: active, notify_managers: notify })
+      .update({
+        name, description: desc || null, is_active: active, notify_managers: notify,
+        resolved_label: resolvedLabel || null,
+        allow_denial:   allowDenial,
+        denied_label:   allowDenial ? (deniedLabel || null) : null,
+      })
       .eq('id', catId);
     if (error) { showToast('Save failed: ' + error.message, 'error'); saveBtn.disabled = false; saveBtn.textContent = 'Save Changes'; return; }
   } else {
     const { data, error } = await supabase
       .from('request_categories')
-      .insert({ school_id: currentProfile.school_id, name, description: desc || null, is_active: active, notify_managers: notify, created_by: currentProfile.id })
+      .insert({
+        school_id: currentProfile.school_id, name, description: desc || null, is_active: active, notify_managers: notify,
+        resolved_label: resolvedLabel || null,
+        allow_denial:   allowDenial,
+        denied_label:   allowDenial ? (deniedLabel || null) : null,
+        created_by: currentProfile.id,
+      })
       .select('id')
       .single();
     if (error) { showToast('Create failed: ' + error.message, 'error'); saveBtn.disabled = false; saveBtn.textContent = 'Create Form'; return; }
@@ -762,6 +830,7 @@ function renderSubmissionsView() {
         <option value="pending"   ${filterStatus === 'pending'   ? 'selected' : ''}>Pending</option>
         <option value="in_review" ${filterStatus === 'in_review' ? 'selected' : ''}>In Review</option>
         <option value="resolved"  ${filterStatus === 'resolved'  ? 'selected' : ''}>Resolved</option>
+        <option value="denied"    ${filterStatus === 'denied'    ? 'selected' : ''}>Denied</option>
       </select>
     </div>
     <div id="reqSubList" style="margin-top:16px;"></div>
@@ -813,7 +882,7 @@ function renderSubmissionsList() {
               <td style="color:#6b7280;">${esc(cat)}</td>
               <td style="color:#374151;max-width:0;">${preview ? `<div class="req-sub-preview">${esc(preview)}</div>` : '<span style="color:#d1d5db;">—</span>'}</td>
               <td style="white-space:nowrap;">${fmtShortDate(s.created_at)}</td>
-              <td><span class="status-badge ${statusBadgeClass(s.status)}">${statusLabel(s.status)}</span></td>
+              <td><span class="status-badge ${statusBadgeClass(s.status)}">${statusLabel(s.status, s.request_categories)}</span></td>
             </tr>`;
         }).join('')}
       </tbody>
@@ -875,7 +944,10 @@ async function openSubDrawer(sub) {
       <select id="reqSubStatus" class="form-control" style="width:180px;">
         <option value="pending"   ${sub.status === 'pending'   ? 'selected' : ''}>Pending</option>
         <option value="in_review" ${sub.status === 'in_review' ? 'selected' : ''}>In Review</option>
-        <option value="resolved"  ${sub.status === 'resolved'  ? 'selected' : ''}>Resolved</option>
+        <option value="resolved"  ${sub.status === 'resolved'  ? 'selected' : ''}>${esc(sub.request_categories?.resolved_label || 'Resolved')}</option>
+        ${sub.request_categories?.allow_denial
+          ? `<option value="denied" ${sub.status === 'denied' ? 'selected' : ''}>${esc(sub.request_categories?.denied_label || 'Denied')}</option>`
+          : ''}
       </select>
     </div>
     <div class="form-group">
@@ -943,12 +1015,14 @@ function submissionPreview(sub) {
   }).join(' · ');
 }
 
-function statusLabel(s) {
-  return { pending: 'Pending', in_review: 'In Review', resolved: 'Resolved' }[s] ?? s;
+function statusLabel(s, cat) {
+  if (s === 'resolved') return cat?.resolved_label || 'Resolved';
+  if (s === 'denied')   return cat?.denied_label   || 'Denied';
+  return { pending: 'Pending', in_review: 'In Review' }[s] ?? s;
 }
 
 function statusBadgeClass(s) {
-  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green' }[s] ?? '';
+  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green', denied: 'badge-red' }[s] ?? '';
 }
 
 function formatResponseValue(val, type) {

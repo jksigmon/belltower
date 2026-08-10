@@ -31,7 +31,7 @@ let filterStatus   = '';
 async function loadManagedCategories() {
   const { data } = await supabase
     .from('request_category_managers')
-    .select('category_id, request_categories ( id, name )')
+    .select('category_id, request_categories ( id, name, resolved_label, allow_denial, denied_label )')
     .eq('profile_id', currentProfile.id);
 
   managedCatIds = (data ?? []).map(r => r.category_id);
@@ -51,7 +51,7 @@ async function loadSubmissions() {
     .from('staff_requests')
     .select(`
       id, status, created_at, manager_notes,
-      request_categories ( name ),
+      request_categories ( name, resolved_label, allow_denial, denied_label ),
       profiles!staff_requests_submitted_by_fkey ( display_name, email )
     `)
     .eq('school_id', currentProfile.school_id)
@@ -99,7 +99,7 @@ function renderList() {
               <td>${esc(name)}</td>
               <td>${esc(s.request_categories?.name ?? '—')}</td>
               <td>${fmtShortDate(s.created_at)}</td>
-              <td><span class="req-status-badge ${statusBadgeClass(s.status)}">${statusLabel(s.status)}</span></td>
+              <td><span class="req-status-badge ${statusBadgeClass(s.status)}">${statusLabel(s.status, s.request_categories)}</span></td>
             </tr>`;
         }).join('')}
       </tbody>
@@ -167,7 +167,10 @@ async function openDrawer(sub) {
       <select id="reqmSubStatus" class="form-control" style="width:180px;">
         <option value="pending"   ${sub.status === 'pending'   ? 'selected' : ''}>Pending</option>
         <option value="in_review" ${sub.status === 'in_review' ? 'selected' : ''}>In Review</option>
-        <option value="resolved"  ${sub.status === 'resolved'  ? 'selected' : ''}>Resolved</option>
+        <option value="resolved"  ${sub.status === 'resolved'  ? 'selected' : ''}>${esc(sub.request_categories?.resolved_label || 'Resolved')}</option>
+        ${sub.request_categories?.allow_denial
+          ? `<option value="denied" ${sub.status === 'denied' ? 'selected' : ''}>${esc(sub.request_categories?.denied_label || 'Denied')}</option>`
+          : ''}
       </select>
     </div>
     <div class="form-group">
@@ -221,9 +224,11 @@ function formatVal(val, type) {
   if (type === 'boolean') return val === 'true' ? 'Yes' : 'No';
   return val;
 }
-function statusLabel(s) {
-  return { pending: 'Pending', in_review: 'In Review', resolved: 'Resolved' }[s] ?? s;
+function statusLabel(s, cat) {
+  if (s === 'resolved') return cat?.resolved_label || 'Resolved';
+  if (s === 'denied')   return cat?.denied_label   || 'Denied';
+  return { pending: 'Pending', in_review: 'In Review' }[s] ?? s;
 }
 function statusBadgeClass(s) {
-  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green' }[s] ?? '';
+  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green', denied: 'badge-red' }[s] ?? '';
 }

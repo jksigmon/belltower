@@ -17,7 +17,20 @@ let catFields      = [];
   await Promise.all([loadCategories(), loadMyRequests()]);
   renderCategories();
   renderHistory();
+  await preselectCategoryFromUrl();
 })();
+
+// Lets nav links / dropdown shortcuts (e.g. "Feedback") jump straight to a
+// category's form instead of making staff pick it from the grid.
+async function preselectCategoryFromUrl() {
+  const slug = new URLSearchParams(window.location.search).get('cat');
+  if (!slug) return;
+  const cat = categories.find(c => c.name.toLowerCase().includes(slug.toLowerCase()));
+  if (!cat) return;
+  const card = document.querySelector(`.req-cat-card[data-id="${cat.id}"]`);
+  card?.classList.add('selected');
+  await selectCategory(cat);
+}
 
 async function loadCategories() {
   const { data } = await supabase
@@ -32,7 +45,7 @@ async function loadCategories() {
 async function loadMyRequests() {
   const { data } = await supabase
     .from('staff_requests')
-    .select('id, status, created_at, manager_notes, request_categories ( name )')
+    .select('id, status, created_at, manager_notes, request_categories ( name, resolved_label, denied_label )')
     .eq('submitted_by', currentProfile.id)
     .order('created_at', { ascending: false })
     .limit(20);
@@ -88,7 +101,7 @@ async function selectCategory(cat) {
       <form id="reqSubmitForm">
         ${catFields.map(f => renderFormField(f)).join('')}
         <div style="margin-top:20px;display:flex;gap:8px;align-items:center;">
-          <button type="submit" class="btn btn-primary" style="height:36px;">Submit Request</button>
+          <button type="submit" class="btn btn-primary" style="height:36px;">Submit</button>
           <button type="button" class="btn" id="reqCancelFormBtn" style="height:36px;">Cancel</button>
         </div>
         <p id="reqFormError" style="color:#dc2626;font-size:13px;margin-top:8px;display:none;"></p>
@@ -279,7 +292,7 @@ async function handleSubmit(e) {
   if (reqErr) {
     if (errEl) { errEl.textContent = 'Submission failed: ' + reqErr.message; errEl.style.display = ''; }
     btn.disabled = false;
-    btn.textContent = 'Submit Request';
+    btn.textContent = 'Submit';
     return;
   }
 
@@ -337,7 +350,7 @@ async function handleSubmit(e) {
     await supabase.from('staff_requests').delete().eq('id', newReq.id);
     if (errEl) { errEl.textContent = 'One or more file uploads failed. Your request was not submitted. Please try again.'; errEl.style.display = ''; }
     btn.disabled = false;
-    btn.textContent = 'Submit Request';
+    btn.textContent = 'Submit';
     return;
   }
 
@@ -399,7 +412,7 @@ async function renderHistory(data) {
             <tr>
               <td>${esc(r.request_categories?.name ?? '—')}</td>
               <td>${fmtShortDate(r.created_at)}</td>
-              <td><span class="req-status-badge ${statusBadgeClass(r.status)}">${statusLabel(r.status)}</span></td>
+              <td><span class="req-status-badge ${statusBadgeClass(r.status)}">${statusLabel(r.status, r.request_categories)}</span></td>
               <td style="color:#6b7280;">${r.manager_notes ? esc(r.manager_notes) : '—'}</td>
             </tr>`).join('')}
         </tbody>
@@ -407,9 +420,11 @@ async function renderHistory(data) {
     </div>`;
 }
 
-function statusLabel(s) {
-  return { pending: 'Pending', in_review: 'In Review', resolved: 'Resolved' }[s] ?? s;
+function statusLabel(s, cat) {
+  if (s === 'resolved') return cat?.resolved_label || 'Resolved';
+  if (s === 'denied')   return cat?.denied_label   || 'Denied';
+  return { pending: 'Pending', in_review: 'In Review' }[s] ?? s;
 }
 function statusBadgeClass(s) {
-  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green' }[s] ?? '';
+  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green', denied: 'badge-red' }[s] ?? '';
 }
