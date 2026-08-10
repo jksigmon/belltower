@@ -103,7 +103,7 @@ const { data: moduleRow, error: moduleError } = await admin
 
 if (moduleError || !moduleRow?.enabled) {
   return new Response(
-    JSON.stringify({ error: "PTO module not enabled for this school" }),
+    JSON.stringify({ error: "Leave module not enabled for this school" }),
     { status: 403, headers: corsHeaders }
   );
 }
@@ -154,14 +154,14 @@ if (moduleError || !moduleRow?.enabled) {
 
       if (error) throw error;
 
-      const sheet = workbook.addWorksheet("PTO Balances", {
+      const sheet = workbook.addWorksheet("Leave Balances", {
         views: [{ state: "frozen", ySplit: 1 }],
       });
 
       sheet.columns = [
         { header: "Employee", key: "employee", width: 28 },
         { header: "Employment", key: "employment", width: 14 },
-        { header: "PTO Type", key: "type", width: 16 },
+        { header: "Leave Type", key: "type", width: 16 },
         { header: "Balance (hrs)", key: "balance", width: 14 },
         { header: "Balance (days)", key: "days", width: 14 },
       ];
@@ -214,13 +214,13 @@ if (moduleError || !moduleRow?.enabled) {
 
       if (error) throw error;
 
-      const sheet = workbook.addWorksheet("PTO Transactions", {
+      const sheet = workbook.addWorksheet("Leave Transactions", {
         views: [{ state: "frozen", ySplit: 1 }],
       });
 
       sheet.columns = [
         { header: "Employee", key: "employee", width: 28 },
-        { header: "PTO Type", key: "type", width: 14 },
+        { header: "Leave Type", key: "type", width: 14 },
         { header: "Event Type", key: "event", width: 20 },
         { header: "Hours (+/-)", key: "hours", width: 14 },
         { header: "Date", key: "date", width: 14 },
@@ -293,13 +293,13 @@ if (moduleError || !moduleRow?.enabled) {
         usageMap[key].hours += Math.abs(r.delta_hours);
       });
 
-      const sheet = workbook.addWorksheet("Payroll PTO Usage", {
+      const sheet = workbook.addWorksheet("Payroll Leave Usage", {
         views: [{ state: "frozen", ySplit: 1 }],
       });
 
       sheet.columns = [
         { header: "Employee", key: "employee", width: 28 },
-        { header: "PTO Type", key: "type", width: 14 },
+        { header: "Leave Type", key: "type", width: 14 },
         { header: "Hours Used", key: "hours", width: 14 },
         { header: "Days Used", key: "days", width: 12 },
         { header: "Period Start", key: "start", width: 14 },
@@ -365,7 +365,7 @@ if (moduleError || !moduleRow?.enabled) {
       sheet.columns = [
         { header: "Employee", key: "employee", width: 28 },
         { header: "Employment", key: "employment", width: 14 },
-        { header: "PTO Type", key: "type", width: 14 },
+        { header: "Leave Type", key: "type", width: 14 },
         { header: "Balance (hrs)", key: "balance", width: 16 },
         { header: "Balance (days)", key: "days", width: 16 },
       ];
@@ -487,7 +487,7 @@ if (moduleError || !moduleRow?.enabled) {
       sheet.columns = [
         { header: "Employee", key: "employee", width: 28 },
         { header: "Employment", key: "employment", width: 14 },
-        { header: "PTO Type", key: "type", width: 14 },
+        { header: "Leave Type", key: "type", width: 14 },
         { header: "Allotted (hrs)", key: "allotted", width: 14 },
         { header: "Used (hrs)", key: "used", width: 12 },
         { header: "Used (days)", key: "used_days", width: 12 },
@@ -559,7 +559,7 @@ const rangeLabel = (report_type !== "balances" && start_date && end_date)
 
 return new Response(
   JSON.stringify({
-    filename: `PTO_${report_type}${rangeLabel}.xlsx`,
+    filename: `Leave_${report_type}${rangeLabel}.xlsx`,
     file: base64,
   }),
   {

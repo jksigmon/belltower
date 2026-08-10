@@ -23,7 +23,7 @@ const supabase = createClient(
 );
 
 // Fallback sender used only if the school has not configured its own email.
-const DEFAULT_FROM = "Belltower PTO <pto@belltower.school>";
+const DEFAULT_FROM = "Belltower Leave <pto@belltower.school>";
 const DEFAULT_REPLY_TO = "no-reply@belltower.school";
 
 
@@ -114,7 +114,7 @@ function renderPtoEmail({
       </p>
 
       <p>
-        <strong>PTO type:</strong><br/>
+        <strong>Leave type:</strong><br/>
         ${request.pto_type}
       </p>
 
@@ -375,12 +375,12 @@ async function sendEmployeeSubmission(request: any, employee: any, cfg: any, sub
   const isProxy = !!submittedByName;
   await sendEmail({
     to: employee.email,
-    subject: isProxy ? "Leave Request Submitted on Your Behalf" : "PTO Request Submitted",
+    subject: isProxy ? "Leave Request Submitted on Your Behalf" : "Leave Request Submitted",
     html: renderPtoEmail({
-      title: isProxy ? "Leave Request Submitted on Your Behalf" : "PTO Request Submitted",
+      title: isProxy ? "Leave Request Submitted on Your Behalf" : "Leave Request Submitted",
       intro: isProxy
         ? `✅ <strong>${submittedByName}</strong> has submitted a leave request on your behalf.`
-        : "✅ Your PTO request has been successfully submitted.",
+        : "✅ Your leave request has been successfully submitted.",
       request,
       employee,
       footer: "You’ll be notified once your request is reviewed."
@@ -414,13 +414,13 @@ async function sendApproverRequest(request: any, employee: any, approvers: any[]
 
     const approverIntro = submittedByName
       ? `<strong>${submittedByName}</strong> has submitted a leave request on behalf of ${employee.first_name} ${employee.last_name} that requires your approval.`
-      : `${employee.first_name} ${employee.last_name} has submitted a PTO request that requires your approval.`;
+      : `${employee.first_name} ${employee.last_name} has submitted a leave request that requires your approval.`;
 
     await sendEmail({
       to: approver.email,
-      subject: "PTO Approval Required",
+      subject: "Leave Approval Required",
       html: renderPtoEmail({
-        title: "PTO Approval Required",
+        title: "Leave Approval Required",
         intro: approverIntro,
         request,
         employee,
@@ -437,10 +437,10 @@ async function sendApproverRequest(request: any, employee: any, approvers: any[]
 async function sendEmployeeDecision(request: any, employee: any, decision: string, cfg: any) {
   await sendEmail({
     to: employee.email,
-    subject: `PTO Request ${decision.toUpperCase()}`,
+    subject: `Leave Request ${decision.toUpperCase()}`,
     html: renderPtoEmail({
-      title: `PTO Request ${decision.toUpperCase()}`,
-      intro: `✅ Your PTO request has been <strong>${decision}</strong>.`,
+      title: `Leave Request ${decision.toUpperCase()}`,
+      intro: `✅ Your leave request has been <strong>${decision}</strong>.`,
       request,
       employee
     }),
@@ -467,10 +467,10 @@ async function sendSubCoverageNeeded(request: any, employee: any, managers: any[
   for (const mgr of managers) {
     await sendEmail({
       to: mgr.email,
-      subject: "Substitute/Coverage Needed (PTO Approved)",
+      subject: "Substitute/Coverage Needed (Leave Approved)",
       html: renderPtoEmail({
         title: "Substitute/Coverage Needed",
-        intro: `✅ PTO was approved and coverage is needed for ${employee.first_name} ${employee.last_name}.`,
+        intro: `✅ Leave was approved and coverage is needed for ${employee.first_name} ${employee.last_name}.`,
         request,
         employee,
         footer: "Please arrange coverage. This request was marked as needing substitute/coverage."
@@ -484,10 +484,10 @@ async function sendSubCoverageNoLongerNeeded(request: any, employee: any, manage
   for (const mgr of managers) {
     await sendEmail({
       to: mgr.email,
-      subject: "Coverage No Longer Needed (PTO Cancelled)",
+      subject: "Coverage No Longer Needed (Leave Cancelled)",
       html: renderPtoEmail({
         title: "Coverage No Longer Needed",
-        intro: `⚠️ This previously approved PTO was cancelled. Coverage is no longer needed for ${employee.first_name} ${employee.last_name}.`,
+        intro: `⚠️ This previously approved leave was cancelled. Coverage is no longer needed for ${employee.first_name} ${employee.last_name}.`,
         request,
         employee,
         footer: "If you already arranged coverage, please cancel/unassign the substitute."
@@ -531,15 +531,15 @@ async function sendCancellationRequest(
     await sendEmail({
       to: approver.email,
       subject: isRescind
-        ? "PTO Rescind Approval Required"
-        : "PTO Cancellation Approval Required",
+        ? "Leave Rescind Approval Required"
+        : "Leave Cancellation Approval Required",
       html: renderPtoEmail({
         title: isRescind
-          ? "PTO Rescind Request"
-          : "PTO Cancellation Request",
+          ? "Leave Rescind Request"
+          : "Leave Cancellation Request",
         intro: isRescind
-          ? `${employee.first_name} ${employee.last_name} has requested to rescind a previously approved PTO (past dates).`
-          : `${employee.first_name} ${employee.last_name} has requested to cancel a previously approved PTO.`,
+          ? `${employee.first_name} ${employee.last_name} has requested to rescind a previously approved leave (past dates).`
+          : `${employee.first_name} ${employee.last_name} has requested to cancel a previously approved leave.`,
         request,
         employee,
         showActions: true,
@@ -557,10 +557,10 @@ async function sendCancellationRequest(
 async function sendEmployeeCancellation(request: any, employee: any, cfg: any) {
   await sendEmail({
     to: employee.email,
-    subject: "PTO Cancellation Confirmed",
+    subject: "Leave Cancellation Confirmed",
     html: renderPtoEmail({
-      title: "PTO Cancellation Confirmed",
-      intro: "✅ Your PTO request has been successfully cancelled.",
+      title: "Leave Cancellation Confirmed",
+      intro: "✅ Your leave request has been successfully cancelled.",
       request,
       employee,
       footer: "If you have questions, please contact your administrator."

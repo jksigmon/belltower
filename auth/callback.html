@@ -231,11 +231,19 @@
   <script type="module">
     import { supabase } from '/app/admin.supabase.js'
 
-    // If Google redirected back with an error (e.g. user cancelled), go back to login
+    // If Google/Supabase redirected back with an error (e.g. user cancelled,
+    // redirect URL not allowlisted, provider misconfigured), surface it
+    // instead of silently bouncing back to login.
     const qp = new URLSearchParams(window.location.search);
     const hp = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-    if (qp.get('error') || hp.get('error')) {
-      window.location.replace('/app/login.html');
+    const authError = qp.get('error') || hp.get('error');
+    const authErrorDesc = qp.get('error_description') || hp.get('error_description');
+    if (authError) {
+      console.error('Auth callback error:', authError, authErrorDesc);
+      window.location.replace(
+        `/app/login.html?auth_error=${encodeURIComponent(authError)}` +
+        (authErrorDesc ? `&auth_error_description=${encodeURIComponent(authErrorDesc)}` : '')
+      );
     }
 
     supabase.auth.onAuthStateChange(async (event, session) => {
@@ -298,7 +306,7 @@
         if (error) {
           console.error('Profile creation failed:', error)
           await supabase.auth.signOut()
-          window.location.replace('/login.html')
+          window.location.replace('/app/login.html?auth_error=profile_creation_failed')
           return
         }
 
@@ -325,7 +333,8 @@
         profile.can_manage_access ||
         profile.can_approve_pto ||
         profile.can_adjust_pto ||
-        profile.can_bulk_upload
+        profile.can_bulk_upload ||
+        profile.can_manage_requests
 
       window.location.replace(isAdmin ? '/admin.html' : '/staff.html')
     })

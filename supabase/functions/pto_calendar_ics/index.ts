@@ -84,7 +84,7 @@ serve(async (req) => {
     let ics = "";
     ics += "BEGIN:VCALENDAR\r\n";
     ics += "VERSION:2.0\r\n";
-    ics += "PRODID:-//YourApp//PTO Calendar//EN\r\n";
+    ics += "PRODID:-//YourApp//Leave Calendar//EN\r\n";
     ics += "CALSCALE:GREGORIAN\r\n";
 
     for (const r of requests) {
