@@ -1604,16 +1604,28 @@ serve(async (req) => {
     const plan = await buildPlan();
     const summary = summarizePlan(plan);
 
+    // ic_sync_runs has no columns for the "*_awaiting_review" counts (those describe
+    // overall queue state, not what this specific run did) — strip them before
+    // persisting so the update doesn't get rejected for an unknown column. The full
+    // summary (including these) still goes out in the JSON response below for the
+    // admin UI to render.
+    const { students_awaiting_review: _saw, guardians_awaiting_review: _gaw, families_awaiting_review: _faw, ...persistableCounts } = summary.counts;
+
     if (dryRun) {
-      await supabase
+      const { error: updateErr } = await supabase
         .from("ic_sync_runs")
         .update({
-          ...summary.counts,
+          ...persistableCounts,
           status: "preview",
           preview_summary: summary.samples,
           finished_at: new Date().toISOString(),
         })
         .eq("id", run.id);
+      // This previously failed silently on every single run (unknown-column error from
+      // the awaiting_review fields above) — the run looked "stuck" forever even though
+      // buildPlan had actually finished and a real response went back to the browser.
+      // Never let that happen invisibly again.
+      if (updateErr) console.error(`Failed to mark run ${run.id} as finished (preview):`, updateErr);
 
       return new Response(JSON.stringify({ ok: true, dry_run: true, ...summary, fetchCounts: plan.fetchCounts }), {
         status: 200,
@@ -1622,11 +1634,13 @@ serve(async (req) => {
     }
 
     const executedCounts = await executePlan(plan);
+    const { students_awaiting_review: _saw2, guardians_awaiting_review: _gaw2, families_awaiting_review: _faw2, ...persistableExecutedCounts } = executedCounts;
 
-    await supabase
+    const { error: updateErr } = await supabase
       .from("ic_sync_runs")
-      .update({ ...executedCounts, status: "success", finished_at: new Date().toISOString() })
+      .update({ ...persistableExecutedCounts, status: "success", finished_at: new Date().toISOString() })
       .eq("id", run.id);
+    if (updateErr) console.error(`Failed to mark run ${run.id} as finished (success):`, updateErr);
 
     return new Response(JSON.stringify({ ok: true, dry_run: false, ...executedCounts }), {
       status: 200,
@@ -1635,10 +1649,11 @@ serve(async (req) => {
   } catch (err) {
     console.error("sync_infinite_campus error:", err);
     const message = errToString(err);
-    await supabase
+    const { error: updateErr } = await supabase
       .from("ic_sync_runs")
       .update({ status: "error", error_message: message, finished_at: new Date().toISOString() })
       .eq("id", run.id);
+    if (updateErr) console.error(`Failed to record error status for run ${run.id}:`, updateErr);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
