@@ -31,6 +31,12 @@ const { data: profile, error } = await supabase
 
   if (error) {
     console.error('Failed to load profile', error);
+    document.body.insertAdjacentHTML('afterbegin', `
+      <div style="background:#fef2f2;border-bottom:1px solid #fecaca;color:#991b1b;padding:14px 20px;font-size:14px;display:flex;align-items:center;justify-content:center;gap:12px;">
+        Something went wrong loading your account. Please try again.
+        <button onclick="location.reload()" style="background:#991b1b;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:13px;cursor:pointer;">Retry</button>
+      </div>
+    `);
     return;
   }
 
@@ -388,6 +394,22 @@ async function loadDashboardStats() {
   const keys    = Object.keys(queries);
   const results = await Promise.all(keys.map(k => queries[k]));
   const r       = Object.fromEntries(keys.map((k, i) => [k, results[i]]));
+
+  // Some individual queries can fail (RLS, timeout, etc.) while others
+  // succeed — without this, a failed count silently renders as "0" via the
+  // `?? 0` fallbacks below, indistinguishable from a genuinely empty school.
+  const failedKeys = keys.filter(k => r[k]?.error);
+  if (failedKeys.length) {
+    console.error('Dashboard stat queries failed', failedKeys.map(k => [k, r[k].error]));
+    const grid = document.getElementById('dashGrid');
+    if (grid && !document.getElementById('dashStatsErrorBanner')) {
+      grid.insertAdjacentHTML('beforebegin', `
+        <div id="dashStatsErrorBanner" style="background:#fffbeb;border:1px solid #fde68a;color:#92400e;padding:10px 16px;border-radius:8px;font-size:13px;margin-bottom:12px;">
+          Some dashboard numbers below may be inaccurate — they failed to load. <a href="#" onclick="location.reload();return false;" style="color:#92400e;font-weight:600;">Refresh to retry</a>.
+        </div>
+      `);
+    }
+  }
 
   // ── Apply all DOM updates synchronously ───────────────────────────
 

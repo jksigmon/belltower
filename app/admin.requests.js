@@ -906,6 +906,24 @@ async function toggleCatActive() {
 
 async function deleteCategory() {
   if (!editingCat) return;
+
+  const { count, error: countError } = await supabase
+    .from('staff_requests')
+    .select('id', { count: 'exact', head: true })
+    .eq('category_id', editingCat.id);
+  if (countError) {
+    showToast('Failed to delete form: ' + countError.message, 'error');
+    return;
+  }
+  if (count > 0) {
+    showToast('This form now has submissions and can\'t be deleted — deactivate it instead.', 'error');
+    closeCatDrawer();
+    await loadCategories();
+    renderRoot();
+    renderFormsView();
+    return;
+  }
+
   const { error } = await supabase.from('request_categories').delete().eq('id', editingCat.id);
   if (error) {
     showToast('Failed to delete form: ' + error.message, 'error');
@@ -1070,7 +1088,7 @@ async function openSubDrawer(sub) {
         <option value="pending"   ${sub.status === 'pending'   ? 'selected' : ''}>Pending</option>
         <option value="in_review" ${sub.status === 'in_review' ? 'selected' : ''}>In Review</option>
         <option value="resolved"  ${sub.status === 'resolved'  ? 'selected' : ''}>${esc(sub.request_categories?.resolved_label || 'Resolved')}</option>
-        ${sub.request_categories?.allow_denial
+        ${(sub.request_categories?.allow_denial || sub.status === 'denied')
           ? `<option value="denied" ${sub.status === 'denied' ? 'selected' : ''}>${esc(sub.request_categories?.denied_label || 'Denied')}</option>`
           : ''}
       </select>

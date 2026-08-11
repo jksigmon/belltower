@@ -1,7 +1,7 @@
 import { supabase } from '/app/admin.supabase.js';
 import { initUserMenu } from '/app/user-menu.js';
 import { requireAuth } from '/app/admin.auth.js';
-import { showToast, esc, getAvatarColor, fmtShortDate } from '/app/admin.shared.js';
+import { showToast, esc, getAvatarColor, fmtShortDate, toLocalISODate } from '/app/admin.shared.js';
 
 /* =============================================
    STATE
@@ -3314,8 +3314,14 @@ async function submitProxyLeave() {
 
   if (!subChoice) { message.textContent = 'Please indicate whether substitute/coverage is needed.'; return; }
 
-  const startDate = proxySelectedStart.toISOString().slice(0, 10);
-  const endDate   = proxySelectedEnd.toISOString().slice(0, 10);
+  const startDate = toLocalISODate(proxySelectedStart);
+  const endDate   = toLocalISODate(proxySelectedEnd);
+
+  if (endDate < startDate) {
+    message.textContent = 'End date can\'t be before the start date.';
+    return;
+  }
+
   const isHalfDay  = duration === 'half';
   const isPartial  = duration === 'partial';
   const isMultiDay = duration === 'multi';

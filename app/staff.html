@@ -1425,7 +1425,7 @@ import { initUserMenu } from '/app/user-menu.js';
 import { requireAuth } from '/app/admin.auth.js';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce } from '/app/admin.shared.js';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate } from '/app/admin.shared.js';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { fileKind as rdFileKind, tileIconSvg as rdTileIconSvg, getThumbnailUrl as rdGetThumbnailUrl, withThumbnailConcurrency as rdWithThumbnailConcurrency } from '/app/resource-doc-thumbnails.js';
 
@@ -3133,6 +3133,15 @@ async function loadMyLicenses() {
     return;
   }
 
+  const { data: files } = await supabase
+    .from('staff_license_files')
+    .select('license_id, file_path, file_name')
+    .in('license_id', data.map(lic => lic.id))
+    .eq('is_current', true);
+
+  const fileByLicense = {};
+  (files ?? []).forEach(f => { fileByLicense[f.license_id] = f; });
+
   const today = new Date().toISOString().slice(0, 10);
 
   const statusBadgeMap = {
@@ -3166,6 +3175,9 @@ async function loadMyLicenses() {
       <td>${lic.expiration_date ? lic.expiration_date.split('-').slice(1).concat(lic.expiration_date.split('-')[0]).join('/') : '—'}<br>${expiryNote}</td>
       <td><span style="background:${bg};color:${color};padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;text-transform:uppercase;">${esc(lic.status.replace('_',' '))}</span></td>
       <td>${lic.is_provisional ? '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">Provisional</span>' : '—'}</td>
+      <td>${fileByLicense[lic.id]
+        ? `<button type="button" class="btn btn-sm btn-secondary staffLicViewBtn" data-id="${esc(lic.id)}" title="Open ${esc(fileByLicense[lic.id].file_name)}">View PDF</button>`
+        : '<span style="color:#9ca3af;">—</span>'}</td>
     </tr>`;
   }).join('');
 
@@ -3181,11 +3193,38 @@ async function loadMyLicenses() {
             <th>Expiration</th>
             <th>Status</th>
             <th>Provisional</th>
+            <th>Attachment</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+
+  container.querySelectorAll('.staffLicViewBtn').forEach(btn => {
+    btn.addEventListener('click', () => openMyLicenseFile(fileByLicense[btn.dataset.id]));
+  });
+}
+
+// Opens the current attachment for one of the signed-in staff member's own
+// licenses. The blank tab is opened synchronously on click so the popup
+// blocker treats it as user-initiated; it's then pointed at the signed URL.
+async function openMyLicenseFile(file) {
+  if (!file) return;
+  const win = window.open('', '_blank');
+  if (win) win.opener = null;
+
+  const { data, error } = await supabase.storage
+    .from('license-files')
+    .createSignedUrl(file.file_path, 3600);
+
+  if (error || !data?.signedUrl) {
+    if (win) win.close();
+    console.error('Could not open license attachment', error);
+    return;
+  }
+
+  if (win) win.location = data.signedUrl;
+  else window.open(data.signedUrl, '_blank', 'noopener');
 }
 
 function redirectToFirstEnabledModule() {
@@ -3541,8 +3580,14 @@ async function submitPtoRequest() {
     return;
   }
 
-  const startDate = selectedStartDate.toISOString().slice(0, 10);
-  const endDate = selectedEndDate.toISOString().slice(0, 10);
+  const startDate = toLocalISODate(selectedStartDate);
+  const endDate = toLocalISODate(selectedEndDate);
+
+  if (endDate < startDate) {
+    message.textContent = 'End date can\'t be before the start date.';
+    return;
+  }
+
   const duration = document.getElementById('ptoDuration').value;
   const startTimeInput = document.getElementById('ptoStartTime').value;
   const endTimeRaw = document.getElementById('ptoEndTime').value;

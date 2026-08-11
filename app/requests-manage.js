@@ -168,7 +168,7 @@ async function openDrawer(sub) {
         <option value="pending"   ${sub.status === 'pending'   ? 'selected' : ''}>Pending</option>
         <option value="in_review" ${sub.status === 'in_review' ? 'selected' : ''}>In Review</option>
         <option value="resolved"  ${sub.status === 'resolved'  ? 'selected' : ''}>${esc(sub.request_categories?.resolved_label || 'Resolved')}</option>
-        ${sub.request_categories?.allow_denial
+        ${(sub.request_categories?.allow_denial || sub.status === 'denied')
           ? `<option value="denied" ${sub.status === 'denied' ? 'selected' : ''}>${esc(sub.request_categories?.denied_label || 'Denied')}</option>`
           : ''}
       </select>

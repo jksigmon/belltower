@@ -323,7 +323,7 @@
       // ✅ Block inactive users
       if (profile.can_login !== true) {
         await supabase.auth.signOut()
-        window.location.replace('/login.html')
+        window.location.replace('/app/login.html')
         return
       }
 

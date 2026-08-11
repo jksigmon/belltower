@@ -36,7 +36,7 @@ async function init() {
 
   // Load trip first so grade_levels are available for the student query
   const { data: tripData, error: tripErr } = await supabase
-    .from('field_trips').select('*').eq('id', tripId).single();
+    .from('field_trips').select('*').eq('id', tripId).eq('school_id', profile.school_id).single();
 
   if (tripErr || !tripData) {
     document.getElementById('vehBoard').innerHTML =

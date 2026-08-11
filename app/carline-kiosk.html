@@ -65,6 +65,7 @@
     <div class="cl-header-spacer"></div>
 
     <div class="cl-header-right">
+      <span class="cl-sync-status" id="kSyncStatus" style="font-size:0.72rem;opacity:0.7;margin-right:10px;"></span>
       <span class="cl-clock" id="kClock"></span>
       <button class="cl-icon-btn cl-fontsize-btn" id="kBtnFontSize" title="Font size (S/M/L)">M</button>
       <button class="cl-icon-btn" id="kBtnDarkMode" title="Toggle dark mode">
@@ -569,6 +570,9 @@ let activePickupGroupIds = new Set();
 let pinnedStudentIds     = new Set();
 
 let pollTimer  = null;
+let lastPollSuccess = null;
+let pollFailCount   = 0;
+let syncStatusTimer = null;
 let toastTimer = null;
 let audioCtx   = null;
 const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
@@ -620,6 +624,12 @@ function showLockScreen() {
   document.getElementById('kioskApp').hidden  = true;
   clearInterval(pollTimer);
   pollTimer = null;
+  clearInterval(syncStatusTimer);
+  syncStatusTimer = null;
+  lastPollSuccess = null;
+  pollFailCount = 0;
+  const syncEl = document.getElementById('kSyncStatus');
+  if (syncEl) syncEl.textContent = '';
   pinBuffer = '';
   updatePinDisplay();
   document.getElementById('kioskError').hidden      = true;
@@ -777,6 +787,28 @@ function showAppScreen() {
 function startPolling() {
   clearInterval(pollTimer);
   pollTimer = setInterval(poll, 5000);
+  clearInterval(syncStatusTimer);
+  syncStatusTimer = setInterval(updateSyncStatus, 1000);
+}
+
+// Reflects how stale the on-screen data is, since poll() swallows network
+// errors to avoid interrupting the display — this is the only visible
+// signal that polling has stopped succeeding.
+function updateSyncStatus() {
+  const el = document.getElementById('kSyncStatus');
+  if (!el) return;
+  if (!lastPollSuccess) { el.textContent = ''; return; }
+
+  const secsAgo = Math.round((Date.now() - lastPollSuccess) / 1000);
+  if (pollFailCount === 0 && secsAgo < 10) {
+    el.textContent = '';
+  } else if (pollFailCount === 0) {
+    el.textContent = `Updated ${secsAgo}s ago`;
+    el.style.color = '';
+  } else {
+    el.textContent = `⚠ Not updating — last synced ${secsAgo}s ago`;
+    el.style.color = '#dc2626';
+  }
 }
 
 async function poll() {
@@ -794,7 +826,10 @@ async function poll() {
       lockKiosk();
       return;
     }
-    if (!res.ok) return;
+    if (!res.ok) { pollFailCount++; updateSyncStatus(); return; }
+
+    lastPollSuccess = Date.now();
+    pollFailCount = 0;
 
     const prev = new Map(callStatus);
     applySnapshot(await res.json());
@@ -814,7 +849,10 @@ async function poll() {
 
     updateEventUI();
     renderColumns();
-  } catch { /* network blip — try again next interval */ }
+  } catch {
+    pollFailCount++;
+    updateSyncStatus();
+  }
 }
 
 // ── Event UI ────────────────────────────────────────────────────────────

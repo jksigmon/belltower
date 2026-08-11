@@ -1888,7 +1888,11 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <p>Staff Requests lets you create custom internal request forms — for facilities work, IT support, supply orders, or anything else your school needs to track. Administrators build the forms and assign managers. Staff submit through their portal. Managers receive notifications and can update each submission's status.</p>
-        <p>Administrators manage forms and view all submissions in the <strong>Admin Panel → Staff Requests</strong> tab. Staff submit requests from the <strong>Staff Portal → Submit a Request</strong> link in the navigation.</p>
+        <p>Administrators manage forms and view all submissions in the <strong>Admin Panel → Staff Requests</strong> tab. Staff submit requests from the <strong>Staff Portal → Form Requests</strong> link in the navigation.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Many schools also set up a <strong>Feedback &amp; Bug Reports</strong> form for staff to report problems or ask questions directly — it's just a request form like any other.
+        </div>
       </div>
     </div>
 
@@ -1926,6 +1930,17 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
 
     <div class="faq-item">
       <button class="faq-question">
+        Can I customize the status wording, or add a "Denied" option?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Yes. Every form has a <strong>Pending</strong> and <strong>In Review</strong> status, but the wording for the completed state is customizable per form — it defaults to "Resolved," but you can change it to something more fitting, like "Approved" for a Purchase Request form or "Fulfilled" for a supply order.</p>
+        <p>Some forms are a genuine approve/deny decision rather than a simple resolve/no-resolve (Field Trip approvals, Activity Approval requests). For those, open <strong>Edit Form</strong> and turn on <strong>Allow Denial</strong> — this adds a "Denied" status option (also with a customizable label) alongside the completed status. Leave it off for forms like Maintenance or Feedback where there's nothing to deny, just resolve.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
         What field types are available and when should I use each one?
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
@@ -1934,9 +1949,14 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
           <li><strong>Short Text</strong> — a single-line input. Use for brief answers like a room number, asset tag, or name.</li>
           <li><strong>Paragraph</strong> — a multi-line text area. Use for descriptions, detailed notes, or anything that needs more than one sentence.</li>
           <li><strong>Dropdown</strong> — a list of predefined options the submitter selects from. Enter the options as a comma-separated list (e.g., <em>Low, Medium, High</em>). Use when you want to constrain the answer to known values.</li>
-          <li><strong>Date</strong> — a date picker. Use for "When do you need this by?" or similar time-sensitive fields.</li>
+          <li><strong>Date</strong> — a single date picker. Use for "When do you need this by?" or similar single-day fields.</li>
+          <li><strong>Date Range</strong> — a start/end date picker. Use when the request spans multiple days, like a facilities closure window or an equipment loan period.</li>
+          <li><strong>Time</strong> — a time picker. Use for "What time does this need to happen?" fields.</li>
+          <li><strong>Phone Number</strong> — a formatted phone input. Use when you need a callback number.</li>
+          <li><strong>Currency</strong> — a dollar-amount input. Use for reimbursement amounts, budget requests, or purchase estimates.</li>
           <li><strong>Yes / No</strong> — a radio button pair. Use for simple binary questions like "Is this an emergency?"</li>
           <li><strong>File Upload</strong> — lets the submitter attach a photo, PDF, or document. Accepted formats: images, PDFs, Word documents. Use when you need a photo of the issue, a receipt, or a supporting document.</li>
+          <li><strong>Routes to a manager</strong> — a dropdown where each option is mapped to one of the form's managers. Submissions get routed only to that manager's queue based on the option selected. Use when different types of requests on the same form need to go to different people (e.g., "Which building?" routing to each building's facilities lead). A form can have at most one of these fields.</li>
         </ul>
         <p>Mark a field <strong>Required</strong> to prevent submission unless that field is filled in.</p>
       </div>
@@ -2013,7 +2033,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <ol>
-          <li>From the <strong>Staff Portal</strong>, click <strong>Submit a Request</strong> in the side navigation.</li>
+          <li>From the <strong>Staff Portal</strong>, click <strong>Form Requests</strong> in the side navigation.</li>
           <li>The available request forms are shown as cards. Click the one that matches the type of request.</li>
           <li>The form fields appear below. Fill in all required fields (marked with <strong>*</strong>).</li>
           <li>Click <strong>Submit Request</strong>.</li>
@@ -2028,12 +2048,13 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>On the <strong>Submit a Request</strong> page, a <strong>My Requests</strong> table appears below the form selection area once a staff member has at least one submission. It shows the form name, submission date, current status, and any notes left by a manager.</p>
+        <p>On the <strong>Form Requests</strong> page, a <strong>My Requests</strong> table appears below the form selection area once a staff member has at least one submission. It shows the form name, submission date, current status, and any notes left by a manager.</p>
         <p>Statuses are:</p>
         <ul>
           <li><strong>Pending</strong> — received, not yet reviewed.</li>
           <li><strong>In Review</strong> — a manager has seen it and is working on it.</li>
-          <li><strong>Resolved</strong> — the request has been completed or closed.</li>
+          <li><strong>Resolved</strong> — the request has been completed or closed. Some forms use a different label here, like "Approved" — see the label used on your form's card.</li>
+          <li><strong>Denied</strong> — only shown on forms where denial is enabled (see above); the request was reviewed and declined.</li>
         </ul>
       </div>
     </div>
@@ -2049,7 +2070,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
           <li>Use the <strong>All Forms</strong> and <strong>All Statuses</strong> filters to narrow the list.</li>
           <li>Click any row to open the submission detail drawer.</li>
           <li>The drawer shows who submitted it, when, and all their answers field by field.</li>
-          <li>Change the <strong>Status</strong> dropdown to reflect progress — <em>Pending</em>, <em>In Review</em>, or <em>Resolved</em>.</li>
+          <li>Change the <strong>Status</strong> dropdown to reflect progress — <em>Pending</em>, <em>In Review</em>, the form's completed status (e.g. <em>Resolved</em>/<em>Approved</em>), or <em>Denied</em> if the form has denial enabled.</li>
           <li>Optionally add a note in the <strong>Manager Notes</strong> field. This note is visible to the submitter in their My Requests table.</li>
           <li>Click <strong>Save</strong>.</li>
         </ol>
@@ -2065,7 +2086,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <p>Yes. On the Submissions tab, two filter dropdowns sit at the top of the list:</p>
         <ul>
           <li><strong>All Forms</strong> — filter to a specific request form type.</li>
-          <li><strong>All Statuses</strong> — filter to Pending, In Review, or Resolved submissions.</li>
+          <li><strong>All Statuses</strong> — filter to Pending, In Review, Resolved (or the form's custom completed label), or Denied submissions.</li>
         </ul>
         <p>These filters can be used together. The list updates immediately when you change either dropdown.</p>
       </div>
@@ -2077,7 +2098,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>At submission time, the form's assigned managers are notified by email automatically. Status updates and manager notes are visible to the submitter in the <strong>My Requests</strong> table on the Submit a Request page. Staff can check back there at any time to see the latest status and any notes left for them.</p>
+        <p>At submission time, the form's assigned managers are notified by email automatically. Status updates and manager notes are visible to the submitter in the <strong>My Requests</strong> table on the Form Requests page. Staff can check back there at any time to see the latest status and any notes left for them.</p>
       </div>
     </div>
 
