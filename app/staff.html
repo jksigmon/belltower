@@ -543,59 +543,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   }
 }
 
-/* ── BG Check role cards ── */
-.bg-role-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-top: 8px;
-}
-@media (max-width: 600px) {
-  .bg-role-grid { grid-template-columns: 1fr; }
-}
-.bg-role-card {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
-  border: 1.5px solid #e5e7eb;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-  user-select: none;
-}
-.bg-role-card:hover {
-  border-color: #93c5fd;
-  background: #f8faff;
-}
-.bg-role-check {
-  margin-top: 2px;
-  accent-color: var(--primary, #2563eb);
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-.bg-role-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #111827;
-  line-height: 1.3;
-}
-.bg-role-desc {
-  font-size: 11px;
-  color: #9ca3af;
-  margin-top: 3px;
-  line-height: 1.4;
-}
-.bg-role-card:has(.bg-role-check:checked) {
-  border-color: var(--primary, #2563eb);
-  background: #eff6ff;
-  box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
-}
-.bg-role-card:has(.bg-role-check:checked) .bg-role-name {
-  color: var(--primary, #2563eb);
-}
+/* .bg-role-* rules live in admin-ui.css (shared with the compliance manager's Add Record drawer) */
 
 /* ── Compliance Report ────────────────────────── */
 .comp-report-panel-header {
@@ -1071,7 +1019,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
               <input type="checkbox" name="bgRole" value="Field Trip Driver" class="bg-role-check">
               <div>
                 <div class="bg-role-name">Field Trip Driver</div>
-                <div class="bg-role-desc">All above + MVR + DL &amp; insurance on file</div>
+                <div class="bg-role-desc">BG check + Confidentiality + Chaperone Guidelines + MVR + DL &amp; insurance on file</div>
               </div>
             </label>
             <label class="bg-role-card">
