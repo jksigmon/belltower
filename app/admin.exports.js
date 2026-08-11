@@ -1,6 +1,6 @@
 
 // admin.exports.js
-import { supabase } from './admin.supabase.js';
+import { supabase } from './admin.supabase.js?v=2';
 
 let currentProfile;
 let initialized = false;

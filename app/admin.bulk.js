@@ -1,6 +1,6 @@
 
 // admin.bulk.js
-import { supabase } from './admin.supabase.js';
+import { supabase } from './admin.supabase.js?v=2';
 
 let initialized = false;
 let uploadedFileBase64 = null;

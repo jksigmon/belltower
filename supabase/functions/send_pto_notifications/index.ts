@@ -23,7 +23,7 @@ const supabase = createClient(
 );
 
 // Fallback sender used only if the school has not configured its own email.
-const DEFAULT_FROM = "Belltower Leave <pto@belltower.school>";
+const DEFAULT_FROM = "Belltower Leave <leave@belltower.school>";
 const DEFAULT_REPLY_TO = "no-reply@belltower.school";
 
 

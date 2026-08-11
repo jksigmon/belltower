@@ -1,6 +1,6 @@
-import { supabase } from './admin.supabase.js';
-import { initPage } from './admin.auth.js';
-import { esc } from './admin.shared.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { initPage } from './admin.auth.js?v=2';
+import { esc } from './admin.shared.js?v=2';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
 let currentProfile = null;

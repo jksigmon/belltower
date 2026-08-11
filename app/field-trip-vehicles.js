@@ -1,6 +1,6 @@
-import { supabase } from './admin.supabase.js';
-import { initPage } from './admin.auth.js';
-import { esc } from './admin.shared.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { initPage } from './admin.auth.js?v=2';
+import { esc } from './admin.shared.js?v=2';
 
 const GRADE_COLORS = [
   '#3b82f6','#10b981','#f59e0b','#ef4444',

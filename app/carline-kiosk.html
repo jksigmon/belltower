@@ -535,7 +535,7 @@
 
 <script type="module">
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '/app/config.js';
-import { GRADE_ORDER } from '/app/admin.shared.js';
+import { GRADE_ORDER } from '/app/admin.shared.js?v=2';
 
 const EDGE    = `${SUPABASE_URL}/functions/v1/carline_kiosk`;
 const HEADERS = { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' };

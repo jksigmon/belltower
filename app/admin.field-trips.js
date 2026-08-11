@@ -1,6 +1,6 @@
-import { supabase } from './admin.supabase.js';
-import { initPage } from './admin.auth.js';
-import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, todayISO, dbError, showToast } from './admin.shared.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { initPage } from './admin.auth.js?v=2';
+import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, todayISO, dbError, showToast } from './admin.shared.js?v=2';
 
 let profile = null;
 let schoolConfig = null;

@@ -1,5 +1,5 @@
 
-import { supabase } from './admin.supabase.js';
+import { supabase } from './admin.supabase.js?v=2';
 
 export function createDirectory(config) {
   const {

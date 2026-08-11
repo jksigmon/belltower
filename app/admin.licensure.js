@@ -1,6 +1,6 @@
-import { supabase } from './admin.supabase.js';
-import { initPage } from './admin.auth.js';
-import { debounce, esc, showToast } from './admin.shared.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { initPage } from './admin.auth.js?v=2';
+import { debounce, esc, showToast } from './admin.shared.js?v=2';
 
 /* ─────────────────────────────────────────────────────
    STATE

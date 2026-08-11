@@ -1,5 +1,5 @@
-import { supabase } from './admin.supabase.js';
-import { esc, debounce, getAvatarColor, fmtShortDate, showToast } from './admin.shared.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { esc, debounce, getAvatarColor, fmtShortDate, showToast } from './admin.shared.js?v=2';
 
 let currentProfile = null;
 let currentView = 'forms'; // 'forms' | 'submissions'

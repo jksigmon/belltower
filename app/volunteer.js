@@ -1,4 +1,4 @@
-import { supabase } from './admin.supabase.js';
+import { supabase } from './admin.supabase.js?v=2';
 
 // ── State ─────────────────────────────────────────────────────────────
 let formData    = null;   // response from compliance_form_lookup

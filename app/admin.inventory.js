@@ -2,8 +2,8 @@
 // Oversight view: any list in the school, for admins / can_manage_inventory
 // holders. Reuses the same grid renderer staff.html uses for "My Lists" so
 // viewing/editing a list behaves identically regardless of entry point.
-import { supabase } from './admin.supabase.js';
-import { esc, fmtShortDate } from './admin.shared.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { esc, fmtShortDate } from './admin.shared.js?v=2';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, keyOf } from './inventory-grid.js';
 
 let profile = null;

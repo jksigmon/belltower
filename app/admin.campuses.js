@@ -1,5 +1,5 @@
-import { supabase } from './admin.supabase.js';
-import { esc, getAvatarColor, fmtTime, dbError } from './admin.shared.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { esc, getAvatarColor, fmtTime, dbError } from './admin.shared.js?v=2';
 
 let currentProfile;
 let campuses = [];

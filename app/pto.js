@@ -1,7 +1,7 @@
-import { supabase } from '/app/admin.supabase.js';
-import { initUserMenu } from '/app/user-menu.js';
-import { requireAuth } from '/app/admin.auth.js';
-import { showToast, esc, getAvatarColor, fmtShortDate, toLocalISODate } from '/app/admin.shared.js';
+import { supabase } from '/app/admin.supabase.js?v=2';
+import { initUserMenu } from '/app/user-menu.js?v=2';
+import { requireAuth } from '/app/admin.auth.js?v=2';
+import { showToast, esc, getAvatarColor, fmtShortDate, toLocalISODate } from '/app/admin.shared.js?v=2';
 
 /* =============================================
    STATE

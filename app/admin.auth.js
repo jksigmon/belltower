@@ -1,5 +1,5 @@
-import { supabase } from './admin.supabase.js';
-import { initUserMenu } from './user-menu.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { initUserMenu } from './user-menu.js?v=2';
 
 /**
  * Checks for a valid auth session. Redirects to loginRedirect if none.

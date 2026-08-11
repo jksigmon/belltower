@@ -1,6 +1,6 @@
 
-import { supabase } from './admin.supabase.js';
-import { initPage } from './admin.auth.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { initPage } from './admin.auth.js?v=2';
 import { DRAWERS, openDrawer, closeDrawer, showToast } from './admin.compliance.utils.js';
 
 import {

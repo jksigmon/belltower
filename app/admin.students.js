@@ -1,7 +1,7 @@
 
-import { supabase } from './admin.supabase.js';
-import { loadFamilyOptions, loadBusGroupOptions, searchFamilies, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER, todayISO, dbError, showToast } from './admin.shared.js';
-import { createDirectory } from './admin.directory.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { loadFamilyOptions, loadBusGroupOptions, searchFamilies, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER, todayISO, dbError, showToast } from './admin.shared.js?v=2';
+import { createDirectory } from './admin.directory.js?v=2';
 
 let currentProfile;
 let schoolConfig = null;

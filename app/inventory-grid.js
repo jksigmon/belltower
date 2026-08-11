@@ -3,7 +3,7 @@
 // (app/staff.html) and the admin oversight view (app/admin.inventory.js) —
 // one implementation so viewing/editing a list behaves identically no
 // matter which context opened it.
-import { esc } from './admin.shared.js';
+import { esc } from './admin.shared.js?v=2';
 
 export function keyOf(studentId, itemId) {
   return studentId + '::' + itemId;

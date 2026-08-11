@@ -1,4 +1,4 @@
-import { supabase } from './admin.supabase.js';
+import { supabase } from './admin.supabase.js?v=2';
 
 let profile = null;
 let schoolId = null;

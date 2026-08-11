@@ -1,7 +1,7 @@
 
-import { supabase } from './admin.supabase.js';
-import { createDirectory } from './admin.directory.js';
-import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError, showToast, GRADE_ORDER, invalidateFamilyCache } from './admin.shared.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { createDirectory } from './admin.directory.js?v=2';
+import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError, showToast, GRADE_ORDER, invalidateFamilyCache } from './admin.shared.js?v=2';
 
 let currentProfile;
 let schoolConfig = null;

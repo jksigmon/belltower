@@ -1,6 +1,6 @@
 
-import { supabase } from './admin.supabase.js';
-import { GRADE_ORDER, nextGrade, gradeLabel, isTerminalGrade, loadSchoolConfig } from './admin.shared.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { GRADE_ORDER, nextGrade, gradeLabel, isTerminalGrade, loadSchoolConfig } from './admin.shared.js?v=2';
 
 /* ─── Module state ──────────────────────────────────────────── */
 let _profile = null;

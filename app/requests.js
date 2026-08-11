@@ -1,7 +1,7 @@
-import { supabase } from './admin.supabase.js';
-import { initPage } from './admin.auth.js';
-import { esc, fmtShortDate, fmtTime, showToast } from './admin.shared.js';
-import { initUserMenu } from './user-menu.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { initPage } from './admin.auth.js?v=2';
+import { esc, fmtShortDate, fmtTime, showToast } from './admin.shared.js?v=2';
+import { initUserMenu } from './user-menu.js?v=2';
 
 let currentProfile = null;
 let categories     = [];

@@ -1,6 +1,6 @@
 // admin.access.js
-import { supabase } from './admin.supabase.js';
-import { esc, getAvatarColor, dbError, debounce } from './admin.shared.js';
+import { supabase } from './admin.supabase.js?v=2';
+import { esc, getAvatarColor, dbError, debounce } from './admin.shared.js?v=2';
 
 let currentProfile;
 let currentModules = {};
