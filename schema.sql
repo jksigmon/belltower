@@ -2541,7 +2541,7 @@ ALTER TABLE public.bus_groups ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY bus_groups_delete_admin ON public.bus_groups FOR DELETE USING ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = bus_groups.school_id)))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = bus_groups.school_id)) OR ((p.can_manage_bus_groups = true) AND (p.school_id = bus_groups.school_id)))))));
 
 
 --
@@ -2605,7 +2605,7 @@ ALTER TABLE public.carline_calls ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY carline_calls_delete_admin ON public.carline_calls FOR DELETE USING ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text) OR (p.can_manage_carline = true))))));
 
 
 --
@@ -2614,7 +2614,7 @@ CREATE POLICY carline_calls_delete_admin ON public.carline_calls FOR DELETE USIN
 
 CREATE POLICY carline_calls_insert_admin ON public.carline_calls FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text) OR (p.can_manage_carline = true))))));
 
 
 --
@@ -2632,7 +2632,7 @@ CREATE POLICY carline_calls_read_same_school ON public.carline_calls FOR SELECT 
 
 CREATE POLICY carline_calls_update_admin ON public.carline_calls FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text) OR (p.can_manage_carline = true))))));
 
 
 --
@@ -2647,7 +2647,7 @@ ALTER TABLE public.carline_events ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY carline_events_delete_admin ON public.carline_events FOR DELETE USING ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR (p.role = 'admin'::text) OR (p.can_manage_carline = true))))));
 
 
 --
@@ -2711,7 +2711,7 @@ ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY employees_delete_admin ON public.employees FOR DELETE USING ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = employees.school_id)))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = employees.school_id)) OR ((p.can_manage_staff = true) AND (p.school_id = employees.school_id)))))));
 
 
 --
@@ -2784,7 +2784,7 @@ ALTER TABLE public.families ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY families_delete_admin ON public.families FOR DELETE USING ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = families.school_id)))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = families.school_id)) OR ((p.can_manage_families = true) AND (p.school_id = families.school_id)))))));
 
 
 --
@@ -2868,7 +2868,7 @@ CREATE POLICY profiles_update_self ON public.profiles FOR UPDATE USING ((user_id
 
 CREATE POLICY pto_admin_insert_ledger ON public.pto_ledger FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.school_id = pto_ledger.school_id) AND (p.role = ANY (ARRAY['admin'::text, 'hr'::text])) AND (p.status = 'active'::text)))));
+  WHERE ((p.user_id = auth.uid()) AND (p.school_id = pto_ledger.school_id) AND (p.status = 'active'::text) AND ((p.role = ANY (ARRAY['admin'::text, 'hr'::text])) OR (p.can_adjust_pto = true))))));
 
 
 --
@@ -2886,7 +2886,7 @@ CREATE POLICY pto_admin_update ON public.pto_requests FOR UPDATE USING ((EXISTS 
 
 CREATE POLICY pto_admin_write_balances ON public.pto_balances USING ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.school_id = pto_balances.school_id) AND (p.role = ANY (ARRAY['admin'::text, 'hr'::text]))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.school_id = pto_balances.school_id) AND ((p.role = ANY (ARRAY['admin'::text, 'hr'::text])) OR (p.can_adjust_pto = true))))));
 
 
 --
@@ -2934,7 +2934,7 @@ ALTER TABLE public.pto_ledger ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY pto_ledger_insert_admin ON public.pto_ledger FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.school_id = pto_ledger.school_id) AND (p.role = ANY (ARRAY['admin'::text, 'hr'::text]))))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.school_id = pto_ledger.school_id) AND (p.role = ANY (ARRAY['admin'::text, 'hr'::text]))) OR ((p.school_id = pto_ledger.school_id) AND (p.can_adjust_pto = true)))))));
 
 
 --
@@ -3214,7 +3214,7 @@ ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY students_delete_admin ON public.students FOR DELETE USING ((EXISTS ( SELECT 1
    FROM public.profiles p
-  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = students.school_id)))))));
+  WHERE ((p.user_id = auth.uid()) AND (p.status = 'active'::text) AND ((p.is_superadmin = true) OR ((p.role = 'admin'::text) AND (p.school_id = students.school_id)) OR ((p.can_manage_students = true) AND (p.school_id = students.school_id)))))));
 
 
 --

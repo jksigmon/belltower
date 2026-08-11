@@ -223,6 +223,7 @@ function openBgDrawer(id) {
     .map(s => `<option value="${s}"${row.status === s ? ' selected' : ''}>${s.charAt(0).toUpperCase() + s.slice(1)}</option>`)
     .join('');
 
+  document.getElementById('bgDrawerTitle').textContent = 'Background Check';
   document.getElementById('bgDrawerBody').innerHTML = `
     <div class="bg-detail-field">
       <span class="bg-detail-label">Subject</span>
@@ -231,7 +232,7 @@ function openBgDrawer(id) {
     ${row.subject_email ? `<div class="bg-detail-field"><span class="bg-detail-label">Email</span><span class="bg-detail-value">${esc(row.subject_email)}</span></div>` : ''}
     <div class="bg-detail-field">
       <span class="bg-detail-label">Requested by</span>
-      <span class="bg-detail-value">${esc(row.requestor?.display_name ?? row.requestor?.email ?? '—')}</span>
+      <span class="bg-detail-value">${esc(row.requestor?.display_name ?? row.requestor?.email ?? '— (added directly by a manager)')}</span>
     </div>
     <div class="bg-detail-field">
       <span class="bg-detail-label">Requested on</span>
@@ -279,6 +280,7 @@ function openBgDrawer(id) {
 
   const archiveBtn = document.getElementById('bgDrawerArchive');
   if (archiveBtn) {
+    archiveBtn.style.display = '';
     archiveBtn.textContent = row.archived_at ? 'Unarchive this record' : 'Archive this record';
     archiveBtn.dataset.recordId = row.id;
     archiveBtn.dataset.archive  = row.archived_at ? '0' : '1';
@@ -288,6 +290,118 @@ function openBgDrawer(id) {
   wireExpireAutoFill('bgDrawerClearedAt',    'bgDrawerExpiresAt');
   wireExpireAutoFill('bgDrawerMvrClearedAt', 'bgDrawerMvrExpiresAt');
   loadBgGuardianSection(row);
+}
+
+// Manager-initiated record with no staff request behind it (e.g. a walk-in
+// BG check, or historical data being logged after the fact).
+export function openBgDrawerNew() {
+  activeBgId = null;
+  activeBgGuardianId = null;
+
+  document.getElementById('bgDrawerTitle').textContent = 'Add Background Check Record';
+  document.getElementById('bgDrawerBody').innerHTML = `
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label for="bgDrawerFirstName">First name</label>
+        <input type="text" id="bgDrawerFirstName">
+      </div>
+      <div class="drawer-field">
+        <label for="bgDrawerLastName">Last name</label>
+        <input type="text" id="bgDrawerLastName">
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label for="bgDrawerEmail">Email (optional — used to match an existing guardian)</label>
+      <input type="email" id="bgDrawerEmail">
+    </div>
+    <div class="drawer-field">
+      <label style="text-transform:none;font-size:0.85rem;">Volunteer role(s)</label>
+      <div class="bg-role-grid">
+        <label class="bg-role-card">
+          <input type="checkbox" name="bgDrawerRole" value="Lunch Parent" class="bg-role-check">
+          <div>
+            <div class="bg-role-name">Lunch Parent</div>
+            <div class="bg-role-desc">BG check + Confidentiality Agreement</div>
+          </div>
+        </label>
+        <label class="bg-role-card">
+          <input type="checkbox" name="bgDrawerRole" value="Field Trip Chaperone" class="bg-role-check">
+          <div>
+            <div class="bg-role-name">Field Trip Chaperone</div>
+            <div class="bg-role-desc">BG check + Confidentiality + Chaperone Guidelines</div>
+          </div>
+        </label>
+        <label class="bg-role-card">
+          <input type="checkbox" name="bgDrawerRole" value="Field Trip Driver" class="bg-role-check">
+          <div>
+            <div class="bg-role-name">Field Trip Driver</div>
+            <div class="bg-role-desc">All above + MVR + DL &amp; insurance on file</div>
+          </div>
+        </label>
+        <label class="bg-role-card">
+          <input type="checkbox" name="bgDrawerRole" value="Coaching/Athletics" class="bg-role-check">
+          <div>
+            <div class="bg-role-name">Coaching / Athletics</div>
+            <div class="bg-role-desc">BG check required</div>
+          </div>
+        </label>
+      </div>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:0;">
+    <div class="drawer-field">
+      <label for="bgDrawerStatus">Status</label>
+      <select id="bgDrawerStatus">
+        <option value="pending" selected>Pending</option>
+        <option value="submitted">Submitted</option>
+        <option value="cleared">Cleared</option>
+        <option value="expired">Expired</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label for="bgDrawerClearedAt">BG cleared</label>
+        <input type="date" id="bgDrawerClearedAt">
+      </div>
+      <div class="drawer-field">
+        <label for="bgDrawerExpiresAt">BG expires</label>
+        <input type="date" id="bgDrawerExpiresAt">
+      </div>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label for="bgDrawerMvrClearedAt">MVR cleared</label>
+        <input type="date" id="bgDrawerMvrClearedAt">
+      </div>
+      <div class="drawer-field">
+        <label for="bgDrawerMvrExpiresAt">MVR expires</label>
+        <input type="date" id="bgDrawerMvrExpiresAt">
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label for="bgDrawerAdminNote">Admin note</label>
+      <textarea id="bgDrawerAdminNote" rows="3"></textarea>
+    </div>
+    <div id="bgDrawerMsg" style="font-size:13px;color:var(--danger);min-height:18px;"></div>
+    <div id="bgGuardianSection" style="padding-top:16px;border-top:1px solid var(--border);font-size:13px;">
+      <p class="muted" style="font-size:12px;">Enter a last name and email above, then leave the field to look up a matching guardian record.</p>
+    </div>
+  `;
+
+  const archiveBtn = document.getElementById('bgDrawerArchive');
+  if (archiveBtn) archiveBtn.style.display = 'none';
+
+  openDrawer('bg');
+  wireExpireAutoFill('bgDrawerClearedAt',    'bgDrawerExpiresAt');
+  wireExpireAutoFill('bgDrawerMvrClearedAt', 'bgDrawerMvrExpiresAt');
+
+  const lookup = () => loadBgGuardianSection({
+    subject_email:      document.getElementById('bgDrawerEmail')?.value.trim() || null,
+    subject_first_name: document.getElementById('bgDrawerFirstName')?.value.trim() || '',
+    subject_last_name:  document.getElementById('bgDrawerLastName')?.value.trim() || '',
+  });
+  document.getElementById('bgDrawerLastName')?.addEventListener('blur', lookup);
+  document.getElementById('bgDrawerEmail')?.addEventListener('blur', lookup);
 }
 
 function wireExpireAutoFill(clearedId, expiresId) {
@@ -304,7 +418,6 @@ function wireExpireAutoFill(clearedId, expiresId) {
 }
 
 export async function saveBgCheck() {
-  if (!activeBgId) return;
   const status       = document.getElementById('bgDrawerStatus')?.value;
   const clearedAt    = document.getElementById('bgDrawerClearedAt')?.value || null;
   const expiresAt    = document.getElementById('bgDrawerExpiresAt')?.value || null;
@@ -319,11 +432,39 @@ export async function saveBgCheck() {
   const update = { status, admin_note: adminNote, expires_at: expiresAt, mvr_cleared_at: mvrClearedAt, mvr_expires_at: mvrExpiresAt };
   update.cleared_at = status === 'cleared' ? (clearedAt || new Date().toISOString().slice(0, 10)) : null;
 
-  const { error } = await supabase
-    .from('compliance_bg_check_requests')
-    .update(update)
-    .eq('id', activeBgId)
-    .eq('school_id', _profile.school_id);
+  let error;
+  if (activeBgId) {
+    ({ error } = await supabase
+      .from('compliance_bg_check_requests')
+      .update(update)
+      .eq('id', activeBgId)
+      .eq('school_id', _profile.school_id));
+  } else {
+    const firstName = document.getElementById('bgDrawerFirstName')?.value.trim();
+    const lastName  = document.getElementById('bgDrawerLastName')?.value.trim();
+    const email     = document.getElementById('bgDrawerEmail')?.value.trim() || null;
+    const roles     = [...document.querySelectorAll('input[name="bgDrawerRole"]:checked')].map(el => el.value);
+
+    if (!firstName || !lastName) {
+      saveBtn.disabled = false; saveBtn.textContent = 'Save Changes';
+      msgEl.textContent = 'First and last name are required.';
+      return;
+    }
+
+    ({ error } = await supabase
+      .from('compliance_bg_check_requests')
+      .insert({
+        ...update,
+        school_id: _profile.school_id,
+        requestor_id: null,
+        guardian_id: activeBgGuardianId,
+        subject_first_name: firstName,
+        subject_last_name: lastName,
+        subject_email: email,
+        volunteer_roles: roles,
+        imported_at: new Date().toISOString(),
+      }));
+  }
 
   if (error) {
     saveBtn.disabled = false; saveBtn.textContent = 'Save Changes';

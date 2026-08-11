@@ -4,7 +4,7 @@ import { initPage } from './admin.auth.js?v=2';
 import { DRAWERS, openDrawer, closeDrawer, showToast } from './admin.compliance.utils.js';
 
 import {
-  loadBgChecks, resetBgCache, saveBgCheck, onBgArchiveClick, wireBgFilters,
+  loadBgChecks, resetBgCache, saveBgCheck, onBgArchiveClick, wireBgFilters, openBgDrawerNew,
 } from './admin.compliance.bg.js';
 
 import {
@@ -91,6 +91,7 @@ function wireDrawers() {
 
   document.getElementById('bgDrawerSave')?.addEventListener('click',      saveBgCheck);
   document.getElementById('bgDrawerArchive')?.addEventListener('click',   onBgArchiveClick);
+  document.getElementById('bgAddRecordBtn')?.addEventListener('click',    openBgDrawerNew);
   document.getElementById('tplDrawerSave')?.addEventListener('click',     saveTemplate);
   document.getElementById('tplDrawerDelete')?.addEventListener('click',   deleteTemplate);
   document.getElementById('linkDrawerSave')?.addEventListener('click',    createLink);
