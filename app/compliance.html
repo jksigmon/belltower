@@ -208,6 +208,8 @@
       #bgCheckTableBody tr td:nth-child(8) { display: none; }
       #bgCheckTableBody tr td:nth-child(9) { grid-area: action;  margin-top: 8px; }
       #bgCheckTableBody tr td:nth-child(9) .btn { width: 100%; }
+      #bgCheckTableBody tr td:nth-child(10) { display: none; }
+      .admin-table:has(#bgCheckTableBody) thead th:last-child { display: none; }
 
       /* Micro-labels */
       #bgCheckTableBody tr td:nth-child(3)::before { content: "REQUESTED BY · "; font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
@@ -370,6 +372,10 @@
             </label>
           </div>
         </div>
+        <div id="bgBulkBar" style="display:none;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+          <span id="bgBulkCount" style="font-size:13px;font-weight:600;color:#1e40af;"></span>
+          <button class="btn btn-sm" id="bgBulkArchiveBtn" style="margin-left:auto;">Archive selected</button>
+        </div>
         <div class="table-wrap">
           <table class="admin-table">
             <thead>
@@ -383,10 +389,11 @@
                 <th>Expires</th>
                 <th>Requested</th>
                 <th></th>
+                <th><input type="checkbox" id="bgSelectAllCheckbox" title="Select all on this page"></th>
               </tr>
             </thead>
             <tbody id="bgCheckTableBody">
-              <tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>
+              <tr><td colspan="10" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>
             </tbody>
           </table>
         </div>

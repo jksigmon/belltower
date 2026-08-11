@@ -8,6 +8,7 @@ let bgPage = 1;
 let activeBgId = null;
 let activeBgGuardianId = null;
 let _profile = null;
+let bgSelectedIds = new Set();
 
 // ═══════════════════════════════════════════════════════════════════════
 // BACKGROUND CHECKS
@@ -24,7 +25,7 @@ export async function loadBgChecks(profile) {
   const showArchived = document.getElementById('bgShowArchived')?.checked ?? false;
 
   if (!bgCheckCache.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>';
 
     const { data, error } = await supabase
       .from('compliance_bg_check_requests')
@@ -38,7 +39,7 @@ export async function loadBgChecks(profile) {
       .order('requested_at', { ascending: false });
 
     if (error) {
-      tbody.innerHTML = `<tr><td colspan="9" class="status-danger" style="text-align:center;padding:32px 0;">Failed to load: ${esc(error.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="status-danger" style="text-align:center;padding:32px 0;">Failed to load: ${esc(error.message)}</td></tr>`;
       return;
     }
 
@@ -62,10 +63,16 @@ export async function loadBgChecks(profile) {
   });
 
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">${showArchived ? 'No archived records.' : 'No requests match the current filters.'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" class="muted" style="text-align:center;padding:32px 0;">${showArchived ? 'No archived records.' : 'No requests match the current filters.'}</td></tr>`;
     document.getElementById('bgPagination').style.display = 'none';
     return;
   }
+
+  // Selections referencing rows no longer in the filtered set (filter/search
+  // changed underneath them) shouldn't silently archive things the admin
+  // can no longer see -- drop anything not in the current filter.
+  const filteredIds = new Set(filtered.map(r => r.id));
+  for (const id of bgSelectedIds) if (!filteredIds.has(id)) bgSelectedIds.delete(id);
 
   const pageItems = filtered.slice((bgPage - 1) * PAGE_SIZE, bgPage * PAGE_SIZE);
 
@@ -87,12 +94,59 @@ export async function loadBgChecks(profile) {
       <td>${fmtDate(row.expires_at)}</td>
       <td>${fmtDate(row.requested_at)}</td>
       <td><button class="btn btn-sm" data-id="${esc(row.id)}">Review</button></td>
+      <td>${row.archived_at ? '' : `<input type="checkbox" class="bg-row-check" data-id="${esc(row.id)}" ${bgSelectedIds.has(row.id) ? 'checked' : ''}>`}</td>
     `;
     tr.querySelector('button[data-id]').addEventListener('click', () => openBgDrawer(row.id));
+    const checkbox = tr.querySelector('.bg-row-check');
+    if (checkbox) {
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) bgSelectedIds.add(row.id); else bgSelectedIds.delete(row.id);
+        updateBgBulkBar();
+      });
+    }
     tbody.appendChild(tr);
   });
 
   renderPagination('bgPagination', bgPage, filtered.length, p => { bgPage = p; loadBgChecks(); });
+  updateBgBulkBar();
+
+  const selectAll = document.getElementById('bgSelectAllCheckbox');
+  if (selectAll) {
+    const pageSelectableIds = pageItems.filter(r => !r.archived_at).map(r => r.id);
+    selectAll.checked = pageSelectableIds.length > 0 && pageSelectableIds.every(id => bgSelectedIds.has(id));
+    selectAll.onchange = () => {
+      pageSelectableIds.forEach(id => { if (selectAll.checked) bgSelectedIds.add(id); else bgSelectedIds.delete(id); });
+      loadBgChecks();
+    };
+  }
+}
+
+function updateBgBulkBar() {
+  const bar   = document.getElementById('bgBulkBar');
+  const count = document.getElementById('bgBulkCount');
+  if (!bar || !count) return;
+  if (bgSelectedIds.size === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  count.textContent = `${bgSelectedIds.size} selected`;
+}
+
+async function bulkArchiveBgChecks() {
+  const ids = [...bgSelectedIds];
+  if (!ids.length) return;
+  if (!confirm(`Archive ${ids.length} record${ids.length === 1 ? '' : 's'}? They can be unarchived individually later.`)) return;
+
+  const { error } = await supabase
+    .from('compliance_bg_check_requests')
+    .update({ archived_at: new Date().toISOString() })
+    .in('id', ids)
+    .eq('school_id', _profile.school_id);
+
+  if (error) { alert('Failed: ' + error.message); return; }
+  showToast(`${ids.length} record${ids.length === 1 ? '' : 's'} archived`);
+  bgSelectedIds.clear();
+  bgCheckCache = [];
+  bgPage = 1;
+  await loadBgChecks();
 }
 
 export function resetBgCache() {
@@ -228,6 +282,7 @@ export function wireBgFilters() {
   document.getElementById('bgRequestorFilter')?.addEventListener('change', resetBg);
   document.getElementById('bgSearch')?.addEventListener('input', resetBg);
   document.getElementById('bgShowArchived')?.addEventListener('change', () => { bgPage = 1; bgCheckCache = []; loadBgChecks(); });
+  document.getElementById('bgBulkArchiveBtn')?.addEventListener('click', bulkArchiveBgChecks);
 }
 
 // ── BG Check Detail Drawer ────────────────────────────────────────────
