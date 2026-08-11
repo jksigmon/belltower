@@ -29,7 +29,7 @@ export async function loadBgChecks(profile) {
     const { data, error } = await supabase
       .from('compliance_bg_check_requests')
       .select(`
-        id, school_id, requestor_id, subject_first_name, subject_last_name, subject_email,
+        id, school_id, requestor_id, guardian_id, subject_first_name, subject_last_name, subject_email,
         reason, volunteer_roles, status, requested_at, submitted_at, cleared_at, expires_at,
         mvr_cleared_at, mvr_expires_at, notes, admin_note, archived_at,
         requestor:profiles!requestor_id(display_name, email)
@@ -132,6 +132,7 @@ function renderBgStats() {
   let active = 0, exp30 = 0, exp60 = 0, expired = 0;
 
   bgCheckCache.forEach(row => {
+    if (row.archived_at) return;
     const expDate = row.expires_at ? new Date(row.expires_at + 'T12:00:00') : null;
 
     if (row.status === 'expired' || (expDate && expDate < today)) {
@@ -168,6 +169,7 @@ function renderExpiryAlerts() {
 
   const alerts = bgCheckCache
     .filter(row => {
+      if (row.archived_at) return false;
       const expDate = row.expires_at ? new Date(row.expires_at + 'T12:00:00') : null;
       if (row.status === 'expired') return true;
       return row.status === 'cleared' && expDate && expDate <= d90;
@@ -176,6 +178,18 @@ function renderExpiryAlerts() {
 
   if (!alerts.length) { wrap.style.display = 'none'; return; }
   wrap.style.display = '';
+
+  const label = document.getElementById('bgExpiryAlertHdrLabel');
+  if (label) label.textContent = `Attention needed (${alerts.length})`;
+
+  // Default to collapsed on first render so a large expiry list doesn't
+  // push the Background Check Requests panel below the fold; only decide
+  // this once so re-renders (filter changes, refresh) don't clobber a
+  // state the admin already toggled.
+  if (!wrap.dataset.collapseInit) {
+    if (alerts.length > 8) wrap.classList.add('collapsed');
+    wrap.dataset.collapseInit = 'true';
+  }
 
   list.innerHTML = '';
   alerts.forEach(row => {
@@ -205,6 +219,10 @@ function renderExpiryAlerts() {
 }
 
 export function wireBgFilters() {
+  document.getElementById('bgExpiryAlertToggle')?.addEventListener('click', () => {
+    document.getElementById('bgExpiryAlertWrap')?.classList.toggle('collapsed');
+  });
+
   const resetBg = () => { bgPage = 1; loadBgChecks(); };
   document.getElementById('bgStatusFilter')?.addEventListener('change', resetBg);
   document.getElementById('bgRequestorFilter')?.addEventListener('change', resetBg);
@@ -518,24 +536,42 @@ async function loadBgGuardianSection(row) {
   activeBgGuardianId = null;
   section.innerHTML = '<p class="muted" style="font-size:12px;">Looking up guardian record…</p>';
 
-  let query = supabase
-    .from('guardians')
-    .select('id, first_name, last_name, dl_expires_at, insurance_expires_at, can_chaperone, can_drive')
-    .eq('school_id', _profile.school_id)
-    .eq('active', true)
-    .limit(1);
+  let g = null;
 
-  if (row.subject_email) {
-    query = query.ilike('email', row.subject_email);
-  } else {
-    query = query
-      .ilike('first_name', row.subject_first_name ?? '')
-      .ilike('last_name',  row.subject_last_name  ?? '');
+  if (row.guardian_id) {
+    // Trust the stored link (set at import time or by a prior manual
+    // link) over a fresh name/email guess -- a name lookup can miss
+    // fuzzy-matched or since-renamed guardians that guardian_id still
+    // points to correctly.
+    const { data } = await supabase
+      .from('guardians')
+      .select('id, first_name, last_name, dl_expires_at, insurance_expires_at, can_chaperone, can_drive')
+      .eq('id', row.guardian_id)
+      .eq('school_id', _profile.school_id)
+      .maybeSingle();
+    g = data;
   }
 
-  const { data: guardians } = await query;
+  if (!g) {
+    let query = supabase
+      .from('guardians')
+      .select('id, first_name, last_name, dl_expires_at, insurance_expires_at, can_chaperone, can_drive')
+      .eq('school_id', _profile.school_id)
+      .eq('active', true)
+      .limit(1);
 
-  const g = guardians?.[0];
+    if (row.subject_email) {
+      query = query.ilike('email', row.subject_email);
+    } else {
+      query = query
+        .ilike('first_name', row.subject_first_name ?? '')
+        .ilike('last_name',  row.subject_last_name  ?? '');
+    }
+
+    const { data: guardians } = await query;
+    g = guardians?.[0];
+  }
+
   if (!g) {
     section.innerHTML = '<p class="muted" style="font-size:12px;">No guardian record found for this email.</p>';
     return;

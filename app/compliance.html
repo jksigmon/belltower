@@ -107,10 +107,20 @@
     .bg-alert-hdr {
       background:#fef2f2; border-bottom:1px solid #fecaca;
       padding:9px 16px;
-      display:flex; align-items:center; gap:6px;
+      display:flex; align-items:center; justify-content:space-between; gap:6px;
       font-size:12px; font-weight:700; color:#991b1b;
       text-transform:uppercase; letter-spacing:0.06em;
+      cursor:pointer; user-select:none;
     }
+    .bg-alert-hdr-toggle {
+      display:flex; align-items:center; gap:6px;
+      background:none; border:none; padding:0; margin:0;
+      font:inherit; color:inherit; text-transform:inherit; letter-spacing:inherit;
+      cursor:pointer;
+    }
+    .bg-alert-hdr-chevron { transition:transform 0.15s; flex-shrink:0; }
+    #bgExpiryAlertWrap.collapsed .bg-alert-hdr-chevron { transform:rotate(-90deg); }
+    #bgExpiryAlertWrap.collapsed #bgExpiryAlertList { display:none; }
     .bg-expiry-row {
       display:flex; align-items:center; gap:12px;
       padding:10px 16px;
@@ -328,8 +338,13 @@
       <!-- Expiring / expired alert list -->
       <div id="bgExpiryAlertWrap" style="display:none;margin-bottom:16px;">
         <div class="panel" style="padding:0;overflow:hidden;">
-          <div class="bg-alert-hdr">Attention needed</div>
-          <div id="bgExpiryAlertList"></div>
+          <div class="bg-alert-hdr" id="bgExpiryAlertHdr">
+            <button type="button" class="bg-alert-hdr-toggle" id="bgExpiryAlertToggle">
+              <svg class="bg-alert-hdr-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              <span id="bgExpiryAlertHdrLabel">Attention needed</span>
+            </button>
+          </div>
+          <div id="bgExpiryAlertList" style="max-height:340px;overflow-y:auto;"></div>
         </div>
       </div>
 

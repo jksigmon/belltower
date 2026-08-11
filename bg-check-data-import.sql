@@ -902,6 +902,10 @@ VALUES
 ('ZUCCHINO', 'VICTORIA', '2025-11-13', NULL, '2025-11-13', NULL, NULL, NULL, '2026-09-26', NULL, false, false),
 ('WILSON', 'NICOLE (Nikki)', '2025-10-01', NULL, '2026-05-07', NULL, '2033-07-03', NULL, '2026-08-20', NULL, false, false);
 
+-- "6th FT, KELLY" is a stray section-header artifact from the spreadsheet
+-- sort order, not a real person. Drop it before matching.
+DELETE FROM _bg_import_staging WHERE last_name = '6th FT' AND first_name = 'KELLY';
+
 -- School scope
 DO $$
 DECLARE
@@ -913,18 +917,45 @@ BEGIN
   END IF;
 END $$;
 
--- Matched rows: update guardians + insert linked compliance_bg_check_requests
+-- Normalized name helper: strips trailing "(...)" annotations (nicknames,
+-- maiden names -- e.g. "BAKER (Barker)", "WILLIAM (BILLY)") and collapses
+-- whitespace, used only as a second-pass fallback below.
+CREATE OR REPLACE FUNCTION pg_temp.bg_norm(t text) RETURNS text AS $$
+  SELECT trim(regexp_replace(t, '\s*\([^)]*\)\s*', ' ', 'g'))
+$$ LANGUAGE sql IMMUTABLE;
+
+-- Matching, two passes per row:
+--   1. Exact case-insensitive first/last name match (as run in dev).
+--   2. Fallback for anything pass 1 missed: normalized last name (parens
+--      stripped) + first *word* of first name only, e.g. "GREGORY MICHAEL"
+--      matches a guardian first_name of "GREGORY". Flagged as a fuzzy
+--      match in admin_note so it gets a manual eyeball, not blind trust.
 WITH school AS (
   SELECT id AS school_id FROM public.schools WHERE name = 'Revolution Academy'
 ),
-matched AS (
-  SELECT s.*, g.id AS guardian_id
+resolved AS (
+  SELECT
+    s.*,
+    COALESCE(g_exact.id, g_fuzzy.id) AS guardian_id,
+    (g_exact.id IS NULL AND g_fuzzy.id IS NOT NULL) AS fuzzy_matched
   FROM _bg_import_staging s
   JOIN school sc ON true
-  JOIN public.guardians g
-    ON g.school_id = sc.school_id
-   AND lower(g.first_name) = lower(s.first_name)
-   AND lower(g.last_name)  = lower(s.last_name)
+  LEFT JOIN public.guardians g_exact
+    ON g_exact.school_id = sc.school_id
+   AND lower(g_exact.first_name) = lower(s.first_name)
+   AND lower(g_exact.last_name)  = lower(s.last_name)
+  LEFT JOIN public.guardians g_fuzzy
+    ON g_exact.id IS NULL
+   AND g_fuzzy.school_id = sc.school_id
+   AND lower(pg_temp.bg_norm(g_fuzzy.last_name)) = lower(pg_temp.bg_norm(s.last_name))
+   AND lower(split_part(pg_temp.bg_norm(g_fuzzy.first_name), ' ', 1))
+     = lower(split_part(pg_temp.bg_norm(s.first_name), ' ', 1))
+),
+matched AS (
+  SELECT * FROM resolved WHERE guardian_id IS NOT NULL
+),
+unmatched AS (
+  SELECT * FROM resolved WHERE guardian_id IS NULL
 ),
 upd AS (
   UPDATE public.guardians g
@@ -935,35 +966,25 @@ upd AS (
   FROM matched m
   WHERE g.id = m.guardian_id
   RETURNING g.id
-)
-INSERT INTO public.compliance_bg_check_requests
-  (school_id, requestor_id, guardian_id, subject_first_name, subject_last_name,
-   status, cleared_at, expires_at, mvr_cleared_at, mvr_expires_at,
-   notes, admin_note, imported_at)
-SELECT
-  sc.school_id, NULL, m.guardian_id, m.first_name, m.last_name,
-  CASE WHEN m.bg_date IS NOT NULL THEN 'cleared' ELSE 'pending' END,
-  m.bg_date, m.bg_date + INTERVAL '1 year',
-  m.mvr_date, m.mvr_date + INTERVAL '1 year',
-  NULLIF(concat_ws('; ', m.bg_note, m.mvr_note), ''),
-  NULLIF(concat_ws('; ', m.dl_note, m.ins_note), ''),
-  now()
-FROM matched m
-JOIN school sc ON true;
-
--- Unmatched rows: insert without guardian_id, no DL/insurance/chaperone data
-WITH school AS (
-  SELECT id AS school_id FROM public.schools WHERE name = 'Revolution Academy'
 ),
-unmatched AS (
-  SELECT s.*
-  FROM _bg_import_staging s
-  WHERE NOT EXISTS (
-    SELECT 1 FROM public.guardians g
-    JOIN school sc ON g.school_id = sc.school_id
-    WHERE lower(g.first_name) = lower(s.first_name)
-      AND lower(g.last_name)  = lower(s.last_name)
-  )
+ins_matched AS (
+  INSERT INTO public.compliance_bg_check_requests
+    (school_id, requestor_id, guardian_id, subject_first_name, subject_last_name,
+     status, cleared_at, expires_at, mvr_cleared_at, mvr_expires_at,
+     notes, admin_note, imported_at)
+  SELECT
+    sc.school_id, NULL, m.guardian_id, m.first_name, m.last_name,
+    CASE WHEN m.bg_date IS NOT NULL THEN 'cleared' ELSE 'pending' END,
+    m.bg_date, m.bg_date + INTERVAL '1 year',
+    m.mvr_date, m.mvr_date + INTERVAL '1 year',
+    NULLIF(concat_ws('; ', m.bg_note, m.mvr_note), ''),
+    NULLIF(concat_ws('; ',
+      CASE WHEN m.fuzzy_matched THEN 'FUZZY NAME MATCH -- verify this is the right guardian' END,
+      m.dl_note, m.ins_note), ''),
+    now()
+  FROM matched m
+  JOIN school sc ON true
+  RETURNING 1
 )
 INSERT INTO public.compliance_bg_check_requests
   (school_id, requestor_id, guardian_id, subject_first_name, subject_last_name,
@@ -980,16 +1001,36 @@ SELECT
 FROM unmatched u
 JOIN school sc ON true;
 
--- Unmatched-name report -- review before committing
+-- Report: which rows only matched via the fuzzy fallback -- spot check these
+SELECT s.last_name, s.first_name, g.last_name AS matched_guardian_last, g.first_name AS matched_guardian_first
+FROM _bg_import_staging s
+JOIN public.schools sc ON sc.name = 'Revolution Academy'
+LEFT JOIN public.guardians g_exact
+  ON g_exact.school_id = sc.id
+ AND lower(g_exact.first_name) = lower(s.first_name)
+ AND lower(g_exact.last_name)  = lower(s.last_name)
+JOIN public.guardians g
+  ON g_exact.id IS NULL
+ AND g.school_id = sc.id
+ AND lower(pg_temp.bg_norm(g.last_name)) = lower(pg_temp.bg_norm(s.last_name))
+ AND lower(split_part(pg_temp.bg_norm(g.first_name), ' ', 1)) = lower(split_part(pg_temp.bg_norm(s.first_name), ' ', 1))
+ORDER BY s.last_name, s.first_name;
+
+-- Report: still-unmatched names -- review before committing
 SELECT s.last_name, s.first_name
 FROM _bg_import_staging s
+JOIN public.schools sc ON sc.name = 'Revolution Academy'
 WHERE NOT EXISTS (
   SELECT 1 FROM public.guardians g
-  JOIN public.schools sc ON g.school_id = sc.id AND sc.name = 'Revolution Academy'
-  WHERE lower(g.first_name) = lower(s.first_name)
-    AND lower(g.last_name)  = lower(s.last_name)
+  WHERE g.school_id = sc.id
+    AND lower(pg_temp.bg_norm(g.last_name)) = lower(pg_temp.bg_norm(s.last_name))
+    AND lower(split_part(pg_temp.bg_norm(g.first_name), ' ', 1)) = lower(split_part(pg_temp.bg_norm(s.first_name), ' ', 1))
 )
 ORDER BY s.last_name, s.first_name;
 
--- Review the unmatched report above, then either COMMIT or ROLLBACK.
--- COMMIT;
+-- Supabase's SQL editor runs against a pooled (transaction-mode) connection,
+-- so BEGIN/COMMIT split across separate "Run" clicks can silently land on
+-- different backend connections and never actually commit. This entire
+-- file must be run as ONE single execution, start to finish, so this
+-- COMMIT lands in the same transaction the BEGIN opened.
+COMMIT;
