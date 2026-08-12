@@ -5130,18 +5130,29 @@ a.staff-dash-request-row:hover {
 .placement-session-card--archived { opacity: 0.7; }
 .placement-session-card--deleted .placement-session-card-accent   { background: #fca5a5; }
 .placement-session-card--deleted { opacity: 0.75; }
+.placement-session-card--dragging { opacity: 0.4; }
 
 .placement-session-card-body {
   flex: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 14px 16px;
   gap: 16px;
   min-width: 0;
 }
 
-.placement-session-card-left { min-width: 0; }
+.placement-session-drag-handle {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted, #94a3b8);
+  cursor: grab;
+  align-self: stretch;
+  padding: 0 2px 0 14px;
+  flex-shrink: 0;
+}
+.placement-session-drag-handle:active { cursor: grabbing; }
+
+.placement-session-card-left { min-width: 0; flex: 1; }
 
 .placement-session-label {
   font-weight: 600;

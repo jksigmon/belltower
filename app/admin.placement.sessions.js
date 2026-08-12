@@ -103,9 +103,9 @@ export async function renderSessionList() {
 
   let query = supabase
     .from('placement_sessions')
-    .select('id, label, academic_year, incoming_grade, target_grade, status, created_at, committed_at, target_class_size, archived_at, deleted_at')
+    .select('id, label, academic_year, incoming_grade, target_grade, status, created_at, committed_at, target_class_size, archived_at, deleted_at, sort_order')
     .eq('school_id', _profile.school_id)
-    .order('created_at', { ascending: false });
+    .order('sort_order', { ascending: true });
 
   if (_showDeleted) {
     query = query.not('deleted_at', 'is', null);
@@ -144,6 +144,12 @@ export async function renderSessionList() {
       (archived  ? ' placement-session-card--archived'  : '') +
       (deleted   ? ' placement-session-card--deleted'   : '');
 
+    const reorderable = !deleted;
+    if (reorderable) {
+      row.draggable = true;
+      row.dataset.id = s.id;
+    }
+
     const dateLabel = deleted
       ? 'Deleted '    + new Date(s.deleted_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' })
       : committed && s.committed_at
@@ -153,6 +159,9 @@ export async function renderSessionList() {
     row.innerHTML = `
       <div class="placement-session-card-accent"></div>
       <div class="placement-session-card-body">
+        ${reorderable ? `<div class="placement-session-drag-handle" title="Drag to reorder">
+          <i data-lucide="grip-vertical" style="width:16px;height:16px;"></i>
+        </div>` : ''}
         <div class="placement-session-card-left">
           <div class="placement-session-label">${esc(s.label)}</div>
           <div class="placement-session-meta">
@@ -224,7 +233,47 @@ export async function renderSessionList() {
     btn.addEventListener('click', () => purgeSession(btn.dataset.id, btn.dataset.label));
   });
 
+  wireSessionReorder(container);
+
   if (window.lucide) lucide.createIcons({ nodes: Array.from(container.querySelectorAll('[data-lucide]')) });
+}
+
+function wireSessionReorder(container) {
+  let draggedRow = null;
+
+  container.querySelectorAll('.placement-session-card[draggable="true"]').forEach(row => {
+    row.addEventListener('dragstart', () => {
+      draggedRow = row;
+      row.classList.add('placement-session-card--dragging');
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('placement-session-card--dragging');
+      draggedRow = null;
+    });
+    row.addEventListener('dragover', e => {
+      if (!draggedRow || draggedRow === row) return;
+      e.preventDefault();
+      const rect = row.getBoundingClientRect();
+      const before = (e.clientY - rect.top) < rect.height / 2;
+      row.parentNode.insertBefore(draggedRow, before ? row : row.nextSibling);
+    });
+    row.addEventListener('drop', e => e.preventDefault());
+  });
+
+  container.addEventListener('dragend', () => persistSessionOrder(container));
+}
+
+async function persistSessionOrder(container) {
+  const ids = Array.from(container.querySelectorAll('.placement-session-card[data-id]')).map(r => r.dataset.id);
+  if (ids.length < 2) return;
+
+  const updates = ids.map((id, i) =>
+    supabase.from('placement_sessions').update({ sort_order: i }).eq('id', id).eq('school_id', _profile.school_id)
+  );
+  const results = await Promise.all(updates);
+  if (results.some(r => r.error)) {
+    console.error('Failed to save session order:', results.find(r => r.error).error);
+  }
 }
 
 async function renameSession(sessionId, currentLabel) {
@@ -322,6 +371,16 @@ async function archiveSession(id, archive) {
   await renderSessionList();
 }
 
+async function nextTopSortOrder() {
+  const { data } = await supabase
+    .from('placement_sessions')
+    .select('sort_order')
+    .eq('school_id', _profile.school_id)
+    .order('sort_order', { ascending: true })
+    .limit(1);
+  return data?.length ? data[0].sort_order - 1 : 0;
+}
+
 async function cloneSession(original) {
   const suggested = nextAcademicYear(original.academic_year);
   const newYear = prompt(
@@ -348,6 +407,7 @@ async function cloneSession(original) {
       label:             original.label,
       status:            'draft',
       target_class_size: original.target_class_size ?? null,
+      sort_order:        await nextTopSortOrder(),
     })
     .select('id')
     .single();
@@ -574,6 +634,7 @@ export async function submitCreateForm() {
       label,
       status:            'draft',
       target_class_size: targetClassSize,
+      sort_order:        await nextTopSortOrder(),
     })
     .select('id')
     .single();
