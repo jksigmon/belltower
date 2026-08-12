@@ -208,7 +208,13 @@ function renderFormField(field) {
       </div>`;
       break;
     case 'file':
-      inputHtml = `<input id="field_${esc(field.id)}" class="form-control" type="file" accept="image/*,.pdf,.doc,.docx" ${field.is_required ? 'required' : ''} style="padding:6px;" />`;
+      inputHtml = `
+        <input id="field_${esc(field.id)}" class="form-control req-file-input" type="file" accept="image/*,.pdf,.doc,.docx" ${field.is_required ? 'required' : ''} style="padding:6px;" />
+        <div class="req-file-preview" id="field_${esc(field.id)}_preview" hidden style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+          <img class="req-file-thumb" hidden style="width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />
+          <span class="req-file-preview-name" style="font-size:13px;color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;"></span>
+          <button type="button" class="btn btn-sm req-file-remove">Remove</button>
+        </div>`;
       break;
     default:
       inputHtml = `<input id="field_${esc(field.id)}" class="form-control" type="text" />`;
@@ -235,6 +241,40 @@ function wireSpecialInputs() {
       if (!el.value.trim()) return;
       const num = parseFloat(el.value.replace(/[^0-9.]/g, ''));
       el.value = isNaN(num) ? '' : num.toFixed(2);
+    });
+  });
+
+  document.querySelectorAll('.req-file-input').forEach(input => {
+    const preview  = document.getElementById(`${input.id}_preview`);
+    if (!preview) return;
+    const thumb    = preview.querySelector('.req-file-thumb');
+    const nameEl   = preview.querySelector('.req-file-preview-name');
+    const removeBtn = preview.querySelector('.req-file-remove');
+
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      thumb.removeAttribute('src');
+      if (!file) { preview.hidden = true; return; }
+
+      nameEl.textContent = file.name;
+      if (file.type.startsWith('image/')) {
+        // The CSP's img-src allows data: but not blob:, so use FileReader
+        // rather than URL.createObjectURL (which the browser silently
+        // blocks under that policy).
+        const reader = new FileReader();
+        reader.onload = () => { thumb.src = reader.result; };
+        reader.readAsDataURL(file);
+        thumb.hidden = false;
+      } else {
+        thumb.hidden = true;
+      }
+      preview.hidden = false;
+    });
+
+    removeBtn.addEventListener('click', () => {
+      thumb.removeAttribute('src');
+      input.value = '';
+      preview.hidden = true;
     });
   });
 }
