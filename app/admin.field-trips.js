@@ -1289,9 +1289,13 @@ function renderManagerChips() {
   });
 }
 
-// Search can_login profiles by employee name or email — returns [{id, name, email}]
+// Search employees by name/email, matched to their profile if one exists.
+// A manager needs can_login (they have to be able to open Belltower to see
+// the trip), so matches without portal access come back separately —
+// flagged rather than silently dropped, so "no results" doesn't look
+// identical to "found them, but they can't be assigned."
+// Returns { assignable: [{id, name, email}], noLogin: [{name, email}] }
 async function searchStaffProfiles(val) {
-  // Search employees by first/last name first, then match to their profiles
   const { data: emps } = await supabase
     .from('employees')
     .select('id, first_name, last_name, email')
@@ -1300,20 +1304,27 @@ async function searchStaffProfiles(val) {
     .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,email.ilike.%${val}%`)
     .limit(20);
 
-  if (!emps?.length) return [];
+  if (!emps?.length) return { assignable: [], noLogin: [] };
 
   const { data: profs } = await supabase
     .from('profiles')
-    .select('id, employee_id, email')
+    .select('id, employee_id, email, can_login')
     .eq('school_id', profile.school_id)
-    .eq('can_login', true)
     .in('employee_id', emps.map(e => e.id));
 
-  return (profs ?? []).map(p => {
-    const emp = emps.find(e => e.id === p.employee_id) ?? {};
-    const name = [emp.first_name, emp.last_name].filter(Boolean).join(' ') || p.email;
-    return { id: p.id, name, email: p.email ?? emp.email ?? '' };
+  const assignable = [];
+  const noLogin = [];
+  emps.forEach(emp => {
+    const p = (profs ?? []).find(pr => pr.employee_id === emp.id);
+    const name = [emp.first_name, emp.last_name].filter(Boolean).join(' ') || emp.email;
+    if (p?.can_login) {
+      assignable.push({ id: p.id, name, email: p.email ?? emp.email ?? '' });
+    } else {
+      noLogin.push({ name, email: emp.email ?? '' });
+    }
   });
+
+  return { assignable, noLogin };
 }
 
 // Drawer manager typeahead
@@ -1326,11 +1337,11 @@ async function searchManagerProfiles() {
   results.innerHTML = `<div class="ft-typeahead-empty">Searching...</div>`;
   results.style.display = '';
 
-  const found = await searchStaffProfiles(val);
+  const { assignable, noLogin } = await searchStaffProfiles(val);
   const existingIds = new Set(drawerManagers.map(m => m.profile_id));
-  const filtered = found.filter(p => !existingIds.has(p.id));
+  const filtered = assignable.filter(p => !existingIds.has(p.id));
 
-  if (!filtered.length) {
+  if (!filtered.length && !noLogin.length) {
     results.innerHTML = `<div class="ft-typeahead-empty">No staff found.</div>`;
     return;
   }
@@ -1347,6 +1358,15 @@ async function searchManagerProfiles() {
       document.getElementById('ftMgrSearch').value = '';
       results.style.display = 'none';
     });
+    results.appendChild(item);
+  });
+
+  noLogin.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'ft-typeahead-item';
+    item.style.opacity = '0.6';
+    item.style.cursor = 'default';
+    item.innerHTML = `<strong>${esc(p.name)}</strong><span>${esc(p.email)} — no portal access yet, can't be assigned</span>`;
     results.appendChild(item);
   });
 }
