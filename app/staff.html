@@ -3810,7 +3810,7 @@ function applyModuleNavVisibility() {
     // enabled row. resource_docs defaults ON with no row needed (matches
     // moduleEnabled() in admin.core.js and the 'requests' quick-action
     // check below), since there's nothing to configure per school.
-    const moduleEnabled = moduleName === 'resource_docs'
+    const moduleEnabled = (moduleName === 'resource_docs' || moduleName === 'requests')
       ? window.staffModules[moduleName] !== false
       : window.staffModules[moduleName] === true;
 
