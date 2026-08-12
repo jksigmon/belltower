@@ -85,7 +85,12 @@ if (
   ptoRequest.status !== "CANCEL_REQUESTED" &&
   ptoRequest.status !== "RESCIND_REQUESTED"
 ) {
-  return new Response("Request already processed", { status: 409 });
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: `${APP_URL}/pto-decision.html?status=${ptoRequest.status}&already=1`
+    }
+  });
 }
 
 
@@ -126,10 +131,18 @@ const newStatus =
 
     // ✅ CRITICAL: do NOT proceed if nothing was updated
     if (!updatedRows || updatedRows.length === 0) {
-      return new Response(
-        "This PTO request was already processed.",
-        { status: 409 }
-      );
+      const { data: current } = await supabase
+        .from("pto_requests")
+        .select("status")
+        .eq("id", requestId)
+        .single();
+
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: `${APP_URL}/pto-decision.html?status=${current?.status ?? "UNKNOWN"}&already=1`
+        }
+      });
     }
 
     // The DB trigger handle_pto_status_change() writes ledger entries for all

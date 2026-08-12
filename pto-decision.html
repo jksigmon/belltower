@@ -55,6 +55,7 @@
 
   const params = new URLSearchParams(window.location.search);
   const status = (params.get("status") || "").toUpperCase();
+  const already = params.get("already") === "1";
 
   const title = document.getElementById("title");
   const message = document.getElementById("message");
@@ -63,33 +64,38 @@
     case "APPROVED":
       title.textContent = "✅ Leave Approved";
       title.className = "approved";
-      message.textContent =
-        "The leave request has been approved successfully.";
+      message.textContent = already
+        ? "This request was already approved — likely from an earlier click or another email link. No action needed."
+        : "The leave request has been approved successfully.";
       break;
 
     case "DENIED":
       title.textContent = "❌ Leave Denied";
       title.className = "denied";
-      message.textContent =
-        "The leave request has been denied.";
+      message.textContent = already
+        ? "This request was already denied — likely from an earlier click or another email link. No action needed."
+        : "The leave request has been denied.";
       break;
 
     case "CANCELLED":
       title.textContent = "ℹ️ Leave Cancelled";
-      message.textContent =
-        "The approved leave has been cancelled.";
+      message.textContent = already
+        ? "This request was already cancelled — likely by the employee before it was decided. No action needed."
+        : "The approved leave has been cancelled.";
       break;
 
     case "RESCINDED":
       title.textContent = "ℹ️ Leave Rescinded";
-      message.textContent =
-        "The previously approved leave has been rescinded. Leave hours will be credited back.";
+      message.textContent = already
+        ? "This request was already rescinded. No action needed."
+        : "The previously approved leave has been rescinded. Leave hours will be credited back.";
       break;
 
     default:
-      title.textContent = "Leave Request Processed";
-      message.textContent =
-        "This leave request has been processed.";
+      title.textContent = already ? "ℹ️ Already Handled" : "Leave Request Processed";
+      message.textContent = already
+        ? "This request has already been handled — no action needed on your end. If you're not sure what happened, check the request's current status in Belltower."
+        : "This leave request has been processed.";
   }
 </script>
 
