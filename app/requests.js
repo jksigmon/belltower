@@ -1,7 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
 import { esc, fmtShortDate, fmtTime, showToast } from './admin.shared.js?v=2';
-import { initUserMenu } from './user-menu.js?v=2';
 
 let currentProfile = null;
 let categories     = [];
@@ -11,8 +10,6 @@ let catFields      = [];
 (async () => {
   currentProfile = await initPage({});
   if (!currentProfile) return;
-
-  initUserMenu(currentProfile.display_name ?? currentProfile.email);
 
   await Promise.all([loadCategories(), loadMyRequests()]);
   renderCategories();
