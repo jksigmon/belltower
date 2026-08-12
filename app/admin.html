@@ -2795,9 +2795,33 @@
     <button class="drawer-close" id="resCloseBtn" aria-label="Close">✕</button>
   </div>
   <div class="drawer-body">
+    <div class="drawer-field" id="resModeRow">
+      <label>Type</label>
+      <div style="display:flex;gap:16px;">
+        <label class="staff-active-label"><input type="radio" name="resMode" id="resModeSingle" value="single" checked> <span>Single resource</span></label>
+        <label class="staff-active-label"><input type="radio" name="resMode" id="resModeGroup" value="group"> <span>Group of resources</span></label>
+      </div>
+      <p class="muted" style="font-size:12px;margin:6px 0 0;">A group creates several bookable resources at once (e.g. "Cart 1"–"Cart 6") under one shared label. Staff pick the specific one when reserving.</p>
+    </div>
     <div class="drawer-field">
-      <label>Name <span class="required">*</span></label>
+      <label><span id="resNameLabel">Name</span> <span class="required">*</span></label>
       <input id="resNameInput" class="form-input" placeholder="e.g. Conference Room, School Van" />
+    </div>
+    <div class="drawer-field" id="resGroupSelectRow">
+      <label>Group</label>
+      <select id="resGroupSelectInput" class="form-input">
+        <option value="">No group</option>
+      </select>
+    </div>
+    <div class="drawer-field" id="resGroupModeFields" style="display:none;">
+      <label>Members <span class="required">*</span></label>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <input id="resMemberPrefix" class="form-input" placeholder="Prefix e.g. Cart" style="flex:2;">
+        <input id="resMemberFrom" type="number" class="form-input" placeholder="From" style="flex:1;">
+        <input id="resMemberTo" type="number" class="form-input" placeholder="To" style="flex:1;">
+        <button type="button" class="btn btn-sm" id="resMemberGenBtn">Generate</button>
+      </div>
+      <textarea id="resMembersInput" class="form-input" rows="5" placeholder="One resource per line, e.g.&#10;Cart 1&#10;Cart 2&#10;Cart 3"></textarea>
     </div>
     <div class="drawer-field">
       <label>Description</label>
@@ -2823,6 +2847,44 @@
   <div class="drawer-footer">
     <button class="btn" id="resCancelBtn">Cancel</button>
     <button id="resSaveBtn" class="btn btn-primary">Save</button>
+  </div>
+</div>
+
+<!-- =============================================
+     RESOURCE GROUP DRAWER
+     ============================================= -->
+<div id="resourceGroupDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Resource Group">
+  <div class="drawer-header">
+    <h3 id="resGroupDrawerTitle">Edit Group</h3>
+    <button class="drawer-close" id="resGroupCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Group name <span class="required">*</span></label>
+      <input id="resGroupNameInput" class="form-input" placeholder="e.g. Upper School Chromebook Carts" />
+    </div>
+    <div class="drawer-field">
+      <label>Description</label>
+      <input id="resGroupDescInput" class="form-input" placeholder="Optional details staff will see" />
+    </div>
+    <div class="drawer-field">
+      <label>Default Calendar Color</label>
+      <input id="resGroupColorInput" type="color" value="#2563eb" style="width:60px;height:34px;padding:2px;" />
+      <p class="muted" style="font-size:12px;margin:4px 0 0;">Used for new members added to this group. Existing members keep their own color unless edited individually.</p>
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="resGroupApprovalInput">
+        <span>New members require approval by default</span>
+      </label>
+    </div>
+  </div>
+  <div class="drawer-footer" style="justify-content:space-between;">
+    <button class="btn" id="resGroupDeleteBtn" style="color:#dc2626;border-color:#fca5a5;">Delete Group</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" id="resGroupCancelBtn">Cancel</button>
+      <button id="resGroupSaveBtn" class="btn btn-primary">Save</button>
+    </div>
   </div>
 </div>
 

@@ -2219,6 +2219,7 @@ document.getElementById('resourceViewerOverlay')?.addEventListener('contextmenu'
 ============================================= */
 let resCalendar = null;
 let resCatalog = [];
+let resGroupCatalog = [];
 let resSelectedEvent = null;
 
 async function loadStaffReservations() {
@@ -2231,27 +2232,64 @@ async function loadStaffReservations() {
 }
 
 async function loadReservableResources() {
-  const { data, error } = await supabase
-    .from('reservable_resources')
-    .select('id, name, color, requires_approval, active')
-    .eq('school_id', currentProfile.school_id)
-    .eq('active', true)
-    .order('sort_order')
-    .order('name');
+  const [{ data: resourceData, error: resErr }, { data: groupData, error: groupErr }] = await Promise.all([
+    supabase
+      .from('reservable_resources')
+      .select('id, name, color, requires_approval, active, group_id')
+      .eq('school_id', currentProfile.school_id)
+      .eq('active', true)
+      .order('sort_order')
+      .order('name'),
+    supabase
+      .from('resource_groups')
+      .select('id, name')
+      .eq('school_id', currentProfile.school_id)
+      .order('sort_order')
+      .order('name'),
+  ]);
 
-  if (error) { console.error('loadReservableResources', error); return; }
-  resCatalog = data ?? [];
+  if (resErr) { console.error('loadReservableResources', resErr); return; }
+  resCatalog = resourceData ?? [];
+  resGroupCatalog = groupErr ? [] : (groupData ?? []);
+  if (groupErr) console.error('loadReservableResources (groups)', groupErr);
+
+  // Only show groups that currently have at least one active, bookable
+  // member — an empty group would just be a dead-end option.
+  const grouped = resGroupCatalog
+    .map(g => ({ group: g, members: resCatalog.filter(r => r.group_id === g.id) }))
+    .filter(x => x.members.length);
+  const ungrouped = resCatalog.filter(r => !r.group_id);
 
   const filterSel = document.getElementById('resFilterSelect');
   const bookSel = document.getElementById('resBookResource');
+
   if (filterSel) {
     const current = filterSel.value;
-    filterSel.innerHTML = '<option value="">All resources</option>' +
-      resCatalog.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');
+    let html = '<option value="">All resources</option>';
+    grouped.forEach(({ group, members }) => {
+      html += `<optgroup label="${esc(group.name)}">` +
+        `<option value="group:${esc(group.id)}">All of ${esc(group.name)}</option>` +
+        members.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('') +
+        `</optgroup>`;
+    });
+    if (ungrouped.length) {
+      html += ungrouped.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');
+    }
+    filterSel.innerHTML = html;
     filterSel.value = current;
   }
+
   if (bookSel) {
-    bookSel.innerHTML = resCatalog.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');
+    let html = '';
+    grouped.forEach(({ group, members }) => {
+      html += `<optgroup label="${esc(group.name)}">` +
+        members.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('') +
+        `</optgroup>`;
+    });
+    if (ungrouped.length) {
+      html += ungrouped.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');
+    }
+    bookSel.innerHTML = html;
   }
 }
 
@@ -2280,7 +2318,7 @@ function initResCalendar() {
       try {
         const { data, error } = await supabase
           .from('reservations')
-          .select('id, title, notes, starts_at, ends_at, status, reserved_by_name, reserved_by_profile_id, resource_id, reservable_resources(name, color)')
+          .select('id, title, notes, starts_at, ends_at, status, reserved_by_name, reserved_by_profile_id, resource_id, reservable_resources(name, color, group_id)')
           .eq('school_id', currentProfile.school_id)
           .in('status', ['confirmed', 'pending'])
           .lt('starts_at', info.endStr)
@@ -2289,7 +2327,13 @@ function initResCalendar() {
         if (error) throw error;
 
         const filterVal = document.getElementById('resFilterSelect')?.value || '';
-        const filtered = filterVal ? data.filter(r => r.resource_id === filterVal) : data;
+        let filtered = data;
+        if (filterVal.startsWith('group:')) {
+          const groupId = filterVal.slice('group:'.length);
+          filtered = data.filter(r => r.reservable_resources?.group_id === groupId);
+        } else if (filterVal) {
+          filtered = data.filter(r => r.resource_id === filterVal);
+        }
 
         success(filtered.map(r => {
           const color = r.reservable_resources?.color || '#2563eb';

@@ -1325,6 +1325,14 @@ table tr:hover {
   box-shadow: 0 0 0 3px rgba(11, 45, 79, 0.08);
 }
 .drawer-field small { font-size: 0.78rem; color: #9ca3af; }
+.drawer-field input[type="radio"],
+.drawer-field input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--primary, #2563eb);
+}
 
 /* ── Family combobox ── */
 .family-combo { position: relative; }
