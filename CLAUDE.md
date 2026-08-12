@@ -56,7 +56,7 @@ All frontend pages are plain HTML importing ES modules. The admin panel follows 
 - **`app/admin.shared.js`** — shared utilities: `esc()`, `debounce()`, `getAvatarColor()`, `gradeLabel()`, `GRADE_ORDER`, `nextGrade()`, `isTerminalGrade()`, `fmtTime()`, `todayISO()`, `fmtShortDate()`, `dbError()`, `cloneSelectOptions()`, `loadSchoolConfig()`, family/bus-group cache helpers
 - **`app/admin.auth.js`** — shared auth guard used at the top of every standalone page; avoids duplicating the auth-check boilerplate
 - **`app/admin.directory.js`** — `createDirectory(config)` abstraction: paginates, filters, sorts, and exports any Supabase table via a declarative config object (`table`, `columns`, `query`, `augmentQuery`, `onBeforeLoad`, `exportRow`). All list views in the admin panel use this; don't build custom table logic when this fits
-- **`app/admin.*.js`** — one file per admin tab/domain (e.g. `admin.students.js`, `admin.staff.js`, `admin.compliance.js`)
+- **`app/admin.*.js`** — one file per admin tab/domain (e.g. `admin.students.js`, `admin.staff.js`, `admin.compliance.bg.js`)
 - **`app/config.js`** — auto-generated at build time; exports `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `TEMPLATE_URL`
 
 Non-admin pages (e.g. `pto.html`, `compliance.html`, `volunteer.html`) each have a corresponding `app/<page>.js`.
@@ -106,6 +106,8 @@ All functions use the Deno runtime and `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS
 | `pto_decision_handler` | Handle PTO approval/denial decisions |
 | `send_pto_notifications` | Send email notifications via Resend |
 | `send_license_alerts` | Send licensure expiry alerts |
+| `send_request_notification` | Email managers on a new Requests-module submission, and confirm receipt to the submitter |
+| `send_request_update_notification` | Email the submitter when a manager changes a request's status or notes |
 | `compliance_form_lookup` | Validate a form token and return template content |
 | `compliance_form_submit` | Accept a signed agreement and auto-link to guardian |
 | `compliance_form_pdf` | Generate a signed agreement PDF for download |

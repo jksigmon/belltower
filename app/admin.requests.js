@@ -31,8 +31,8 @@ export async function initRequestsSection(profile) {
   renderRoot();
   document.getElementById('reqCatDrawerClose')?.addEventListener('click', closeCatDrawer);
   document.getElementById('reqCatOverlay')?.addEventListener('click', closeCatDrawer);
-  document.getElementById('reqSubDrawerClose')?.addEventListener('click', closeSubDrawer);
-  document.getElementById('reqSubOverlay')?.addEventListener('click', closeSubDrawer);
+  document.getElementById('reqSubDrawerClose')?.addEventListener('click', handleCloseSubRequest);
+  document.getElementById('reqSubOverlay')?.addEventListener('click', handleCloseSubRequest);
   document.getElementById('reqDeactivateCancel')?.addEventListener('click', () => {
     document.getElementById('reqDeactivateModal').hidden = true;
   });
@@ -1042,6 +1042,17 @@ function renderSubmissionsList() {
 /* ═══════════════════════════════════════════════════════════
    SUBMISSION DETAIL DRAWER
 ═══════════════════════════════════════════════════════════ */
+
+// Snapshot of the notes textarea right after render, so a close can tell
+// whether the admin typed something that never got saved.
+let subNotesSnapshot = '';
+
+function handleCloseSubRequest() {
+  const current = document.getElementById('reqSubNotes')?.value.trim() ?? '';
+  if (current !== subNotesSnapshot && !confirm('You have unsaved notes. Close without saving?')) return;
+  closeSubDrawer();
+}
+
 async function openSubDrawer(sub) {
   const titleEl = document.getElementById('reqSubDrawerTitle');
   const bodyEl  = document.getElementById('reqSubDrawerBody');
@@ -1104,8 +1115,10 @@ async function openSubDrawer(sub) {
     <p id="reqSubError" style="color:#dc2626;font-size:13px;margin-top:8px;display:none;"></p>
   `;
 
+  subNotesSnapshot = sub.manager_notes?.trim() ?? '';
+
   document.getElementById('reqSaveSubBtn').addEventListener('click', () => saveSubmission(sub.id));
-  document.getElementById('reqCancelSubBtn').addEventListener('click', closeSubDrawer);
+  document.getElementById('reqCancelSubBtn').addEventListener('click', handleCloseSubRequest);
 }
 
 async function saveSubmission(requestId) {
@@ -1117,21 +1130,30 @@ async function saveSubmission(requestId) {
   btn.disabled = true;
   btn.textContent = 'Saving…';
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('staff_requests')
     .update({ status, manager_notes: notes || null, updated_at: new Date().toISOString() })
-    .eq('id', requestId);
+    .eq('id', requestId)
+    .select('id');
 
-  if (error) {
-    if (errEl) { errEl.textContent = 'Save failed: ' + error.message; errEl.style.display = ''; }
+  // A denied RLS update matches zero rows without raising an error, so an
+  // empty result has to be treated as a failure too — otherwise the drawer
+  // closes as if the note saved when it silently didn't.
+  if (error || !data?.length) {
+    if (errEl) { errEl.textContent = 'Save failed: ' + (error?.message ?? 'you may not have permission to update this request.'); errEl.style.display = ''; }
     btn.disabled = false;
     btn.textContent = 'Save';
     return;
   }
 
+  subNotesSnapshot = notes;
   closeSubDrawer();
   await loadSubmissions();
   renderSubmissionsList();
+
+  // Notify the submitter (fire and forget — don't block on email)
+  supabase.functions.invoke('send_request_update_notification', { body: { request_id: requestId } })
+    .catch(err => console.error('update notification failed', err));
 }
 
 function closeSubDrawer() {
