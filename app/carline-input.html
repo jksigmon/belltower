@@ -138,6 +138,12 @@
 </div>
 
 <style>
+  /* Rapid double-taps while entering a carline tag (e.g. "33" then "3")
+     otherwise trigger iOS Safari's double-tap-to-zoom. touch-action keeps
+     pinch-zoom available for accessibility while dropping just the
+     double-tap gesture. */
+  html, body { touch-action: manipulation; }
+
   #campusPicker {
     position: fixed;
     inset: 0;
@@ -366,10 +372,10 @@ async function loadBusArrivals() {
   if (!currentEvent) return;
   const { data } = await supabase
     .from('carline_bus_arrivals')
-    .select('bus_group_id')
+    .select('bus_group_id, recalled_at')
     .eq('carline_event_id', currentEvent.id);
   calledBusIds.clear();
-  (data || []).forEach(r => calledBusIds.add(r.bus_group_id));
+  (data || []).forEach(r => { if (!r.recalled_at) calledBusIds.add(r.bus_group_id); });
 }
 
 // ─── Campus picker ────────────────────────────────────────────────────
@@ -584,15 +590,16 @@ function setupRealtime() {
       updateBusButtonStates();
     })
     .on('postgres_changes', {
-      event: 'INSERT',
+      event: '*',
       schema: 'public',
       table: 'carline_bus_arrivals',
       filter: `carline_event_id=eq.${currentEvent.id}`,
     }, row => {
-      if (row.new?.bus_group_id) {
-        calledBusIds.add(row.new.bus_group_id);
-        updateBusButtonStates();
-      }
+      const r = row.new;
+      if (!r?.bus_group_id) return;
+      if (r.recalled_at) calledBusIds.delete(r.bus_group_id);
+      else calledBusIds.add(r.bus_group_id);
+      updateBusButtonStates();
     })
     .subscribe();
 }
@@ -703,6 +710,11 @@ async function callBusGroup(busGroupId) {
   if (!currentEvent || currentEvent.status === 'CLOSED') {
     showToast('Dismissal is not open'); return;
   }
+  if (calledBusIds.has(busGroupId)) {
+    await recallBusGroup(busGroupId);
+    return;
+  }
+
   const group    = allBusGroups.find(b => b.id === busGroupId);
   const students = allStudents.filter(s => s.bus_group_id === busGroupId);
   const now      = new Date().toISOString();
@@ -736,6 +748,34 @@ async function callBusGroup(busGroupId) {
     pushRecent(group?.name ?? busGroupId, [], 'BUS', false);
     updateBusButtonStates();
   }
+}
+
+// Tapping an already-called bus group undoes it -- catches an accidental
+// tap without deleting the original arrival row (recalled_at marks it
+// undone, keeping the call log intact for the day's record).
+async function recallBusGroup(busGroupId) {
+  const group = allBusGroups.find(b => b.id === busGroupId);
+  const now   = new Date().toISOString();
+
+  const { error } = await supabase
+    .from('carline_bus_arrivals')
+    .update({ recalled_at: now })
+    .eq('carline_event_id', currentEvent.id)
+    .eq('bus_group_id', busGroupId)
+    .is('recalled_at', null);
+
+  if (error) { showToast('Recall failed'); return; }
+
+  calledBusIds.delete(busGroupId);
+  updateBusButtonStates();
+  showToast(`${group?.name ?? 'Bus'} call undone`);
+
+  const bc = supabase.channel(`carline-display-${currentEvent.id}`);
+  bc.subscribe(status => {
+    if (status !== 'SUBSCRIBED') return;
+    bc.send({ type: 'broadcast', event: 'bus_recall', payload: { bus_group_id: busGroupId } });
+    setTimeout(() => supabase.removeChannel(bc), 1500);
+  });
 }
 
 async function undoLast() {
