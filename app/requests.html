@@ -14,36 +14,100 @@
     .req-page-main {
       max-width: 860px;
       margin: 0 auto;
-      padding: 24px 16px 48px;
+      padding: 28px 20px 56px;
       height: 100%;
       overflow-y: auto;
       box-sizing: border-box;
     }
-    .req-page-title { font-size: 22px; font-weight: 700; color: #111827; margin: 0 0 4px; }
-    .req-page-sub   { font-size: 14px; color: #6b7280; margin: 0 0 28px; }
+    @media (min-width: 900px) {
+      .req-page-main { max-width: 1180px; padding: 36px 32px 64px; }
+    }
+
+    /* Page header */
+    .req-page-head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 30px;
+    }
+    .req-page-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      background: linear-gradient(135deg, #6366f1, #4f46e5);
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.28);
+    }
+    .req-page-icon svg { width: 22px; height: 22px; }
+    .req-page-title { font-size: 24px; font-weight: 800; color: #111827; margin: 0; letter-spacing: -0.01em; }
+    .req-page-sub   { font-size: 14px; color: #6b7280; margin: 3px 0 0; }
+
+    /* Section headers — reuses the app's existing dashboard eyebrow/rule
+       pattern (see admin-ui.css .dash-section-*) so this page reads as
+       part of the same system rather than a one-off style. */
+    .req-section-head { margin: 36px 0 16px; }
+    .req-section-head:first-of-type { margin-top: 0; }
+    .req-section-head .dash-section-eyebrow { font-size: 0.8rem; }
 
     /* Category card grid */
-    .req-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+    .req-cat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
     .req-cat-card {
+      position: relative;
       border: 1.5px solid #e5e7eb;
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 18px;
       cursor: pointer;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
       background: #fff;
     }
-    .req-cat-card:hover { border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.12); }
+    .req-cat-card:hover {
+      border-color: #6366f1;
+      box-shadow: 0 6px 16px rgba(99,102,241,.14);
+      transform: translateY(-2px);
+    }
     .req-cat-card.selected { border-color: #6366f1; background: #f5f3ff; }
+    .req-cat-card-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #eef2ff;
+      color: #4f46e5;
+      margin-bottom: 12px;
+    }
+    .req-cat-card-icon svg { width: 17px; height: 17px; }
     .req-cat-card-name { font-weight: 600; font-size: 15px; color: #111827; }
-    .req-cat-card-desc { font-size: 13px; color: #6b7280; margin-top: 6px; }
+    .req-cat-card-desc { font-size: 13px; color: #6b7280; margin-top: 5px; line-height: 1.4; }
+    .req-cat-card-arrow {
+      position: absolute;
+      top: 18px;
+      right: 16px;
+      color: #a5b4fc;
+      opacity: 0;
+      transform: translateX(-4px);
+      transition: opacity 0.15s, transform 0.15s;
+    }
+    .req-cat-card-arrow svg { width: 16px; height: 16px; display: block; }
+    .req-cat-card:hover .req-cat-card-arrow { opacity: 1; transform: translateX(0); }
 
     /* Submission form */
     .req-form-wrap {
       background: #fff;
       border: 1.5px solid #e5e7eb;
-      border-radius: 10px;
+      border-radius: 12px;
       padding: 24px;
-      margin-top: 24px;
+      margin-top: 20px;
+      animation: reqFormIn 0.18s ease-out;
+    }
+    @keyframes reqFormIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
     .req-form-heading { font-size: 17px; font-weight: 700; color: #111827; margin: 0 0 18px; }
     .req-field-group  { margin-bottom: 16px; }
@@ -63,28 +127,119 @@
     .req-success {
       background: #f0fdf4;
       border: 1.5px solid #bbf7d0;
-      border-radius: 10px;
-      padding: 24px;
+      border-radius: 12px;
+      padding: 28px 24px;
       margin-top: 24px;
       text-align: center;
+      animation: reqFormIn 0.18s ease-out;
     }
+    .req-success-icon {
+      width: 40px; height: 40px;
+      border-radius: 999px;
+      background: #dcfce7;
+      color: #15803d;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 12px;
+    }
+    .req-success-icon svg { width: 20px; height: 20px; }
     .req-success h3 { color: #15803d; margin: 0 0 8px; }
     .req-success p  { color: #374151; margin: 0 0 16px; }
 
     /* My requests table */
-    .req-history-section { margin-top: 40px; }
-    .req-history-title   { font-size: 17px; font-weight: 700; color: #111827; margin: 0 0 14px; }
+    /* Fixed-height scroll box so a long history never pushes the form
+       picker down the page — same reasoning in reverse as why the
+       history was moved above the picker in the first place. */
+    .req-history-shell { position: relative; }
+    .req-history-scroll {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+    }
+    .req-history-scroll .data-table {
+      margin: 0;
+      /* border-collapse + position:sticky renders a hairline seam where
+         the row underneath bleeds through the header on scroll in
+         Chrome/Safari — separate borders avoids it. */
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    .req-history-scroll thead th {
+      position: sticky;
+      top: 0;
+      background: #f9fafb;
+      z-index: 1;
+      box-shadow: inset 0 -1px 0 #e5e7eb;
+    }
+    /* Bottom fade hint, toggled by requests.js based on scroll position —
+       makes it obvious there's more to scroll when the table is taller
+       than its box, and disappears once you've reached the last row.
+       (No top fade: the sticky header already occupies that edge and
+       would just sit underneath it.) */
+    .req-scroll-fade-bottom {
+      position: absolute;
+      left: 1px;
+      right: 1px;
+      bottom: 1px;
+      height: 28px;
+      border-radius: 0 0 12px 12px;
+      background: linear-gradient(to top, #fff, rgba(255,255,255,0));
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .req-scroll-fade-bottom.visible { opacity: 1; }
     .req-status-badge {
-      display: inline-block;
-      padding: 2px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px 3px 8px;
       border-radius: 99px;
       font-size: 12px;
       font-weight: 600;
+    }
+    .req-status-badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: currentColor;
+      flex-shrink: 0;
     }
     .badge-amber { background: #fef3c7; color: #92400e; }
     .badge-blue  { background: #dbeafe; color: #1e40af; }
     .badge-green { background: #d1fae5; color: #065f46; }
     .badge-red   { background: #fee2e2; color: #991b1b; }
+
+    /* Empty state — shown instead of the table when there's no history yet */
+    .req-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 32px 24px;
+      border: 1.5px dashed #e5e7eb;
+      border-radius: 12px;
+      color: #6b7280;
+    }
+    .req-empty-icon {
+      width: 40px; height: 40px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      color: #9ca3af;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 10px;
+    }
+    .req-empty-icon svg { width: 19px; height: 19px; }
+    .req-empty strong { color: #374151; font-size: 14px; }
+    .req-empty span   { font-size: 13px; margin-top: 3px; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .req-form-wrap, .req-success { animation: none; }
+      .req-cat-card { transition: none; }
+    }
 
     @media (max-width: 767px) {
       .data-table { min-width: 0 !important; width: 100% !important; border-collapse: separate; border-spacing: 0 10px; }
@@ -167,14 +322,28 @@
 </header>
 
   <div class="placement-main req-page-main">
-    <h1 class="req-page-title">Submit a Request</h1>
-    <p class="req-page-sub">Select the type of request you'd like to submit.</p>
+    <div class="req-page-head">
+      <div class="req-page-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+      </div>
+      <div>
+        <h1 class="req-page-title">Requests</h1>
+        <p class="req-page-sub">Track your submitted requests or submit a new one.</p>
+      </div>
+    </div>
 
+    <div id="reqHistoryWrap"></div>
+
+    <div class="req-section-head dash-section-head">
+      <span class="dash-section-eyebrow">Submit a New Request</span>
+      <span class="dash-section-rule"></span>
+    </div>
+    <p class="req-page-sub" style="margin-bottom:16px;">Select the type of request you'd like to submit.</p>
     <div id="reqCategoriesWrap"></div>
     <div id="reqFormWrap"></div>
-    <div id="reqHistoryWrap"></div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
   <script type="module" src="/app/requests.js"></script>
 </body>
 </html>

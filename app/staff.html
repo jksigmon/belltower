@@ -732,7 +732,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
   <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
   <a href="#compliance-report" data-module="compliance"><i data-lucide="clipboard-list"></i> Compliance Report</a>
-  <a href="/app/requests.html" data-module="requests"><i data-lucide="inbox"></i> Form Requests</a>
+  <a href="/app/requests.html" data-module="requests"><i data-lucide="inbox"></i> Form Requests <span class="badge-count" id="staffFormRequestsBadge"></span></a>
   <a href="/app/field-trips.html" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
   <a href="/app/placement.html" id="navPlacement" style="display:none;"><i data-lucide="layout-grid"></i> Class Placement</a>
   <a href="#data-collection"><i data-lucide="link"></i> Form Links</a>
@@ -774,6 +774,11 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       <div class="dash-section" id="staffDashActions" style="display:none;">
         <div class="dash-section-head"><span class="dash-section-eyebrow">Quick Actions</span><span class="dash-section-rule"></span></div>
         <div class="dash-actions-row" id="staffDashActionsRow"></div>
+      </div>
+
+      <div class="dash-section" id="staffDashFormRequests" style="display:none;">
+        <div class="dash-section-head"><span class="dash-section-eyebrow">My Form Requests</span><span class="dash-section-rule"></span></div>
+        <div id="staffDashFormRequestList" class="staff-dash-list"></div>
       </div>
 
       <div class="dash-section" id="staffDashBirthdays" style="display:none;">
@@ -1373,7 +1378,7 @@ import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate } from '/app/admin.shared.js?v=2';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate } from '/app/admin.shared.js?v=2';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { fileKind as rdFileKind, tileIconSvg as rdTileIconSvg, getThumbnailUrl as rdGetThumbnailUrl, withThumbnailConcurrency as rdWithThumbnailConcurrency } from '/app/resource-doc-thumbnails.js';
 
@@ -1655,6 +1660,18 @@ async function loadStaffDashboard() {
       .limit(5);
   }
 
+  if (window.staffModules['requests'] !== false) {
+    queries.formRequests = supabase.from('staff_requests')
+      .select('id, status, created_at, request_categories ( name, resolved_label, denied_label )')
+      .eq('submitted_by', p.id)
+      .order('updated_at', { ascending: false })
+      .limit(5);
+    queries.formRequestsOpenCount = supabase.from('staff_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('submitted_by', p.id)
+      .in('status', ['pending', 'in_review']);
+  }
+
   if (window.staffModules['licensure'] === true) {
     queries.licenses = supabase.from('staff_licenses')
       .select('id, license_type, license_area, expiration_date, status')
@@ -1761,6 +1778,36 @@ async function loadStaffDashboard() {
         '</a>';
     }).join('');
     document.getElementById('staffDashRequests').style.display = '';
+  }
+
+  // My form requests (staff_requests — distinct from the PTO "Upcoming Requests" above)
+  if (r.formRequests?.data?.length) {
+    const FORM_REQ_STATUS = {
+      pending:   ['#fef3c7', '#92400e'],
+      in_review: ['#dbeafe', '#1e40af'],
+      resolved:  ['#d1fae5', '#065f46'],
+      denied:    ['#fee2e2', '#991b1b'],
+    };
+    const list = document.getElementById('staffDashFormRequestList');
+    list.innerHTML = r.formRequests.data.map(function (req) {
+      const cat = req.request_categories;
+      const label = req.status === 'resolved' ? (cat?.resolved_label || 'Resolved')
+        : req.status === 'denied' ? (cat?.denied_label || 'Denied')
+        : ({ pending: 'Pending', in_review: 'In Review' }[req.status] ?? req.status);
+      const [bg, color] = FORM_REQ_STATUS[req.status] ?? ['#f1f5f9', '#374151'];
+      return '<a href="/app/requests.html" class="staff-dash-request-row">' +
+        '<span class="staff-dash-req-type">' + esc(cat?.name ?? '—') + '</span>' +
+        '<span class="staff-dash-req-dates">' + fmtShortDate(req.created_at) + '</span>' +
+        '<span class="staff-dash-req-badge" style="background:' + bg + ';color:' + color + ';">' + esc(label) + '</span>' +
+        '</a>';
+    }).join('');
+    document.getElementById('staffDashFormRequests').style.display = '';
+  }
+
+  const formRequestsBadge = document.getElementById('staffFormRequestsBadge');
+  if (formRequestsBadge) {
+    const openCount = r.formRequestsOpenCount?.count ?? 0;
+    formRequestsBadge.textContent = openCount > 0 ? String(openCount) : '';
   }
 
   // License alerts

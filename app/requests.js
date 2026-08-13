@@ -44,9 +44,28 @@ async function loadMyRequests() {
     .from('staff_requests')
     .select('id, status, created_at, manager_notes, request_categories ( name, resolved_label, denied_label )')
     .eq('submitted_by', currentProfile.id)
-    .order('created_at', { ascending: false })
+    .order('updated_at', { ascending: false })
     .limit(20);
   return data ?? [];
+}
+
+// Best-effort icon per category, keyed off its name — categories are
+// school-defined text with no icon field of their own, so this just
+// gives common request types (field trips, maintenance, etc.) a
+// recognizable glyph instead of every card looking identical.
+function categoryIcon(name) {
+  const n = (name || '').toLowerCase();
+  if (/field trip/.test(n))                              return 'map';
+  if (/maintenance|facilit|repair|damage/.test(n))        return 'wrench';
+  if (/feedback|bug/.test(n))                             return 'message-circle';
+  if (/access|key/.test(n))                               return 'key';
+  if (/reservation|room|book/.test(n))                    return 'calendar-clock';
+  if (/inventory|supply|supplies|equipment/.test(n))      return 'package';
+  if (/purchase|budget|expense|reimburse/.test(n))        return 'credit-card';
+  if (/leave|time off|pto/.test(n))                       return 'calendar';
+  if (/tech|it |computer|device|laptop/.test(n))          return 'laptop';
+  if (/transport|transfer|bus/.test(n))                   return 'truck';
+  return 'file-text';
 }
 
 function renderCategories() {
@@ -62,11 +81,15 @@ function renderCategories() {
     <div class="req-cat-grid">
       ${categories.map(c => `
         <div class="req-cat-card" data-id="${esc(c.id)}">
+          <div class="req-cat-card-icon"><i data-lucide="${categoryIcon(c.name)}"></i></div>
+          <div class="req-cat-card-arrow"><i data-lucide="arrow-right"></i></div>
           <div class="req-cat-card-name">${esc(c.name)}</div>
           ${c.description ? `<div class="req-cat-card-desc">${esc(c.description)}</div>` : ''}
         </div>
       `).join('')}
     </div>`;
+
+  if (window.lucide) lucide.createIcons({ el: wrap });
 
   wrap.querySelectorAll('.req-cat-card').forEach(card => {
     card.addEventListener('click', async () => {
@@ -403,10 +426,12 @@ async function handleSubmit(e) {
   const formWrap = document.getElementById('reqFormWrap');
   formWrap.innerHTML = `
     <div class="req-success">
+      <div class="req-success-icon"><i data-lucide="check"></i></div>
       <h3>Request Submitted!</h3>
       <p>Your <strong>${esc(selectedCat.name)}</strong> request has been received. You'll be notified when it's reviewed.</p>
       <button class="btn btn-secondary" id="reqAnotherBtn">Submit Another</button>
     </div>`;
+  if (window.lucide) lucide.createIcons({ el: formWrap });
   document.getElementById('reqAnotherBtn').addEventListener('click', () => {
     formWrap.innerHTML = '';
     document.querySelectorAll('.req-cat-card').forEach(c => c.classList.remove('selected'));
@@ -428,33 +453,71 @@ async function renderHistory(data) {
   const rows = data ?? await loadMyRequests();
 
   if (!rows.length) {
-    wrap.innerHTML = '';
+    wrap.innerHTML = `
+      <div class="req-section-head dash-section-head">
+        <span class="dash-section-eyebrow">My Requests</span>
+        <span class="dash-section-rule"></span>
+      </div>
+      <div class="req-empty">
+        <div class="req-empty-icon"><i data-lucide="inbox"></i></div>
+        <strong>No requests yet</strong>
+        <span>Submit one below to get started.</span>
+      </div>`;
+    if (window.lucide) lucide.createIcons({ el: wrap });
     return;
   }
 
   wrap.innerHTML = `
     <div class="req-history-section">
-      <h2 class="req-history-title">My Requests</h2>
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th>Form</th>
-            <th>Submitted</th>
-            <th>Status</th>
-            <th>Notes</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => `
-            <tr>
-              <td>${esc(r.request_categories?.name ?? '—')}</td>
-              <td>${fmtShortDate(r.created_at)}</td>
-              <td><span class="req-status-badge ${statusBadgeClass(r.status)}">${statusLabel(r.status, r.request_categories)}</span></td>
-              <td style="color:#6b7280;">${r.manager_notes ? esc(r.manager_notes) : '—'}</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
+      <div class="req-section-head dash-section-head">
+        <span class="dash-section-eyebrow">My Requests</span>
+        <span class="dash-section-rule"></span>
+      </div>
+      <div class="req-history-shell">
+        <div class="req-history-scroll" id="reqHistoryScroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Form</th>
+                <th>Submitted</th>
+                <th>Status</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(r => `
+                <tr>
+                  <td>${esc(r.request_categories?.name ?? '—')}</td>
+                  <td>${fmtShortDate(r.created_at)}</td>
+                  <td><span class="req-status-badge ${statusBadgeClass(r.status)}">${statusLabel(r.status, r.request_categories)}</span></td>
+                  <td style="color:#6b7280;">${r.manager_notes ? esc(r.manager_notes) : '—'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="req-scroll-fade-bottom" id="reqHistoryFade"></div>
+      </div>
     </div>`;
+
+  wireHistoryScrollFade();
+}
+
+// Shows a bottom fade over the history table whenever there's more to
+// scroll, hiding it once the last row is in view — the box has no
+// visible scrollbar on most trackpads/OSes otherwise, so nothing else
+// hints that it's scrollable.
+function wireHistoryScrollFade() {
+  const scrollEl = document.getElementById('reqHistoryScroll');
+  const fadeEl   = document.getElementById('reqHistoryFade');
+  if (!scrollEl || !fadeEl) return;
+
+  const update = () => {
+    const canScrollMore = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight > 1;
+    fadeEl.classList.toggle('visible', canScrollMore);
+  };
+
+  scrollEl.addEventListener('scroll', update);
+  update();
 }
 
 function statusLabel(s, cat) {
