@@ -189,8 +189,9 @@ function gateNavigation() {
   // Individual capability-gated links (may also carry data-module)
   document.querySelectorAll('nav a[data-cap]').forEach(link => {
     const cap = link.dataset.cap;
+    const altCap = link.dataset.capAlt;
     const mod = link.dataset.module;
-    const hasCap = currentProfile.is_superadmin || currentProfile[cap];
+    const hasCap = currentProfile.is_superadmin || currentProfile[cap] || (altCap && currentProfile[altCap]);
     if (hasCap && moduleEnabled(mod)) {
       link.style.display = 'flex';
     } else {

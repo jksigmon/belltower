@@ -11,6 +11,10 @@ let selectedFamilyId = null;
 let editingStudentId = null;
 let schoolFlags = []; // { id, label, color, sort_order, archived_at }
 
+function canManageStudents() {
+  return currentProfile.is_superadmin || currentProfile.role === 'admin' || currentProfile.can_manage_students === true;
+}
+
 /* ===============================
    ENTRY POINT
 ================================ */
@@ -20,6 +24,9 @@ export async function initStudentsSection(profile) {
   if (!schoolConfig) schoolConfig = await loadSchoolConfig(profile.school_id);
 
   const usesHomerooms = schoolConfig?.uses_homerooms !== false;
+
+  const addBtn = document.getElementById('addStudent');
+  if (addBtn) addBtn.style.display = canManageStudents() ? '' : 'none';
 
   // Hide homeroom UI elements for schools that don't use them
   if (!usesHomerooms) {
@@ -296,8 +303,9 @@ async function openEditStudentDrawer(r) {
       document.getElementById('estuWithdrawnReason').textContent = r.withdrawal_reason ?? '';
     }
   }
-  document.getElementById('estuWithdrawBtn').style.display  = isWithdrawn ? 'none' : '';
-  document.getElementById('estuReenrollBtn').style.display  = isWithdrawn ? ''     : 'none';
+  const canManage = canManageStudents();
+  document.getElementById('estuWithdrawBtn').style.display  = (isWithdrawn || !canManage) ? 'none' : '';
+  document.getElementById('estuReenrollBtn').style.display  = (isWithdrawn && canManage)  ? ''     : 'none';
 
   // Populate selects; family uses cache directly since add-drawer no longer has a <select> to clone
   await loadFamilyOptions(['#estuFamily'], currentProfile.school_id);
@@ -307,7 +315,12 @@ async function openEditStudentDrawer(r) {
   cloneSelectOptions('#studentBusGroup', document.getElementById('estuBus'),      r.bus_groups?.id);
   cloneSelectOptions('#studentCampus',   document.getElementById('estuCampus'),   r.campus_id);
 
+  ['estuFirst', 'estuLast', 'estuPreferred', 'estuGrade', 'estuNumber', 'estuBirthdate',
+   'estuRetained', 'estuActive', 'estuFamily', 'estuHomeroom', 'estuBus', 'estuCampus']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !canManage; });
+
   const saveBtn = document.getElementById('estuSaveBtn');
+  saveBtn.style.display = canManage ? '' : 'none';
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
 

@@ -629,7 +629,9 @@ td strong { color: #111827; }
       <tr><td><code>can_manage_requests</code></td><td>Requests tab — create/edit request categories (forms) and assign category managers. Doesn't affect who can submit requests, or who can respond to submissions in a category they're already assigned to manage.</td></tr>
       <tr><td><code>can_manage_staff</code></td><td>Staff tab — add, edit, deactivate employee records.</td></tr>
       <tr><td><code>can_manage_students</code></td><td>Students tab — add, edit, manage student records.</td></tr>
+      <tr><td><code>can_view_students</code></td><td>Students tab, read-only — can see student records but not add, edit, withdraw, or delete. Not needed if <code>can_manage_students</code> is already granted.</td></tr>
       <tr><td><code>can_manage_families</code></td><td>Families tab + Data Collection (Guardian Intake campaigns).</td></tr>
+      <tr><td><code>can_view_families</code></td><td>Families tab, read-only — can see family records (including the Skip Car Line / EC Needs / Other special-permission flags) but not add, edit, or delete. Not needed if <code>can_manage_families</code> is already granted.</td></tr>
       <tr><td><code>can_manage_guardians</code></td><td>Guardians tab + Data Collection tab.</td></tr>
       <tr><td><code>can_manage_access</code></td><td>User Access &amp; Permissions tab — can activate users and change anyone's permissions. <strong>Grant carefully.</strong></td></tr>
       <tr><td><code>can_bulk_upload</code></td><td>Bulk Upload tab, and (for schools with the integration) the IC Sync page — previewing/running syncs, reviewing matches, and pulling in field differences.</td></tr>

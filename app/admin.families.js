@@ -9,6 +9,10 @@ let initialized = false;
 let familiesDirectory;
 let editingFamilyId = null;
 
+function canManageFamilies() {
+  return currentProfile.is_superadmin || currentProfile.role === 'admin' || currentProfile.can_manage_families === true;
+}
+
 // IDs of families with no active students (including families with no
 // students at all) — powers the "Releasable only" filter. Computed as a set
 // difference (all family ids minus ids with an active student) rather than
@@ -77,6 +81,9 @@ export async function initFamiliesSection(profile) {
 
   const hasCarline = schoolConfig?.modules?.carline !== false;
 
+  const addBtn = document.getElementById('addFamilyBtn');
+  if (addBtn) addBtn.style.display = canManageFamilies() ? '' : 'none';
+
   if (!familiesDirectory) {
     familiesDirectory = createDirectory({
       table: 'families',
@@ -87,6 +94,10 @@ export async function initFamiliesSection(profile) {
         carline_tag_number,
         family_name,
         active,
+        skip_car_line,
+        ec_needs,
+        other_flag,
+        other_flag_note,
         students ( first_name, last_name, grade_level, active ),
         guardians ( active )
       `,
@@ -161,6 +172,10 @@ function exportFamilyRow(f) {
     'Carline Tag/Family Number': f.carline_tag_number ?? '',
     'Family Name':               f.family_name ?? '',
     'Active':                    f.active ? 'TRUE' : 'FALSE',
+    'Skip Car Line':             f.skip_car_line ? 'TRUE' : 'FALSE',
+    'EC Needs':                  f.ec_needs ? 'TRUE' : 'FALSE',
+    'Other':                     f.other_flag ? 'TRUE' : 'FALSE',
+    'Other Note':                f.other_flag_note ?? '',
     'Students':                  formatFamilyStudents(f.students),
   };
 }
@@ -194,6 +209,14 @@ function guardianCountBadge(f) {
     : `<span class="fam-count-badge">${activeGuardians} guardian${activeGuardians === 1 ? '' : 's'}</span>`;
 }
 
+function specialFlagsBadges(f) {
+  const badges = [];
+  if (f.skip_car_line) badges.push('<span class="fam-flag-badge fam-flag-carline">Skip Car Line</span>');
+  if (f.ec_needs)      badges.push('<span class="fam-flag-badge fam-flag-ec">EC Needs</span>');
+  if (f.other_flag)    badges.push(`<span class="fam-flag-badge fam-flag-other"${f.other_flag_note ? ` title="${esc(f.other_flag_note)}"` : ''}>Other</span>`);
+  return badges.join('');
+}
+
 function renderFamilyRow(f) {
   const initial = (f.family_name ?? '?')[0].toUpperCase();
   const color   = getAvatarColor(f.family_name ?? '');
@@ -216,6 +239,7 @@ function renderFamilyRow(f) {
       </div>
     </td>
     <td>${tagBadge}</td>
+    <td><div class="fam-flags-cell">${specialFlagsBadges(f)}</div></td>
     <td>${studentCountBadge(f)}</td>
     <td>${guardianCountBadge(f)}</td>
     <td class="staff-cell-chevron">
@@ -247,10 +271,26 @@ function openEditFamilyDrawer(f) {
   document.getElementById('efTag').value    = f.carline_tag_number ?? '';
   document.getElementById('efName').value   = f.family_name ?? '';
   document.getElementById('efActive').checked = !!f.active;
+  document.getElementById('efSkipCarLine').checked = !!f.skip_car_line;
+  document.getElementById('efEcNeeds').checked      = !!f.ec_needs;
+  document.getElementById('efOther').checked        = !!f.other_flag;
+  document.getElementById('efOtherNote').value      = f.other_flag_note ?? '';
+
+  const canManage = canManageFamilies();
+  ['efTag', 'efName', 'efActive', 'efSkipCarLine', 'efEcNeeds', 'efOther', 'efOtherNote', 'efStudentSearch']
+    .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !canManage; });
 
   const saveBtn = document.getElementById('efSaveBtn');
+  saveBtn.style.display = canManage ? '' : 'none';
   saveBtn.disabled    = false;
   saveBtn.textContent = 'Save Changes';
+
+  const deleteBtn = document.getElementById('efDeleteBtn');
+  if (deleteBtn) deleteBtn.style.display = canManage ? '' : 'none';
+  const releaseSection = document.getElementById('efReleaseSection');
+  if (releaseSection) releaseSection.style.display = canManage ? '' : 'none';
+  const studentSearchWrap = document.getElementById('efStudentSearchWrap');
+  if (studentSearchWrap) studentSearchWrap.style.display = canManage ? '' : 'none';
 
   // Reset lists to loading state before opening
   document.getElementById('efStudentsList').innerHTML  = '<span class="muted" style="font-size:13px;">Loading…</span>';
@@ -324,6 +364,10 @@ async function saveEditFamily() {
     carline_tag_number: tag,
     family_name:        name || null,
     active:             document.getElementById('efActive').checked,
+    skip_car_line:      document.getElementById('efSkipCarLine').checked,
+    ec_needs:           document.getElementById('efEcNeeds').checked,
+    other_flag:         document.getElementById('efOther').checked,
+    other_flag_note:    document.getElementById('efOtherNote').value.trim() || null,
   };
 
   const saveBtn = document.getElementById('efSaveBtn');
