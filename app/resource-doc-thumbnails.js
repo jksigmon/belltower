@@ -34,6 +34,43 @@ function loadPdfJs() {
   return pdfjsLibPromise;
 }
 
+// Renders every page of a PDF to a PNG data URL and wraps them in a minimal
+// print-only HTML document (one page per sheet, centered/scaled, no browser
+// chrome). Used so printing a PDF never depends on the browser's own
+// PDF-viewer print pipeline — Chrome's built-in viewer print has been seen
+// to render some documents' orientation incorrectly (rotated/cut off) on
+// some Windows machines while the same file prints fine elsewhere. Doing
+// the rendering ourselves gives identical, predictable output everywhere.
+const PDF_PRINT_SCALE = 2; // ~144 DPI at PDF's native page size — legible without huge data URLs
+
+export async function renderPdfPrintHtml(signedUrl) {
+  const pdfjsLib = await loadPdfJs();
+  const pdf = await pdfjsLib.getDocument(signedUrl).promise;
+
+  let landscapeCount = 0;
+  const pageHtmls = [];
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: PDF_PRINT_SCALE });
+    if (viewport.width > viewport.height) landscapeCount++;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+    pageHtmls.push('<div class="pg"><img src="' + canvas.toDataURL('image/png') + '"></div>');
+  }
+
+  const landscape = landscapeCount > pdf.numPages / 2;
+  return '<!DOCTYPE html><html><head><style>' +
+    '@page{size:' + (landscape ? 'landscape' : 'portrait') + ';margin:0;}' +
+    'html,body{margin:0;}' +
+    '.pg{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;box-sizing:border-box;page-break-after:always;}' +
+    '.pg:last-child{page-break-after:auto;}' +
+    '.pg img{max-width:100%;max-height:100%;object-fit:contain;}' +
+    '</style></head><body>' + pageHtmls.join('') + '</body></html>';
+}
+
 // Keyed by `${id}:${updated_at}` so replacing a file invalidates its cached
 // thumbnail without needing an explicit cache-clear call anywhere.
 const thumbCache = new Map();

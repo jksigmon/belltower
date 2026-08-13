@@ -1351,7 +1351,7 @@ import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
 import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate } from '/app/admin.shared.js?v=2';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
-import { fileKind as rdFileKind, tileIconSvg as rdTileIconSvg, getThumbnailUrl as rdGetThumbnailUrl, withThumbnailConcurrency as rdWithThumbnailConcurrency } from '/app/resource-doc-thumbnails.js';
+import { fileKind as rdFileKind, tileIconSvg as rdTileIconSvg, getThumbnailUrl as rdGetThumbnailUrl, withThumbnailConcurrency as rdWithThumbnailConcurrency, renderPdfPrintHtml as rdRenderPdfPrintHtml } from '/app/resource-doc-thumbnails.js';
 import { roleCheckboxGridHTML } from '/app/compliance.roles.js?v=2';
 
 document.getElementById('bgRoleGrid').innerHTML = roleCheckboxGridHTML('bgRole');
@@ -2167,16 +2167,6 @@ function updateStaffRdViewButtons() {
   });
 }
 
-// Blob URL backing the PDF loaded for printing (see the Print button
-// handler below) — tracked so we can revoke it on close/replace instead
-// of leaking it.
-let resourceViewerBlobUrl = null;
-function revokeResourceViewerBlobUrl() {
-  if (resourceViewerBlobUrl) {
-    URL.revokeObjectURL(resourceViewerBlobUrl);
-    resourceViewerBlobUrl = null;
-  }
-}
 // { kind, signedUrl } for whatever's currently open, so the Print button
 // can build a same-origin copy without re-signing. Cleared on close.
 let resourceViewerCurrentDoc = null;
@@ -2205,7 +2195,6 @@ window.staffViewResource = async function (btn) {
 
   const kind = rdFileKind(doc.original_filename);
   const frame = document.getElementById('resourceViewerFrame');
-  revokeResourceViewerBlobUrl();
   frame.removeAttribute('srcdoc');
   resourceViewerCurrentDoc = { kind: kind, signedUrl: data.signedUrl };
 
@@ -2250,7 +2239,6 @@ function closeResourceViewer() {
   document.getElementById('resourceViewerFrame').src = 'about:blank';
   document.getElementById('resourceViewerFrame').removeAttribute('srcdoc');
   document.body.classList.remove('resource-viewer-open');
-  revokeResourceViewerBlobUrl();
   resourceViewerCurrentDoc = null;
 }
 
@@ -2259,26 +2247,29 @@ document.getElementById('resourceViewerPrintBtn')?.addEventListener('click', asy
   const doc = resourceViewerCurrentDoc;
   const frame = document.getElementById('resourceViewerFrame');
   const originalSrc = frame.src;
+  const printBtn = document.getElementById('resourceViewerPrintBtn');
 
   // Best-effort upgrade: the visible iframe is cross-origin (Supabase
   // storage), so window.print() (the fallback below) can only rasterize
   // whatever's currently visible in its viewport — partial/off-center
-  // pages, extra dark viewer chrome. Swapping to a same-origin blob (PDF)
-  // or a minimal white-background srcdoc (image) lets us call the iframe's
-  // own contentWindow.print() instead, which paginates/centers correctly.
-  // Some school-managed devices block same-origin blob:/srcdoc navigation
-  // outright, so this is verified before committing to it — on any failure
-  // the working view is restored and we fall back to window.print() rather
-  // than leaving the viewer showing a blocked/blank frame.
+  // pages, extra dark viewer chrome. PDFs are rendered to images ourselves
+  // (see renderPdfPrintHtml) rather than handed to the browser's built-in
+  // PDF-viewer print pipeline, which has been seen to render some
+  // documents' orientation wrong (sideways/cut off) on some Windows
+  // machines while the identical file prints fine elsewhere — rendering it
+  // ourselves gives the same output everywhere. Images get the same
+  // same-origin srcdoc treatment they've always had. Either is verified as
+  // actually loaded before printing (some school-managed devices block
+  // same-origin srcdoc navigation outright) — on any failure the working
+  // view is restored and we fall back to window.print() rather than
+  // leaving the viewer showing a blocked/blank frame.
   if (doc && (doc.kind === 'pdf' || doc.kind === 'image')) {
+    const prevLabel = printBtn.textContent;
     try {
       if (doc.kind === 'pdf') {
-        const res = await fetch(doc.signedUrl);
-        if (!res.ok) throw new Error(`Signed URL fetch failed: ${res.status}`);
-        const blob = await res.blob();
-        revokeResourceViewerBlobUrl();
-        resourceViewerBlobUrl = URL.createObjectURL(blob);
-        frame.src = resourceViewerBlobUrl + '#toolbar=0';
+        printBtn.textContent = 'Preparing…';
+        printBtn.disabled = true;
+        frame.srcdoc = await rdRenderPdfPrintHtml(doc.signedUrl);
       } else {
         frame.srcdoc = '<!DOCTYPE html><html><head><style>' +
           'html,body{margin:0;height:100%;background:#fff;display:flex;align-items:center;justify-content:center;}' +
@@ -2300,6 +2291,9 @@ document.getElementById('resourceViewerPrintBtn')?.addEventListener('click', asy
       console.error('Enhanced print unavailable, falling back to window.print()', err);
       frame.removeAttribute('srcdoc');
       frame.src = originalSrc;
+    } finally {
+      printBtn.textContent = prevLabel;
+      printBtn.disabled = false;
     }
   }
   window.print();
