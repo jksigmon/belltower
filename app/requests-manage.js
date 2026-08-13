@@ -12,6 +12,11 @@ let filterStatus   = '';
   currentProfile = await initPage({});
   if (!currentProfile) return;
 
+  document.getElementById('signOut')?.addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login.html';
+  });
+
   // Determine which categories this user manages
   await loadManagedCategories();
 
@@ -52,7 +57,8 @@ async function loadSubmissions() {
     .select(`
       id, status, created_at, manager_notes,
       request_categories ( name, resolved_label, allow_denial, denied_label ),
-      profiles!staff_requests_submitted_by_fkey ( display_name, email )
+      profiles!staff_requests_submitted_by_fkey ( display_name, email ),
+      staff_request_responses ( value, request_category_fields ( label, field_type, sort_order ) )
     `)
     .eq('school_id', currentProfile.school_id)
     .order('created_at', { ascending: false });
@@ -85,20 +91,23 @@ function renderList() {
     <table class="data-table">
       <thead>
         <tr>
-          <th>Submitted By</th>
-          <th>Form</th>
-          <th>Date</th>
-          <th>Status</th>
+          <th style="width:160px;">Submitted By</th>
+          <th style="width:140px;">Form</th>
+          <th>Details</th>
+          <th style="width:100px;">Date</th>
+          <th style="width:110px;">Status</th>
         </tr>
       </thead>
       <tbody>
         ${submissions.map(s => {
           const name = s.profiles?.display_name ?? s.profiles?.email ?? 'Unknown';
+          const preview = submissionPreview(s);
           return `
             <tr class="reqm-row" data-id="${esc(s.id)}" style="cursor:pointer;">
               <td>${esc(name)}</td>
-              <td>${esc(s.request_categories?.name ?? '—')}</td>
-              <td>${fmtShortDate(s.created_at)}</td>
+              <td style="color:#6b7280;">${esc(s.request_categories?.name ?? '—')}</td>
+              <td style="max-width:0;">${preview ? `<div class="req-sub-preview">${esc(preview)}</div>` : '<span style="color:#d1d5db;">—</span>'}</td>
+              <td style="white-space:nowrap;">${fmtShortDate(s.created_at)}</td>
               <td><span class="req-status-badge ${statusBadgeClass(s.status)}">${statusLabel(s.status, s.request_categories)}</span></td>
             </tr>`;
         }).join('')}
@@ -129,11 +138,14 @@ function wireFilters() {
 function wireDrawer() {
   document.getElementById('reqmDrawerClose').addEventListener('click', handleCloseRequest);
   document.getElementById('reqmOverlay').addEventListener('click', handleCloseRequest);
+  document.getElementById('reqmCloseBtn').addEventListener('click', handleCloseRequest);
+  document.getElementById('reqmSaveBtn').addEventListener('click', () => saveRequest(currentRequestId));
 }
 
 // Snapshot of the notes textarea right after render, so a close can tell
 // whether the manager typed something that never got saved.
 let notesSnapshot = '';
+let currentRequestId = null;
 
 function handleCloseRequest() {
   const current = document.getElementById('reqmSubNotes')?.value.trim() ?? '';
@@ -144,8 +156,11 @@ function handleCloseRequest() {
 async function openDrawer(sub) {
   const titleEl = document.getElementById('reqmDrawerTitle');
   const bodyEl  = document.getElementById('reqmDrawerBody');
+  const errEl   = document.getElementById('reqmSaveError');
+  currentRequestId = sub.id;
   titleEl.textContent = sub.request_categories?.name ?? 'Request';
   bodyEl.innerHTML = '<p style="color:#9ca3af;padding:16px;">Loading…</p>';
+  errEl.style.display = 'none';
 
   document.getElementById('reqmDrawer').classList.add('open');
   document.getElementById('reqmOverlay').classList.add('open');
@@ -159,7 +174,7 @@ async function openDrawer(sub) {
   const name = sub.profiles?.display_name ?? sub.profiles?.email ?? 'Unknown';
 
   bodyEl.innerHTML = `
-    <div style="margin-bottom:16px;font-size:13px;color:#6b7280;">
+    <div class="reqm-meta">
       Submitted by <strong>${esc(name)}</strong> on ${fmtShortDate(sub.created_at)}
     </div>
 
@@ -171,10 +186,11 @@ async function openDrawer(sub) {
         </div>`).join('') || '<p style="color:#9ca3af;">No responses recorded.</p>'}
     </div>
 
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
-    <div class="form-group">
-      <label class="form-label">Status</label>
-      <select id="reqmSubStatus" class="form-control" style="width:180px;">
+    <hr class="drawer-divider" />
+
+    <div class="drawer-field">
+      <label>Status</label>
+      <select id="reqmSubStatus">
         <option value="pending"   ${sub.status === 'pending'   ? 'selected' : ''}>Pending</option>
         <option value="in_review" ${sub.status === 'in_review' ? 'selected' : ''}>In Review</option>
         <option value="resolved"  ${sub.status === 'resolved'  ? 'selected' : ''}>${esc(sub.request_categories?.resolved_label || 'Resolved')}</option>
@@ -183,21 +199,13 @@ async function openDrawer(sub) {
           : ''}
       </select>
     </div>
-    <div class="form-group">
-      <label class="form-label">Notes <span style="font-weight:400;color:#9ca3af;">(visible to submitter)</span></label>
-      <textarea id="reqmSubNotes" class="form-control" rows="3" placeholder="Optional notes…">${esc(sub.manager_notes ?? '')}</textarea>
+    <div class="drawer-field">
+      <label>Notes <span style="text-transform:none;font-weight:400;letter-spacing:0;color:#9ca3af;">(visible to submitter)</span></label>
+      <textarea id="reqmSubNotes" rows="3" placeholder="Optional notes…">${esc(sub.manager_notes ?? '')}</textarea>
     </div>
-    <div style="margin-top:16px;display:flex;gap:8px;">
-      <button class="btn btn-primary" id="reqmSaveBtn">Save</button>
-      <button class="btn btn-secondary" id="reqmCloseBtn">Close</button>
-    </div>
-    <p id="reqmSaveError" style="color:#dc2626;font-size:13px;margin-top:8px;display:none;"></p>
   `;
 
   notesSnapshot = sub.manager_notes?.trim() ?? '';
-
-  document.getElementById('reqmSaveBtn').addEventListener('click', () => saveRequest(sub.id));
-  document.getElementById('reqmCloseBtn').addEventListener('click', handleCloseRequest);
 }
 
 async function saveRequest(requestId) {
@@ -225,6 +233,8 @@ async function saveRequest(requestId) {
     return;
   }
 
+  btn.disabled = false;
+  btn.textContent = 'Save';
   notesSnapshot = notes;
   closeDrawer();
   await loadSubmissions();
@@ -238,6 +248,22 @@ async function saveRequest(requestId) {
 function closeDrawer() {
   document.getElementById('reqmDrawer').classList.remove('open');
   document.getElementById('reqmOverlay').classList.remove('open');
+}
+
+function submissionPreview(sub) {
+  const rows = (sub.staff_request_responses ?? [])
+    .filter(r => r.request_category_fields?.field_type !== 'file' && r.value)
+    .sort((a, b) => (a.request_category_fields?.sort_order ?? 0) - (b.request_category_fields?.sort_order ?? 0))
+    .slice(0, 3);
+  if (!rows.length) return '';
+  return rows.map(r => {
+    let val = r.request_category_fields?.field_type === 'boolean'
+      ? (r.value === 'true' ? 'Yes' : 'No')
+      : r.value;
+    if (val.length > 48) val = val.slice(0, 48) + '…';
+    const label = r.request_category_fields?.label;
+    return label ? `${label}: ${val}` : val;
+  }).join(' · ');
 }
 
 function formatVal(val, type) {

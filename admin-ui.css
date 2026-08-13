@@ -1325,6 +1325,25 @@ table tr:hover {
   border-color: #0b2d4f;
   box-shadow: 0 0 0 3px rgba(11, 45, 79, 0.08);
 }
+.drawer-field textarea {
+  width: 100%;
+  min-height: 76px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  background: #fff;
+  color: #0f172a;
+  box-sizing: border-box;
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.drawer-field textarea:focus {
+  outline: none;
+  border-color: #0b2d4f;
+  box-shadow: 0 0 0 3px rgba(11, 45, 79, 0.08);
+}
 .drawer-field small { font-size: 0.78rem; color: #9ca3af; }
 .drawer-field input[type="radio"],
 .drawer-field input[type="checkbox"] {
