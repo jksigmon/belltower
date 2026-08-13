@@ -2146,6 +2146,21 @@ function updateStaffRdViewButtons() {
   });
 }
 
+// Blob URL backing the PDF currently loaded in the viewer (see staffViewResource)
+// — tracked so we can revoke it on close/replace instead of leaking it.
+let resourceViewerBlobUrl = null;
+function revokeResourceViewerBlobUrl() {
+  if (resourceViewerBlobUrl) {
+    URL.revokeObjectURL(resourceViewerBlobUrl);
+    resourceViewerBlobUrl = null;
+  }
+}
+// True only when the iframe is showing a same-origin blob: PDF, so the
+// Print button knows it's safe to call frame.contentWindow.print() — reset
+// on every open/close rather than sniffed from frame.src, which can still
+// read stale (srcdoc doesn't clear the src attribute) after switching docs.
+let resourceViewerPrintViaFrame = false;
+
 window.staffViewResource = async function (btn) {
   const doc = (window._staffResourceDocs || []).find(function (d) { return d.id === btn.dataset.id; });
   if (!doc) return;
@@ -2160,10 +2175,50 @@ window.staffViewResource = async function (btn) {
   }
 
   const kind = rdFileKind(doc.original_filename);
-  const url  = kind === 'pdf' ? data.signedUrl + '#toolbar=0' : data.signedUrl;
+  const frame = document.getElementById('resourceViewerFrame');
+  revokeResourceViewerBlobUrl();
+  frame.removeAttribute('srcdoc');
+  resourceViewerPrintViaFrame = false;
+
+  if (kind === 'image') {
+    // Loading the image URL straight into the iframe hands rendering to the
+    // browser's built-in image-document page, which centers/scales for
+    // *screen* viewing only — in dark mode it fills the rest of the page
+    // with a dark background, and that's what window.print() below then
+    // captures (wasted toner, image left off-center on the printed page).
+    // Wrapping it in our own minimal same-origin document gives full control
+    // over the print layout: white background, image centered and scaled
+    // to fit the page.
+    frame.srcdoc = '<!DOCTYPE html><html><head><style>' +
+      'html,body{margin:0;height:100%;background:#fff;display:flex;align-items:center;justify-content:center;}' +
+      'img{max-width:100%;max-height:100%;object-fit:contain;}' +
+      '@media print{ @page{margin:0;} }' +
+      '</style></head><body><img src="' + data.signedUrl + '"></body></html>';
+  } else if (kind === 'pdf') {
+    // The iframe's PDF document is cross-origin, so window.print() (the
+    // fallback below) can only rasterize whatever's currently visible in
+    // the embedded viewer's viewport — not the real paginated PDF. That's
+    // what caused partial/off-center pages and extra dark viewer chrome
+    // printed with it. Fetching the file into a blob: URL makes the iframe
+    // same-origin (blob: URLs inherit the creating document's origin), so
+    // the Print button can call the iframe's own contentWindow.print()
+    // instead — the browser's native "print this PDF" pipeline, which
+    // paginates, centers, and scales correctly with no extra background.
+    try {
+      const res = await fetch(data.signedUrl);
+      const blob = await res.blob();
+      resourceViewerBlobUrl = URL.createObjectURL(blob);
+      frame.src = resourceViewerBlobUrl + '#toolbar=0';
+      resourceViewerPrintViaFrame = true;
+    } catch (err) {
+      console.error('Could not fetch PDF for viewer, falling back to direct URL', err);
+      frame.src = data.signedUrl + '#toolbar=0';
+    }
+  } else {
+    frame.src = data.signedUrl;
+  }
 
   document.getElementById('resourceViewerTitle').textContent = doc.title;
-  document.getElementById('resourceViewerFrame').src = url;
   document.getElementById('resourceViewerOverlay').style.display = 'flex';
   document.body.classList.add('resource-viewer-open');
 };
@@ -2195,17 +2250,31 @@ window.staffDownloadResource = async function (btn) {
 function closeResourceViewer() {
   document.getElementById('resourceViewerOverlay').style.display = 'none';
   document.getElementById('resourceViewerFrame').src = 'about:blank';
+  document.getElementById('resourceViewerFrame').removeAttribute('srcdoc');
   document.body.classList.remove('resource-viewer-open');
+  revokeResourceViewerBlobUrl();
+  resourceViewerPrintViaFrame = false;
 }
 
 document.getElementById('resourceViewerCloseBtn')?.addEventListener('click', closeResourceViewer);
 document.getElementById('resourceViewerPrintBtn')?.addEventListener('click', function () {
-  // The iframe's document is cross-origin (Supabase storage's own domain),
-  // so contentWindow.print() throws a SecurityError — same-origin policy,
-  // not something a CSP change can grant an exception to. Printing the
-  // top-level window instead works: @media print (below) hides everything
-  // on the page except the viewer overlay, so the iframe is effectively
-  // what gets printed.
+  // PDFs are loaded from a blob: URL (see staffViewResource), which is
+  // same-origin, so we can print the iframe's own document directly —
+  // the browser's native PDF print pipeline, correctly paginated/centered
+  // with no extra background. Anything else (the srcdoc-wrapped image case,
+  // or a cross-origin fallback) goes through the top-level window.print():
+  // @media print below hides everything except the viewer overlay, so the
+  // iframe is effectively what gets printed.
+  if (resourceViewerPrintViaFrame) {
+    const frame = document.getElementById('resourceViewerFrame');
+    try {
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+      return;
+    } catch (err) {
+      console.error('iframe print failed, falling back to window.print()', err);
+    }
+  }
   window.print();
 });
 // Light deterrent against right-click "Save As" on the embedded viewer —
