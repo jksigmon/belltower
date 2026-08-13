@@ -52,55 +52,24 @@ serve(async (req) => {
     // has opted into the homeroom dropdown, since it's the one field that
     // needs a privileged (service-role) query.
     //
-    // Two sources, in priority order:
-    //   1. employees.grade — an explicit, admin-set grade assignment.
-    //      Takes precedence whenever set, so the dropdown doesn't depend on
-    //      class placements being committed (students get promoted a grade
-    //      before placements/homerooms catch up, which otherwise puts every
-    //      teacher under the wrong grade for that window).
-    //   2. Derived from active students' homeroom assignments, for any
-    //      teacher that doesn't have employees.grade set. A teacher can have
-    //      students split across two grades mid-transition and would
-    //      otherwise show up under both, so MIN_STUDENTS_FOR_HOMEROOM filters
-    //      out grades where a teacher only has a stray student or two.
-    const MIN_STUDENTS_FOR_HOMEROOM = 2;
+    // Sourced solely from employees.grade, an explicit admin-set grade
+    // assignment. Previously this also derived a fallback from active
+    // students' homeroom_teacher_id, but that surfaced teachers who are
+    // still active employees yet no longer hold a classroom (e.g. moved to
+    // a non-teaching role) as long as some of their old students hadn't
+    // been reassigned. employees.grade is now the single source of truth --
+    // a teacher who should appear here needs it set.
     let homerooms: Record<string, { id: string; name: string }[]> = {};
     if (fieldConfig.homeroom_teacher) {
-      const [{ data: explicitTeachers }, { data: rows }] = await Promise.all([
-        supabase
-          .from("employees")
-          .select("id, first_name, last_name, grade")
-          .eq("school_id", campaign.school_id)
-          .eq("active", true)
-          .not("grade", "is", null),
-        supabase
-          .from("students")
-          .select("grade_level, employees:homeroom_teacher_id ( id, first_name, last_name )")
-          .eq("school_id", campaign.school_id)
-          .eq("active", true)
-          .not("homeroom_teacher_id", "is", null),
-      ]);
+      const { data: teachers } = await supabase
+        .from("employees")
+        .select("id, first_name, last_name, grade")
+        .eq("school_id", campaign.school_id)
+        .eq("active", true)
+        .not("grade", "is", null);
 
-      const explicitTeacherIds = new Set<string>();
-      for (const teacher of explicitTeachers ?? []) {
-        explicitTeacherIds.add(teacher.id);
+      for (const teacher of teachers ?? []) {
         (homerooms[teacher.grade as string] ??= []).push({ id: teacher.id, name: `${teacher.first_name} ${teacher.last_name}` });
-      }
-
-      const counts = new Map<string, { grade: string; teacher: { id: string; first_name: string; last_name: string }; count: number }>();
-      for (const row of rows ?? []) {
-        const grade = row.grade_level as string | null;
-        const teacher = row.employees as { id: string; first_name: string; last_name: string } | null;
-        if (!grade || !teacher || explicitTeacherIds.has(teacher.id)) continue;
-        const key = `${grade}::${teacher.id}`;
-        const entry = counts.get(key);
-        if (entry) entry.count++;
-        else counts.set(key, { grade, teacher, count: 1 });
-      }
-
-      for (const { grade, teacher, count } of counts.values()) {
-        if (count < MIN_STUDENTS_FOR_HOMEROOM) continue;
-        (homerooms[grade] ??= []).push({ id: teacher.id, name: `${teacher.first_name} ${teacher.last_name}` });
       }
       for (const grade of Object.keys(homerooms)) {
         homerooms[grade].sort((a, b) => a.name.localeCompare(b.name));
