@@ -2,6 +2,7 @@ import { supabase } from '/app/admin.supabase.js?v=2';
 import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
 import { showToast, esc, getAvatarColor, fmtShortDate, toLocalISODate } from '/app/admin.shared.js?v=2';
+import { SUPABASE_URL } from '/app/config.js';
 
 /* =============================================
    STATE
@@ -186,6 +187,72 @@ if (currentProfile.can_approve_pto) ptoViewCache.add('pending');
 
 if (currentProfile.can_view_pto_calendar) {
   initPtoCalendar();
+}
+
+/* =============================================
+   ICS CALENDAR LINK (Copy / Regenerate)
+============================================= */
+{
+  const icsLinkRow  = document.getElementById('ptoIcsLinkRow');
+  const icsCopyBtn  = document.getElementById('ptoCopyIcsBtn');
+  const icsRegenBtn = document.getElementById('ptoRegenIcsBtn');
+
+  const canCopyIcsLink  = currentProfile.is_superadmin === true || currentProfile.can_manage_access === true;
+  const canRegenIcsLink = currentProfile.is_superadmin === true || currentProfile.role === 'admin';
+
+  if (icsLinkRow && canCopyIcsLink) {
+    icsLinkRow.hidden = false;
+    if (icsRegenBtn && canRegenIcsLink) icsRegenBtn.hidden = false;
+  }
+
+  const fallbackCopyIcsLink = (text, onSuccess) => {
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.style.position = 'fixed';
+    el.style.opacity = '0';
+    document.body.appendChild(el);
+    el.focus();
+    el.select();
+    try { document.execCommand('copy'); onSuccess(); } catch { /* clipboard unavailable */ }
+    document.body.removeChild(el);
+  };
+
+  const copyIcsLink = (text, onSuccess) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(onSuccess).catch(() => fallbackCopyIcsLink(text, onSuccess));
+    } else {
+      fallbackCopyIcsLink(text, onSuccess);
+    }
+  };
+
+  icsCopyBtn?.addEventListener('click', async () => {
+    const { data, error } = await supabase.rpc('get_calendar_ics_link');
+    if (error || !data?.length) {
+      console.error('get_calendar_ics_link failed:', error);
+      showToast('Failed to load calendar link.', 'error');
+      return;
+    }
+    const { school_id, calendar_ics_token } = data[0];
+    const link = `${SUPABASE_URL}/functions/v1/pto_calendar_ics?school_id=${school_id}&token=${calendar_ics_token}`;
+    copyIcsLink(link, () => showToast('Calendar link copied to clipboard.', 'success'));
+  });
+
+  icsRegenBtn?.addEventListener('click', async () => {
+    if (!await showConfirm({
+      title: 'Regenerate Calendar Link',
+      body: 'This breaks the calendar link for anyone already subscribed — they’ll need the new link to keep syncing. Continue?',
+      confirmText: 'Regenerate',
+      danger: true
+    })) return;
+
+    const { error } = await supabase.rpc('regenerate_calendar_ics_token');
+    if (error) {
+      console.error('regenerate_calendar_ics_token failed:', error);
+      showToast('Failed to regenerate calendar link.', 'error');
+      return;
+    }
+    showToast('Calendar link regenerated. Copy the new link to update your subscription.', 'success');
+  });
 }
 
 const staffSelect = document.getElementById('ptoStaffSelect');
@@ -1939,7 +2006,7 @@ function calToolbar() {
 }
 
 async function initPtoCalendar() {
-  const calendarEl = document.getElementById('pto-calendar');
+  const calendarEl = document.getElementById('ptoCalendarMount');
 
   ptoCalendar = new FullCalendar.Calendar(calendarEl, {
     initialView: 'dayGridMonth',

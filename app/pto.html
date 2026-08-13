@@ -22,6 +22,12 @@
 #confirmModal .confirm-modal-dialog { max-width: 460px; }
 #confirmModal .confirm-modal-body   { white-space: pre-line; }
 
+.pto-ics-link-row {
+  display: flex;
+  gap: 8px;
+  margin: -4px 0 14px;
+}
+
 /* Prevent policy table headers from wrapping and bleeding into adjacent cells */
 #ptoPoliciesTable th,
 #ptoTypeSettingsTable th {
@@ -812,7 +818,11 @@
   <div class="admin-content fade-in">
     <div class="panel panel-history">
       <h3>Leave Calendar</h3>
-      <div id="pto-calendar"></div>
+      <div id="ptoIcsLinkRow" class="pto-ics-link-row" hidden>
+        <button id="ptoCopyIcsBtn" class="btn btn-outline" type="button"><i data-lucide="link"></i> Copy calendar link</button>
+        <button id="ptoRegenIcsBtn" class="btn btn-outline" type="button" hidden><i data-lucide="refresh-cw"></i> Regenerate link</button>
+      </div>
+      <div id="ptoCalendarMount"></div>
     </div>
   </div>
 </section>

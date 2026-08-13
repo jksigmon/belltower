@@ -607,7 +607,7 @@ nav a .badge-count:empty {
    Shared FullCalendar Theme (PTO + Substitutes)
    ============================================= */
 
-#pto-calendar,
+#ptoCalendarMount,
 #subs-calendar {
   --fc-border-color: #e5e7eb;
   --fc-page-bg-color: #ffffff;
@@ -618,13 +618,13 @@ nav a .badge-count:empty {
 }
 
 /* Toolbar layout */
-#pto-calendar .fc-toolbar,
+#ptoCalendarMount .fc-toolbar,
 #subs-calendar .fc-toolbar {
   margin-bottom: 16px;
   align-items: center;
 }
 
-#pto-calendar .fc-toolbar-chunk,
+#ptoCalendarMount .fc-toolbar-chunk,
 #subs-calendar .fc-toolbar-chunk {
   display: flex;
   align-items: center;
@@ -632,7 +632,7 @@ nav a .badge-count:empty {
 }
 
 /* Column headers (Sun, Mon, …) */
-#pto-calendar .fc-col-header-cell,
+#ptoCalendarMount .fc-col-header-cell,
 #subs-calendar .fc-col-header-cell {
   padding: 8px 0;
   font-size: 11px;
@@ -645,8 +645,8 @@ nav a .badge-count:empty {
 }
 
 /* All buttons — flat light style */
-#pto-calendar .fc-button,
-#pto-calendar .fc-button-primary,
+#ptoCalendarMount .fc-button,
+#ptoCalendarMount .fc-button-primary,
 #subs-calendar .fc-button,
 #subs-calendar .fc-button-primary {
   background: #f1f5f9;
@@ -662,8 +662,8 @@ nav a .badge-count:empty {
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 
-#pto-calendar .fc-button:hover,
-#pto-calendar .fc-button-primary:hover,
+#ptoCalendarMount .fc-button:hover,
+#ptoCalendarMount .fc-button-primary:hover,
 #subs-calendar .fc-button:hover,
 #subs-calendar .fc-button-primary:hover {
   background: #e2e8f0;
@@ -673,14 +673,14 @@ nav a .badge-count:empty {
 }
 
 /* Active view button (month / week / day) — navy fill */
-#pto-calendar .fc-button-primary.fc-button-active,
+#ptoCalendarMount .fc-button-primary.fc-button-active,
 #subs-calendar .fc-button-primary.fc-button-active {
   background: #0b2d4f;
   color: #ffffff;
   border-color: #0b2d4f;
 }
 
-#pto-calendar .fc-button-primary.fc-button-active:hover,
+#ptoCalendarMount .fc-button-primary.fc-button-active:hover,
 #subs-calendar .fc-button-primary.fc-button-active:hover {
   background: #1a3a5c;
   border-color: #1a3a5c;
@@ -688,34 +688,34 @@ nav a .badge-count:empty {
 }
 
 /* Button group — connected pills, no internal gaps */
-#pto-calendar .fc-button-group,
+#ptoCalendarMount .fc-button-group,
 #subs-calendar .fc-button-group {
   display: flex;
   gap: 0;
 }
 
-#pto-calendar .fc-button-group .fc-button,
+#ptoCalendarMount .fc-button-group .fc-button,
 #subs-calendar .fc-button-group .fc-button {
   border-radius: 0;
 }
 
-#pto-calendar .fc-button-group .fc-button:first-child,
+#ptoCalendarMount .fc-button-group .fc-button:first-child,
 #subs-calendar .fc-button-group .fc-button:first-child {
   border-radius: 7px 0 0 7px;
 }
 
-#pto-calendar .fc-button-group .fc-button:last-child,
+#ptoCalendarMount .fc-button-group .fc-button:last-child,
 #subs-calendar .fc-button-group .fc-button:last-child {
   border-radius: 0 7px 7px 0;
 }
 
 /* Day cells */
-#pto-calendar .fc-daygrid-day,
+#ptoCalendarMount .fc-daygrid-day,
 #subs-calendar .fc-daygrid-day {
   padding: 2px;
 }
 
-#pto-calendar .fc-daygrid-day-number,
+#ptoCalendarMount .fc-daygrid-day-number,
 #subs-calendar .fc-daygrid-day-number {
   font-size: 12px;
   font-weight: 500;
@@ -723,13 +723,13 @@ nav a .badge-count:empty {
   padding: 4px 6px;
 }
 
-#pto-calendar .fc-day-other .fc-daygrid-day-number,
+#ptoCalendarMount .fc-day-other .fc-daygrid-day-number,
 #subs-calendar .fc-day-other .fc-daygrid-day-number {
   color: #d1d5db;
 }
 
 /* Today — subtle navy tint, no extra border */
-#pto-calendar .fc-day-today .fc-daygrid-day-number,
+#ptoCalendarMount .fc-day-today .fc-daygrid-day-number,
 #subs-calendar .fc-day-today .fc-daygrid-day-number {
   background: #0b2d4f;
   color: #ffffff;
@@ -743,7 +743,7 @@ nav a .badge-count:empty {
 }
 
 /* Events */
-#pto-calendar .fc-event,
+#ptoCalendarMount .fc-event,
 #subs-calendar .fc-event {
   border: none;
   border-radius: 5px;
@@ -754,13 +754,13 @@ nav a .badge-count:empty {
   cursor: pointer;
 }
 
-#pto-calendar .fc-event-title,
+#ptoCalendarMount .fc-event-title,
 #subs-calendar .fc-event-title {
   line-height: 1.3;
 }
 
 /* Title */
-#pto-calendar .fc-toolbar-title,
+#ptoCalendarMount .fc-toolbar-title,
 #subs-calendar .fc-toolbar-title {
   font-size: 1.15rem;
   font-weight: 700;
@@ -1656,7 +1656,7 @@ select {
 
 
 
-#pto-calendar {
+#ptoCalendarMount {
   min-height: 600px;
 }
 
