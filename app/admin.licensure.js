@@ -16,9 +16,70 @@ const PAGE_SIZE = 50;
 let licPage  = 0;
 let auditPage = 0;
 
+let allCeus               = [];   // cached for CEUs tab export
+let editingCeuId          = null;
+let ceuReturnLicenseId    = null; // license id to reopen the license drawer for after the CEU drawer closes
+let lockedCeuEmployeeId   = null;
+let lockedCeuLicenseId    = null;
+let currentLicenseCeus    = [];   // CEU entries for the license currently open in the drawer
+let currentEditingLicense = null; // full license row while the license drawer is open in edit mode
+let ceuLicensesForStaff   = {};   // employee id → cached staff_licenses rows, for the CEU drawer's license select
+
 /* Flatpickr instances */
-let fpIssue = null;
-let fpExp   = null;
+let fpIssue   = null;
+let fpExp     = null;
+let fpCeuDate = null;
+
+/* ─────────────────────────────────────────────────────
+   CEU CATEGORY TARGETS (NC: 8 CEUs / 80 clock hours per
+   5-year CPL renewal cycle, split by role — see
+   staff_licenses.category / .grade_authorization)
+───────────────────────────────────────────────────── */
+const CEU_CATEGORY_LABELS = {
+  literacy:                 'Literacy',
+  content:                  'Content',
+  digital_learning:         'Digital Learning',
+  administration:           'Administration',
+  professional_discipline:  'Professional Discipline',
+  general_other:            'General / Other',
+};
+const CEU_TOTAL_TARGET = 8;
+
+const EDIT_ICON_SVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const TRASH_ICON_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+const FILE_ICON_SVG  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
+
+// Returns { category: targetCEUs } summing to CEU_TOTAL_TARGET, or null when
+// the license's category/grade authorization don't map to a known NC profile
+// (e.g. substitute licenses, or a teaching license with no grade band set —
+// NC's literacy requirement hinges on that).
+function ceuTargetProfile(lic) {
+  if (lic.category === 'admin')   return { administration: 3, general_other: 3, digital_learning: 2 };
+  if (lic.category === 'support') return { professional_discipline: 3, general_other: 3, digital_learning: 2 };
+  if (lic.category === 'teaching') {
+    if (lic.grade_authorization === 'K-6' || lic.grade_authorization === 'K-12') {
+      return { literacy: 3, content: 3, digital_learning: 2 };
+    }
+    if (lic.grade_authorization === '6-9' || lic.grade_authorization === '9-12') {
+      return { content: 3, general_other: 3, digital_learning: 2 };
+    }
+    return null;
+  }
+  return null;
+}
+
+function suggestedCeuCategory(lic) {
+  const profile = ceuTargetProfile(lic);
+  return profile ? Object.keys(profile)[0] : 'general_other';
+}
+
+// CEUs only count toward the license's *current* 5-year cycle.
+function cycleStartDate(expirationDate) {
+  if (!expirationDate) return null;
+  const d = new Date(expirationDate);
+  d.setFullYear(d.getFullYear() - 5);
+  return d.toISOString().slice(0, 10);
+}
 
 /* ─────────────────────────────────────────────────────
    INIT
@@ -401,9 +462,11 @@ async function loadAuditLog() {
 ───────────────────────────────────────────────────── */
 function openAddModal() {
   editingId = null;
+  currentEditingLicense = null;
   document.getElementById('licenseModalTitle').textContent = 'Add License';
   document.getElementById('staffSelectRow').style.display = '';
   document.getElementById('saveLicenseBtn').textContent = 'Save License';
+  document.getElementById('ceuPanelSection').style.display = 'none';
   resetForm();
   window.openDrawer?.('licenseDrawer');
 }
@@ -413,6 +476,7 @@ function openEditModal(id) {
   if (!lic) return;
 
   editingId = id;
+  currentEditingLicense = lic;
   document.getElementById('licenseModalTitle').textContent = 'Edit License';
   document.getElementById('staffSelectRow').style.display = 'none';
   document.getElementById('saveLicenseBtn').textContent = 'Update License';
@@ -446,6 +510,9 @@ function openEditModal(id) {
 
   resetFileSection();
   loadLicenseFiles(id);
+
+  document.getElementById('ceuPanelSection').style.display = '';
+  loadLicenseCeuPanel(id, lic);
 
   window.openDrawer?.('licenseDrawer');
 }
@@ -678,6 +745,424 @@ async function renderFileSection(files) {
 }
 
 /* ─────────────────────────────────────────────────────
+   CEUs — TAB (all staff, cross-license)
+───────────────────────────────────────────────────── */
+async function loadCeus() {
+  const search         = document.getElementById('ceuSearch')?.value.trim().toLowerCase() ?? '';
+  const category        = document.getElementById('ceuCategoryFilter')?.value ?? '';
+  const verifiedFilter  = document.getElementById('ceuVerifiedFilter')?.value ?? '';
+
+  let query = supabase
+    .from('staff_license_ceus')
+    .select(`
+      id, license_id, employee_id, category, title, provider, source_type,
+      hours, ceu_amount, completed_date, verified, file_path, file_name, notes,
+      staff_licenses ( license_type, license_area )
+    `)
+    .eq('school_id', currentProfile.school_id)
+    .order('completed_date', { ascending: false });
+
+  if (category) query = query.eq('category', category);
+  if (verifiedFilter === 'verified')   query = query.eq('verified', true);
+  if (verifiedFilter === 'unverified') query = query.eq('verified', false);
+
+  const { data, error } = await query;
+  if (error) {
+    const container = document.getElementById('ceuTableBody');
+    if (container) container.innerHTML = `<div class="lic-empty" style="color:#dc2626;">Failed to load CEU records. Please try again.</div>`;
+    console.error(error);
+    return;
+  }
+
+  let rows = data || [];
+  if (search) {
+    rows = rows.filter(r => {
+      const name = (employeeLookup[r.employee_id] ?? '').toLowerCase();
+      return name.includes(search)
+        || (r.title ?? '').toLowerCase().includes(search)
+        || (r.provider ?? '').toLowerCase().includes(search);
+    });
+  }
+
+  allCeus = rows;
+  renderCeuTable(rows);
+}
+
+function renderCeuTable(rows) {
+  const container = document.getElementById('ceuTableBody');
+
+  if (!rows.length) {
+    container.innerHTML = '<div class="lic-empty">No CEU records found.</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  rows.forEach(c => {
+    const nameParts = (employeeLookup[c.employee_id] ?? '').split(',');
+    const initials  = [nameParts[1]?.trim()[0], nameParts[0]?.trim()[0]].filter(Boolean).join('').toUpperCase() || '?';
+    const licLabel  = c.staff_licenses
+      ? c.staff_licenses.license_type + (c.staff_licenses.license_area ? ' · ' + c.staff_licenses.license_area : '')
+      : '—';
+
+    const card = document.createElement('div');
+    card.className = 'ceu-card';
+    card.innerHTML = `
+      <div class="lic-card-av">${esc(initials)}</div>
+      <div class="ceu-card-body">
+        <div class="ceu-card-title">${esc(employeeLookup[c.employee_id] ?? '—')} · ${esc(c.title)}</div>
+        <div class="ceu-card-meta">
+          <span class="ceu-cat ceu-cat-${c.category}">${esc(CEU_CATEGORY_LABELS[c.category] ?? c.category)}</span>
+          &nbsp;${esc(licLabel)}${c.provider ? ' · ' + esc(c.provider) : ''}
+        </div>
+      </div>
+      <div class="ceu-card-amount">
+        <div class="ceu-card-ceus">${Number(c.ceu_amount).toFixed(1)} CEU ${c.verified ? '<span class="verified-check" title="Verified">✓</span>' : ''}</div>
+        <div class="ceu-card-date">${formatDate(c.completed_date)}</div>
+      </div>
+      <div class="ceu-card-actions">
+        <button class="lic-btn-icon editCeuRowBtn" data-id="${c.id}" title="Edit">${EDIT_ICON_SVG}</button>
+        <button class="lic-btn-icon lic-btn-danger deleteCeuRowBtn" data-id="${c.id}" title="Delete">${TRASH_ICON_SVG}</button>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  container.querySelectorAll('.editCeuRowBtn').forEach(btn =>
+    btn.addEventListener('click', () => openEditCeuModal(btn.dataset.id))
+  );
+  container.querySelectorAll('.deleteCeuRowBtn').forEach(btn =>
+    btn.addEventListener('click', () => deleteCeu(btn.dataset.id))
+  );
+}
+
+function exportCeus() {
+  if (!allCeus.length) { showToast('No CEU records to export.', 'warn'); return; }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = allCeus.map(c => ({
+    'Staff Member':    employeeLookup[c.employee_id] ?? '',
+    'License':         c.staff_licenses ? (c.staff_licenses.license_type + (c.staff_licenses.license_area ? ' - ' + c.staff_licenses.license_area : '')) : '',
+    'Category':        CEU_CATEGORY_LABELS[c.category] ?? c.category,
+    'Title':           c.title,
+    'Provider':        c.provider ?? '',
+    'Source':          c.source_type,
+    'Hours':           c.hours,
+    'CEUs':            c.ceu_amount,
+    'Completed Date':  c.completed_date,
+    'Verified':        c.verified ? 'Yes' : 'No',
+    'Notes':           c.notes ?? '',
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, 'CEUs');
+  XLSX.writeFile(wb, `ceu-export-${today}.xlsx`);
+}
+
+/* ─────────────────────────────────────────────────────
+   CEUs — PROGRESS PANEL (embedded in the license drawer)
+───────────────────────────────────────────────────── */
+async function loadLicenseCeuPanel(licenseId, lic) {
+  const body = document.getElementById('ceuPanelBody');
+  if (body) body.innerHTML = '<div class="lic-empty" style="padding:16px 0;">Loading…</div>';
+
+  const { data, error } = await supabase
+    .from('staff_license_ceus')
+    .select('id, license_id, employee_id, category, title, provider, source_type, hours, ceu_amount, completed_date, verified, file_path, file_name, notes')
+    .eq('license_id', licenseId)
+    .order('completed_date', { ascending: false });
+
+  if (error) {
+    console.error(error);
+    if (body) body.innerHTML = '<div class="lic-empty" style="color:#dc2626;">Failed to load CEU entries.</div>';
+    return;
+  }
+
+  currentLicenseCeus = data || [];
+  renderCeuPanel(lic, currentLicenseCeus);
+}
+
+function renderCeuPanel(lic, ceus) {
+  const body = document.getElementById('ceuPanelBody');
+  if (!body) return;
+
+  const start   = cycleStartDate(lic.expiration_date);
+  const inCycle = start ? ceus.filter(c => c.completed_date >= start) : ceus;
+  const profile = ceuTargetProfile(lic);
+  const total   = inCycle.reduce((sum, c) => sum + Number(c.ceu_amount), 0);
+
+  let html = `<div class="ceu-progress-total">CEU Progress (this cycle) <span>${total.toFixed(1)} / ${profile ? CEU_TOTAL_TARGET : '—'}</span></div>`;
+
+  if (profile) {
+    html += Object.entries(profile).map(([cat, target]) => {
+      const earned = inCycle.filter(c => c.category === cat).reduce((s, c) => s + Number(c.ceu_amount), 0);
+      const pct    = Math.min(100, (earned / target) * 100);
+      const short  = earned < target;
+      return `
+        <div class="ceu-progress-row">
+          <div class="ceu-progress-row-head"><span>${esc(CEU_CATEGORY_LABELS[cat])}</span><span>${earned.toFixed(1)} / ${target}</span></div>
+          <div class="ceu-progress-bar-track"><div class="ceu-progress-bar-fill ${short ? 'short' : ''}" style="width:${pct}%;"></div></div>
+        </div>`;
+    }).join('');
+  } else {
+    const hint = lic.category === 'teaching' ? ' and Grade Authorization' : '';
+    html += `<div class="ceu-no-profile">Set Category${hint} above to see the NC category breakdown.</div>`;
+  }
+
+  if (ceus.length) {
+    html += '<div class="ceu-entry-list">' + ceus.map(c => `
+      <div class="ceu-entry-row">
+        <span class="ceu-cat ceu-cat-${c.category}">${esc(CEU_CATEGORY_LABELS[c.category] ?? c.category)}</span>
+        <span class="ceu-entry-title">${esc(c.title)}</span>
+        <span class="ceu-entry-ceus">${Number(c.ceu_amount).toFixed(1)} CEU</span>
+        ${c.verified ? '<span class="verified-check" title="Verified">✓</span>' : ''}
+        <button type="button" class="lic-btn-icon editCeuPanelBtn" data-id="${c.id}" title="Edit">${EDIT_ICON_SVG}</button>
+        <button type="button" class="lic-btn-icon lic-btn-danger deleteCeuPanelBtn" data-id="${c.id}" title="Delete">${TRASH_ICON_SVG}</button>
+      </div>`).join('') + '</div>';
+  } else {
+    html += '<div class="lic-empty" style="padding:12px 0;">No CEU entries logged yet.</div>';
+  }
+
+  body.innerHTML = html;
+
+  body.querySelectorAll('.editCeuPanelBtn').forEach(btn =>
+    btn.addEventListener('click', () => openEditCeuModal(btn.dataset.id, { returnLicenseId: lic.id }))
+  );
+  body.querySelectorAll('.deleteCeuPanelBtn').forEach(btn =>
+    btn.addEventListener('click', () => deleteCeu(btn.dataset.id, lic.id))
+  );
+}
+
+/* ─────────────────────────────────────────────────────
+   CEUs — ENTRY DRAWER (add / edit)
+───────────────────────────────────────────────────── */
+function resetCeuForm() {
+  document.getElementById('ceuTitle').value        = '';
+  document.getElementById('ceuProvider').value     = '';
+  document.getElementById('ceuCategory').value     = 'literacy';
+  document.getElementById('ceuSourceType').value   = 'lea_inservice';
+  document.getElementById('ceuHours').value        = '';
+  document.getElementById('ceuVerified').checked   = false;
+  document.getElementById('ceuNotes').value        = '';
+  document.getElementById('ceuStaff').value        = '';
+  document.getElementById('ceuLicense').innerHTML  = '<option value="">Select staff member first…</option>';
+  if (fpCeuDate) fpCeuDate.clear();
+  updateCeuHoursLabel();
+  resetCeuFileSection();
+}
+
+function resetCeuFileSection() {
+  const fileInput = document.getElementById('ceuFileInput');
+  if (fileInput) fileInput.value = '';
+  const label = document.getElementById('ceuFileNameLabel');
+  if (label) label.textContent = 'No file chosen';
+  const current = document.getElementById('ceuCurrentFile');
+  if (current) { current.hidden = true; current.innerHTML = ''; }
+}
+
+function updateCeuHoursLabel() {
+  const src   = document.getElementById('ceuSourceType').value;
+  const label = document.getElementById('ceuHoursLabel');
+  label.innerHTML = src === 'college_credit'
+    ? 'Semester Credits <span class="required">*</span>'
+    : 'Clock Hours <span class="required">*</span>';
+  updateCeuAmountPreview();
+}
+
+function updateCeuAmountPreview() {
+  const src     = document.getElementById('ceuSourceType').value;
+  const hours   = parseFloat(document.getElementById('ceuHours').value);
+  const preview = document.getElementById('ceuAmountPreview');
+  if (!preview) return;
+  if (!hours || hours <= 0) { preview.textContent = ''; return; }
+  const ceu = src === 'college_credit' ? hours * 1.5 : hours / 10;
+  preview.textContent = `= ${ceu.toFixed(1)} CEU${ceu === 1 ? '' : 's'}`;
+}
+
+async function populateCeuLicenseOptions(employeeId, preselectLicenseId) {
+  const sel = document.getElementById('ceuLicense');
+  if (!sel) return;
+  if (!employeeId) { sel.innerHTML = '<option value="">Select staff member first…</option>'; return; }
+
+  if (!ceuLicensesForStaff[employeeId]) {
+    const { data } = await supabase
+      .from('staff_licenses')
+      .select('id, license_type, license_area, category, grade_authorization, expiration_date')
+      .eq('school_id', currentProfile.school_id)
+      .eq('employee_id', employeeId)
+      .order('expiration_date', { ascending: true });
+    ceuLicensesForStaff[employeeId] = data || [];
+  }
+
+  const licenses = ceuLicensesForStaff[employeeId];
+  if (!licenses.length) {
+    sel.innerHTML = '<option value="">No licenses on file for this staff member</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">Select license…</option>' + licenses.map(l =>
+    `<option value="${l.id}">${esc(l.license_type)}${l.license_area ? ' — ' + esc(l.license_area) : ''}</option>`
+  ).join('');
+  if (preselectLicenseId) sel.value = preselectLicenseId;
+}
+
+function openAddCeuModal({ licenseId = null, employeeId = null } = {}) {
+  editingCeuId        = null;
+  ceuReturnLicenseId  = licenseId;
+  lockedCeuEmployeeId = employeeId;
+  lockedCeuLicenseId  = licenseId;
+
+  document.getElementById('ceuModalTitle').textContent = 'Add CEU Entry';
+  document.getElementById('saveCeuBtn').textContent    = 'Save Entry';
+  resetCeuForm();
+
+  const lockRows = !!(licenseId && employeeId);
+  document.getElementById('ceuStaffSelectRow').style.display   = lockRows ? 'none' : '';
+  document.getElementById('ceuLicenseSelectRow').style.display = lockRows ? 'none' : '';
+
+  if (lockRows) {
+    document.getElementById('ceuStaff').value = employeeId;
+    populateCeuLicenseOptions(employeeId, licenseId);
+    if (currentEditingLicense) document.getElementById('ceuCategory').value = suggestedCeuCategory(currentEditingLicense);
+  }
+
+  window.closeDrawer?.('licenseDrawer');
+  window.openDrawer?.('ceuDrawer');
+}
+
+async function openEditCeuModal(id, { returnLicenseId = null } = {}) {
+  const entry = allCeus.find(c => c.id === id) || currentLicenseCeus.find(c => c.id === id);
+  if (!entry) return;
+
+  editingCeuId        = id;
+  ceuReturnLicenseId  = returnLicenseId;
+  lockedCeuEmployeeId = entry.employee_id ?? currentEditingLicense?.employee_id;
+  lockedCeuLicenseId  = entry.license_id ?? currentEditingLicense?.id;
+
+  document.getElementById('ceuModalTitle').textContent = 'Edit CEU Entry';
+  document.getElementById('saveCeuBtn').textContent    = 'Update Entry';
+  document.getElementById('ceuStaffSelectRow').style.display   = 'none';
+  document.getElementById('ceuLicenseSelectRow').style.display = 'none';
+
+  document.getElementById('ceuTitle').value       = entry.title ?? '';
+  document.getElementById('ceuProvider').value    = entry.provider ?? '';
+  document.getElementById('ceuCategory').value    = entry.category;
+  document.getElementById('ceuSourceType').value  = entry.source_type;
+  document.getElementById('ceuHours').value       = entry.hours;
+  document.getElementById('ceuVerified').checked  = entry.verified;
+  document.getElementById('ceuNotes').value       = entry.notes ?? '';
+  if (fpCeuDate) fpCeuDate.setDate(entry.completed_date, true);
+  updateCeuHoursLabel();
+
+  resetCeuFileSection();
+  if (entry.file_path) {
+    const { data: signed } = await supabase.storage.from('ceu-files').createSignedUrl(entry.file_path, 3600);
+    const current = document.getElementById('ceuCurrentFile');
+    current.hidden = false;
+    current.innerHTML = `${FILE_ICON_SVG}<a href="${esc(signed?.signedUrl ?? '#')}" target="_blank" rel="noopener">${esc(entry.file_name)}</a>`;
+  }
+
+  window.closeDrawer?.('licenseDrawer');
+  window.openDrawer?.('ceuDrawer');
+}
+
+async function closeCeuDrawerAndReturn() {
+  window.closeDrawer?.('ceuDrawer');
+  if (ceuReturnLicenseId) await openEditModal(ceuReturnLicenseId);
+}
+
+async function saveCeu() {
+  const isEdit     = !!editingCeuId;
+  const schoolId   = currentProfile.school_id;
+  const employeeId = lockedCeuEmployeeId || document.getElementById('ceuStaff').value;
+  const licenseId  = lockedCeuLicenseId  || document.getElementById('ceuLicense').value;
+
+  if (!employeeId) { showToast('Please select a staff member.', 'warn'); return; }
+  if (!licenseId)  { showToast('Please select which license this counts toward.', 'warn'); return; }
+
+  const title = document.getElementById('ceuTitle').value.trim();
+  if (!title) { showToast('Title is required.', 'warn'); return; }
+
+  const hours = parseFloat(document.getElementById('ceuHours').value);
+  if (!hours || hours <= 0) { showToast('Enter a valid number of hours/credits.', 'warn'); return; }
+
+  const completedDate = document.getElementById('ceuCompletedDate').value;
+  if (!completedDate) { showToast('Completed date is required.', 'warn'); return; }
+
+  const payload = {
+    school_id:      schoolId,
+    license_id:     licenseId,
+    employee_id:    employeeId,
+    category:       document.getElementById('ceuCategory').value,
+    title,
+    provider:       document.getElementById('ceuProvider').value.trim() || null,
+    source_type:    document.getElementById('ceuSourceType').value,
+    hours,
+    completed_date: completedDate,
+    verified:       document.getElementById('ceuVerified').checked,
+    notes:          document.getElementById('ceuNotes').value.trim() || null,
+  };
+
+  let ceuId;
+  if (isEdit) {
+    const { error } = await supabase.from('staff_license_ceus').update(payload).eq('id', editingCeuId);
+    if (error) { console.error(error); showToast('Failed to save CEU entry.', 'error'); return; }
+    ceuId = editingCeuId;
+  } else {
+    payload.created_by = currentProfile.user_id;
+    const { data, error } = await supabase.from('staff_license_ceus').insert(payload).select().single();
+    if (error) { console.error(error); showToast('Failed to save CEU entry.', 'error'); return; }
+    ceuId = data.id;
+  }
+
+  const fileInput = document.getElementById('ceuFileInput');
+  if (fileInput?.files?.length) {
+    await uploadCeuFile(ceuId, fileInput.files[0]);
+  }
+
+  window.closeDrawer?.('ceuDrawer');
+
+  if (ceuReturnLicenseId) {
+    await openEditModal(ceuReturnLicenseId);
+  } else {
+    await loadCeus();
+  }
+}
+
+async function deleteCeu(id, returnLicenseId = null) {
+  const confirmed = await showConfirm('Delete CEU Entry', 'Delete this CEU entry? This cannot be undone.');
+  if (!confirmed) return;
+
+  const { error } = await supabase.from('staff_license_ceus').delete().eq('id', id);
+  if (error) { console.error(error); showToast('Failed to delete CEU entry.', 'error'); return; }
+
+  if (returnLicenseId) {
+    await loadLicenseCeuPanel(returnLicenseId, currentEditingLicense);
+  } else {
+    await loadCeus();
+  }
+}
+
+async function uploadCeuFile(ceuId, file) {
+  const ts       = Date.now();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path     = `${currentProfile.school_id}/${ceuId}/${ts}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('ceu-files')
+    .upload(path, file, { upsert: false });
+
+  if (uploadError) {
+    console.error('CEU file upload failed', uploadError);
+    showToast('File upload failed: ' + uploadError.message, 'error');
+    return;
+  }
+
+  await supabase.from('staff_license_ceus')
+    .update({ file_path: path, file_name: file.name })
+    .eq('id', ceuId);
+}
+
+/* ─────────────────────────────────────────────────────
    EXPORT
 ───────────────────────────────────────────────────── */
 function exportLicenses() {
@@ -727,6 +1212,7 @@ async function setView(view) {
 
   if (view === 'compliance') await loadCompliance();
   if (view === 'licenses')   await loadLicenses();
+  if (view === 'ceus')       await loadCeus();
   if (view === 'audit')      await loadAuditLog();
 }
 
@@ -749,25 +1235,28 @@ function populateCampusSelects() {
 }
 
 function populateStaffSelect() {
-  const sel = document.getElementById('licStaff');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">Select staff member…</option>';
-  Object.entries(employeeLookup)
-    .sort((a, b) => a[1].localeCompare(b[1]))
-    .forEach(([id, name]) => {
-      const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = name;
-      sel.appendChild(opt);
-    });
+  ['licStaff', 'ceuStaff'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Select staff member…</option>';
+    Object.entries(employeeLookup)
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .forEach(([empId, name]) => {
+        const opt = document.createElement('option');
+        opt.value = empId;
+        opt.textContent = name;
+        sel.appendChild(opt);
+      });
+  });
 }
 
 /* ─────────────────────────────────────────────────────
    DATE PICKERS
 ───────────────────────────────────────────────────── */
 function initDatePickers() {
-  fpIssue = flatpickr('#licIssueDate', { dateFormat: 'Y-m-d', allowInput: true });
-  fpExp   = flatpickr('#licExpDate',   { dateFormat: 'Y-m-d', allowInput: true });
+  fpIssue   = flatpickr('#licIssueDate',      { dateFormat: 'Y-m-d', allowInput: true });
+  fpExp     = flatpickr('#licExpDate',        { dateFormat: 'Y-m-d', allowInput: true });
+  fpCeuDate = flatpickr('#ceuCompletedDate',  { dateFormat: 'Y-m-d', allowInput: true, maxDate: 'today' });
 }
 
 /* ─────────────────────────────────────────────────────
@@ -807,6 +1296,19 @@ function wireEvents() {
     toggleProvisionalRow(e.target.checked);
   });
 
+  // Live-refresh the CEU progress panel when Category/Grade change on an
+  // open license, since the NC target profile depends on both.
+  document.getElementById('licCategory')?.addEventListener('change', e => {
+    if (!currentEditingLicense) return;
+    currentEditingLicense = { ...currentEditingLicense, category: e.target.value };
+    renderCeuPanel(currentEditingLicense, currentLicenseCeus);
+  });
+  document.getElementById('licGrade')?.addEventListener('change', e => {
+    if (!currentEditingLicense) return;
+    currentEditingLicense = { ...currentEditingLicense, grade_authorization: e.target.value };
+    renderCeuPanel(currentEditingLicense, currentLicenseCeus);
+  });
+
   // File choose button
   document.getElementById('licFileChooseBtn')?.addEventListener('click', () => {
     document.getElementById('licFileInput')?.click();
@@ -825,6 +1327,37 @@ function wireEvents() {
   document.getElementById('auditSearch')?.addEventListener('input',
     debounce(() => loadAuditLog(), 300)
   );
+
+  // ── CEUs ──
+  document.getElementById('addCeuBtn')?.addEventListener('click', () => openAddCeuModal());
+  document.getElementById('addCeuFromLicenseBtn')?.addEventListener('click', () => {
+    if (!currentEditingLicense) return;
+    openAddCeuModal({ licenseId: currentEditingLicense.id, employeeId: currentEditingLicense.employee_id });
+  });
+  document.getElementById('exportCeusBtn')?.addEventListener('click', exportCeus);
+
+  document.getElementById('closeCeuModal')?.addEventListener('click', closeCeuDrawerAndReturn);
+  document.getElementById('cancelCeuBtn')?.addEventListener('click', closeCeuDrawerAndReturn);
+  document.getElementById('saveCeuBtn')?.addEventListener('click', saveCeu);
+
+  document.getElementById('ceuStaff')?.addEventListener('change', e => {
+    populateCeuLicenseOptions(e.target.value);
+  });
+  document.getElementById('ceuSourceType')?.addEventListener('change', updateCeuHoursLabel);
+  document.getElementById('ceuHours')?.addEventListener('input', updateCeuAmountPreview);
+
+  document.getElementById('ceuFileChooseBtn')?.addEventListener('click', () => {
+    document.getElementById('ceuFileInput')?.click();
+  });
+  document.getElementById('ceuFileInput')?.addEventListener('change', e => {
+    const file = e.target.files?.[0];
+    const label = document.getElementById('ceuFileNameLabel');
+    if (label) label.textContent = file ? file.name : 'No file chosen';
+  });
+
+  const ceuDebounced = debounce(() => loadCeus(), 300);
+  ['ceuSearch','ceuCategoryFilter','ceuVerifiedFilter']
+    .forEach(id => document.getElementById(id)?.addEventListener('input', ceuDebounced));
 
   // Hash-based routing on load
   window.addEventListener('hashchange', () => {

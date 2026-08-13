@@ -351,6 +351,76 @@
     @media (max-width: 600px) {
       .lic-summary-grid { grid-template-columns: 1fr 1fr; }
     }
+
+    /* ── CEU category badges ── */
+    .ceu-cat {
+      font-size: 0.68rem; font-weight: 600;
+      padding: 1px 7px; border-radius: 4px;
+      white-space: nowrap;
+    }
+    .ceu-cat-literacy                 { background: #e0f2fe; color: #0369a1; }
+    .ceu-cat-content                  { background: #dcfce7; color: #15803d; }
+    .ceu-cat-digital_learning         { background: #ede9fe; color: #6d28d9; }
+    .ceu-cat-administration           { background: #fef3c7; color: #92400e; }
+    .ceu-cat-professional_discipline  { background: #fce7f3; color: #9d174d; }
+    .ceu-cat-general_other            { background: #f1f5f9; color: #475569; }
+
+    /* ── CEU card list (mirrors .lic-card) ── */
+    .ceu-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 11px 16px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      transition: box-shadow 0.15s;
+    }
+    .ceu-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .ceu-card-body { flex: 1; min-width: 0; }
+    .ceu-card-title {
+      font-size: 0.875rem; font-weight: 600; color: #0f172a;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ceu-card-meta {
+      font-size: 0.75rem; color: #6b7280; margin-top: 2px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ceu-card-amount { text-align: right; min-width: 76px; flex-shrink: 0; }
+    .ceu-card-ceus { font-size: 0.8125rem; font-weight: 600; color: #374151; }
+    .ceu-card-date { font-size: 0.7rem; color: #9ca3af; margin-top: 1px; }
+    .ceu-card-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+    /* ── CEU progress panel (inside license drawer) ── */
+    .ceu-progress-total {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 0.85rem; font-weight: 600; color: #0f172a; margin-bottom: 10px;
+    }
+    .ceu-progress-total span { font-weight: 700; color: #0b2d4f; }
+    .ceu-progress-row { margin-bottom: 8px; }
+    .ceu-progress-row-head {
+      display: flex; justify-content: space-between;
+      font-size: 0.75rem; color: #6b7280; margin-bottom: 3px;
+    }
+    .ceu-progress-bar-track {
+      height: 6px; border-radius: 999px; background: #f1f5f9; overflow: hidden;
+    }
+    .ceu-progress-bar-fill {
+      height: 100%; border-radius: 999px; background: #22c55e; transition: width 0.2s;
+    }
+    .ceu-progress-bar-fill.short { background: #f59e0b; }
+    .ceu-no-profile {
+      font-size: 0.8rem; color: #9ca3af; padding: 8px 0;
+    }
+    .ceu-entry-list { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+    .ceu-entry-row {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.8rem; color: #374151;
+      padding: 6px 0; border-bottom: 1px solid #f1f5f9;
+    }
+    .ceu-entry-row:last-child { border-bottom: none; }
+    .ceu-entry-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ceu-entry-ceus { font-weight: 600; color: #0f172a; white-space: nowrap; }
   </style>
 </head>
 
@@ -394,6 +464,7 @@
   <nav>
     <a href="#compliance" data-view="compliance"><i data-lucide="shield-check"></i> Compliance</a>
     <a href="#licenses"   data-view="licenses"><i data-lucide="file-text"></i> All Licenses</a>
+    <a href="#ceus"       data-view="ceus"><i data-lucide="graduation-cap"></i> CEUs</a>
     <a href="#audit"      data-view="audit"><i data-lucide="history"></i> Audit Log</a>
   </nav>
 
@@ -498,6 +569,42 @@
 
 
     <!-- ══════════════════════════════════════════════════
+         CEUs
+    ══════════════════════════════════════════════════ -->
+    <section id="ceus" class="lic-view" style="display:none;">
+
+      <div class="lic-toolbar">
+        <div class="lic-filters">
+          <input type="text" id="ceuSearch" placeholder="Search staff or PD title…">
+          <select id="ceuCategoryFilter">
+            <option value="">All categories</option>
+            <option value="literacy">Literacy</option>
+            <option value="content">Content</option>
+            <option value="digital_learning">Digital Learning</option>
+            <option value="administration">Administration</option>
+            <option value="professional_discipline">Professional Discipline</option>
+            <option value="general_other">General / Other</option>
+          </select>
+          <select id="ceuVerifiedFilter">
+            <option value="">Verified &amp; unverified</option>
+            <option value="verified">Verified only</option>
+            <option value="unverified">Unverified only</option>
+          </select>
+        </div>
+        <div class="directory-actions">
+          <button class="btn btn-primary" id="addCeuBtn">+ Add CEU</button>
+          <button class="btn" id="exportCeusBtn">Export</button>
+        </div>
+      </div>
+
+      <div id="ceuTableBody" class="lic-card-list">
+        <div class="lic-empty">Loading…</div>
+      </div>
+
+    </section>
+
+
+    <!-- ══════════════════════════════════════════════════
          AUDIT LOG
     ══════════════════════════════════════════════════ -->
     <section id="audit" class="lic-view" style="display:none;">
@@ -550,7 +657,7 @@
 <!-- ══════════════════════════════════════════════════
      DRAWER OVERLAY + LICENSE DRAWER
 ══════════════════════════════════════════════════ -->
-<div id="drawerOverlay" class="drawer-overlay" onclick="closeDrawer('licenseDrawer')"></div>
+<div id="drawerOverlay" class="drawer-overlay" onclick="closeOpenDrawer()"></div>
 
 <div id="licenseDrawer" class="drawer drawer-wide" role="dialog" aria-modal="true" aria-label="License">
   <div class="drawer-header">
@@ -701,6 +808,15 @@
       </div>
     </div>
 
+    <!-- ── CEU Progress (edit only — needs a saved license to attach entries to) ── -->
+    <div class="drawer-section" id="ceuPanelSection" style="display:none;">
+      <div class="drawer-section-label">CEU Progress</div>
+      <div id="ceuPanelBody">
+        <div class="lic-empty" style="padding:16px 0;">Loading…</div>
+      </div>
+      <button type="button" class="btn btn-sm" id="addCeuFromLicenseBtn">+ Add CEU Entry</button>
+    </div>
+
     <!-- ── Applicability ── -->
     <div class="drawer-section">
       <div class="drawer-section-label">Applicability</div>
@@ -771,6 +887,110 @@
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════════════
+     CEU ENTRY DRAWER
+══════════════════════════════════════════════════ -->
+<div id="ceuDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="CEU Entry">
+  <div class="drawer-header">
+    <h3 id="ceuModalTitle">Add CEU Entry</h3>
+    <button class="drawer-close" id="closeCeuModal" aria-label="Close">✕</button>
+  </div>
+
+  <div class="drawer-body">
+
+    <!-- Staff + License (hidden/locked when opened from a license's own panel) -->
+    <div class="drawer-field" id="ceuStaffSelectRow">
+      <label>Staff Member <span class="required">*</span></label>
+      <select id="ceuStaff" class="form-input">
+        <option value="">Select staff member…</option>
+      </select>
+    </div>
+    <div class="drawer-field" id="ceuLicenseSelectRow">
+      <label>Applies To License <span class="required">*</span></label>
+      <select id="ceuLicense" class="form-input">
+        <option value="">Select staff member first…</option>
+      </select>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-label">Professional Development</div>
+
+      <div class="drawer-field">
+        <label>Title <span class="required">*</span></label>
+        <input type="text" id="ceuTitle" class="form-input" placeholder="e.g. Science of Reading Workshop">
+      </div>
+
+      <div class="drawer-row-2">
+        <div class="drawer-field">
+          <label>Category <span class="required">*</span></label>
+          <select id="ceuCategory" class="form-input">
+            <option value="literacy">Literacy</option>
+            <option value="content">Content</option>
+            <option value="digital_learning">Digital Learning</option>
+            <option value="administration">Administration</option>
+            <option value="professional_discipline">Professional Discipline</option>
+            <option value="general_other">General / Other</option>
+          </select>
+        </div>
+        <div class="drawer-field">
+          <label>Provider</label>
+          <input type="text" id="ceuProvider" class="form-input" placeholder="e.g. LEA, district, university">
+        </div>
+      </div>
+
+      <div class="drawer-row-2">
+        <div class="drawer-field">
+          <label>Source</label>
+          <select id="ceuSourceType" class="form-input">
+            <option value="lea_inservice">LEA In-Service</option>
+            <option value="lea_approved">LEA-Approved Workshop/Conference</option>
+            <option value="college_credit">College Credit</option>
+          </select>
+        </div>
+        <div class="drawer-field">
+          <label id="ceuHoursLabel">Clock Hours <span class="required">*</span></label>
+          <input type="number" id="ceuHours" class="form-input" min="0.5" step="0.5" placeholder="e.g. 10">
+        </div>
+      </div>
+      <div class="muted" id="ceuAmountPreview" style="font-size:0.8rem;margin-top:-6px;"></div>
+
+      <div class="drawer-field">
+        <label for="ceuCompletedDate">Completed Date <span class="required">*</span></label>
+        <input type="text" id="ceuCompletedDate" class="form-input" placeholder="MM/DD/YYYY">
+      </div>
+
+      <label class="lic-toggle-row">
+        <input type="checkbox" id="ceuVerified">
+        <span>
+          <div class="lic-toggle-label">Verified</div>
+          <div class="lic-toggle-sub">Proof of completion has been reviewed and confirmed</div>
+        </span>
+      </label>
+
+      <div class="drawer-field">
+        <label>Notes</label>
+        <textarea id="ceuNotes" class="form-input" rows="2" style="resize:vertical;"></textarea>
+      </div>
+
+      <div class="drawer-field">
+        <label>Proof of Completion</label>
+        <div id="ceuCurrentFile" class="lic-file-current" hidden></div>
+        <div class="lic-file-choose-row">
+          <input type="file" id="ceuFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+          <button type="button" class="btn btn-sm" id="ceuFileChooseBtn">Choose File</button>
+          <span id="ceuFileNameLabel" class="muted" style="font-size:0.82rem;">No file chosen</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="drawer-footer-split">
+    <button class="btn" id="cancelCeuBtn">Cancel</button>
+    <button class="btn btn-primary" id="saveCeuBtn">Save Entry</button>
+  </div>
+</div>
+
 <script>
   function openDrawer(id) {
     document.getElementById(id)?.classList.add('open');
@@ -782,8 +1002,12 @@
     document.getElementById('drawerOverlay')?.classList.remove('open');
     document.body.style.overflow = '';
   }
+  function closeOpenDrawer() {
+    document.querySelectorAll('.drawer.open').forEach(d => closeDrawer(d.id));
+  }
   window.openDrawer = openDrawer;
   window.closeDrawer = closeDrawer;
+  window.closeOpenDrawer = closeOpenDrawer;
 </script>
 
 <script type="module" src="/app/admin.licensure.js"></script>
