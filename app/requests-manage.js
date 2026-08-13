@@ -182,7 +182,7 @@ async function openDrawer(sub) {
       ${(responses ?? []).map(r => `
         <div class="req-response-row">
           <div class="req-response-label">${esc(r.request_category_fields?.label ?? 'Field')}</div>
-          <div class="req-response-value">${esc(formatVal(r.value, r.request_category_fields?.field_type))}</div>
+          <div class="req-response-value">${formatVal(r.value, r.request_category_fields?.field_type)}</div>
         </div>`).join('') || '<p style="color:#9ca3af;">No responses recorded.</p>'}
     </div>
 
@@ -269,7 +269,13 @@ function submissionPreview(sub) {
 function formatVal(val, type) {
   if (!val) return '—';
   if (type === 'boolean') return val === 'true' ? 'Yes' : 'No';
-  return val;
+  if (type === 'file') {
+    const url = esc(val);
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(val);
+    if (isImage) return `<img src="${url}" alt="Attachment" style="max-width:220px;max-height:180px;border-radius:6px;display:block;margin-top:4px;" />`;
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">View Attachment</a>`;
+  }
+  return esc(val);
 }
 function statusLabel(s, cat) {
   if (s === 'resolved') return cat?.resolved_label || 'Resolved';
