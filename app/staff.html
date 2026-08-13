@@ -2167,8 +2167,9 @@ function updateStaffRdViewButtons() {
   });
 }
 
-// Blob URL backing the PDF currently loaded in the viewer (see staffViewResource)
-// — tracked so we can revoke it on close/replace instead of leaking it.
+// Blob URL backing the PDF loaded for printing (see the Print button
+// handler below) — tracked so we can revoke it on close/replace instead
+// of leaking it.
 let resourceViewerBlobUrl = null;
 function revokeResourceViewerBlobUrl() {
   if (resourceViewerBlobUrl) {
@@ -2176,11 +2177,18 @@ function revokeResourceViewerBlobUrl() {
     resourceViewerBlobUrl = null;
   }
 }
-// True only when the iframe is showing a same-origin blob: PDF, so the
-// Print button knows it's safe to call frame.contentWindow.print() — reset
-// on every open/close rather than sniffed from frame.src, which can still
-// read stale (srcdoc doesn't clear the src attribute) after switching docs.
-let resourceViewerPrintViaFrame = false;
+// { kind, signedUrl } for whatever's currently open, so the Print button
+// can build a same-origin copy without re-signing. Cleared on close.
+let resourceViewerCurrentDoc = null;
+
+function waitForFrameLoad(frame, timeoutMs) {
+  return new Promise(function (resolve) {
+    var done = false;
+    function finish(ok) { if (!done) { done = true; resolve(ok); } }
+    frame.addEventListener('load', function () { finish(true); }, { once: true });
+    setTimeout(function () { finish(false); }, timeoutMs);
+  });
+}
 
 window.staffViewResource = async function (btn) {
   const doc = (window._staffResourceDocs || []).find(function (d) { return d.id === btn.dataset.id; });
@@ -2199,54 +2207,14 @@ window.staffViewResource = async function (btn) {
   const frame = document.getElementById('resourceViewerFrame');
   revokeResourceViewerBlobUrl();
   frame.removeAttribute('srcdoc');
-  resourceViewerPrintViaFrame = false;
+  resourceViewerCurrentDoc = { kind: kind, signedUrl: data.signedUrl };
 
-  if (kind === 'image') {
-    // Loading the image URL straight into the iframe hands rendering to the
-    // browser's built-in image-document page, which centers/scales for
-    // *screen* viewing only — in dark mode it fills the rest of the page
-    // with a dark background, and that's what window.print() below then
-    // captures (wasted toner, image left off-center on the printed page).
-    // Wrapping it in our own minimal same-origin document gives full control
-    // over the print layout: white background, image centered and scaled
-    // to fit the page.
-    frame.srcdoc = '<!DOCTYPE html><html><head><style>' +
-      'html,body{margin:0;height:100%;background:#fff;display:flex;align-items:center;justify-content:center;}' +
-      'img{max-width:100%;max-height:100%;object-fit:contain;}' +
-      '@media print{ @page{margin:0;} }' +
-      '</style></head><body><img src="' + data.signedUrl + '"></body></html>';
-  } else if (kind === 'pdf') {
-    // The iframe's PDF document is cross-origin, so window.print() (the
-    // fallback below) can only rasterize whatever's currently visible in
-    // the embedded viewer's viewport — not the real paginated PDF. That's
-    // what caused partial/off-center pages and extra dark viewer chrome
-    // printed with it. Fetching the file into a blob: URL makes the iframe
-    // same-origin (blob: URLs inherit the creating document's origin), so
-    // the Print button can call the iframe's own contentWindow.print()
-    // instead — the browser's native "print this PDF" pipeline, which
-    // paginates, centers, and scales correctly with no extra background.
-    try {
-      const res = await fetch(data.signedUrl);
-      // A non-2xx response (e.g. a filtering proxy mangling the request) is
-      // still a successful fetch — without this check its JSON error body
-      // gets wrapped in a blob and rendered in the viewer as if it were the
-      // PDF, showing staff a raw "Unauthorized"/error payload instead of the
-      // document. Fall through to the same direct-URL path used below for a
-      // thrown fetch: some networks intercept script-initiated fetch/XHR
-      // more aggressively than a plain iframe navigation to the same URL,
-      // so the direct load can still succeed even when fetch() didn't.
-      if (!res.ok) throw new Error(`Signed URL fetch failed: ${res.status}`);
-      const blob = await res.blob();
-      resourceViewerBlobUrl = URL.createObjectURL(blob);
-      frame.src = resourceViewerBlobUrl + '#toolbar=0';
-      resourceViewerPrintViaFrame = true;
-    } catch (err) {
-      console.error('Could not fetch PDF for viewer, falling back to direct URL', err);
-      frame.src = data.signedUrl + '#toolbar=0';
-    }
-  } else {
-    frame.src = data.signedUrl;
-  }
+  // Always load the direct signed URL for viewing. Same-origin blob:/srcdoc
+  // navigation (used only for printing, below) is blocked outright on some
+  // school-managed devices' security policy, which broke viewing entirely
+  // when we briefly used it here — this direct load is the one path that's
+  // reliably worked everywhere it's been reported from.
+  frame.src = kind === 'pdf' ? data.signedUrl + '#toolbar=0' : data.signedUrl;
 
   document.getElementById('resourceViewerTitle').textContent = doc.title;
   document.getElementById('resourceViewerOverlay').style.display = 'flex';
@@ -2283,26 +2251,55 @@ function closeResourceViewer() {
   document.getElementById('resourceViewerFrame').removeAttribute('srcdoc');
   document.body.classList.remove('resource-viewer-open');
   revokeResourceViewerBlobUrl();
-  resourceViewerPrintViaFrame = false;
+  resourceViewerCurrentDoc = null;
 }
 
 document.getElementById('resourceViewerCloseBtn')?.addEventListener('click', closeResourceViewer);
-document.getElementById('resourceViewerPrintBtn')?.addEventListener('click', function () {
-  // PDFs are loaded from a blob: URL (see staffViewResource), which is
-  // same-origin, so we can print the iframe's own document directly —
-  // the browser's native PDF print pipeline, correctly paginated/centered
-  // with no extra background. Anything else (the srcdoc-wrapped image case,
-  // or a cross-origin fallback) goes through the top-level window.print():
-  // @media print below hides everything except the viewer overlay, so the
-  // iframe is effectively what gets printed.
-  if (resourceViewerPrintViaFrame) {
-    const frame = document.getElementById('resourceViewerFrame');
+document.getElementById('resourceViewerPrintBtn')?.addEventListener('click', async function () {
+  const doc = resourceViewerCurrentDoc;
+  const frame = document.getElementById('resourceViewerFrame');
+  const originalSrc = frame.src;
+
+  // Best-effort upgrade: the visible iframe is cross-origin (Supabase
+  // storage), so window.print() (the fallback below) can only rasterize
+  // whatever's currently visible in its viewport — partial/off-center
+  // pages, extra dark viewer chrome. Swapping to a same-origin blob (PDF)
+  // or a minimal white-background srcdoc (image) lets us call the iframe's
+  // own contentWindow.print() instead, which paginates/centers correctly.
+  // Some school-managed devices block same-origin blob:/srcdoc navigation
+  // outright, so this is verified before committing to it — on any failure
+  // the working view is restored and we fall back to window.print() rather
+  // than leaving the viewer showing a blocked/blank frame.
+  if (doc && (doc.kind === 'pdf' || doc.kind === 'image')) {
     try {
+      if (doc.kind === 'pdf') {
+        const res = await fetch(doc.signedUrl);
+        if (!res.ok) throw new Error(`Signed URL fetch failed: ${res.status}`);
+        const blob = await res.blob();
+        revokeResourceViewerBlobUrl();
+        resourceViewerBlobUrl = URL.createObjectURL(blob);
+        frame.src = resourceViewerBlobUrl + '#toolbar=0';
+      } else {
+        frame.srcdoc = '<!DOCTYPE html><html><head><style>' +
+          'html,body{margin:0;height:100%;background:#fff;display:flex;align-items:center;justify-content:center;}' +
+          'img{max-width:100%;max-height:100%;object-fit:contain;}' +
+          '@media print{ @page{margin:0;} }' +
+          '</style></head><body><img src="' + doc.signedUrl + '"></body></html>';
+      }
+
+      const loaded = await waitForFrameLoad(frame, 4000);
+      if (!loaded) throw new Error('Print frame did not load in time');
+      // Same-origin content is readable; a blocked navigation replaces it
+      // with an opaque internal error page, which throws on access instead.
+      void frame.contentWindow.document.title;
+
       frame.contentWindow.focus();
       frame.contentWindow.print();
       return;
     } catch (err) {
-      console.error('iframe print failed, falling back to window.print()', err);
+      console.error('Enhanced print unavailable, falling back to window.print()', err);
+      frame.removeAttribute('srcdoc');
+      frame.src = originalSrc;
     }
   }
   window.print();
