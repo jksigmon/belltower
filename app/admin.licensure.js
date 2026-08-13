@@ -102,7 +102,7 @@ async function init() {
     if (searchEl) searchEl.value = employeeLookup[empParam];
     await setView('licenses');
   } else {
-    await setView('compliance');
+    await setView('overview');
   }
 }
 
@@ -1210,7 +1210,7 @@ async function setView(view) {
   const section = document.getElementById(view);
   if (section) section.style.display = '';
 
-  if (view === 'compliance') await loadCompliance();
+  if (view === 'overview') await loadCompliance();
   if (view === 'licenses')   await loadLicenses();
   if (view === 'ceus')       await loadCeus();
   if (view === 'audit')      await loadAuditLog();
@@ -1361,7 +1361,7 @@ function wireEvents() {
 
   // Hash-based routing on load
   window.addEventListener('hashchange', () => {
-    const view = location.hash.replace('#', '') || 'compliance';
+    const view = location.hash.replace('#', '') || 'overview';
     setView(view);
   });
 }
