@@ -1,11 +1,21 @@
 
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
-import { DRAWERS, openDrawer, closeDrawer, showToast } from './admin.compliance.utils.js';
+import { DRAWERS, closeDrawer, showToast } from './admin.compliance.utils.js';
 
 import {
-  loadBgChecks, resetBgCache, saveBgCheck, onBgArchiveClick, wireBgFilters, openBgDrawerNew,
-} from './admin.compliance.bg.js';
+  loadAttention, resetAttentionView, wireAttentionFilters, saveRenew,
+} from './admin.compliance.attention.js';
+
+import {
+  loadRequests, resetRequestsView, wireRequestFilters, saveAddRequest,
+  saveResolve, onResolveVolunteerSearchInput,
+} from './admin.compliance.requests.js';
+
+import {
+  loadVolunteers, resetVolunteerView, wireVolunteerFilters,
+  saveVolunteer, onVolunteerArchiveClick,
+} from './admin.compliance.volunteers.js';
 
 import {
   loadTemplates, loadAgreements, resetAgreementCache,
@@ -16,7 +26,7 @@ import {
 } from './admin.compliance.forms.js';
 
 import {
-  loadGrants, openGrantDrawer, saveGrant, onGrantStaffSearchInput,
+  loadGrants, openGrantDrawer, saveGrant, onGrantStaffSearchInput, onGrantTeacherSearchInput,
 } from './admin.compliance.grants.js';
 
 let currentProfile = null;
@@ -28,7 +38,9 @@ async function init() {
   currentProfile = profile;
 
   wireDrawers();
-  wireBgFilters();
+  wireAttentionFilters();
+  wireRequestFilters();
+  wireVolunteerFilters();
   wireFormFilters();
   wireSettings();
 
@@ -38,20 +50,22 @@ async function init() {
   });
 
   document.getElementById('sideNav')?.classList.remove('hidden');
-  window.addEventListener('hashchange', () => setActive(location.hash || '#bg-checks'));
+  window.addEventListener('hashchange', () => setActive(location.hash || '#attention'));
 
-  setActive(location.hash || '#bg-checks');
+  setActive(location.hash || '#attention');
 }
 
 // ── Nav routing ───────────────────────────────────────────────────────
 function setActive(hash) {
-  const VALID = ['#bg-checks', '#templates', '#agreements', '#settings'];
-  const target = VALID.includes(hash) ? hash : '#bg-checks';
+  const VALID = ['#attention', '#requests', '#volunteers', '#templates', '#agreements', '#settings'];
+  const target = VALID.includes(hash) ? hash : '#attention';
 
   history.replaceState(null, '', target);
 
   const subtitleMap = {
-    '#bg-checks':  'Background Checks',
+    '#attention':  'Needs Attention',
+    '#requests':   'Requests',
+    '#volunteers': 'Volunteers',
     '#templates':  'Form Templates',
     '#agreements': 'Agreements',
     '#settings':   'Settings',
@@ -71,12 +85,9 @@ function setActive(hash) {
   if (section) section.style.display = 'block';
 
   const key = target.slice(1);
-  if (key === 'bg-checks') {
-    resetBgCache();
-    const rSel = document.getElementById('bgRequestorFilter');
-    if (rSel) { rSel.dataset.populated = ''; rSel.querySelectorAll('option:not([value=""])').forEach(o => o.remove()); }
-    loadBgChecks(currentProfile);
-  }
+  if (key === 'attention')  { resetAttentionView();  loadAttention(currentProfile); }
+  if (key === 'requests')   { resetRequestsView();   loadRequests(currentProfile); }
+  if (key === 'volunteers') { resetVolunteerView();  loadVolunteers(currentProfile); }
   if (key === 'templates')  loadTemplates(currentProfile);
   if (key === 'agreements') { resetAgreementCache(); loadAgreements(currentProfile); }
   if (key === 'settings')   { loadSettings(); loadGrants(currentProfile); }
@@ -89,9 +100,14 @@ function wireDrawers() {
     cfg.close.forEach(id => document.getElementById(id)?.addEventListener('click', () => closeDrawer(key)));
   });
 
-  document.getElementById('bgDrawerSave')?.addEventListener('click',      saveBgCheck);
-  document.getElementById('bgDrawerArchive')?.addEventListener('click',   onBgArchiveClick);
-  document.getElementById('bgAddRecordBtn')?.addEventListener('click',    openBgDrawerNew);
+  document.getElementById('bgDrawerSave')?.addEventListener('click',      saveVolunteer);
+  document.getElementById('bgDrawerArchive')?.addEventListener('click',  onVolunteerArchiveClick);
+
+  document.getElementById('reqAddDrawerSave')?.addEventListener('click', saveAddRequest);
+  document.getElementById('resolveDrawerSave')?.addEventListener('click', saveResolve);
+  document.getElementById('resolveVolunteerSearch')?.addEventListener('input', onResolveVolunteerSearchInput);
+  document.getElementById('attRenewSave')?.addEventListener('click', saveRenew);
+
   document.getElementById('tplDrawerSave')?.addEventListener('click',     saveTemplate);
   document.getElementById('tplDrawerDelete')?.addEventListener('click',   deleteTemplate);
   document.getElementById('linkDrawerSave')?.addEventListener('click',    createLink);
@@ -102,6 +118,7 @@ function wireDrawers() {
   document.getElementById('newGrantBtn')?.addEventListener('click',      openGrantDrawer);
   document.getElementById('grantDrawerSave')?.addEventListener('click',  saveGrant);
   document.getElementById('grantStaffSearch')?.addEventListener('input', onGrantStaffSearchInput);
+  document.getElementById('grantTeacherSearch')?.addEventListener('input', onGrantTeacherSearchInput);
 
   document.getElementById('reviewDataApply')?.addEventListener('click',   applySubmittedData);
   document.getElementById('reviewDataDismiss')?.addEventListener('click', dismissSubmittedData);

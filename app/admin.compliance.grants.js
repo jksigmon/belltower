@@ -6,7 +6,8 @@ import { openDrawer, closeDrawer, showToast } from './admin.compliance.utils.js'
 let grantCache            = [];
 let selectedGranteeProfile = null;
 let grantStaffSearchTimer  = null;
-let grantTeacherCache      = [];
+let grantTeacherSearchTimer = null;
+let drawerTeachers         = [];
 let _profile               = null;
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -74,32 +75,17 @@ async function revokeGrant(grantId) {
 
 export async function openGrantDrawer() {
   selectedGranteeProfile = null;
+  drawerTeachers = [];
 
   document.getElementById('grantStaffSearch').value = '';
   document.getElementById('grantStaffResults').innerHTML =
     '<div style="padding:12px 14px;text-align:center;color:var(--text-muted);font-size:13px;">Type a name or email to search.</div>';
+  document.getElementById('grantTeacherSearch').value = '';
+  document.getElementById('grantTeacherResults').style.display = 'none';
   document.getElementById('grantDrawerMsg').textContent = '';
   document.getElementById('grantDrawerSave').disabled = true;
 
-  if (!grantTeacherCache.length) {
-    const { data } = await supabase
-      .from('employees')
-      .select('id, first_name, last_name')
-      .eq('school_id', _profile.school_id)
-      .eq('active', true)
-      .order('last_name');
-    grantTeacherCache = data ?? [];
-  }
-
-  const sel = document.getElementById('grantTeacherSelect');
-  sel.innerHTML = '<option value="">Select a teacher…</option>';
-  grantTeacherCache.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t.id;
-    opt.textContent = `${t.last_name}, ${t.first_name}`;
-    sel.appendChild(opt);
-  });
-
+  renderDrawerTeacherChips();
   openDrawer('grant');
 }
 
@@ -157,6 +143,82 @@ async function searchGrantStaff() {
   });
 }
 
+export function onGrantTeacherSearchInput() {
+  clearTimeout(grantTeacherSearchTimer);
+  grantTeacherSearchTimer = setTimeout(searchGrantTeachers, 280);
+}
+
+async function searchGrantTeachers() {
+  const term = document.getElementById('grantTeacherSearch')?.value.trim();
+  const resultsEl = document.getElementById('grantTeacherResults');
+
+  if (!term || term.length < 2) {
+    resultsEl.style.display = 'none';
+    return;
+  }
+
+  resultsEl.innerHTML = '<div class="ft-typeahead-empty">Searching…</div>';
+  resultsEl.style.display = '';
+
+  const { data, error } = await supabase
+    .from('employees')
+    .select('id, first_name, last_name')
+    .eq('school_id', _profile.school_id)
+    .eq('active', true)
+    .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%`)
+    .order('last_name')
+    .limit(20);
+
+  if (error) {
+    resultsEl.innerHTML = `<div class="ft-typeahead-empty">Search failed: ${esc(error.message)}</div>`;
+    return;
+  }
+
+  const existingIds = new Set(drawerTeachers.map(t => t.id));
+  const filtered = (data ?? []).filter(t => !existingIds.has(t.id));
+
+  if (!filtered.length) {
+    resultsEl.innerHTML = '<div class="ft-typeahead-empty">No teachers found.</div>';
+    return;
+  }
+
+  resultsEl.innerHTML = '';
+  filtered.forEach(t => {
+    const name = `${t.last_name}, ${t.first_name}`;
+    const item = document.createElement('div');
+    item.className = 'ft-typeahead-item';
+    item.innerHTML = `<strong>${esc(name)}</strong>`;
+    item.addEventListener('mousedown', e => {
+      e.preventDefault();
+      drawerTeachers.push({ id: t.id, name });
+      renderDrawerTeacherChips();
+      document.getElementById('grantTeacherSearch').value = '';
+      resultsEl.style.display = 'none';
+    });
+    resultsEl.appendChild(item);
+  });
+}
+
+function renderDrawerTeacherChips() {
+  const wrap = document.getElementById('grantTeacherChips');
+  if (!wrap) return;
+  if (!drawerTeachers.length) {
+    wrap.innerHTML = '<span style="font-size:12px;color:var(--text-muted);">No teachers added yet</span>';
+    return;
+  }
+  wrap.innerHTML = drawerTeachers.map((t, i) => `
+    <span style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:2px 10px;font-size:12px;color:#15803d;">
+      ${esc(t.name)}
+      <button data-remove-drawer-teacher="${i}" style="background:none;border:none;cursor:pointer;padding:0;color:#86efac;font-size:14px;line-height:1;" title="Remove">&times;</button>
+    </span>`).join('');
+  wrap.querySelectorAll('[data-remove-drawer-teacher]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      drawerTeachers.splice(Number(btn.dataset.removeDrawerTeacher), 1);
+      renderDrawerTeacherChips();
+    });
+  });
+}
+
 function selectGrantee(profileId, profileName) {
   selectedGranteeProfile = profileId;
 
@@ -175,11 +237,11 @@ function selectGrantee(profileId, profileName) {
 
 export async function saveGrant() {
   if (!selectedGranteeProfile) return;
-  const teacherId = document.getElementById('grantTeacherSelect')?.value;
-  const msgEl     = document.getElementById('grantDrawerMsg');
+  const teacherIds = drawerTeachers.map(t => t.id);
+  const msgEl = document.getElementById('grantDrawerMsg');
 
-  if (!teacherId) {
-    msgEl.textContent = 'Please select a teacher.';
+  if (!teacherIds.length) {
+    msgEl.textContent = 'Please select at least one teacher.';
     msgEl.style.color = 'var(--danger)';
     return;
   }
@@ -187,24 +249,27 @@ export async function saveGrant() {
   const saveBtn = document.getElementById('grantDrawerSave');
   saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
 
-  const { error } = await supabase
+  const { error, count } = await supabase
     .from('compliance_report_grants')
-    .insert({
-      school_id:  _profile.school_id,
-      grantee_id: selectedGranteeProfile,
-      teacher_id: teacherId,
-      granted_by: _profile.id,
-    });
+    .upsert(
+      teacherIds.map(teacherId => ({
+        school_id:  _profile.school_id,
+        grantee_id: selectedGranteeProfile,
+        teacher_id: teacherId,
+        granted_by: _profile.id,
+      })),
+      { onConflict: 'school_id,grantee_id,teacher_id', ignoreDuplicates: true, count: 'exact' }
+    );
 
   saveBtn.disabled = false; saveBtn.textContent = 'Save Grant';
 
   if (error) {
-    msgEl.textContent = error.code === '23505' ? 'This grant already exists.' : `Failed: ${esc(error.message)}`;
+    msgEl.textContent = `Failed: ${esc(error.message)}`;
     msgEl.style.color = 'var(--danger)';
     return;
   }
 
   closeDrawer('grant');
-  showToast('Access granted');
+  showToast(teacherIds.length === 1 ? 'Access granted' : `Access granted to ${teacherIds.length} homerooms`);
   await loadGrants();
 }

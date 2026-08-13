@@ -1005,36 +1005,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
         <div class="pto-field" style="margin-bottom:14px;">
           <span class="pto-field-label">Volunteer role(s) <span style="color:#dc2626;">*</span></span>
-          <div class="bg-role-grid">
-            <label class="bg-role-card">
-              <input type="checkbox" name="bgRole" value="Lunch Parent" class="bg-role-check">
-              <div>
-                <div class="bg-role-name">Lunch Parent</div>
-                <div class="bg-role-desc">BG check + Confidentiality Agreement</div>
-              </div>
-            </label>
-            <label class="bg-role-card">
-              <input type="checkbox" name="bgRole" value="Field Trip Chaperone" class="bg-role-check">
-              <div>
-                <div class="bg-role-name">Field Trip Chaperone</div>
-                <div class="bg-role-desc">BG check + Confidentiality + Chaperone Guidelines</div>
-              </div>
-            </label>
-            <label class="bg-role-card">
-              <input type="checkbox" name="bgRole" value="Field Trip Driver" class="bg-role-check">
-              <div>
-                <div class="bg-role-name">Field Trip Driver</div>
-                <div class="bg-role-desc">BG check + Confidentiality + Chaperone Guidelines + MVR + DL &amp; insurance on file</div>
-              </div>
-            </label>
-            <label class="bg-role-card">
-              <input type="checkbox" name="bgRole" value="Coaching/Athletics" class="bg-role-check">
-              <div>
-                <div class="bg-role-name">Coaching / Athletics</div>
-                <div class="bg-role-desc">BG check required</div>
-              </div>
-            </label>
-          </div>
+          <div class="bg-role-grid" id="bgRoleGrid"></div>
         </div>
 
         <div class="pto-field" style="margin-bottom:18px;">
@@ -1381,6 +1352,9 @@ import { initCalendarStrip } from '/app/calendar-strip.js';
 import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate } from '/app/admin.shared.js?v=2';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { fileKind as rdFileKind, tileIconSvg as rdTileIconSvg, getThumbnailUrl as rdGetThumbnailUrl, withThumbnailConcurrency as rdWithThumbnailConcurrency } from '/app/resource-doc-thumbnails.js';
+import { roleCheckboxGridHTML } from '/app/compliance.roles.js?v=2';
+
+document.getElementById('bgRoleGrid').innerHTML = roleCheckboxGridHTML('bgRole');
 
 // Prevent browser from restoring a stale scroll position on load
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';

@@ -26,6 +26,7 @@
     .bg-status-cleared   { background: #dcfce7; color: #15803d; }
     .bg-status-expired   { background: #fee2e2; color: #991b1b; }
     .bg-status-cancelled { background: #f1f5f9; color: #64748b; }
+    .bg-status-declined  { background: #fce7f3; color: #9d174d; }
 
     /* ── BG Drawer detail fields ── */
     .bg-detail-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 16px; }
@@ -103,37 +104,11 @@
     .bg-stat-warn   .bg-stat-val { color:#d97706; }
     .bg-stat-danger .bg-stat-val { color:#dc2626; }
 
-    /* ── BG expiry alert list ── */
-    .bg-alert-hdr {
-      background:#fef2f2; border-bottom:1px solid #fecaca;
-      padding:9px 16px;
-      display:flex; align-items:center; justify-content:space-between; gap:6px;
-      font-size:12px; font-weight:700; color:#991b1b;
-      text-transform:uppercase; letter-spacing:0.06em;
-      cursor:pointer; user-select:none;
-    }
-    .bg-alert-hdr-toggle {
-      display:flex; align-items:center; gap:6px;
-      background:none; border:none; padding:0; margin:0;
-      font:inherit; color:inherit; text-transform:inherit; letter-spacing:inherit;
-      cursor:pointer;
-    }
-    .bg-alert-hdr-chevron { transition:transform 0.15s; flex-shrink:0; }
-    #bgExpiryAlertWrap.collapsed .bg-alert-hdr-chevron { transform:rotate(-90deg); }
-    #bgExpiryAlertWrap.collapsed #bgExpiryAlertList { display:none; }
-    .bg-expiry-row {
-      display:flex; align-items:center; gap:12px;
-      padding:10px 16px;
-      border-bottom:1px solid var(--border);
-    }
-    .bg-expiry-row:last-child { border-bottom:none; }
-    .bg-expiry-name { flex:1; min-width:0; }
-    .bg-expiry-name strong { font-size:14px; display:block; }
-    .bg-expiry-roles {
-      font-size:12px; color:var(--text-muted,#9ca3af);
-      display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    }
-    .bg-expiry-meta { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+    /* ── Needs Attention filter buttons (reuse the stat-card look) ── */
+    .att-filter-btn { cursor:pointer; text-align:left; font:inherit; transition:box-shadow 0.15s, border-color 0.15s; }
+    .att-filter-btn.active { border-color:#0b2d4f; box-shadow:0 0 0 2px rgba(11,45,79,0.12); }
+
+    /* ── Expiry urgency chips (Needs Attention table) ── */
     .bg-expiry-chip {
       display:inline-block; padding:2px 9px; border-radius:999px;
       font-size:11px; font-weight:700; white-space:nowrap;
@@ -163,58 +138,56 @@
     }
 
     @media (max-width: 767px) {
-      /* ── Background Check table → card layout ── */
-      #bgCheckTableBody tr td { white-space: normal; }
+      /* ── Volunteers table → card layout ── */
+      #volTableBody tr td { white-space: normal; }
 
-      .admin-table:has(#bgCheckTableBody) {
+      .admin-table:has(#volTableBody) {
         min-width: 0 !important;
         width: 100% !important;
         border-collapse: separate;
         border-spacing: 0 10px;
       }
-      .admin-table:has(#bgCheckTableBody) thead { display: none; }
+      .admin-table:has(#volTableBody) thead { display: none; }
 
-      #bgCheckTableBody tr {
+      #volTableBody tr {
         display: grid;
         grid-template-columns: 1fr auto;
         grid-template-areas:
-          "name    status"
-          "email   email"
-          "reqby   reqby"
-          "roles   roles"
-          "cleared cleared"
-          "expires expires"
-          "action  action";
+          "name   edit"
+          "email  email"
+          "roles  roles"
+          "bg     mvr"
+          "dl     ins"
+          "action action";
         border: 1px solid #e5e7eb;
         border-radius: 10px;
         padding: 12px 14px;
         background: #ffffff;
         box-shadow: 0 1px 3px rgba(0,0,0,0.06);
       }
-      #bgCheckTableBody tr td {
+      #volTableBody tr td {
         display: block;
         padding: 2px 0;
         border: none !important;
         font-size: 13px;
       }
-      /* Subject(1) Email(2) ReqBy(3) Roles(4) Status(5) Cleared(6) Expires(7) Requested(8) Action(9) */
-      #bgCheckTableBody tr td:nth-child(1) { grid-area: name;    font-size: 14px; }
-      #bgCheckTableBody tr td:nth-child(2) { grid-area: email;   color: #6b7280; font-size: 12px; }
-      #bgCheckTableBody tr td:nth-child(3) { grid-area: reqby;   color: #6b7280; font-size: 12px; }
-      #bgCheckTableBody tr td:nth-child(4) { grid-area: roles;   font-size: 12px; }
-      #bgCheckTableBody tr td:nth-child(5) { grid-area: status;  display: flex; justify-content: flex-end; align-items: flex-start; }
-      #bgCheckTableBody tr td:nth-child(6) { grid-area: cleared; color: #6b7280; font-size: 12px; }
-      #bgCheckTableBody tr td:nth-child(7) { grid-area: expires; color: #6b7280; font-size: 12px; }
-      #bgCheckTableBody tr td:nth-child(8) { display: none; }
-      #bgCheckTableBody tr td:nth-child(9) { grid-area: action;  margin-top: 8px; }
-      #bgCheckTableBody tr td:nth-child(9) .btn { width: 100%; }
-      #bgCheckTableBody tr td:nth-child(10) { display: none; }
-      .admin-table:has(#bgCheckTableBody) thead th:last-child { display: none; }
+      /* Name(1) Email(2) Roles(3) BG(4) MVR(5) DL(6) Insurance(7) Edit(8) Checkbox(9) */
+      #volTableBody tr td:nth-child(1) { grid-area: name;  font-size: 14px; }
+      #volTableBody tr td:nth-child(2) { grid-area: email; color: #6b7280; font-size: 12px; }
+      #volTableBody tr td:nth-child(3) { grid-area: roles; font-size: 12px; }
+      #volTableBody tr td:nth-child(4) { grid-area: bg; }
+      #volTableBody tr td:nth-child(5) { grid-area: mvr; }
+      #volTableBody tr td:nth-child(6) { grid-area: dl; }
+      #volTableBody tr td:nth-child(7) { grid-area: ins; }
+      #volTableBody tr td:nth-child(8) { grid-area: edit; display: flex; justify-content: flex-end; }
+      #volTableBody tr td:nth-child(9) { display: none; }
+      .admin-table:has(#volTableBody) thead th:last-child { display: none; }
 
       /* Micro-labels */
-      #bgCheckTableBody tr td:nth-child(3)::before { content: "REQUESTED BY · "; font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
-      #bgCheckTableBody tr td:nth-child(6)::before { content: "CLEARED · ";  font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
-      #bgCheckTableBody tr td:nth-child(7)::before { content: "EXPIRES · ";  font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
+      #volTableBody tr td:nth-child(4)::before { content: "BG · ";  font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
+      #volTableBody tr td:nth-child(5)::before { content: "MVR · "; font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
+      #volTableBody tr td:nth-child(6)::before { content: "DL · ";  font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
+      #volTableBody tr td:nth-child(7)::before { content: "INS · "; font-weight: 700; color: #9ca3af; font-size: 10px; letter-spacing: 0.05em; }
 
       /* ── Signed Agreements table → card layout ── */
       .admin-table:has(#agreementTableBody) {
@@ -305,99 +278,185 @@
 <div id="navOverlay" class="nav-overlay"></div>
 <div class="wrap">
   <nav id="sideNav" class="nav hidden">
-    <a href="/admin.html"><i data-lucide="home"></i> Dashboard</a>
-    <a href="#bg-checks"><i data-lucide="shield-check"></i> Background Checks</a>
-    <a href="#templates"><i data-lucide="file-text"></i> Form Templates</a>
+    <a href="#attention"><i data-lucide="alert-triangle"></i> Needs Attention</a>
+    <a href="#requests"><i data-lucide="inbox"></i> Requests</a>
+    <a href="#volunteers"><i data-lucide="users"></i> Volunteers</a>
     <a href="#agreements"><i data-lucide="file-check"></i> Agreements</a>
+    <a href="#templates"><i data-lucide="file-text"></i> Form Templates</a>
     <a href="#settings"><i data-lucide="settings"></i> Settings</a>
   </nav>
 
   <main>
 
-    <!-- ══ BACKGROUND CHECKS ══════════════════════════════════════════ -->
-    <section id="bg-checks" style="display:none;">
+    <!-- ══ NEEDS ATTENTION ═══════════════════════════════════════════ -->
+    <section id="attention" style="display:none;">
 
-      <!-- Expiry stat cards -->
-      <div id="bgExpiryStats" class="bg-stat-row" style="display:none;">
-        <div class="bg-stat-card">
-          <div class="bg-stat-val" id="bgStatActive">0</div>
-          <div class="bg-stat-label">Active</div>
-        </div>
-        <div class="bg-stat-card" id="bgStatExp30Card">
-          <div class="bg-stat-val" id="bgStatExp30">0</div>
-          <div class="bg-stat-label">Expiring in 30 days</div>
-        </div>
-        <div class="bg-stat-card" id="bgStatExp60Card">
-          <div class="bg-stat-val" id="bgStatExp60">0</div>
-          <div class="bg-stat-label">Expiring in 60 days</div>
-        </div>
-        <div class="bg-stat-card" id="bgStatExpiredCard">
-          <div class="bg-stat-val" id="bgStatExpired">0</div>
+      <div class="bg-stat-row" id="attFilterRow">
+        <button type="button" class="bg-stat-card att-filter-btn active" data-status="" id="attFilterAll">
+          <div class="bg-stat-val" id="attCountAll">0</div>
+          <div class="bg-stat-label">Needs attention</div>
+        </button>
+        <button type="button" class="bg-stat-card bg-stat-danger att-filter-btn" data-status="expired" id="attFilterExpired">
+          <div class="bg-stat-val" id="attCountExpired">0</div>
           <div class="bg-stat-label">Expired</div>
-        </div>
-      </div>
-
-      <!-- Expiring / expired alert list -->
-      <div id="bgExpiryAlertWrap" style="display:none;margin-bottom:16px;">
-        <div class="panel" style="padding:0;overflow:hidden;">
-          <div class="bg-alert-hdr" id="bgExpiryAlertHdr">
-            <button type="button" class="bg-alert-hdr-toggle" id="bgExpiryAlertToggle">
-              <svg class="bg-alert-hdr-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-              <span id="bgExpiryAlertHdrLabel">Attention needed</span>
-            </button>
-          </div>
-          <div id="bgExpiryAlertList" style="max-height:340px;overflow-y:auto;"></div>
-        </div>
+        </button>
+        <button type="button" class="bg-stat-card bg-stat-warn att-filter-btn" data-status="expiring_30" id="attFilterExp30">
+          <div class="bg-stat-val" id="attCountExp30">0</div>
+          <div class="bg-stat-label">Expiring ≤30 days</div>
+        </button>
+        <button type="button" class="bg-stat-card bg-stat-warn att-filter-btn" data-status="expiring_60" id="attFilterExp60">
+          <div class="bg-stat-val" id="attCountExp60">0</div>
+          <div class="bg-stat-label">Expiring 31–60 days</div>
+        </button>
+        <button type="button" class="bg-stat-card att-filter-btn" data-status="missing_bg" id="attFilterMissing">
+          <div class="bg-stat-val" id="attCountMissing">0</div>
+          <div class="bg-stat-label">Missing BG check</div>
+        </button>
       </div>
 
       <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
-          <h3 style="margin:0;">Background Check Requests</h3>
+          <h3 style="margin:0;">Needs Attention</h3>
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <button class="btn btn-primary" id="bgAddRecordBtn" style="height:34px;padding:0 14px;">+ Add Record</button>
-            <input type="text" id="bgSearch" class="admin-input" placeholder="Search name or email…" style="width:200px;">
-            <select id="bgRequestorFilter" class="admin-input" style="min-width:150px;max-width:220px;width:auto;">
-              <option value="">All requestors</option>
+            <input type="text" id="attSearch" class="admin-input" placeholder="Search name or email…" style="width:200px;">
+            <select id="attRoleFilter" class="admin-input" style="min-width:150px;width:auto;">
+              <option value="">All roles</option>
             </select>
-            <select id="bgStatusFilter" class="admin-input" style="min-width:140px;max-width:180px;width:auto;">
-              <option value="">All statuses</option>
-              <option value="pending">Pending</option>
-              <option value="submitted">Submitted</option>
-              <option value="cleared">Cleared</option>
-              <option value="expired">Expired</option>
-              <option value="cancelled">Cancelled</option>
+            <select id="attCredentialFilter" class="admin-input" style="min-width:160px;width:auto;">
+              <option value="">Any credential</option>
+              <option value="bg">Background check</option>
+              <option value="mvr">Motor vehicle report</option>
+              <option value="dl">Driver's license</option>
+              <option value="insurance">Insurance</option>
             </select>
-            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#6b7280;cursor:pointer;white-space:nowrap;">
-              <input type="checkbox" id="bgShowArchived"> Show archived
-            </label>
+            <button class="btn btn-sm" id="attExportBtn">Export CSV</button>
           </div>
         </div>
-        <div id="bgBulkBar" style="display:none;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
-          <span id="bgBulkCount" style="font-size:13px;font-weight:600;color:#1e40af;"></span>
-          <button class="btn btn-sm" id="bgBulkArchiveBtn" style="margin-left:auto;">Archive selected</button>
+
+        <div id="attSelectAllBar" style="display:none;align-items:center;gap:10px;background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:8px 12px;margin-bottom:8px;font-size:13px;color:#475569;">
+          All <strong id="attPageCount"></strong> on this page are selected.
+          <button class="btn btn-sm" id="attSelectAllMatchingBtn" style="margin-left:auto;">Select all <span id="attMatchingCount"></span> matching these filters</button>
+        </div>
+        <div id="attBulkBar" style="display:none;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+          <span id="attBulkCount" style="font-size:13px;font-weight:600;color:#1e40af;"></span>
+          <button class="btn btn-sm" id="attMarkRenewedBtn" style="margin-left:auto;">Mark renewed…</button>
+          <button class="btn btn-sm" id="attBulkArchiveBtn">Archive selected</button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Roles</th>
+                <th>BG</th>
+                <th>MVR</th>
+                <th>DL</th>
+                <th>Insurance</th>
+                <th>Next expiry</th>
+                <th></th>
+                <th><input type="checkbox" id="attSelectAllCheckbox" title="Select all on this page"></th>
+              </tr>
+            </thead>
+            <tbody id="attTableBody">
+              <tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="attPagination" class="pagination" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- ══ REQUESTS ═══════════════════════════════════════════════════ -->
+    <section id="requests" style="display:none;">
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+          <h3 style="margin:0;">Requests</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button class="btn btn-primary" id="reqAddRecordBtn" style="height:34px;padding:0 14px;">+ Add Record</button>
+            <input type="text" id="reqSearch" class="admin-input" placeholder="Search name or email…" style="width:200px;">
+            <select id="reqStatusFilter" class="admin-input" style="min-width:140px;width:auto;">
+              <option value="">Open (pending + submitted)</option>
+              <option value="pending">Pending</option>
+              <option value="submitted">Submitted</option>
+              <option value="declined">Declined</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
         </div>
         <div class="table-wrap">
           <table class="admin-table">
             <thead>
               <tr>
                 <th>Subject</th>
-                <th>Email</th>
                 <th>Requested by</th>
                 <th>Roles</th>
+                <th>Reason</th>
+                <th>Roster match</th>
                 <th>Status</th>
-                <th>Cleared</th>
-                <th>Expires</th>
                 <th>Requested</th>
                 <th></th>
-                <th><input type="checkbox" id="bgSelectAllCheckbox" title="Select all on this page"></th>
               </tr>
             </thead>
-            <tbody id="bgCheckTableBody">
-              <tr><td colspan="10" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>
+            <tbody id="reqTableBody">
+              <tr><td colspan="8" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>
             </tbody>
           </table>
         </div>
-        <div id="bgPagination" class="pagination" style="display:none;"></div>
+        <div id="reqPagination" class="pagination" style="display:none;"></div>
+      </div>
+    </section>
+
+    <!-- ══ VOLUNTEERS ═════════════════════════════════════════════════ -->
+    <section id="volunteers" style="display:none;">
+      <div class="panel">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+          <h3 style="margin:0;">Volunteers</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <button class="btn btn-primary" id="volAddRecordBtn" style="height:34px;padding:0 14px;">+ Add Record</button>
+            <input type="text" id="volSearch" class="admin-input" placeholder="Search name or email…" style="width:200px;">
+            <select id="volRoleFilter" class="admin-input" style="min-width:150px;width:auto;">
+              <option value="">All roles</option>
+            </select>
+            <select id="volStatusFilter" class="admin-input" style="min-width:140px;width:auto;">
+              <option value="">All statuses</option>
+              <option value="ok">OK</option>
+              <option value="expiring_60">Expiring 31–60 days</option>
+              <option value="expiring_30">Expiring ≤30 days</option>
+              <option value="expired">Expired</option>
+              <option value="missing_bg">Missing BG check</option>
+            </select>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#6b7280;cursor:pointer;white-space:nowrap;">
+              <input type="checkbox" id="volShowArchived"> Show archived
+            </label>
+            <button class="btn btn-sm" id="volExportBtn">Export CSV</button>
+          </div>
+        </div>
+        <div id="volBulkBar" style="display:none;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+          <span id="volBulkCount" style="font-size:13px;font-weight:600;color:#1e40af;"></span>
+          <button class="btn btn-sm" id="volBulkArchiveBtn" style="margin-left:auto;">Archive selected</button>
+        </div>
+        <div class="table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Roles</th>
+                <th>BG</th>
+                <th>MVR</th>
+                <th>DL</th>
+                <th>Insurance</th>
+                <th></th>
+                <th><input type="checkbox" id="volSelectAllCheckbox" title="Select all on this page"></th>
+              </tr>
+            </thead>
+            <tbody id="volTableBody">
+              <tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="volPagination" class="pagination" style="display:none;"></div>
       </div>
     </section>
 
@@ -537,6 +596,120 @@
   </div>
 </aside>
 
+<!-- ══ MARK RENEWED DRAWER ════════════════════════════════════════════ -->
+<div id="attRenewOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="attRenewDrawer" class="drawer" role="dialog" aria-modal="true" style="display:none;max-width:380px;">
+  <div class="drawer-header">
+    <h2 class="drawer-title">Mark Renewed</h2>
+    <button class="drawer-close" id="attRenewClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <p class="muted" style="font-size:13px;margin-bottom:16px;">
+      Sets the background check as cleared on this date for everyone selected, expiring one year later.
+    </p>
+    <div class="drawer-field">
+      <label for="attRenewClearedAt">Cleared on</label>
+      <input type="date" id="attRenewClearedAt" autocomplete="off">
+    </div>
+    <div id="attRenewMsg" style="font-size:13px;color:var(--danger);min-height:18px;margin-top:8px;"></div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="attRenewCancel">Cancel</button>
+    <button class="btn btn-primary" id="attRenewSave">Apply</button>
+  </div>
+</aside>
+
+<!-- ══ ADD REQUEST DRAWER ═════════════════════════════════════════════ -->
+<div id="reqAddDrawerOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="reqAddDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="reqAddDrawerTitle" style="display:none;">
+  <div class="drawer-header">
+    <h2 class="drawer-title" id="reqAddDrawerTitle">Log a Request</h2>
+    <button class="drawer-close" id="reqAddDrawerClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <p class="muted" style="font-size:13px;margin-bottom:16px;">
+      For a request phoned or emailed in rather than submitted through the staff portal.
+    </p>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label for="reqAddFirstName">First name</label>
+        <input type="text" id="reqAddFirstName">
+      </div>
+      <div class="drawer-field">
+        <label for="reqAddLastName">Last name</label>
+        <input type="text" id="reqAddLastName">
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label for="reqAddEmail">Email (optional)</label>
+      <input type="email" id="reqAddEmail">
+    </div>
+    <div class="drawer-field">
+      <label style="text-transform:none;font-size:0.85rem;">Volunteer role(s)</label>
+      <div class="bg-role-grid" id="reqAddRoleGrid"></div>
+    </div>
+    <div class="drawer-field">
+      <label for="reqAddReason">Reason / notes</label>
+      <textarea id="reqAddReason" rows="2"></textarea>
+    </div>
+    <div id="reqAddDrawerMsg" style="font-size:13px;color:var(--danger);min-height:18px;"></div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="reqAddDrawerCancel">Cancel</button>
+    <button class="btn btn-primary" id="reqAddDrawerSave">Log Request</button>
+  </div>
+</aside>
+
+<!-- ══ RESOLVE REQUEST DRAWER ═════════════════════════════════════════ -->
+<div id="resolveDrawerOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="resolveDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="resolveDrawerTitle" style="display:none;">
+  <div class="drawer-header">
+    <h2 class="drawer-title" id="resolveDrawerTitle">Resolve Request</h2>
+    <button class="drawer-close" id="resolveDrawerClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <div id="resolveRequestInfo" style="background:#f8fafc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:18px;font-size:13px;"></div>
+
+    <div class="drawer-field" style="margin-bottom:8px;">
+      <label for="resolveVolunteerSearch">Volunteer record</label>
+      <div id="resolveVolunteerChip" style="margin-bottom:8px;"></div>
+      <div class="ft-typeahead-wrap" id="resolveVolunteerSearchWrap">
+        <input type="text" id="resolveVolunteerSearch" class="admin-input" placeholder="Search to change the matched volunteer…" style="width:100%;" autocomplete="off">
+        <div id="resolveVolunteerResults" class="ft-typeahead-results" style="display:none;"></div>
+      </div>
+      <small class="muted" id="resolveVolunteerHint" style="display:block;margin-top:6px;"></small>
+    </div>
+
+    <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+
+    <div class="drawer-row-2" style="margin-bottom:16px;">
+      <div class="drawer-field">
+        <label for="resolveClearedAt">BG cleared</label>
+        <input type="date" id="resolveClearedAt" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label for="resolveExpiresAt">BG expires</label>
+        <input type="date" id="resolveExpiresAt" autocomplete="off">
+      </div>
+    </div>
+    <div class="drawer-row-2">
+      <div class="drawer-field">
+        <label for="resolveMvrClearedAt">MVR cleared</label>
+        <input type="date" id="resolveMvrClearedAt" autocomplete="off">
+      </div>
+      <div class="drawer-field">
+        <label for="resolveMvrExpiresAt">MVR expires</label>
+        <input type="date" id="resolveMvrExpiresAt" autocomplete="off">
+      </div>
+    </div>
+    <div id="resolveDrawerMsg" style="font-size:13px;color:var(--danger);min-height:18px;margin-top:8px;"></div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="resolveDrawerCancel">Cancel</button>
+    <button class="btn btn-primary" id="resolveDrawerSave">Mark Cleared</button>
+  </div>
+</aside>
+
 <!-- ══ TEMPLATE DRAWER ══════════════════════════════════════════════ -->
 <div id="tplDrawerOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
 <aside id="tplDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="tplDrawerTitle" style="display:none;">
@@ -612,7 +785,7 @@
     </div>
     <div class="drawer-field" style="margin-bottom:16px;">
       <label for="linkExpiresAt">Expiry date (optional)</label>
-      <input type="date" id="linkExpiresAt">
+      <input type="date" id="linkExpiresAt" autocomplete="off">
       <small>After this date the form will stop accepting new submissions. Leave blank for a link that never expires.</small>
     </div>
     <div id="linkDrawerMsg" style="font-size:13px;color:var(--danger);min-height:18px;"></div>
@@ -662,7 +835,7 @@
   </div>
   <div class="drawer-body">
     <p class="muted" style="font-size:13px;margin-bottom:18px;">
-      Search for a staff member and select which teacher's homeroom they should have access to.
+      Search for a staff member and select which teachers' homerooms they should have access to. You can select more than one.
     </p>
     <div class="drawer-field" style="margin-bottom:16px;">
       <label for="grantStaffSearch">Staff member</label>
@@ -671,10 +844,12 @@
     <div id="grantStaffResults" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:18px;"></div>
 
     <div class="drawer-field" style="margin-bottom:8px;">
-      <label for="grantTeacherSelect">Teacher's homeroom to share</label>
-      <select id="grantTeacherSelect">
-        <option value="">Loading teachers…</option>
-      </select>
+      <label for="grantTeacherSearch">Teachers' homerooms to share</label>
+      <div id="grantTeacherChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:24px;"></div>
+      <div class="ft-typeahead-wrap" id="grantTeacherSearchWrap">
+        <input type="text" id="grantTeacherSearch" class="admin-input" placeholder="Search teachers to add…" style="width:100%;" autocomplete="off">
+        <div id="grantTeacherResults" class="ft-typeahead-results" style="display:none;"></div>
+      </div>
     </div>
     <div id="grantDrawerMsg" style="font-size:13px;color:var(--danger);min-height:18px;margin-top:8px;"></div>
   </div>

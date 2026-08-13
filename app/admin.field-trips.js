@@ -28,8 +28,8 @@ let tripCache            = [];
 let currentTrip          = null;
 let chaperoneList        = [];
 let studentList          = [];
-let bgCheckMap           = new Map(); // email (lower) -> bg check row
-let bgCheckNameMap       = new Map(); // "first|last" (lower) -> bg check row (fallback when no email on record)
+let volunteerByGuardianId = new Map(); // guardian_id -> compliance_volunteers row (authoritative link)
+let volunteerByNameKey    = new Map(); // "last|firstword" (lower, parens stripped) -> row (fallback)
 let requiredFormTemplates = [];        // school-level, loaded once on init
 let agreementsMap        = new Map(); // email (lower) -> Set<templateId>
 let agreementsGuardianMap = new Map(); // guardian_id -> Set<templateId> (fallback when guardian has no email)
@@ -402,7 +402,7 @@ async function loadChaperones() {
   chaperoneList = data ?? [];
 
   await Promise.all([
-    loadBgChecks(chaperoneList),
+    loadVolunteerCompliance(chaperoneList),
     loadAgreements(chaperoneList),
   ]);
 
@@ -478,50 +478,43 @@ async function loadAgreements(chaperones) {
   });
 }
 
-async function loadBgChecks(chaperones) {
-  bgCheckMap.clear();
-  bgCheckNameMap.clear();
+// Mirrors public.compliance_volunteer_match_key() -- strips "(...)"
+// nickname annotations, keys off the first *word* of the first name.
+function volunteerNameKey(firstName, lastName) {
+  const norm = s => (s ?? '').replace(/\s*\([^)]*\)\s*/g, ' ').trim();
+  const last = norm(lastName).toLowerCase();
+  const first = norm(firstName).toLowerCase().split(' ')[0] ?? '';
+  return `${last}|${first}`;
+}
+
+async function loadVolunteerCompliance(chaperones) {
+  volunteerByGuardianId.clear();
+  volunteerByNameKey.clear();
   if (!chaperones.length) return;
 
-  // Fetch all active bg checks for the school — small dataset, avoids email-only lookup
-  // which fails when the bg check record was created without a subject_email.
+  // Fetch the whole school's roster once -- small dataset (a few hundred
+  // to ~1000 rows), and guardian_id is only reliably set on a subset of
+  // volunteers, so a name-fallback index still needs the full set anyway.
   const { data } = await supabase
-    .from('compliance_bg_check_requests')
-    .select('id, subject_email, subject_first_name, subject_last_name, status, cleared_at, expires_at, mvr_cleared_at, mvr_expires_at')
+    .from('compliance_volunteer_status')
+    .select('id, first_name, last_name, guardian_id, bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at, dl_expires_at, insurance_expires_at, can_chaperone, can_drive')
     .eq('school_id', profile.school_id)
-    .in('status', ['cleared', 'submitted', 'pending', 'expired']);
+    .is('archived_at', null);
 
-  if (!data) return;
-
-  data.forEach(row => {
-    // Primary index: by email
-    if (row.subject_email) {
-      const key = row.subject_email.toLowerCase();
-      const existing = bgCheckMap.get(key);
-      if (!existing || (row.status === 'cleared' && existing.status !== 'cleared')) {
-        bgCheckMap.set(key, row);
-      }
-    }
-    // Fallback index: by name (for records created without an email)
-    if (row.subject_first_name && row.subject_last_name) {
-      const key = `${row.subject_first_name.toLowerCase()}|${row.subject_last_name.toLowerCase()}`;
-      const existing = bgCheckNameMap.get(key);
-      if (!existing || (row.status === 'cleared' && existing.status !== 'cleared')) {
-        bgCheckNameMap.set(key, row);
-      }
-    }
+  (data ?? []).forEach(row => {
+    if (row.guardian_id) volunteerByGuardianId.set(row.guardian_id, row);
+    volunteerByNameKey.set(volunteerNameKey(row.first_name, row.last_name), row);
   });
 }
 
-function getBgCheck(guardian) {
+function getVolunteer(guardian) {
   if (!guardian) return null;
-  const email = (guardian.email ?? '').toLowerCase();
-  if (email) {
-    const byEmail = bgCheckMap.get(email);
-    if (byEmail) return byEmail;
+  // Trust a direct guardian_id link over a name guess -- it's the
+  // authoritative match wherever it exists.
+  if (guardian.id && volunteerByGuardianId.has(guardian.id)) {
+    return volunteerByGuardianId.get(guardian.id);
   }
-  const nameKey = `${(guardian.first_name ?? '').toLowerCase()}|${(guardian.last_name ?? '').toLowerCase()}`;
-  return bgCheckNameMap.get(nameKey) ?? null;
+  return volunteerByNameKey.get(volunteerNameKey(guardian.first_name, guardian.last_name)) ?? null;
 }
 
 function getMissingForms(guardian) {
@@ -533,27 +526,34 @@ function getMissingForms(guardian) {
   return requiredFormTemplates.filter(t => !signed.has(t.id));
 }
 
-function computeComplianceStatus(guardian, bgCheck, tripDate, isDriver) {
-  if (!bgCheck) return { status: 'blocked', detail: '' };
+function computeComplianceStatus(guardian, volunteer, tripDate, isDriver) {
+  if (!volunteer) return { status: 'blocked', detail: '' };
 
   const trip  = new Date(tripDate + 'T12:00:00');
-  const bgExp = bgCheck.expires_at ? new Date(bgCheck.expires_at + 'T12:00:00') : null;
-  // 'expired' with a future expires_at means admin updated the date but not the status yet — treat as valid
-  const bgStatusOk = bgCheck.status === 'cleared' || (bgCheck.status === 'expired' && bgExp && bgExp >= trip);
-  const bgOk  = bgStatusOk && (!bgExp || bgExp >= trip);
+  const bgExp = volunteer.bg_expires_at ? new Date(volunteer.bg_expires_at + 'T12:00:00') : null;
+  const bgOk  = !!volunteer.bg_cleared_at && (!bgExp || bgExp >= trip);
 
-  if (!bgOk) {
-    const status = bgCheck.status === 'pending' || bgCheck.status === 'submitted' ? 'action' : 'blocked';
-    return { status, detail: status === 'action' ? `BG check status: ${bgCheck.status}` : '' };
-  }
+  if (!bgOk) return { status: 'blocked', detail: '' };
 
   // Only enforce MVR if the school has require_mvr_for_drivers enabled (default: true)
   const requireMvr = schoolConfig?.require_mvr_for_drivers !== false;
   if (isDriver && requireMvr) {
-    if (!bgCheck.mvr_cleared_at) return { status: 'action', detail: 'MVR required for drivers' };
-    const mvrExp = bgCheck.mvr_expires_at ? new Date(bgCheck.mvr_expires_at + 'T12:00:00') : null;
+    if (!volunteer.mvr_cleared_at) return { status: 'action', detail: 'MVR required for drivers' };
+    const mvrExp = volunteer.mvr_expires_at ? new Date(volunteer.mvr_expires_at + 'T12:00:00') : null;
     if (mvrExp && mvrExp < trip) return { status: 'action', detail: 'MVR expired by trip date' };
   }
+
+  // DL/insurance/can_drive -- surfaced as a warning, never a hard block.
+  // can_drive/can_chaperone default true, so this only fires on an
+  // explicit false flag, not on data that was simply never collected.
+  if (isDriver) {
+    if (volunteer.can_drive === false) return { status: 'action', detail: 'Flagged as not allowed to drive' };
+    const dlExp  = volunteer.dl_expires_at ? new Date(volunteer.dl_expires_at + 'T12:00:00') : null;
+    const insExp = volunteer.insurance_expires_at ? new Date(volunteer.insurance_expires_at + 'T12:00:00') : null;
+    if (dlExp && dlExp < trip)  return { status: 'action', detail: "Driver's license expired by trip date" };
+    if (insExp && insExp < trip) return { status: 'action', detail: 'Insurance expired by trip date' };
+  }
+  if (volunteer.can_chaperone === false) return { status: 'action', detail: 'Flagged as not allowed to chaperone' };
 
   const missingForms = getMissingForms(guardian);
   if (missingForms.length) {
@@ -563,18 +563,18 @@ function computeComplianceStatus(guardian, bgCheck, tripDate, isDriver) {
   return { status: 'cleared', detail: '' };
 }
 
-function renderBgChip(status, bgCheck, tripDate, isDriver, detail = '') {
+function renderBgChip(status, volunteer, tripDate, isDriver, detail = '') {
   const labels = { cleared: 'Cleared', action: 'Action needed', blocked: 'Blocked', unknown: 'No record' };
   const cls    = { cleared: 'comp-cleared', action: 'comp-action', blocked: 'comp-blocked', unknown: 'comp-unknown' };
-  const s = bgCheck ? status : 'unknown';
+  const s = volunteer ? status : 'unknown';
 
   let tooltip = detail;
-  if (!bgCheck) {
-    tooltip = 'No matching background check found. Verify the email on the guardian record matches the bg check record, and check for name spelling differences.';
+  if (!volunteer) {
+    tooltip = 'No matching volunteer record found. Check that this guardian\'s name matches an entry in Compliance → Volunteers, or link them from a request.';
   } else if (s === 'blocked') {
-    const bgExp = bgCheck.expires_at ? new Date(bgCheck.expires_at + 'T12:00:00') : null;
+    const bgExp = volunteer.bg_expires_at ? new Date(volunteer.bg_expires_at + 'T12:00:00') : null;
     const trip  = new Date(tripDate + 'T12:00:00');
-    tooltip = bgExp && bgExp < trip ? 'BG check expired by trip date' : `BG check status: ${bgCheck.status}`;
+    tooltip = !volunteer.bg_cleared_at ? 'No background check on file' : (bgExp && bgExp < trip ? 'BG check expired by trip date' : '');
   }
 
   return `<span class="comp-chip ${cls[s]}" title="${esc(tooltip)}">${labels[s]}</span>`;
@@ -607,9 +607,8 @@ function renderChaperoneTable() {
   tbody.innerHTML = '';
   chaperoneList.forEach(chap => {
     const g      = chap.guardian ?? {};
-    const email  = (g.email ?? '').toLowerCase();
-    const bg                = getBgCheck(g);
-    const { status, detail } = computeComplianceStatus(g, bg, tripDate, chap.is_driver);
+    const volunteer          = getVolunteer(g);
+    const { status, detail } = computeComplianceStatus(g, volunteer, tripDate, chap.is_driver);
 
     const students = (g.family?.students ?? [])
       .map(s => esc(s.first_name))
@@ -622,11 +621,11 @@ function renderChaperoneTable() {
         mvrCell = `<td><span class="muted" style="font-size:12px;">N/A</span></td>`;
       } else {
         const tripEnd  = new Date(tripDate + 'T12:00:00');
-        const mvrExp   = bg?.mvr_expires_at ? new Date(bg.mvr_expires_at + 'T12:00:00') : null;
-        const mvrOk    = bg?.mvr_cleared_at && (!mvrExp || mvrExp >= tripEnd);
+        const mvrExp   = volunteer?.mvr_expires_at ? new Date(volunteer.mvr_expires_at + 'T12:00:00') : null;
+        const mvrOk    = volunteer?.mvr_cleared_at && (!mvrExp || mvrExp >= tripEnd);
         let mvrTooltip = '';
         if (!mvrOk) {
-          if (!bg || !bg.mvr_cleared_at) mvrTooltip = 'No MVR on file for this driver.';
+          if (!volunteer || !volunteer.mvr_cleared_at) mvrTooltip = 'No MVR on file for this driver.';
           else if (mvrExp && mvrExp < tripEnd) mvrTooltip = 'MVR expired by trip date.';
         }
         mvrCell = `<td><span class="comp-chip ${mvrOk ? 'comp-cleared' : 'comp-action'}" title="${esc(mvrTooltip)}">${mvrOk ? 'Cleared' : 'Needed'}</span></td>`;
@@ -645,7 +644,7 @@ function renderChaperoneTable() {
         <span>${esc(g.email ?? '')}</span>
       </td>
       <td class="chap-students">${students}</td>
-      <td>${renderBgChip(status, bg, tripDate, chap.is_driver, detail)}</td>
+      <td>${renderBgChip(status, volunteer, tripDate, chap.is_driver, detail)}</td>
       ${mvrCell}
       ${formsCell}
       <td>${chap.is_driver ? '<span class="comp-chip comp-action">Driver</span>' : '<span class="muted" style="font-size:12px;">No</span>'}</td>
@@ -663,8 +662,8 @@ function renderComplianceStats() {
   let cleared = 0, action = 0, blocked = 0;
   chaperoneList.forEach(chap => {
     const g  = chap.guardian ?? {};
-    const bg = getBgCheck(g);
-    const { status: s } = computeComplianceStatus(g, bg, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
+    const volunteer = getVolunteer(g);
+    const { status: s } = computeComplianceStatus(g, volunteer, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
     if (s === 'cleared')  cleared++;
     else if (s === 'action') action++;
     else blocked++;
@@ -994,7 +993,7 @@ function exportChaperoneCSV() {
 
   const driversNeeded = currentTrip.drivers_needed;
   const headers = ['Name', 'Email', 'Driver', 'Students in family', 'BG Check status', 'BG Check expires'];
-  if (driversNeeded) headers.push('MVR cleared', 'MVR expires');
+  if (driversNeeded) headers.push('MVR cleared', 'MVR expires', "DL expires", 'Insurance expires', 'May drive');
   if (requiredFormTemplates.length) {
     requiredFormTemplates.forEach(t => headers.push(`Form: ${t.title}`));
     headers.push('Missing forms');
@@ -1003,19 +1002,24 @@ function exportChaperoneCSV() {
 
   const rows = chaperoneList.map(chap => {
     const g     = chap.guardian ?? {};
-    const bg    = getBgCheck(g);
-    const { status: s } = computeComplianceStatus(g, bg, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
+    const volunteer = getVolunteer(g);
+    const { status: s } = computeComplianceStatus(g, volunteer, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
     const kids  = (g.family?.students ?? []).map(k => `${k.first_name} ${k.last_name}`).join('; ');
+    const bgStatus = !volunteer ? 'No record' : !volunteer.bg_cleared_at ? 'Missing' : 'On file';
     const row = [
       `${g.last_name ?? ''}, ${g.first_name ?? ''}`,
       g.email ?? '',
       chap.is_driver ? 'Yes' : 'No',
       kids,
-      bg?.status ?? 'No record',
-      bg?.expires_at ?? '',
+      bgStatus,
+      volunteer?.bg_expires_at ?? '',
     ];
     if (driversNeeded) {
-      row.push(bg?.mvr_cleared_at ? 'Yes' : 'No', bg?.mvr_expires_at ?? '');
+      row.push(
+        volunteer?.mvr_cleared_at ? 'Yes' : 'No', volunteer?.mvr_expires_at ?? '',
+        volunteer?.dl_expires_at ?? '', volunteer?.insurance_expires_at ?? '',
+        volunteer?.can_drive === false ? 'No' : 'Yes',
+      );
     }
     if (requiredFormTemplates.length) {
       const missing = getMissingForms(g);

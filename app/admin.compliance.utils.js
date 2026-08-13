@@ -8,6 +8,9 @@ export const DRAWERS = {
   link:         { overlay: 'linkDrawerOverlay',   drawer: 'linkDrawer',         save: 'linkDrawerSave',   close: ['linkDrawerClose', 'linkDrawerCancel'] },
   linkGuardian: { overlay: 'linkGuardianOverlay', drawer: 'linkGuardianDrawer', save: 'linkGuardianSave', close: ['linkGuardianClose', 'linkGuardianCancel'] },
   grant:        { overlay: 'grantDrawerOverlay',  drawer: 'grantDrawer',        save: 'grantDrawerSave',  close: ['grantDrawerClose', 'grantDrawerCancel'] },
+  resolve:      { overlay: 'resolveDrawerOverlay', drawer: 'resolveDrawer',     save: 'resolveDrawerSave', close: ['resolveDrawerClose', 'resolveDrawerCancel'] },
+  attRenew:     { overlay: 'attRenewOverlay',      drawer: 'attRenewDrawer',    save: 'attRenewSave',      close: ['attRenewClose', 'attRenewCancel'] },
+  reqAdd:       { overlay: 'reqAddDrawerOverlay',  drawer: 'reqAddDrawer',      save: 'reqAddDrawerSave',  close: ['reqAddDrawerClose', 'reqAddDrawerCancel'] },
   reviewData:   { overlay: 'reviewDataOverlay',   drawer: 'reviewDataDrawer',   save: null,               close: ['reviewDataClose'] },
 };
 
@@ -84,6 +87,83 @@ export function renderPagination(containerId, currentPage, totalItems, onPageCha
 
   controls.appendChild(makeBtn('&#8250;', currentPage + 1, currentPage === totalPages));
   container.appendChild(controls);
+}
+
+// Shared multi-select mechanics for any list that supports bulk actions.
+// Selection lives in a Set keyed by row id, so `checked` state is re-derived
+// on every render and survives pagination, filtering and re-sorts.
+export function createBulkSelection({ barId, countId, label = 'selected' }) {
+  const selected = new Set();
+
+  const sel = {
+    selected,
+    has:  id => selected.has(id),
+    ids:  ()  => [...selected],
+    size: ()  => selected.size,
+
+    set(id, on) {
+      if (on) selected.add(id); else selected.delete(id);
+      sel.updateBar();
+    },
+
+    clear() {
+      selected.clear();
+      sel.updateBar();
+    },
+
+    // Rows the admin can no longer see (filter/search changed underneath them)
+    // must not stay selected -- a bulk action would silently hit invisible rows.
+    prune(visibleIds) {
+      for (const id of selected) if (!visibleIds.has(id)) selected.delete(id);
+    },
+
+    updateBar() {
+      const bar   = document.getElementById(barId);
+      const count = document.getElementById(countId);
+      if (!bar || !count) return;
+      if (selected.size === 0) { bar.style.display = 'none'; return; }
+      bar.style.display = 'flex';
+      count.textContent = `${selected.size} ${label}`;
+    },
+
+    // Reassigned (not addEventListener) on every render so repeated renders
+    // can't stack duplicate listeners.
+    wireSelectAll(checkboxId, selectableIds, onChange) {
+      const box = document.getElementById(checkboxId);
+      if (!box) return;
+      box.checked = selectableIds.length > 0 && selectableIds.every(id => selected.has(id));
+      box.indeterminate = !box.checked && selectableIds.some(id => selected.has(id));
+      box.onchange = () => {
+        selectableIds.forEach(id => { if (box.checked) selected.add(id); else selected.delete(id); });
+        onChange();
+      };
+    },
+  };
+
+  return sel;
+}
+
+// Shared filter predicate for compliance_volunteer_status, applied
+// identically by the Volunteers directory and the Needs Attention view
+// (they differ only in which `status` values they default to). Kept
+// here rather than duplicated so a filter added to one doesn't quietly
+// diverge from the other.
+export function applyVolunteerStatusFilters(query, { search, role, status, credential, showArchived } = {}) {
+  query = showArchived ? query.not('archived_at', 'is', null) : query.is('archived_at', null);
+
+  if (search) {
+    const term = `%${search}%`;
+    query = query.or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term}`);
+  }
+  if (role) query = query.contains('volunteer_roles', [role]);
+  if (status) query = query.eq('worst_status', status);
+
+  if (credential === 'bg')        query = query.or('bg_expired.eq.true,bg_cleared_at.is.null');
+  if (credential === 'mvr')       query = query.eq('mvr_expired', true);
+  if (credential === 'dl')        query = query.eq('dl_expired', true);
+  if (credential === 'insurance') query = query.eq('insurance_expired', true);
+
+  return query;
 }
 
 export function showToast(msg) {

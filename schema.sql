@@ -907,7 +907,8 @@ CREATE TABLE public.employees (
     supervisor_id uuid,
     profile_id uuid,
     employment_months smallint,
-    birthdate date
+    birthdate date,
+    grade text
 );
 
 

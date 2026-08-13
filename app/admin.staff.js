@@ -1,13 +1,14 @@
 
 import { supabase } from './admin.supabase.js?v=2';
 import { createDirectory } from './admin.directory.js?v=2';
-import { esc, getAvatarColor, debounce, dbError, showToast } from './admin.shared.js?v=2';
+import { esc, getAvatarColor, debounce, dbError, showToast, loadSchoolConfig, GRADE_ORDER, gradeLabel } from './admin.shared.js?v=2';
 
 
 let currentProfile;
 let supervisorLookup = {};
 let campusLookup = {};
 let staffGroupLookup = {};
+let schoolConfig = null;
 let initialized = false;
 let lookupsLoaded = false;
 let staffDirectory;
@@ -22,10 +23,12 @@ export async function initStaffSection(profile) {
   currentProfile = profile;
 
   if (!lookupsLoaded) {
+    schoolConfig = await loadSchoolConfig(profile.school_id);
     await Promise.all([loadSupervisorLookup(), loadCampusLookup(), loadStaffGroupLookup()]);
     populateAddStaffSupervisorSelect();
     populateAddStaffCampusSelect();
     populateAddStaffGroupSelect();
+    populateGradeSelect(document.getElementById('staffGrade'), null);
     lookupsLoaded = true;
   }
 
@@ -41,6 +44,7 @@ export async function initStaffSection(profile) {
         email,
         position,
         is_teacher,
+        grade,
         active,
         supervisor_id,
         campus_id,
@@ -71,6 +75,7 @@ export async function initStaffSection(profile) {
         'Last Name':         emp.last_name ?? '',
         'Email':             emp.email ?? '',
         'Position':          emp.position ?? '',
+        'Grade':             emp.grade ? gradeLabel(emp.grade) : '',
         'Active':            emp.active ? 'Yes' : 'No',
         'Supervisor':        supervisorLookup[emp.supervisor_id] ?? '',
         'Campus':            campusLookup[emp.campus_id] ?? '',
@@ -174,6 +179,19 @@ function populateAddStaffSupervisorSelect() {
   populateSupervisorOptions(select, null, false);
 }
 
+function populateGradeSelect(select, selectedGrade) {
+  if (!select) return;
+  select.innerHTML = '<option value="">— Not set —</option>';
+  const grades = schoolConfig?.grade_levels ?? GRADE_ORDER;
+  grades.forEach(grade => {
+    const opt = document.createElement('option');
+    opt.value = grade;
+    opt.textContent = gradeLabel(grade);
+    if (grade === selectedGrade) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
+
 function populateAddStaffCampusSelect() {
   const select = document.getElementById('staffCampusAdd');
   if (!select) return;
@@ -263,6 +281,7 @@ function openEditStaffDrawer(emp) {
   document.getElementById('esBirthdate').value = emp.birthdate ?? '';
   document.getElementById('esActive').checked     = !!emp.active;
   document.getElementById('esIsTeacher').checked  = !!emp.is_teacher;
+  populateGradeSelect(document.getElementById('esGrade'), emp.grade ?? null);
 
   // Supervisor dropdown
   const supSel = document.getElementById('esSupervisor');
@@ -307,6 +326,7 @@ async function saveEditStaff() {
     birthdate:         document.getElementById('esBirthdate').value || null,
     active:            document.getElementById('esActive').checked,
     is_teacher:        document.getElementById('esIsTeacher').checked,
+    grade:             document.getElementById('esGrade').value || null,
   };
 
   const saveBtn = document.getElementById('esSaveBtn');
@@ -610,6 +630,7 @@ async function createStaff() {
     birthdate,
     active:            true,
     is_teacher:        !!document.getElementById('staffIsTeacher')?.checked,
+    grade:             document.getElementById('staffGrade')?.value || null,
   });
 
   if (error) { dbError(error, 'Failed to add staff member'); return; }
@@ -618,6 +639,7 @@ async function createStaff() {
     const el = document.getElementById(id); if (el) el.value = '';
   });
   const itEl = document.getElementById('staffIsTeacher'); if (itEl) itEl.checked = false;
+  const grdEl = document.getElementById('staffGrade'); if (grdEl) grdEl.value = '';
   const sup = document.getElementById('staffSupervisor'); if (sup) sup.value = '';
   const cam = document.getElementById('staffCampusAdd');  if (cam) cam.value = '';
   const grp = document.getElementById('staffGroupAdd');   if (grp) grp.value = '';

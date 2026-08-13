@@ -204,7 +204,7 @@
         <strong id="statLicExpiring" class="stat-num">–</strong>
         <span class="stat-label">Licenses Expiring (30d)</span>
       </a>
-      <a href="/app/compliance.html#bgchecks" class="stat stat-alert" id="dashBgPending" style="display:none;" data-accent="red">
+      <a href="/app/compliance.html#requests" class="stat stat-alert" id="dashBgPending" style="display:none;" data-accent="red">
         <span class="stat-chip"><i data-lucide="user-check"></i></span>
         <strong id="statBgPending" class="stat-num">–</strong>
         <span class="stat-label">Pending BG Checks</span>
@@ -1630,6 +1630,13 @@
       <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Check this to make them available as a homeroom teacher for students.</small>
     </div>
     <div class="drawer-field">
+      <label>Grade Taught</label>
+      <select id="staffGrade" class="form-input">
+        <option value="">— Not set —</option>
+      </select>
+      <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Optional. Set this so grade-based dropdowns (e.g. the data collection form) reflect this teacher's assigned grade even before class placements are committed.</small>
+    </div>
+    <div class="drawer-field">
       <label>Supervisor / Leave Approver</label>
       <select id="staffSupervisor" class="form-input"></select>
     </div>
@@ -1706,6 +1713,13 @@
         <span>Homeroom teacher</span>
       </label>
       <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Check this to make them available as a homeroom teacher for students.</small>
+    </div>
+    <div class="drawer-field">
+      <label>Grade Taught</label>
+      <select id="esGrade" class="form-input">
+        <option value="">— Not set —</option>
+      </select>
+      <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Optional. Set this so grade-based dropdowns (e.g. the data collection form) reflect this teacher's assigned grade even before class placements are committed.</small>
     </div>
     <div class="drawer-field">
       <label>Supervisor / Leave Approver</label>

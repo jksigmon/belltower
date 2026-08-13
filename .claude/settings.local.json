@@ -9,7 +9,8 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Sigmon\\\\Desktop\\\\Belltower\" -Filter \"*admin*.html\" -Recurse)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "WebFetch(domain:api.anthropic.com)",
-      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Sigmon\\\\Desktop\\\\Belltower\\\\design_dump2.txt\" | Measure-Object -Line\\).Lines)"
+      "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Sigmon\\\\Desktop\\\\Belltower\\\\design_dump2.txt\" | Measure-Object -Line\\).Lines)",
+      "Bash(node --check app/requests.js)"
     ]
   }
 }
