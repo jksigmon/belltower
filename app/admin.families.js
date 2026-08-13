@@ -394,9 +394,10 @@ function confirmReleaseFamily() {
   const tag  = document.getElementById('efTag').value.trim();
   const name = document.getElementById('efName').value.trim() || '(Unnamed)';
   document.getElementById('releaseFamilyMsg').textContent =
-    `This unlinks every student currently on tag #${tag} (${name}), including inactive and withdrawn students. ` +
-    `Afterward you can rename this family and link the new one to the same tag. Guardians are not affected: a ` +
-    `guardian record must always belong to a family, so deactivate or reassign them separately if needed. This cannot be undone from here.`;
+    `This unlinks every student currently on tag #${tag} (${name}), including inactive and withdrawn students, ` +
+    `and permanently removes every guardian on this family (a guardian record must always belong to a family, so ` +
+    `it can't just be unlinked like a student). Afterward you can rename this family and link the new students and ` +
+    `guardians to the same tag. This cannot be undone from here.`;
   document.getElementById('releaseFamilyModal').hidden = false;
 }
 
@@ -407,18 +408,24 @@ async function executeReleaseFamily() {
   btn.disabled = true;
   btn.textContent = 'Unlinking…';
 
-  const { error } = await supabase
-    .from('students')
-    .update({ family_id: null })
-    .eq('family_id', editingFamilyId);
+  const [studentsRes, guardiansRes] = await Promise.all([
+    supabase.from('students').update({ family_id: null }).eq('family_id', editingFamilyId),
+    // Guardians can't be unlinked like students (family_id is NOT NULL), and
+    // nothing else references guardians.id, so a full delete is the correct
+    // equivalent of "release" here rather than a soft deactivate — a
+    // deactivated guardian would otherwise sit invisibly on the reused tag
+    // under the new family's name.
+    supabase.from('guardians').delete().eq('family_id', editingFamilyId),
+  ]);
 
   btn.disabled = false;
   btn.textContent = 'Unlink Everyone';
   document.getElementById('releaseFamilyModal').hidden = true;
 
+  const error = studentsRes.error || guardiansRes.error;
   if (error) { dbError(error, 'Failed to release tag'); return; }
 
-  showToast('Tag released. Rename this family and link the new students below.', 'success');
+  showToast('Tag released. Rename this family and link the new students and guardians below.', 'success');
   loadFamilyRelated(editingFamilyId);
   reloadFamilies();
 }
