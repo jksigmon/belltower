@@ -269,6 +269,15 @@ function submissionPreview(sub) {
 function formatVal(val, type) {
   if (!val) return '—';
   if (type === 'boolean') return val === 'true' ? 'Yes' : 'No';
+  if (type === 'url') {
+    // type="url" validity only requires a well-formed absolute URL, not a
+    // safe scheme (javascript:... passes) -- only link http(s), otherwise
+    // fall back to plain text so a crafted value can't become a clickable
+    // javascript: href in a manager's browser.
+    return /^https?:\/\//i.test(val)
+      ? `<a href="${esc(val)}" target="_blank" rel="noopener noreferrer">${esc(val)}</a>`
+      : esc(val);
+  }
   if (type === 'file') {
     const url = esc(val);
     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(val);

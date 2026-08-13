@@ -214,6 +214,9 @@ function renderFormField(field) {
     case 'phone':
       inputHtml = `<input id="field_${esc(field.id)}" class="form-control req-phone-input" type="tel" inputmode="tel" placeholder="(555) 123-4567" ${field.is_required ? 'required' : ''} />`;
       break;
+    case 'url':
+      inputHtml = `<input id="field_${esc(field.id)}" class="form-control" type="url" placeholder="https://…" ${field.is_required ? 'required' : ''} />`;
+      break;
     case 'currency':
       inputHtml = `<div class="req-currency-wrap">
         <span class="req-currency-sign">$</span>
