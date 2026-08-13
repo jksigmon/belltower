@@ -59,14 +59,14 @@
     <div id="reqmListWrap"></div>
 
     <!-- Detail drawer -->
-    <div id="reqmDrawer" class="drawer" style="display:none;">
+    <div id="reqmDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Request Detail">
       <div class="drawer-header">
         <span id="reqmDrawerTitle">Request Detail</span>
         <button class="drawer-close" id="reqmDrawerClose">&times;</button>
       </div>
       <div class="drawer-body" id="reqmDrawerBody"></div>
     </div>
-    <div id="reqmOverlay" class="drawer-overlay" style="display:none;"></div>
+    <div id="reqmOverlay" class="drawer-overlay"></div>
   </div>
 
   <script type="module" src="/app/requests-manage.js"></script>

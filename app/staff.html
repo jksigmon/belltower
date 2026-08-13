@@ -733,6 +733,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
   <a href="#compliance-report" data-module="compliance"><i data-lucide="clipboard-list"></i> Compliance Report</a>
   <a href="/app/requests.html" data-module="requests"><i data-lucide="inbox"></i> Form Requests <span class="badge-count" id="staffFormRequestsBadge"></span></a>
+  <a href="/app/requests-manage.html" id="navRequestManager" style="display:none;"><i data-lucide="clipboard-check"></i> Request Manager</a>
   <a href="/app/field-trips.html" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
   <a href="/app/placement.html" id="navPlacement" style="display:none;"><i data-lucide="layout-grid"></i> Class Placement</a>
   <a href="#data-collection"><i data-lucide="link"></i> Form Links</a>
@@ -1910,6 +1911,7 @@ async function initStaff() {
   }
 
   applyModuleNavVisibility();
+  showRequestManagerNavIfManager();
   document.getElementById('staffNav')?.classList.remove('hidden');
   setActive('#dashboard');
   window.scrollTo(0, 0);
@@ -3926,6 +3928,23 @@ function applyModuleNavVisibility() {
     const arLink = document.querySelector('nav a[href="#access-request"]');
     if (arLink) arLink.style.display = 'none';
   }
+}
+
+// Request Manager: shown only to staff assigned as a manager on at least
+// one request category. Runs after nav is shown since it's not needed to
+// unblock the rest of the dashboard.
+async function showRequestManagerNavIfManager() {
+  if (window.staffModules?.requests === false) return;
+
+  const link = document.getElementById('navRequestManager');
+  if (!link) return;
+
+  const { count } = await supabase
+    .from('request_category_managers')
+    .select('category_id', { count: 'exact', head: true })
+    .eq('profile_id', currentProfile.id);
+
+  if (count) link.style.display = 'flex';
 }
 
 function hasAnyEnabledModule() {

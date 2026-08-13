@@ -147,8 +147,8 @@ async function openDrawer(sub) {
   titleEl.textContent = sub.request_categories?.name ?? 'Request';
   bodyEl.innerHTML = '<p style="color:#9ca3af;padding:16px;">Loading…</p>';
 
-  document.getElementById('reqmDrawer').style.display  = '';
-  document.getElementById('reqmOverlay').style.display = '';
+  document.getElementById('reqmDrawer').classList.add('open');
+  document.getElementById('reqmOverlay').classList.add('open');
 
   const { data: responses } = await supabase
     .from('staff_request_responses')
@@ -236,8 +236,8 @@ async function saveRequest(requestId) {
 }
 
 function closeDrawer() {
-  document.getElementById('reqmDrawer').style.display  = 'none';
-  document.getElementById('reqmOverlay').style.display = 'none';
+  document.getElementById('reqmDrawer').classList.remove('open');
+  document.getElementById('reqmOverlay').classList.remove('open');
 }
 
 function formatVal(val, type) {
