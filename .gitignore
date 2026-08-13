@@ -24,3 +24,6 @@ supabase/.temp/
 
 # One-off local operational scripts (kept locally, not tracked)
 rollover-2026.sql
+
+# Local working files with sensitive data — never commit
+Background Check Data.numbers
