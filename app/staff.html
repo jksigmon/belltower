@@ -2227,6 +2227,15 @@ window.staffViewResource = async function (btn) {
     // paginates, centers, and scales correctly with no extra background.
     try {
       const res = await fetch(data.signedUrl);
+      // A non-2xx response (e.g. a filtering proxy mangling the request) is
+      // still a successful fetch — without this check its JSON error body
+      // gets wrapped in a blob and rendered in the viewer as if it were the
+      // PDF, showing staff a raw "Unauthorized"/error payload instead of the
+      // document. Fall through to the same direct-URL path used below for a
+      // thrown fetch: some networks intercept script-initiated fetch/XHR
+      // more aggressively than a plain iframe navigation to the same URL,
+      // so the direct load can still succeed even when fetch() didn't.
+      if (!res.ok) throw new Error(`Signed URL fetch failed: ${res.status}`);
       const blob = await res.blob();
       resourceViewerBlobUrl = URL.createObjectURL(blob);
       frame.src = resourceViewerBlobUrl + '#toolbar=0';
