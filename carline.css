@@ -970,15 +970,12 @@ html, body {
 }
 
 .inp-tag-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
   position: relative;
+  margin-top: 8px;
   z-index: 1;
 }
 .inp-tag-display {
-  flex: 1;
+  width: 100%;
   min-width: 0;
   text-align: center;
   font-size: 48px;
@@ -1010,7 +1007,10 @@ html, body {
 @keyframes inp-cursor-blink { 50% { opacity: 0; } }
 
 .inp-tag-clear-btn {
-  flex-shrink: 0;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1025,7 +1025,7 @@ html, body {
   transition: background 120ms;
 }
 .inp-tag-clear-btn:hover { background: rgba(255,255,255,0.18); }
-.inp-tag-clear-btn:active { transform: scale(0.96); }
+.inp-tag-clear-btn:active { transform: translateY(-50%) scale(0.96); }
 
 .inp-keypad {
   display: grid;
