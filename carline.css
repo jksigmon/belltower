@@ -422,11 +422,11 @@ html, body {
   color: #fff;
 }
 .cl-status-col-hdr.called {
-  background: #047857;
+  background: #22a05f;
   color: #fff;
 }
 .cl-status-col-hdr.recalled {
-  background: #92400e;
+  background: #e9470c;
   color: #fff;
 }
 
