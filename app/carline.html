@@ -25,6 +25,7 @@
       <a id="clBackBtn" class="cl-icon-btn" href="/staff.html" title="Back">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </a>
+      <img src="/icons/android-chrome-192x192.png" alt="" class="cl-brand-icon" />
       <span class="cl-school-name" id="clSchoolName">Belltower</span>
       <span class="cl-event-date" id="clEventDate"></span>
       <span class="cl-status-badge open" id="clStatusBadge">OPEN</span>
@@ -539,6 +540,7 @@ let currentEvent  = null;
 let allStudents   = [];
 let allBusGroups  = [];
 let busArrivals   = [];
+let prevBusArrivalIds = new Set(); // bus_group_ids already shown, so re-renders only pulse truly new ones
 let allCampuses   = [];
 let familyTagMap  = new Map(); // family_id → tag_number
 let callStatus    = new Map(); // student_id → status string
@@ -702,16 +704,17 @@ function renderBusArrivalBar() {
     seen.add(a.bus_group_id); return true;
   });
   document.documentElement.style.setProperty('--cl-bus-bar-h', unique.length ? '40px' : '0px');
-  if (!unique.length) { bar.hidden = true; return; }
+  if (!unique.length) { bar.hidden = true; prevBusArrivalIds = new Set(); return; }
   bar.hidden = false;
   pills.innerHTML = '';
   unique.forEach(a => {
     const group = allBusGroups.find(g => g.id === a.bus_group_id);
     const pill  = document.createElement('span');
-    pill.className   = 'cl-bus-arrival-pill';
+    pill.className   = 'cl-bus-arrival-pill' + (prevBusArrivalIds.has(a.bus_group_id) ? '' : ' cl-bus-arrival-new');
     pill.textContent = group ? group.name : 'Bus';
     pills.appendChild(pill);
   });
+  prevBusArrivalIds = new Set(unique.map(a => a.bus_group_id));
 }
 
 async function loadExistingCalls() {
@@ -1148,11 +1151,22 @@ function getVisibleStudents() {
   );
 }
 
+const CL_EMPTY_CONTENT = {
+  waiting:  { img: '/images/carline-empty-waiting.png',  title: 'Add a class to get started', sub: 'Select classes above to begin dismissal.' },
+  called:   { img: '/images/carline-empty-called.png',   title: 'No students called yet',      sub: 'Students you call will appear here.' },
+  recalled: { img: '/images/carline-empty-recalled.png', title: 'No students recalled',        sub: 'Students you recall will appear here.' },
+};
+
+function emptyStateHTML(key, fallbackMsg) {
+  const c = CL_EMPTY_CONTENT[key];
+  return c
+    ? `<img src="${c.img}" class="cl-empty-img" alt="" /><div class="cl-empty-title">${esc(c.title)}</div><div class="cl-empty-sub">${esc(c.sub)}</div>`
+    : `<span>${esc(fallbackMsg)}</span>`;
+}
+
 function colEmpty(bodyId, msg) {
-  const icon = bodyId === 'bodyWaiting'
-    ? `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>`
-    : '';
-  document.getElementById(bodyId).innerHTML = `<div class="cl-col-empty">${icon}<span>${esc(msg)}</span></div>`;
+  const key = bodyId === 'bodyWaiting' ? 'waiting' : bodyId === 'bodyCalled' ? 'called' : 'recalled';
+  document.getElementById(bodyId).innerHTML = `<div class="cl-col-empty">${emptyStateHTML(key, msg)}</div>`;
 }
 
 function renderColumns() {
@@ -1227,15 +1241,13 @@ function renderColumn(bodyId, emptyId, students, statusClass, multi, emptyMsg) {
       `;
       body.appendChild(el);
     } else {
-      const EMPTY_ICONS = {
-        called:  `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`,
-        recalled:`<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.4"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
-      };
-      const icon = EMPTY_ICONS[statusClass] || '';
+      // 'waiting' only gets the illustrated empty state via colEmpty() (no classes
+      // selected at all) — here it means classes are selected but yielded 0 students,
+      // a rare empty-roster edge case that keeps the plain dash.
       const el = document.createElement('div');
       el.className = 'cl-col-empty';
       el.id = emptyId;
-      el.innerHTML = `${icon}<span>${esc(emptyMsg)}</span>`;
+      el.innerHTML = emptyStateHTML(statusClass === 'waiting' ? '' : statusClass, emptyMsg);
       body.appendChild(el);
     }
     return;

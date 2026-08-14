@@ -124,6 +124,13 @@ html, body {
   height: var(--cl-header-h);
   flex-shrink: 0;
   z-index: 20;
+  position: relative;
+}
+
+.cl-brand-icon {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
 }
 
 .cl-header-left {
@@ -355,19 +362,30 @@ html, body {
 .cl-bus-arrival-pill {
   display: inline-flex;
   align-items: center;
-  background: #dcfce7;
-  color: #15803d;
-  border: 1px solid #86efac;
+  background: #16a34a;
+  color: #fff;
+  border: 1px solid #15803d;
   border-radius: 99px;
-  padding: 3px 10px;
-  font-size: 12px;
-  font-weight: 700;
+  padding: 4px 12px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
   white-space: nowrap;
 }
 [data-theme="dark"] .cl-bus-arrival-pill {
-  background: #14532d;
-  color: #86efac;
-  border-color: #166534;
+  background: #15803d;
+  color: #ecfdf5;
+  border-color: #22c55e;
+}
+
+/* One-time pop/glow when a bus first appears in the bar */
+@keyframes cl-bus-pop {
+  0%   { transform: scale(0.6); box-shadow: 0 0 0 0 rgba(22,163,74,0.55); }
+  45%  { transform: scale(1.14); box-shadow: 0 0 0 9px rgba(22,163,74,0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22,163,74,0); }
+}
+.cl-bus-arrival-new {
+  animation: cl-bus-pop 700ms ease-out;
 }
 
 /* ---------- 3-Column display grid ---------- */
@@ -468,6 +486,21 @@ html, body {
   font-size: 13px;
   padding: 20px;
   text-align: center;
+}
+.cl-empty-img {
+  width: 140px;
+  height: 140px;
+  margin-bottom: 4px;
+}
+.cl-empty-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--cl-text);
+}
+.cl-empty-sub {
+  font-size: 12.5px;
+  color: var(--cl-text-muted);
+  max-width: 220px;
 }
 
 /* Class group divider (multi-class view) */
@@ -659,6 +692,20 @@ html, body {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.03em;
   padding: 0 8px;
+}
+
+/* Desktop: enlarge the clock and pin it to the true center of the header,
+   independent of how wide the left/right header content is. Mobile keeps
+   the original inline-in-header-right placement (see max-width query). */
+@media (min-width: 768px) {
+  .cl-clock {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 32px;
+    padding: 0;
+  }
 }
 
 /* Font-size toggle button active state */
@@ -1354,6 +1401,7 @@ html, body {
 
   /* Hide non-essential header items */
   .cl-event-date    { display: none; }
+  .cl-brand-icon    { display: none; }
   #btnFullscreen    { display: none; }
   #clHeader #btnDarkMode { display: none; }
 
