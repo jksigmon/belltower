@@ -1720,10 +1720,10 @@ async function loadStaffDashboard() {
   // Quick actions
   const actionsRow = document.getElementById('staffDashActionsRow');
   const actions = [];
-  if (window.staffModules['pto'] === true)
-    actions.push({ label: 'Leave Request', icon: 'calendar-plus', href: '#pto' });
   if (window.staffModules['carline'] === true && p.can_view_carline)
     actions.push({ label: 'Carline', icon: 'car', href: '/carline.html?from=staff' });
+  if (window.staffModules['pto'] === true)
+    actions.push({ label: 'Leave Request', icon: 'calendar-plus', href: '#pto' });
   if (window.staffModules['licensure'] === true)
     actions.push({ label: 'My Licenses', icon: 'badge-check', href: '#licensure' });
   if (window.staffModules['requests'] !== false)
