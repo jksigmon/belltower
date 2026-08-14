@@ -3415,20 +3415,36 @@ async function loadPtoBalances() {
 }
 
 async function loadPtoStats() {
-  const { data, error } = await supabase
-    .from('pto_requests')
-    .select('status, requested_hours')
-    .eq('school_id', currentProfile.school_id)
-    .eq('employee_id', currentProfile.employee_id);
+  const [{ data: ledger, error: ledgerError }, { data, error }] = await Promise.all([
+    supabase
+      .from('pto_ledger')
+      .select('delta_hours, reason')
+      .eq('school_id', currentProfile.school_id)
+      .eq('employee_id', currentProfile.employee_id),
+    supabase
+      .from('pto_requests')
+      .select('status, requested_hours')
+      .eq('school_id', currentProfile.school_id)
+      .eq('employee_id', currentProfile.employee_id)
+  ]);
 
-  if (error || !data) return;
+  if (ledgerError || error || !ledger || !data) return;
 
-  let approved = 0, pending = 0, cancelled = 0;
+  // Approved/Cancelled come from the ledger (actual balance debits/credits),
+  // not request status -- a request withdrawn while still PENDING never
+  // touched the balance, so it must not count as "cancelled" here or it'll
+  // get subtracted from hours that were never deducted in the first place.
+  let approved = 0, cancelled = 0;
+  ledger.forEach(l => {
+    if (l.reason === 'REQUEST APPROVED') approved += Math.abs(l.delta_hours);
+    else if (l.reason === 'REQUEST CANCELLED FUTURE' || l.reason === 'REQUEST RESCINDED RETROACTIVE') {
+      cancelled += l.delta_hours;
+    }
+  });
+
+  let pending = 0;
   data.forEach(r => {
-    const hours = Number(r.requested_hours ?? 0);
-    if (r.status === 'APPROVED') approved += hours;
-    else if (r.status === 'PENDING') pending += hours;
-    else if (r.status === 'CANCELLED') cancelled += hours;
+    if (r.status === 'PENDING') pending += Number(r.requested_hours ?? 0);
   });
 
   const net = approved - cancelled;
@@ -3859,7 +3875,7 @@ if (err) err.style.display = 'none';
   showToast('✅ Leave request submitted successfully');
   message.textContent = '';
 
-  await loadPtoHistory();
+  await Promise.all([loadPtoHistory(), loadPtoStats()]);
 }
 
 async function cancelPtoRequest(requestId, existingNotes, currentStatus) {
@@ -4829,7 +4845,7 @@ if (past) {
     return;
   }
 
-  loadPtoHistory();
+  await Promise.all([loadPtoHistory(), loadPtoStats()]);
 };
 
 
