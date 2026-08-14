@@ -416,27 +416,17 @@ html, body {
   padding: 16px 20px;
   flex-shrink: 0;
   position: relative;
-  overflow: hidden;
-}
-.cl-status-col-hdr::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 92% -25%, rgba(255,255,255,0.18), transparent 55%),
-    radial-gradient(ellipse at 8% 130%,  rgba(0,0,0,0.18),       transparent 50%);
-  pointer-events: none;
 }
 .cl-status-col-hdr.waiting {
-  background: linear-gradient(135deg, #0b2d4f 0%, #1a3a5c 100%);
+  background: #0b2d4f;
   color: #fff;
 }
 .cl-status-col-hdr.called {
-  background: linear-gradient(135deg, #047857 0%, #059669 100%);
+  background: #047857;
   color: #fff;
 }
 .cl-status-col-hdr.recalled {
-  background: linear-gradient(135deg, #92400e 0%, #b45309 100%);
+  background: #92400e;
   color: #fff;
 }
 
@@ -701,8 +691,11 @@ html, body {
   .cl-clock {
     position: absolute;
     left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
+    top: 0;
+    bottom: 0;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
     font-size: 46px;
     line-height: 1;
     padding: 0;
