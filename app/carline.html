@@ -180,6 +180,8 @@
 
 <div class="cl-toast" id="clToast"></div>
 
+<canvas id="clConfetti"></canvas>
+
 <!-- Pickup Groups drawer (can_manage_carline only) -->
 <div class="cl-log-panel" id="pgDrawer">
   <div class="cl-log-hdr">
@@ -638,6 +640,7 @@ let callsPollTimer   = null;
 let audioCtx         = null;
 let toastTimer       = null;
 let allCallAt        = null;
+let confettiRaf       = null;
 const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
 
 // ─── Boot ─────────────────────────────────────────────────────────────
@@ -1673,7 +1676,62 @@ function playAllCallSound() {
     tone(ctx, 880,    0.32, 0.10, 0.35, 'square');
     tone(ctx, 1046.5, 0.50, 0.40, 0.35, 'sine');
   } catch(e) {}
+  fireConfetti();
 }
+
+// Full-screen confetti burst for All Call — hand-rolled canvas particles
+// rather than a library, matching the existing hand-rolled Web Audio tones.
+const CONFETTI_COLORS = ['#22a05f', '#e9470c', '#2563eb', '#f59e0b', '#a855f7'];
+function fireConfetti() {
+  const canvas = document.getElementById('clConfetti');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles = Array.from({ length: 140 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -20 - Math.random() * canvas.height * 0.3,
+    w: 6 + Math.random() * 6,
+    h: 8 + Math.random() * 8,
+    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+    vx: -2 + Math.random() * 4,
+    vy: 2 + Math.random() * 2.5,
+    rotation: Math.random() * 360,
+    vr: -8 + Math.random() * 16,
+  }));
+
+  const duration = 3200;
+  const start = performance.now();
+
+  if (confettiRaf) cancelAnimationFrame(confettiRaf);
+
+  function frame(now) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let anyOnScreen = false;
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.04;
+      p.rotation += p.vr;
+      if (p.y < canvas.height + 20) anyOnScreen = true;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotation * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    if (now - start < duration && anyOnScreen) {
+      confettiRaf = requestAnimationFrame(frame);
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      confettiRaf = null;
+    }
+  }
+  confettiRaf = requestAnimationFrame(frame);
+}
+
 function playBusSound() {
   try {
     const ctx = getCtx();

@@ -1328,6 +1328,16 @@ html, body {
 [data-theme="dark"] .cl-toast { background: #f1f5f9; color: #0f172a; }
 .cl-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* ---------- All Call confetti ---------- */
+#clConfetti {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9990;
+  pointer-events: none;
+}
+
 /* ================================================
    ALL CALL BANNER
 ================================================ */
