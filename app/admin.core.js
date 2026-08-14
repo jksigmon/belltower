@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initUserMenu } from './user-menu.js?v=2';
-import { esc } from './admin.shared.js?v=2';
+import { esc } from './admin.shared.js?v=3';
 import { loadWeather } from './weather.js';
 import { initCalendarStrip } from './calendar-strip.js';
 

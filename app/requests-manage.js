@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
-import { esc, fmtShortDate } from './admin.shared.js?v=2';
+import { esc, fmtShortDate } from './admin.shared.js?v=3';
 
 let currentProfile = null;
 let managedCatIds  = [];

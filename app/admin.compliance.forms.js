@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc } from './admin.shared.js?v=2';
+import { esc } from './admin.shared.js?v=3';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { VOLUNTEER_BASE, openDrawer, closeDrawer, showToast, renderPagination, PAGE_SIZE } from './admin.compliance.utils.js';
 

@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc } from './admin.shared.js?v=2';
+import { esc } from './admin.shared.js?v=3';
 
 let currentProfile;
 let initialized = false;

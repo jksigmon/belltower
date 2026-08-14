@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, GRADE_ORDER, gradeLabel } from './admin.shared.js?v=2';
+import { esc, GRADE_ORDER, gradeLabel } from './admin.shared.js?v=3';
 
 export function showConfirmModal({ title, body, okLabel = 'Delete', danger = true }) {
   return new Promise(resolve => {

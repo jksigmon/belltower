@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { loadFamilyOptions, searchFamilies, getFamilyById, esc, getAvatarColor, debounce, dbError } from './admin.shared.js?v=2';
+import { loadFamilyOptions, searchFamilies, getFamilyById, esc, getAvatarColor, debounce, dbError } from './admin.shared.js?v=3';
 import { createDirectory } from './admin.directory.js?v=2';
 
 let currentProfile;

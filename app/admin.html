@@ -1269,6 +1269,10 @@
       <h2 style="margin:0;font-size:18px;font-weight:700;">Operations Manual</h2>
       <div class="directory-filters">
         <input id="rdSearch" type="text" placeholder="Search by title or file name…" />
+        <select id="rdCategoryFilter" class="admin-input" aria-label="Filter by category">
+          <option value="">All categories</option>
+        </select>
+        <button type="button" class="btn btn-sm" id="rdManageCatsBtn">Manage Categories</button>
         <div class="rd-view-toggle" id="rdViewToggle" role="group" aria-label="View mode">
           <button type="button" class="rd-view-btn" data-view="list" title="List view" aria-label="List view">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -1290,6 +1294,12 @@
       <div class="form-group" style="margin-bottom:14px;">
         <label class="form-label">Title</label>
         <input id="rdUploadTitle" class="form-control" type="text" placeholder="e.g. Employee Handbook" />
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label class="form-label">Category <span class="muted" style="font-weight:400;">(optional)</span></label>
+        <select id="rdUploadCategory" class="form-control">
+          <option value="">Uncategorized</option>
+        </select>
       </div>
       <div class="form-group" style="margin-bottom:0;">
         <label class="form-label">File</label>
@@ -1348,6 +1358,30 @@
       <div id="reservationsPendingList" class="access-card-list">
         <p class="muted">Loading…</p>
       </div>
+    </div>
+
+    <div class="panel">
+      <div class="directory-header" style="margin-bottom:12px;">
+        <h3 style="margin:0;">Time Blocks</h3>
+        <button class="btn btn-primary btn-sm" id="resAddTimeBlockBtn">+ Add Time Block</button>
+      </div>
+      <p class="muted" style="font-size:13px;margin:0 0 16px;">
+        Preset periods (e.g. "Block 1", 7:15–9:15) that staff pick from instead of typing an exact start/end time. Turn this on per resource or group in its "Reservation Fields" settings.
+      </p>
+      <table id="reservationsTimeBlockTable" class="admin-table">
+        <colgroup>
+          <col>
+          <col style="width:16%">
+          <col style="width:16%">
+          <col style="width:18%">
+          <col style="width:12%">
+          <col style="width:100px">
+        </colgroup>
+        <thead><tr>
+          <th>Label</th><th>Starts</th><th>Ends</th><th>Campus</th><th>Status</th><th></th>
+        </tr></thead>
+        <tbody><tr><td colspan="6" class="muted" style="padding:16px;">Loading…</td></tr></tbody>
+      </table>
     </div>
 
   </div>
@@ -2880,6 +2914,47 @@
         <span>Active (accepts new bookings)</span>
       </label>
     </div>
+    <div class="drawer-field" id="resCampusRow">
+      <label>Campus</label>
+      <select id="resCampusInput" class="form-input">
+        <option value="">All campuses</option>
+      </select>
+    </div>
+
+    <div id="resCustomFieldsBlock">
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">
+      <p class="muted" style="font-size:12px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.03em;font-weight:700;">Reservation Fields</p>
+      <div class="drawer-field">
+        <label>"Title" field label</label>
+        <input id="resTitleLabelInput" class="form-input" placeholder="e.g. Number of Chromebooks Needed" value="Title" />
+        <p class="muted" style="font-size:12px;margin:4px 0 0;">Shown in place of "Title" on the booking modal for this resource.</p>
+      </div>
+      <div class="admin-form-row compact two" style="gap:8px;">
+        <div class="drawer-field" style="margin:0;">
+          <label>Field type</label>
+          <select id="resTitleTypeInput" class="form-input">
+            <option value="text">Free text</option>
+            <option value="number">Number</option>
+          </select>
+        </div>
+        <div class="drawer-field" style="margin:0;" id="resTitleMaxRow">
+          <label>Max value</label>
+          <input id="resTitleMaxInput" type="number" min="1" class="form-input" placeholder="Optional" />
+        </div>
+      </div>
+      <div class="drawer-field">
+        <label>Policy text</label>
+        <textarea id="resPolicyTextInput" class="form-input" rows="4" placeholder="Optional — shown at the bottom of the booking modal"></textarea>
+      </div>
+      <div class="drawer-field">
+        <label class="staff-active-label">
+          <input type="checkbox" id="resUseTimeBlocksInput">
+          <span>Use time blocks instead of a free-form start/end time</span>
+        </label>
+        <p class="muted" style="font-size:12px;margin:4px 0 0;">Staff pick a date and one of the school's Time Blocks (Reservations → Time Blocks) instead of exact times.</p>
+      </div>
+    </div>
+    <p class="muted" id="resCustomFieldsNote" style="display:none;font-size:12.5px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;"></p>
   </div>
   <div class="drawer-footer">
     <button class="btn" id="resCancelBtn">Cancel</button>
@@ -2915,12 +2990,94 @@
         <span>New members require approval by default</span>
       </label>
     </div>
+    <div class="drawer-field">
+      <label>Campus</label>
+      <select id="resGroupCampusInput" class="form-input">
+        <option value="">All campuses</option>
+      </select>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0;">
+    <p class="muted" style="font-size:12px;margin:0 0 10px;text-transform:uppercase;letter-spacing:.03em;font-weight:700;">Reservation Fields</p>
+    <p class="muted" style="font-size:12px;margin:0 0 10px;">Applies to every resource in this group — saving here updates all current members too, so the booking modal stays consistent across the whole group.</p>
+    <div class="drawer-field">
+      <label>"Title" field label</label>
+      <input id="resGroupTitleLabelInput" class="form-input" placeholder="e.g. Number of Chromebooks Needed" value="Title" />
+    </div>
+    <div class="admin-form-row compact two" style="gap:8px;">
+      <div class="drawer-field" style="margin:0;">
+        <label>Field type</label>
+        <select id="resGroupTitleTypeInput" class="form-input">
+          <option value="text">Free text</option>
+          <option value="number">Number</option>
+        </select>
+      </div>
+      <div class="drawer-field" style="margin:0;" id="resGroupTitleMaxRow">
+        <label>Max value</label>
+        <input id="resGroupTitleMaxInput" type="number" min="1" class="form-input" placeholder="Optional" />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Policy text</label>
+      <textarea id="resGroupPolicyTextInput" class="form-input" rows="4" placeholder="Optional — shown at the bottom of the booking modal"></textarea>
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="resGroupUseTimeBlocksInput">
+        <span>Use time blocks instead of a free-form start/end time</span>
+      </label>
+    </div>
   </div>
   <div class="drawer-footer" style="justify-content:space-between;">
     <button class="btn" id="resGroupDeleteBtn" style="color:#dc2626;border-color:#fca5a5;">Delete Group</button>
     <div style="display:flex;gap:8px;">
       <button class="btn" id="resGroupCancelBtn">Cancel</button>
       <button id="resGroupSaveBtn" class="btn btn-primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     RESOURCE TIME BLOCK DRAWER
+     ============================================= -->
+<div id="timeBlockDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Time Block">
+  <div class="drawer-header">
+    <h3 id="tbDrawerTitle">Add Time Block</h3>
+    <button class="drawer-close" id="tbCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Label <span class="required">*</span></label>
+      <input id="tbLabelInput" class="form-input" placeholder="e.g. Block 1" />
+    </div>
+    <div class="admin-form-row compact two" style="gap:8px;">
+      <div class="drawer-field" style="margin:0;">
+        <label>Starts <span class="required">*</span></label>
+        <input id="tbStartInput" type="time" class="form-input" />
+      </div>
+      <div class="drawer-field" style="margin:0;">
+        <label>Ends <span class="required">*</span></label>
+        <input id="tbEndInput" type="time" class="form-input" />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Campus</label>
+      <select id="tbCampusInput" class="form-input">
+        <option value="">All campuses</option>
+      </select>
+    </div>
+    <div class="drawer-field" id="tbActiveRow" style="display:none;">
+      <label class="staff-active-label">
+        <input type="checkbox" id="tbActiveInput">
+        <span>Active (available to pick when booking)</span>
+      </label>
+    </div>
+  </div>
+  <div class="drawer-footer" style="justify-content:space-between;">
+    <button class="btn" id="tbDeleteBtn" style="color:#dc2626;border-color:#fca5a5;display:none;">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" id="tbCancelBtn">Cancel</button>
+      <button id="tbSaveBtn" class="btn btn-primary">Save</button>
     </div>
   </div>
 </div>
@@ -3049,6 +3206,55 @@
     <div class="confirm-modal-actions">
       <button id="arReviewCancel" class="btn">Cancel</button>
       <button id="arReviewConfirm" class="btn btn-primary">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Operations Manual: Edit Document (title + category) -->
+<div id="rdEditModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog" style="max-width:460px;">
+    <h3 class="confirm-modal-title">Edit Document</h3>
+    <div class="confirm-modal-body" style="display:flex;flex-direction:column;gap:14px;text-align:left;">
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Title</label>
+        <input id="rdEditTitle" class="form-control" type="text" />
+      </div>
+      <div class="form-group" style="margin:0;">
+        <label class="form-label">Category</label>
+        <select id="rdEditCategory" class="form-control">
+          <option value="">Uncategorized</option>
+        </select>
+      </div>
+      <p id="rdEditError" style="color:#dc2626;font-size:13px;margin:0;display:none;"></p>
+    </div>
+    <div class="confirm-modal-actions">
+      <button id="rdEditCancel" class="btn">Cancel</button>
+      <button id="rdEditSave" class="btn btn-primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Operations Manual: Manage Categories -->
+<div id="rdCatsModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog" style="max-width:520px;">
+    <h3 class="confirm-modal-title">Manage Categories</h3>
+    <div class="confirm-modal-body" style="text-align:left;">
+      <p class="muted" style="font-size:13px;margin:0 0 14px;">
+        Categories group documents on the staff Resources page. Deleting one never
+        deletes its documents — they simply become Uncategorized.
+      </p>
+      <div id="rdCatsList" class="rd-cats-list"></div>
+      <div class="rd-cat-add">
+        <input id="rdCatNewName" class="form-control" type="text" placeholder="New category name…" />
+        <button id="rdCatAddBtn" class="btn btn-primary btn-sm">Add</button>
+      </div>
+      <p id="rdCatsError" style="color:#dc2626;font-size:13px;margin:10px 0 0;display:none;"></p>
+      <button id="rdCatSeedBtn" class="btn btn-sm" style="margin-top:14px;display:none;">
+        Add a starter set (Schedules, Policies, Maps, Staff Resources, General)
+      </button>
+    </div>
+    <div class="confirm-modal-actions">
+      <button id="rdCatsClose" class="btn btn-primary">Done</button>
     </div>
   </div>
 </div>
@@ -3210,6 +3416,31 @@
   .rd-doc-badge { font-weight: 600; padding: 1px 7px; border-radius: 99px; white-space: nowrap; }
   .rd-doc-badge--view { background: #d1fae5; color: #065f46; }
   .rd-doc-badge--dl   { background: #f3f4f6; color: #6b7280; }
+
+  /* Category chip. Background/color are set inline from the category's
+     stored color (or a deterministic fallback), so only shape lives here. */
+  .rd-cat-chip {
+    display: inline-flex; align-items: center;
+    padding: 2px 9px; border-radius: 99px;
+    font-size: 11.5px; font-weight: 600; white-space: nowrap;
+    line-height: 1.6;
+  }
+
+  /* Manage Categories modal */
+  .rd-cats-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+  .rd-cat-row {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid #e5e7eb; border-radius: 9px; padding: 8px 10px;
+  }
+  .rd-cat-row-name { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; color: #111827; }
+  .rd-cat-row-count { font-size: 12px; color: #9ca3af; white-space: nowrap; }
+  .rd-cat-swatch {
+    width: 22px; height: 22px; padding: 0; border: 1px solid #e5e7eb;
+    border-radius: 6px; cursor: pointer; background: none; flex-shrink: 0;
+  }
+  .rd-cat-add { display: flex; gap: 8px; margin-top: 14px; }
+  .rd-cat-add .form-control { flex: 1; }
+  .rd-cats-empty { font-size: 13px; color: #9ca3af; text-align: center; padding: 18px 0; }
   .rd-doc-actions { display: flex; gap: 8px; flex-shrink: 0; }
   .rd-doc-empty {
     text-align: center; padding: 64px 16px;

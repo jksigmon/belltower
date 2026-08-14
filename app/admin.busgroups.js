@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js?v=2';
 import { createDirectory } from './admin.directory.js?v=2';
-import { esc, getAvatarColor, debounce, dbError } from './admin.shared.js?v=2';
+import { esc, getAvatarColor, debounce, dbError } from './admin.shared.js?v=3';
 
 let currentProfile;
 let initialized = false;

@@ -1,4 +1,4 @@
-import { esc, dbError } from './admin.shared.js?v=2';
+import { esc, dbError } from './admin.shared.js?v=3';
 
 // Color config keyed by event_type — all values are hardcoded constants, safe to interpolate
 const TYPE_CONFIG = {

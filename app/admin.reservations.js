@@ -1,15 +1,20 @@
 // admin.reservations.js
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, dbError, fmtShortDate } from './admin.shared.js?v=2';
+import { esc, dbError, fmtShortDate } from './admin.shared.js?v=3';
 
 let profile = null;
 let initialized = false;
 let resources = [];
 let groups = [];
 let pending = [];
+let campuses = [];
+let timeBlocks = [];
 let editingResourceId = null;
 let editingGroupId = null;
+let editingTimeBlockId = null;
 let resMode = 'single';
+
+const FIELD_SETTINGS_COLUMNS = 'campus_id, use_time_blocks, title_label, title_input_type, title_max_value, policy_text';
 
 /* ===============================
    ENTRY POINT
@@ -28,8 +33,30 @@ export async function initReservationsSection(p) {
     initialized = true;
   }
 
+  await loadCampuses();
   await loadGroups();
-  await Promise.all([loadResources(), loadPending()]);
+  await Promise.all([loadResources(), loadPending(), loadTimeBlocks()]);
+}
+
+/* ===============================
+   CAMPUSES (for scoping resources/groups/blocks)
+================================ */
+async function loadCampuses() {
+  const { data, error } = await supabase
+    .from('campuses')
+    .select('id, name')
+    .eq('school_id', profile.school_id)
+    .order('name');
+
+  if (error) { console.error('loadCampuses', error); return; }
+  campuses = data ?? [];
+}
+
+function populateCampusSelect(selectEl, selectedId) {
+  if (!selectEl) return;
+  selectEl.innerHTML = '<option value="">All campuses</option>' +
+    campuses.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('');
+  selectEl.value = selectedId || '';
 }
 
 /* ===============================
@@ -38,7 +65,7 @@ export async function initReservationsSection(p) {
 async function loadGroups() {
   const { data, error } = await supabase
     .from('resource_groups')
-    .select('id, name, description, color, requires_approval, sort_order')
+    .select(`id, name, description, color, requires_approval, sort_order, ${FIELD_SETTINGS_COLUMNS}`)
     .eq('school_id', profile.school_id)
     .order('sort_order')
     .order('name');
@@ -50,7 +77,7 @@ async function loadGroups() {
 async function loadResources() {
   const { data, error } = await supabase
     .from('reservable_resources')
-    .select('id, name, description, color, requires_approval, active, sort_order, group_id')
+    .select(`id, name, description, color, requires_approval, active, sort_order, group_id, ${FIELD_SETTINGS_COLUMNS}`)
     .eq('school_id', profile.school_id)
     .order('sort_order')
     .order('name');
@@ -58,6 +85,65 @@ async function loadResources() {
   if (error) { console.error('loadResources', error); return; }
   resources = data ?? [];
   renderResourceTable();
+}
+
+/* ===============================
+   RESERVATION FIELD SETTINGS
+   (campus, title label/type/max, policy text, time blocks) — shared
+   between single resources and groups; locked to the group's values
+   when a resource belongs to one, so the whole group stays consistent.
+================================ */
+function readFieldSettingsFromForm(prefix) {
+  const type = document.getElementById(`${prefix}TitleTypeInput`).value === 'number' ? 'number' : 'text';
+  return {
+    campus_id: document.getElementById(`${prefix}CampusInput`).value || null,
+    title_label: document.getElementById(`${prefix}TitleLabelInput`).value.trim() || 'Title',
+    title_input_type: type,
+    title_max_value: type === 'number'
+      ? (parseInt(document.getElementById(`${prefix}TitleMaxInput`).value, 10) || null)
+      : null,
+    policy_text: document.getElementById(`${prefix}PolicyTextInput`).value.trim() || null,
+    use_time_blocks: document.getElementById(`${prefix}UseTimeBlocksInput`).checked,
+  };
+}
+
+function fieldSettingsFromGroup(g) {
+  return {
+    campus_id: g?.campus_id || null,
+    title_label: g?.title_label || 'Title',
+    title_input_type: g?.title_input_type || 'text',
+    title_max_value: g?.title_max_value ?? null,
+    policy_text: g?.policy_text || null,
+    use_time_blocks: !!g?.use_time_blocks,
+  };
+}
+
+function updateTitleTypeUI(prefix) {
+  const type = document.getElementById(`${prefix}TitleTypeInput`).value;
+  const maxRowId = prefix === 'res' ? 'resTitleMaxRow' : 'resGroupTitleMaxRow';
+  document.getElementById(maxRowId).style.display = type === 'number' ? '' : 'none';
+}
+
+// A resource's campus/title/policy/time-block settings are locked to its
+// group's once it belongs to one (set here in the resource drawer, edited
+// only via the group drawer) — otherwise every member could drift out of
+// sync with what the group's booking modal is supposed to look like.
+function refreshCustomFieldsLock() {
+  const groupSel = document.getElementById('resGroupSelectInput');
+  const groupId = groupSel ? groupSel.value : '';
+  const isNewGroup = resMode === 'group' && !editingResourceId;
+  const locked = !isNewGroup && !!groupId;
+
+  document.getElementById('resCampusRow').style.display = locked ? 'none' : '';
+  document.getElementById('resCustomFieldsBlock').style.display = locked ? 'none' : '';
+  const note = document.getElementById('resCustomFieldsNote');
+  if (locked) {
+    const g = groups.find(x => x.id === groupId);
+    note.style.display = '';
+    note.textContent = `Campus and reservation-field settings are managed on the group "${g ? g.name : ''}" — edit the group to change them for all its members.`;
+  } else {
+    note.style.display = 'none';
+  }
 }
 
 function renderResourceTable() {
@@ -143,6 +229,7 @@ function setResMode(mode) {
     mode === 'group' ? 'e.g. Upper School Chromebook Carts' : 'e.g. Conference Room, School Van';
   document.getElementById('resGroupSelectRow').style.display = mode === 'group' ? 'none' : '';
   document.getElementById('resGroupModeFields').style.display = mode === 'group' ? '' : 'none';
+  refreshCustomFieldsLock();
 }
 
 function populateGroupSelect(selectedId) {
@@ -167,7 +254,15 @@ function openAddResourceDrawer(prefillGroupId) {
   document.getElementById('resMemberPrefix').value = '';
   document.getElementById('resMemberFrom').value = '';
   document.getElementById('resMemberTo').value = '';
+  populateCampusSelect(document.getElementById('resCampusInput'), '');
+  document.getElementById('resTitleLabelInput').value = 'Title';
+  document.getElementById('resTitleTypeInput').value = 'text';
+  document.getElementById('resTitleMaxInput').value = '';
+  document.getElementById('resPolicyTextInput').value = '';
+  document.getElementById('resUseTimeBlocksInput').checked = false;
+  updateTitleTypeUI('res');
   populateGroupSelect(typeof prefillGroupId === 'string' ? prefillGroupId : '');
+  refreshCustomFieldsLock();
   window.openDrawer?.('resourceDrawer');
 }
 
@@ -184,7 +279,15 @@ function openEditResourceDrawer(id) {
   document.getElementById('resApprovalInput').checked = !!r.requires_approval;
   document.getElementById('resActiveInput').checked = !!r.active;
   document.getElementById('resActiveRow').style.display = '';
+  populateCampusSelect(document.getElementById('resCampusInput'), r.campus_id || '');
+  document.getElementById('resTitleLabelInput').value = r.title_label || 'Title';
+  document.getElementById('resTitleTypeInput').value = r.title_input_type || 'text';
+  document.getElementById('resTitleMaxInput').value = r.title_max_value ?? '';
+  document.getElementById('resPolicyTextInput').value = r.policy_text ?? '';
+  document.getElementById('resUseTimeBlocksInput').checked = !!r.use_time_blocks;
+  updateTitleTypeUI('res');
   populateGroupSelect(r.group_id || '');
+  refreshCustomFieldsLock();
   window.openDrawer?.('resourceDrawer');
 }
 
@@ -214,6 +317,7 @@ async function saveResource() {
   let error;
 
   if (creatingGroup) {
+    const groupFieldSettings = readFieldSettingsFromForm('res');
     const { data: group, error: groupErr } = await supabase
       .from('resource_groups')
       .insert({
@@ -223,6 +327,7 @@ async function saveResource() {
         color,
         requires_approval: requiresApproval,
         sort_order: groups.length,
+        ...groupFieldSettings,
       })
       .select('id')
       .single();
@@ -242,6 +347,7 @@ async function saveResource() {
         color,
         requires_approval: requiresApproval,
         sort_order: i,
+        ...groupFieldSettings,
       }))
     );
 
@@ -269,12 +375,18 @@ async function saveResource() {
   } else if (editingResourceId) {
     const active = document.getElementById('resActiveInput').checked;
     const groupId = document.getElementById('resGroupSelectInput').value || null;
+    const fieldSettings = groupId
+      ? fieldSettingsFromGroup(groups.find(g => g.id === groupId))
+      : readFieldSettingsFromForm('res');
     ({ error } = await supabase
       .from('reservable_resources')
-      .update({ name, description: description || null, color, requires_approval: requiresApproval, active, group_id: groupId })
+      .update({ name, description: description || null, color, requires_approval: requiresApproval, active, group_id: groupId, ...fieldSettings })
       .eq('id', editingResourceId));
   } else {
     const groupId = document.getElementById('resGroupSelectInput').value || null;
+    const fieldSettings = groupId
+      ? fieldSettingsFromGroup(groups.find(g => g.id === groupId))
+      : readFieldSettingsFromForm('res');
     ({ error } = await supabase
       .from('reservable_resources')
       .insert({
@@ -285,6 +397,7 @@ async function saveResource() {
         color,
         requires_approval: requiresApproval,
         sort_order: resources.length,
+        ...fieldSettings,
       }));
   }
 
@@ -335,6 +448,13 @@ function openEditGroupDrawer(id) {
   document.getElementById('resGroupDescInput').value = g.description ?? '';
   document.getElementById('resGroupColorInput').value = g.color ?? '#2563eb';
   document.getElementById('resGroupApprovalInput').checked = !!g.requires_approval;
+  populateCampusSelect(document.getElementById('resGroupCampusInput'), g.campus_id || '');
+  document.getElementById('resGroupTitleLabelInput').value = g.title_label || 'Title';
+  document.getElementById('resGroupTitleTypeInput').value = g.title_input_type || 'text';
+  document.getElementById('resGroupTitleMaxInput').value = g.title_max_value ?? '';
+  document.getElementById('resGroupPolicyTextInput').value = g.policy_text ?? '';
+  document.getElementById('resGroupUseTimeBlocksInput').checked = !!g.use_time_blocks;
+  updateTitleTypeUI('resGroup');
 
   const memberCount = resources.filter(r => r.group_id === id).length;
   const delBtn = document.getElementById('resGroupDeleteBtn');
@@ -351,6 +471,7 @@ async function saveGroup() {
   const description = document.getElementById('resGroupDescInput').value.trim();
   const color = document.getElementById('resGroupColorInput').value || '#2563eb';
   const requiresApproval = document.getElementById('resGroupApprovalInput').checked;
+  const fieldSettings = readFieldSettingsFromForm('resGroup');
 
   if (!name) { alert('Group name is required.'); return; }
 
@@ -360,17 +481,35 @@ async function saveGroup() {
 
   const { error } = await supabase
     .from('resource_groups')
-    .update({ name, description: description || null, color, requires_approval: requiresApproval })
+    .update({ name, description: description || null, color, requires_approval: requiresApproval, ...fieldSettings })
     .eq('id', editingGroupId);
+
+  if (error) {
+    btn.disabled = false;
+    btn.textContent = 'Save';
+    alert('Failed to save group: ' + error.message);
+    return;
+  }
+
+  // Cascade the booking-field settings (not color/requires_approval, which
+  // stay per-member by design) to every current member so the group's
+  // booking modal stays consistent across all its resources.
+  const { error: cascadeErr } = await supabase
+    .from('reservable_resources')
+    .update(fieldSettings)
+    .eq('group_id', editingGroupId);
 
   btn.disabled = false;
   btn.textContent = 'Save';
 
-  if (error) { alert('Failed to save group: ' + error.message); return; }
+  if (cascadeErr) {
+    console.error('Failed to cascade group field settings to members', cascadeErr);
+    alert(`The group was saved, but updating its members' booking fields failed: ${cascadeErr.message}`);
+  }
 
   window.closeDrawer?.('resourceGroupDrawer');
   await loadGroups();
-  renderResourceTable();
+  await loadResources();
 }
 
 async function deleteGroup(id) {
@@ -461,6 +600,130 @@ async function decidePending(id, status) {
 }
 
 /* ===============================
+   TIME BLOCKS
+================================ */
+async function loadTimeBlocks() {
+  const { data, error } = await supabase
+    .from('resource_time_blocks')
+    .select('id, label, start_time, end_time, campus_id, sort_order, active')
+    .eq('school_id', profile.school_id)
+    .order('sort_order')
+    .order('start_time');
+
+  if (error) { console.error('loadTimeBlocks', error); return; }
+  timeBlocks = data ?? [];
+  renderTimeBlockTable();
+}
+
+function fmtBlockTime(t) {
+  if (!t) return '—';
+  const [h, m] = t.split(':').map(Number);
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function renderTimeBlockTable() {
+  const tbody = document.querySelector('#reservationsTimeBlockTable tbody');
+  if (!tbody) return;
+
+  if (!timeBlocks.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="staff-cell-muted" style="padding:16px;">No time blocks yet — add one so resources can offer preset booking periods instead of exact times.</td></tr>`;
+    return;
+  }
+
+  const campusLookup = Object.fromEntries(campuses.map(c => [c.id, c.name]));
+
+  tbody.innerHTML = timeBlocks.map(b => `
+    <tr>
+      <td>${esc(b.label)}</td>
+      <td class="staff-cell-muted">${esc(fmtBlockTime(b.start_time))}</td>
+      <td class="staff-cell-muted">${esc(fmtBlockTime(b.end_time))}</td>
+      <td class="staff-cell-muted">${esc(b.campus_id ? (campusLookup[b.campus_id] ?? 'Unknown') : 'All campuses')}</td>
+      <td>${b.active ? '<span class="module-pill">Active</span>' : '<span class="staff-cell-muted">Inactive</span>'}</td>
+      <td class="staff-cell-actions">
+        <button class="btn btn-sm tb-edit-btn" data-id="${esc(b.id)}">Edit</button>
+      </td>
+    </tr>
+  `).join('');
+
+  tbody.querySelectorAll('.tb-edit-btn').forEach(btn =>
+    btn.addEventListener('click', () => openEditTimeBlockDrawer(btn.dataset.id)));
+}
+
+function openAddTimeBlockDrawer() {
+  editingTimeBlockId = null;
+  document.getElementById('tbDrawerTitle').textContent = 'Add Time Block';
+  document.getElementById('tbLabelInput').value = '';
+  document.getElementById('tbStartInput').value = '';
+  document.getElementById('tbEndInput').value = '';
+  populateCampusSelect(document.getElementById('tbCampusInput'), '');
+  document.getElementById('tbActiveRow').style.display = 'none';
+  document.getElementById('tbDeleteBtn').style.display = 'none';
+  window.openDrawer?.('timeBlockDrawer');
+}
+
+function openEditTimeBlockDrawer(id) {
+  const b = timeBlocks.find(x => x.id === id);
+  if (!b) return;
+  editingTimeBlockId = id;
+  document.getElementById('tbDrawerTitle').textContent = 'Edit Time Block';
+  document.getElementById('tbLabelInput').value = b.label;
+  document.getElementById('tbStartInput').value = (b.start_time || '').slice(0, 5);
+  document.getElementById('tbEndInput').value = (b.end_time || '').slice(0, 5);
+  populateCampusSelect(document.getElementById('tbCampusInput'), b.campus_id || '');
+  document.getElementById('tbActiveInput').checked = !!b.active;
+  document.getElementById('tbActiveRow').style.display = '';
+  document.getElementById('tbDeleteBtn').style.display = '';
+  window.openDrawer?.('timeBlockDrawer');
+}
+
+async function saveTimeBlock() {
+  const label = document.getElementById('tbLabelInput').value.trim();
+  const start = document.getElementById('tbStartInput').value;
+  const end = document.getElementById('tbEndInput').value;
+  const campusId = document.getElementById('tbCampusInput').value || null;
+
+  if (!label || !start || !end) { alert('Label, start time, and end time are required.'); return; }
+  if (end <= start) { alert('End time must be after the start time.'); return; }
+
+  const btn = document.getElementById('tbSaveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  let error;
+  if (editingTimeBlockId) {
+    const active = document.getElementById('tbActiveInput').checked;
+    ({ error } = await supabase
+      .from('resource_time_blocks')
+      .update({ label, start_time: start, end_time: end, campus_id: campusId, active })
+      .eq('id', editingTimeBlockId));
+  } else {
+    ({ error } = await supabase
+      .from('resource_time_blocks')
+      .insert({ school_id: profile.school_id, label, start_time: start, end_time: end, campus_id: campusId, sort_order: timeBlocks.length }));
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Save';
+
+  if (error) { alert('Failed to save time block: ' + error.message); return; }
+
+  window.closeDrawer?.('timeBlockDrawer');
+  await loadTimeBlocks();
+}
+
+async function deleteTimeBlock() {
+  if (!editingTimeBlockId) return;
+  if (!confirm('Delete this time block? Resources using time blocks will no longer offer it as an option.')) return;
+
+  const { error } = await supabase.from('resource_time_blocks').delete().eq('id', editingTimeBlockId);
+  if (error) { alert('Failed to delete time block: ' + error.message); return; }
+
+  window.closeDrawer?.('timeBlockDrawer');
+  editingTimeBlockId = null;
+  await loadTimeBlocks();
+}
+
+/* ===============================
    EVENTS
 ================================ */
 function wireEvents() {
@@ -471,6 +734,8 @@ function wireEvents() {
   document.getElementById('resModeSingle')?.addEventListener('change', () => setResMode('single'));
   document.getElementById('resModeGroup')?.addEventListener('change', () => setResMode('group'));
   document.getElementById('resMemberGenBtn')?.addEventListener('click', generateMembers);
+  document.getElementById('resGroupSelectInput')?.addEventListener('change', refreshCustomFieldsLock);
+  document.getElementById('resTitleTypeInput')?.addEventListener('change', () => updateTitleTypeUI('res'));
 
   document.getElementById('resGroupSaveBtn')?.addEventListener('click', saveGroup);
   document.getElementById('resGroupCancelBtn')?.addEventListener('click', () => window.closeDrawer?.('resourceGroupDrawer'));
@@ -481,6 +746,13 @@ function wireEvents() {
     window.closeDrawer?.('resourceGroupDrawer');
     deleteGroup(id);
   });
+  document.getElementById('resGroupTitleTypeInput')?.addEventListener('change', () => updateTitleTypeUI('resGroup'));
+
+  document.getElementById('resAddTimeBlockBtn')?.addEventListener('click', openAddTimeBlockDrawer);
+  document.getElementById('tbSaveBtn')?.addEventListener('click', saveTimeBlock);
+  document.getElementById('tbCancelBtn')?.addEventListener('click', () => window.closeDrawer?.('timeBlockDrawer'));
+  document.getElementById('tbCloseBtn')?.addEventListener('click', () => window.closeDrawer?.('timeBlockDrawer'));
+  document.getElementById('tbDeleteBtn')?.addEventListener('click', deleteTimeBlock);
 }
 
 function generateMembers() {

@@ -21,6 +21,28 @@ export function tileIconSvg(kind) {
   return kind === 'image' ? TILE_ICON_IMAGE : TILE_ICON_PDF;
 }
 
+// Short uppercase badge for a file's type ("PDF", "DOCX", "XLSX"), shown
+// on document cards. Normalizes the handful of extensions that have two
+// spellings so a .jpeg and a .jpg don't render as two different badges;
+// anything unrecognized just uses its own extension, which is almost
+// always what a teacher would expect to see anyway.
+const TYPE_LABEL_ALIASES = {
+  jpeg: 'JPG',
+  htm: 'HTML',
+  tif: 'TIFF',
+  yml: 'YAML',
+};
+
+export function fileTypeLabel(filename) {
+  const parts = (filename || '').toLowerCase().split('.');
+  if (parts.length < 2) return 'FILE';
+  const ext = parts.pop();
+  if (!ext) return 'FILE';
+  // Cap the length so a pathological "document.verylongextension" can't
+  // blow out the fixed-width badge in the card layout.
+  return (TYPE_LABEL_ALIASES[ext] || ext.toUpperCase()).slice(0, 5);
+}
+
 // pdf.js is only fetched the first time a PDF thumbnail is actually needed
 // (i.e. the first time someone switches to grid view), not on every page load.
 let pdfjsLibPromise = null;

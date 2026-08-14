@@ -1,6 +1,6 @@
 // admin.data-collection.js
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, GRADE_ORDER, gradeLabel } from './admin.shared.js?v=2';
+import { esc, GRADE_ORDER, gradeLabel } from './admin.shared.js?v=3';
 import qrcode from './vendor/qrcode.js';
 
 let profile = null;

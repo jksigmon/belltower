@@ -155,6 +155,43 @@ export function getAvatarColor(name) {
   return colors[Math.abs(hash) % colors.length];
 }
 
+/**
+ * Chip colors for resource-document categories, shared by the admin
+ * Operations Manual and the staff Resources page so a category looks the
+ * same on both.
+ *
+ * Categories store a *key* from this map rather than a raw hex value:
+ * each entry is a hand-checked background/foreground pair, so any stored
+ * value is guaranteed readable. Letting admins pick an arbitrary hex
+ * would eventually produce yellow-on-white chips nobody can read.
+ */
+export const CATEGORY_COLORS = {
+  blue:   { bg: '#dbeafe', fg: '#1e40af' },
+  green:  { bg: '#d1fae5', fg: '#065f46' },
+  violet: { bg: '#ede9fe', fg: '#5b21b6' },
+  amber:  { bg: '#fef3c7', fg: '#92400e' },
+  pink:   { bg: '#fce7f3', fg: '#9d174d' },
+  cyan:   { bg: '#cffafe', fg: '#155e75' },
+  rose:   { bg: '#ffe4e6', fg: '#9f1239' },
+  slate:  { bg: '#f1f5f9', fg: '#334155' },
+};
+
+export const CATEGORY_COLOR_KEYS = Object.keys(CATEGORY_COLORS);
+
+/**
+ * Resolves a category's {bg, fg} chip colors. Falls back to a
+ * deterministic pick seeded on `seed` (pass the category id) when no
+ * color has been chosen, so an admin who never touches colors still
+ * gets a varied, stable palette instead of everything looking the same.
+ */
+export function categoryChipStyle(colorKey, seed = '') {
+  if (colorKey && CATEGORY_COLORS[colorKey]) return CATEGORY_COLORS[colorKey];
+  let hash = 0;
+  const s = String(seed);
+  for (let i = 0; i < s.length; i++) hash = s.charCodeAt(i) + ((hash << 5) - hash);
+  return CATEGORY_COLORS[CATEGORY_COLOR_KEYS[Math.abs(hash) % CATEGORY_COLOR_KEYS.length]];
+}
+
 export function debounce(fn, delay = 250) {
   let t;
   return (...args) => {
@@ -252,6 +289,44 @@ export function fmtShortDate(dateStr) {
   if (!dateStr) return '—';
   const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * Human-friendly relative date for "recently updated" style lists:
+ * "Today", "Yesterday", "3 days ago", then falls back to fmtShortDate
+ * once it's a week out (past that, an exact date is more useful than a
+ * growing day count).
+ *
+ * Compares calendar days in local time rather than elapsed hours, so
+ * something saved at 11pm still reads "Yesterday" when viewed at 1am
+ * instead of the technically-true but confusing "2 hours ago".
+ */
+export function fmtRelativeDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00');
+  if (isNaN(d)) return '—';
+
+  const startOfDay = x => new Date(x.getFullYear(), x.getMonth(), x.getDate());
+  const days = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000);
+
+  if (days <= 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  return fmtShortDate(dateStr);
+}
+
+/**
+ * True when `dateStr` falls on today's local calendar date — used to
+ * flag freshly-changed rows (e.g. the blue dot on Recently Updated).
+ */
+export function isToday(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr.includes('T') ? dateStr : dateStr + 'T12:00:00');
+  if (isNaN(d)) return false;
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear()
+    && d.getMonth() === now.getMonth()
+    && d.getDate() === now.getDate();
 }
 
 /* ===============================

@@ -89,6 +89,133 @@
 }
 .rd-doc-tile-actions { margin-top: 12px; }
 
+/* ─── Resources: layout, sidebar, pinned strip ───── */
+.rd-layout { display: grid; grid-template-columns: 208px 1fr; gap: 28px; align-items: start; }
+.rd-sidebar { display: flex; flex-direction: column; gap: 26px; position: sticky; top: 12px; }
+.rd-side-block { min-width: 0; }
+.rd-side-heading {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+  color: #a3adba; margin-bottom: 10px; padding-left: 10px;
+}
+/* Hairline above Recently Updated, so the two blocks read as separate
+   groups without needing a heavy divider or a boxed container. */
+#staffRdRecentBlock { border-top: 1px solid #f1f5f9; padding-top: 22px; }
+.rd-main { min-width: 0; }
+
+/* Category nav */
+.rd-cat-nav { display: flex; flex-direction: column; gap: 1px; }
+.rd-cat-item {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  background: none; border: none; cursor: pointer; text-align: left;
+  padding: 8px 10px; border-radius: 8px;
+  font-size: 13.5px; font-weight: 500; color: #4b5563;
+  font-family: inherit; transition: background 0.12s, color 0.12s;
+}
+.rd-cat-item:hover { background: #f6f8fa; color: #111827; }
+.rd-cat-item.active { background: #eff6ff; color: #1d4ed8; font-weight: 650; }
+.rd-cat-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rd-cat-item-count {
+  font-size: 11.5px; font-weight: 600; color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+  background: #f1f5f9; border-radius: 99px; padding: 1px 7px; min-width: 22px; text-align: center;
+}
+.rd-cat-item.active .rd-cat-item-count { color: #1d4ed8; background: #dbeafe; }
+.rd-cat-dot { width: 7px; height: 7px; border-radius: 99px; flex-shrink: 0; }
+
+/* Recently updated */
+.rd-recent-list { display: flex; flex-direction: column; gap: 2px; }
+.rd-recent-item {
+  display: flex; align-items: flex-start; gap: 8px; width: 100%;
+  background: none; border: none; cursor: pointer; text-align: left;
+  padding: 7px 10px; border-radius: 8px; font-family: inherit;
+  transition: background 0.12s;
+}
+.rd-recent-item:hover { background: #f6f8fa; }
+.rd-recent-body { flex: 1; min-width: 0; }
+.rd-recent-title {
+  font-size: 12.5px; font-weight: 600; color: #4b5563; line-height: 1.4;
+  overflow: hidden; text-overflow: ellipsis; display: -webkit-box;
+  -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.rd-recent-item:hover .rd-recent-title { color: #1d4ed8; }
+.rd-recent-when { font-size: 11px; color: #a3adba; margin-top: 2px; }
+.rd-recent-dot { width: 6px; height: 6px; border-radius: 99px; background: #2563eb; flex-shrink: 0; margin-top: 6px; }
+
+/* Pinned strip */
+.rd-pinned { background: #f8fafc; border: 1px solid #eef2f7; border-radius: 12px; padding: 14px 16px 16px; margin-bottom: 22px; }
+.rd-pinned-head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.rd-pinned-title { font-size: 13px; font-weight: 700; color: #374151; }
+.rd-pinned-count { font-size: 12px; color: #9ca3af; }
+.rd-pinned-rail { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.rd-pinned-rail .rd-doc-tile { flex: 0 0 148px; background: #fff; }
+
+/* Bookmark toggle — sits in the tile's top-right corner */
+.rd-doc-tile { position: relative; }
+.rd-bookmark-btn {
+  position: absolute; top: 8px; right: 8px;
+  width: 26px; height: 26px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer;
+  color: #cbd5e1; border-radius: 6px; line-height: 0;
+}
+.rd-bookmark-btn:hover { background: #f1f5f9; color: #94a3b8; }
+.rd-bookmark-btn.pinned { color: #2563eb; }
+.rd-bookmark-btn.pinned:hover { color: #1d4ed8; }
+.rd-bookmark-btn[disabled] { opacity: 0.5; cursor: default; }
+
+/* Row (list view). The bookmark button is absolutely positioned inside a
+   tile; in a row it's a normal inline control, so undo that here. */
+.rd-doc-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #f3f4f6; }
+.rd-doc-row .rd-bookmark-btn { position: static; flex-shrink: 0; }
+.rd-doc-row-main { flex: 1; min-width: 0; }
+.rd-doc-row-title { font-weight: 600; font-size: 14px; color: #111827; }
+.rd-doc-row-meta { display: flex; align-items: center; gap: 8px; margin-top: 3px; flex-wrap: wrap; }
+.rd-type-badge {
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.03em;
+  color: #6b7280; background: #f3f4f6; padding: 1px 6px; border-radius: 4px;
+}
+.rd-cat-chip {
+  display: inline-flex; align-items: center;
+  padding: 2px 9px; border-radius: 99px;
+  font-size: 11.5px; font-weight: 600; white-space: nowrap; line-height: 1.6;
+}
+.rd-doc-tile-meta { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+
+/* Notice bar — e.g. a document deleted while this page was open */
+.rd-notice {
+  display: flex; align-items: flex-start; gap: 10px;
+  background: #fef3c7; border: 1px solid #fde68a; border-radius: 10px;
+  padding: 11px 13px; margin-bottom: 16px;
+  font-size: 13px; color: #78350f; line-height: 1.5;
+}
+.rd-notice-body { flex: 1; min-width: 0; }
+.rd-notice-close {
+  background: none; border: none; cursor: pointer; padding: 0 2px;
+  color: #92400e; font-size: 16px; line-height: 1; flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  /* Sidebar becomes a horizontally-scrolling chip row above the grid, and
+     Recently Updated moves below it — a 190px rail would eat half the
+     screen on a phone. */
+  .rd-layout { grid-template-columns: 1fr; gap: 16px; }
+  /* display:contents dissolves the sidebar box so its two blocks become
+     grid items in their own right — without it they're locked inside the
+     sidebar and can't be ordered around .rd-main. */
+  .rd-sidebar { display: contents; }
+  .rd-side-block { order: 1; }
+  .rd-main { order: 2; }
+  /* The hairline separator is for the stacked desktop sidebar; stacked
+     under the grid on mobile it just reads as a stray rule. */
+  #staffRdRecentBlock { order: 3; border-top: none; padding-top: 0; }
+  .rd-side-heading { padding-left: 0; }
+  .rd-cat-nav { flex-direction: row; overflow-x: auto; gap: 6px; padding-bottom: 4px; scrollbar-width: none; }
+  .rd-cat-nav::-webkit-scrollbar { display: none; }
+  .rd-cat-item { width: auto; flex: 0 0 auto; border: 1px solid #e5e7eb; border-radius: 99px; padding: 6px 12px; }
+  .rd-cat-item.active { border-color: #bfdbfe; }
+  .rd-doc-tiles { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+}
+
 /* ─── PTO Form — Premium ─────────────────────────── */
 
 .pto-form {
@@ -1182,8 +1309,29 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <p class="muted" style="margin:0 0 20px;font-size:13px;">
           View and print these documents. What you see here is always the current version.
         </p>
-        <div id="staffResourcesList">
-          <p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>
+
+        <div class="rd-layout">
+          <!-- Plain divs on purpose: a <nav> here inherits the app shell's
+               sidebar gradient from admin-ui.css, and a <section> would be
+               hidden by setActive()'s `main section { display:none }` sweep
+               on every navigation. -->
+          <aside class="rd-sidebar">
+            <div class="rd-side-block">
+              <div class="rd-side-heading">Categories</div>
+              <div id="staffRdCategories" class="rd-cat-nav" role="navigation" aria-label="Document categories"></div>
+            </div>
+            <div class="rd-side-block" id="staffRdRecentBlock" hidden>
+              <div class="rd-side-heading">Recently Updated</div>
+              <div id="staffRdRecent" class="rd-recent-list"></div>
+            </div>
+          </aside>
+
+          <div class="rd-main">
+            <div id="staffRdPinned" class="rd-pinned" hidden></div>
+            <div id="staffResourcesList">
+              <p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -1192,7 +1340,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       <div class="panel">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
           <h3 style="margin:0;">Reservations</h3>
-          <button class="btn btn-primary btn-sm" id="resNewBookingBtn">+ New Reservation</button>
+          <button class="btn btn-primary btn-sm" id="resNewBookingBtn" style="height:38px;padding:0 16px;">+ New Reservation</button>
         </div>
         <p class="muted" style="margin:0 0 16px;font-size:13px;">
           Reserve shared resources like the conference room, van, or gym. Some resources require admin approval before a booking is confirmed.
@@ -1268,10 +1416,10 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <select id="resBookResource" class="form-input"></select>
       </div>
       <div class="drawer-field">
-        <label>Title <span class="required">*</span></label>
+        <label><span id="resBookTitleLabelText">Title</span> <span class="required">*</span></label>
         <input id="resBookTitle" class="form-input" placeholder="e.g. Staff meeting" />
       </div>
-      <div class="admin-form-row compact two" style="gap:8px;">
+      <div class="admin-form-row compact two" style="gap:8px;" id="resBookDatetimeRow">
         <div class="drawer-field" style="margin:0;">
           <label>Starts</label>
           <input id="resBookStart" type="datetime-local" class="form-input" />
@@ -1281,9 +1429,22 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
           <input id="resBookEnd" type="datetime-local" class="form-input" />
         </div>
       </div>
+      <div class="admin-form-row compact two" style="gap:8px;display:none;" id="resBookBlockRow">
+        <div class="drawer-field" style="margin:0;">
+          <label>Date</label>
+          <input id="resBookDate" type="date" class="form-input" />
+        </div>
+        <div class="drawer-field" style="margin:0;">
+          <label>Time block</label>
+          <select id="resBookBlockSelect" class="form-input"></select>
+        </div>
+      </div>
       <div class="drawer-field">
         <label>Notes</label>
         <textarea id="resBookNotes" class="form-input" rows="2" placeholder="Optional"></textarea>
+      </div>
+      <div class="drawer-field" id="resBookPolicyBlock" style="display:none;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;">
+        <p id="resBookPolicyText" style="white-space:pre-wrap;font-size:12.5px;color:#475569;margin:0;"></p>
       </div>
       <p id="resBookError" style="color:#dc2626;font-size:13px;display:none;margin:0 0 10px;"></p>
       <div class="modal-actions">
@@ -1386,9 +1547,9 @@ import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate } from '/app/admin.shared.js?v=2';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate } from '/app/admin.shared.js?v=3';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
-import { fileKind as rdFileKind, tileIconSvg as rdTileIconSvg, getThumbnailUrl as rdGetThumbnailUrl, withThumbnailConcurrency as rdWithThumbnailConcurrency, renderPdfPrintHtml as rdRenderPdfPrintHtml } from '/app/resource-doc-thumbnails.js';
+import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { roleCheckboxGridHTML } from '/app/compliance.roles.js?v=2';
 
 document.getElementById('bgRoleGrid').innerHTML = roleCheckboxGridHTML('bgRole');
@@ -2039,7 +2200,7 @@ function setActive(hash) {
   if (hash === '#compliance-report')   initComplianceReport();
   if (hash === '#access-request')      { buildAccessRequestOptions(); loadMyAccessRequests(); }
   if (hash === '#data-collection')     loadStaffFormLinks();
-  if (hash === '#resources')           loadStaffResources();
+  if (hash === '#resources')           initStaffResources(currentProfile);
   if (hash === '#reservations')        loadStaffReservations();
   if (hash === '#inventory')           loadStaffInventory();
 }
@@ -2088,275 +2249,18 @@ window.staffCopyLink = function (btn) {
   });
 };
 
-/* ── Resource Documents (view/print only) ── */
-const STAFF_RD_VIEW_KEY = 'rdViewMode';
-let staffRdViewMode = localStorage.getItem(STAFF_RD_VIEW_KEY) === 'grid' ? 'grid' : 'list';
-let staffRdSearchTerm = '';
-
-async function loadStaffResources() {
-  const list = document.getElementById('staffResourcesList');
-  if (!list) return;
-
-  list.innerHTML = '<p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>';
-
-  const { data, error } = await supabase
-    .from('resource_documents')
-    .select('id, title, file_path, original_filename, updated_at')
-    .eq('school_id', currentProfile.school_id)
-    .order('sort_order')
-    .order('title');
-
-  if (error || !data || !data.length) {
-    window._staffResourceDocs = [];
-    list.innerHTML = '<p class="muted" style="text-align:center;padding:24px 0;">No documents available yet.</p>';
-    return;
-  }
-
-  window._staffResourceDocs = data;
-  renderStaffResources();
-  wireStaffResourceViewToggle();
-  wireStaffResourceSearch();
-}
-
-function renderStaffResources() {
-  const list = document.getElementById('staffResourcesList');
-  if (!list) return;
-
-  const all = window._staffResourceDocs || [];
-  const term = staffRdSearchTerm;
-  const data = term
-    ? all.filter(function (d) {
-        return (d.title || '').toLowerCase().indexOf(term) !== -1 ||
-               (d.original_filename || '').toLowerCase().indexOf(term) !== -1;
-      })
-    : all;
-
-  if (!data.length) {
-    list.innerHTML = '<p class="muted" style="text-align:center;padding:24px 0;">' +
-      (all.length ? 'No documents match your search.' : 'No documents available yet.') + '</p>';
-    return;
-  }
-
-  if (staffRdViewMode === 'grid') {
-    list.innerHTML = '<div class="rd-doc-tiles">' + data.map(function (d) {
-      var kind = rdFileKind(d.original_filename);
-      var btnLabel = kind === 'other' ? 'Download' : 'View &amp; Print';
-      var handler = kind === 'other' ? 'staffDownloadResource(this)' : 'staffViewResource(this)';
-      return '<div class="rd-doc-tile" data-id="' + esc(d.id) + '">' +
-        '<div class="rd-doc-tile-icon rd-doc-tile-icon--' + kind + '" data-thumb-icon="' + esc(d.id) + '">' + rdTileIconSvg(kind) + '</div>' +
-        '<div class="rd-doc-tile-title">' + esc(d.title) + '</div>' +
-        '<div class="rd-doc-tile-actions"><button class="btn btn-sm btn-primary" data-id="' + esc(d.id) + '" onclick="' + handler + '">' + btnLabel + '</button></div>' +
-      '</div>';
-    }).join('') + '</div>';
-    loadStaffResourceThumbnails(data);
-    return;
-  }
-
-  list.innerHTML = data.map(function (d) {
-    var kind = rdFileKind(d.original_filename);
-    var btnLabel = kind === 'other' ? 'Download' : 'View &amp; Print';
-    var handler = kind === 'other' ? 'staffDownloadResource(this)' : 'staffViewResource(this)';
-    return '<div style="display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #f3f4f6;">' +
-      '<div style="flex:1;font-weight:600;font-size:14px;">' + esc(d.title) + '</div>' +
-      '<button class="btn btn-sm btn-primary" data-id="' + esc(d.id) + '" onclick="' + handler + '">' + btnLabel + '</button>' +
-    '</div>';
-  }).join('');
-}
-
-function wireStaffResourceSearch() {
-  const input = document.getElementById('staffRdSearch');
-  if (!input || input.dataset.wired) return;
-  input.dataset.wired = '1';
-  input.addEventListener('input', debounce(function (e) {
-    staffRdSearchTerm = e.target.value.trim().toLowerCase();
-    renderStaffResources();
-  }, 200));
-}
-
-async function loadStaffResourceThumbnails(data) {
-  const candidates = data.filter(function (d) { return rdFileKind(d.original_filename) !== 'other'; });
-  if (!candidates.length) return;
-
-  await rdWithThumbnailConcurrency(candidates, 3, async function (d) {
-    const url = await rdGetThumbnailUrl(supabase, 'resource-docs', d);
-    if (!url) return;
-    const iconEl = document.querySelector('.rd-doc-tile-icon[data-thumb-icon="' + CSS.escape(d.id) + '"]');
-    if (!iconEl) return;
-    iconEl.innerHTML = '<img src="' + esc(url) + '" alt="" />';
-  });
-}
-
-function wireStaffResourceViewToggle() {
-  const toggle = document.getElementById('staffRdViewToggle');
-  if (!toggle || toggle.dataset.wired) {
-    updateStaffRdViewButtons();
-    return;
-  }
-  toggle.dataset.wired = '1';
-  toggle.addEventListener('click', function (e) {
-    const btn = e.target.closest('.rd-view-btn');
-    if (!btn) return;
-    staffRdViewMode = btn.dataset.view === 'grid' ? 'grid' : 'list';
-    localStorage.setItem(STAFF_RD_VIEW_KEY, staffRdViewMode);
-    updateStaffRdViewButtons();
-    renderStaffResources();
-  });
-  updateStaffRdViewButtons();
-}
-
-function updateStaffRdViewButtons() {
-  document.querySelectorAll('#staffRdViewToggle .rd-view-btn').forEach(function (btn) {
-    btn.classList.toggle('active', btn.dataset.view === staffRdViewMode);
-  });
-}
-
-// { kind, signedUrl } for whatever's currently open, so the Print button
-// can build a same-origin copy without re-signing. Cleared on close.
-let resourceViewerCurrentDoc = null;
-
-function waitForFrameLoad(frame, timeoutMs) {
-  return new Promise(function (resolve) {
-    var done = false;
-    function finish(ok) { if (!done) { done = true; resolve(ok); } }
-    frame.addEventListener('load', function () { finish(true); }, { once: true });
-    setTimeout(function () { finish(false); }, timeoutMs);
-  });
-}
-
-window.staffViewResource = async function (btn) {
-  const doc = (window._staffResourceDocs || []).find(function (d) { return d.id === btn.dataset.id; });
-  if (!doc) return;
-
-  const { data, error } = await supabase.storage
-    .from('resource-docs')
-    .createSignedUrl(doc.file_path, 300);
-
-  if (error || !data?.signedUrl) {
-    alert('Could not open this document. Please try again.');
-    return;
-  }
-
-  const kind = rdFileKind(doc.original_filename);
-  const frame = document.getElementById('resourceViewerFrame');
-  frame.removeAttribute('srcdoc');
-  resourceViewerCurrentDoc = { kind: kind, signedUrl: data.signedUrl };
-
-  // Always load the direct signed URL for viewing. Same-origin blob:/srcdoc
-  // navigation (used only for printing, below) is blocked outright on some
-  // school-managed devices' security policy, which broke viewing entirely
-  // when we briefly used it here — this direct load is the one path that's
-  // reliably worked everywhere it's been reported from.
-  frame.src = kind === 'pdf' ? data.signedUrl + '#toolbar=0' : data.signedUrl;
-
-  document.getElementById('resourceViewerTitle').textContent = doc.title;
-  document.getElementById('resourceViewerOverlay').style.display = 'flex';
-  document.body.classList.add('resource-viewer-open');
-};
-
-// Word/Excel/etc. have no in-browser viewer, so these just download —
-// clearly labeled "Download" in the list rather than pretending to
-// protect a file type the viewer can't actually render.
-window.staffDownloadResource = async function (btn) {
-  const doc = (window._staffResourceDocs || []).find(function (d) { return d.id === btn.dataset.id; });
-  if (!doc) return;
-
-  const { data, error } = await supabase.storage
-    .from('resource-docs')
-    .createSignedUrl(doc.file_path, 300, { download: doc.original_filename || true });
-
-  if (error || !data?.signedUrl) {
-    alert('Could not download this document. Please try again.');
-    return;
-  }
-
-  const a = document.createElement('a');
-  a.href = data.signedUrl;
-  a.download = doc.original_filename || doc.title;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-};
-
-function closeResourceViewer() {
-  document.getElementById('resourceViewerOverlay').style.display = 'none';
-  document.getElementById('resourceViewerFrame').src = 'about:blank';
-  document.getElementById('resourceViewerFrame').removeAttribute('srcdoc');
-  document.body.classList.remove('resource-viewer-open');
-  resourceViewerCurrentDoc = null;
-}
-
-document.getElementById('resourceViewerCloseBtn')?.addEventListener('click', closeResourceViewer);
-document.getElementById('resourceViewerPrintBtn')?.addEventListener('click', async function () {
-  const doc = resourceViewerCurrentDoc;
-  const frame = document.getElementById('resourceViewerFrame');
-  const originalSrc = frame.src;
-  const printBtn = document.getElementById('resourceViewerPrintBtn');
-
-  // Best-effort upgrade: the visible iframe is cross-origin (Supabase
-  // storage), so window.print() (the fallback below) can only rasterize
-  // whatever's currently visible in its viewport — partial/off-center
-  // pages, extra dark viewer chrome. PDFs are rendered to images ourselves
-  // (see renderPdfPrintHtml) rather than handed to the browser's built-in
-  // PDF-viewer print pipeline, which has been seen to render some
-  // documents' orientation wrong (sideways/cut off) on some Windows
-  // machines while the identical file prints fine elsewhere — rendering it
-  // ourselves gives the same output everywhere. Images get the same
-  // same-origin srcdoc treatment they've always had. Either is verified as
-  // actually loaded before printing (some school-managed devices block
-  // same-origin srcdoc navigation outright) — on any failure the working
-  // view is restored and we fall back to window.print() rather than
-  // leaving the viewer showing a blocked/blank frame.
-  if (doc && (doc.kind === 'pdf' || doc.kind === 'image')) {
-    const prevLabel = printBtn.textContent;
-    try {
-      if (doc.kind === 'pdf') {
-        printBtn.textContent = 'Preparing…';
-        printBtn.disabled = true;
-        frame.srcdoc = await rdRenderPdfPrintHtml(doc.signedUrl);
-      } else {
-        frame.srcdoc = '<!DOCTYPE html><html><head><style>' +
-          'html,body{margin:0;height:100%;background:#fff;display:flex;align-items:center;justify-content:center;}' +
-          'img{max-width:100%;max-height:100%;object-fit:contain;}' +
-          '@media print{ @page{margin:0;} }' +
-          '</style></head><body><img src="' + doc.signedUrl + '"></body></html>';
-      }
-
-      const loaded = await waitForFrameLoad(frame, 4000);
-      if (!loaded) throw new Error('Print frame did not load in time');
-      // Same-origin content is readable; a blocked navigation replaces it
-      // with an opaque internal error page, which throws on access instead.
-      void frame.contentWindow.document.title;
-
-      frame.contentWindow.focus();
-      frame.contentWindow.print();
-      return;
-    } catch (err) {
-      console.error('Enhanced print unavailable, falling back to window.print()', err);
-      frame.removeAttribute('srcdoc');
-      frame.src = originalSrc;
-    } finally {
-      printBtn.textContent = prevLabel;
-      printBtn.disabled = false;
-    }
-  }
-  window.print();
-});
-// Light deterrent against right-click "Save As" on the embedded viewer —
-// not foolproof (screenshots always work), matches the agreed scope.
-document.getElementById('resourceViewerOverlay')?.addEventListener('contextmenu', function (e) {
-  e.preventDefault();
-});
-
 /* =============================================
    RESERVATIONS
 ============================================= */
 let resCalendar = null;
 let resCatalog = [];
 let resGroupCatalog = [];
+let resTimeBlockCatalog = [];
+let resCampusLookup = {};
 let resSelectedEvent = null;
 
 async function loadStaffReservations() {
-  await loadReservableResources();
+  await Promise.all([loadCampusLookupForReservations(), loadReservableResources(), loadTimeBlockCatalog()]);
   if (!resCalendar) {
     initResCalendar();
   } else {
@@ -2364,18 +2268,34 @@ async function loadStaffReservations() {
   }
 }
 
+// Campus is informational here, not a hard access boundary — staff can book
+// any campus's resources (e.g. a floating sub grabbing an Upper School
+// cart), so this just labels which campus a resource belongs to.
+async function loadCampusLookupForReservations() {
+  const { data, error } = await supabase
+    .from('campuses')
+    .select('id, name')
+    .eq('school_id', currentProfile.school_id);
+
+  if (error) { console.error('loadCampusLookupForReservations', error); return; }
+  resCampusLookup = Object.fromEntries((data ?? []).map(c => [c.id, c.name]));
+}
+
+// Every active resource school-wide is shown — campus_id is just a label
+// (via campusSuffix below), not a filter, so staff based at one campus can
+// still see and book another campus's resources.
 async function loadReservableResources() {
   const [{ data: resourceData, error: resErr }, { data: groupData, error: groupErr }] = await Promise.all([
     supabase
       .from('reservable_resources')
-      .select('id, name, color, requires_approval, active, group_id')
+      .select('id, name, color, requires_approval, active, group_id, campus_id, use_time_blocks, title_label, title_input_type, title_max_value, policy_text')
       .eq('school_id', currentProfile.school_id)
       .eq('active', true)
       .order('sort_order')
       .order('name'),
     supabase
       .from('resource_groups')
-      .select('id, name')
+      .select('id, name, campus_id')
       .eq('school_id', currentProfile.school_id)
       .order('sort_order')
       .order('name'),
@@ -2385,6 +2305,8 @@ async function loadReservableResources() {
   resCatalog = resourceData ?? [];
   resGroupCatalog = groupErr ? [] : (groupData ?? []);
   if (groupErr) console.error('loadReservableResources (groups)', groupErr);
+
+  const campusSuffix = campusId => campusId && resCampusLookup[campusId] ? ` (${resCampusLookup[campusId]})` : '';
 
   // Only show groups that currently have at least one active, bookable
   // member — an empty group would just be a dead-end option.
@@ -2400,29 +2322,93 @@ async function loadReservableResources() {
     const current = filterSel.value;
     let html = '<option value="">All resources</option>';
     grouped.forEach(({ group, members }) => {
-      html += `<optgroup label="${esc(group.name)}">` +
+      html += `<optgroup label="${esc(group.name)}${esc(campusSuffix(group.campus_id))}">` +
         `<option value="group:${esc(group.id)}">All of ${esc(group.name)}</option>` +
         members.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('') +
         `</optgroup>`;
     });
     if (ungrouped.length) {
-      html += ungrouped.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');
+      html += ungrouped.map(r => `<option value="${esc(r.id)}">${esc(r.name)}${esc(campusSuffix(r.campus_id))}</option>`).join('');
     }
     filterSel.innerHTML = html;
     filterSel.value = current;
   }
 
   if (bookSel) {
-    let html = '';
+    let html = '<option value="">Select a resource…</option>';
     grouped.forEach(({ group, members }) => {
-      html += `<optgroup label="${esc(group.name)}">` +
+      html += `<optgroup label="${esc(group.name)}${esc(campusSuffix(group.campus_id))}">` +
         members.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('') +
         `</optgroup>`;
     });
     if (ungrouped.length) {
-      html += ungrouped.map(r => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join('');
+      html += ungrouped.map(r => `<option value="${esc(r.id)}">${esc(r.name)}${esc(campusSuffix(r.campus_id))}</option>`).join('');
     }
     bookSel.innerHTML = html;
+  }
+}
+
+async function loadTimeBlockCatalog() {
+  const { data, error } = await supabase
+    .from('resource_time_blocks')
+    .select('id, label, start_time, end_time, campus_id')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true)
+    .order('sort_order')
+    .order('start_time');
+
+  if (error) { console.error('loadTimeBlockCatalog', error); return; }
+  resTimeBlockCatalog = data ?? [];
+}
+
+function fmtBlockTimeShort(t) {
+  const [h, m] = t.split(':').map(Number);
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+// Re-renders the Title label/type, start/end vs. date+block fields, and
+// policy text to match whichever resource is currently selected — each
+// resource (or its group) can customize all three independently.
+function updateBookingFieldsForResource() {
+  const resourceId = document.getElementById('resBookResource').value;
+  const resource = resCatalog.find(r => r.id === resourceId);
+
+  document.getElementById('resBookTitleLabelText').textContent = resource?.title_label || 'Title';
+
+  const titleInput = document.getElementById('resBookTitle');
+  const isNumber = resource?.title_input_type === 'number';
+  titleInput.type = isNumber ? 'number' : 'text';
+  if (isNumber) {
+    titleInput.min = '1';
+    if (resource.title_max_value) titleInput.max = String(resource.title_max_value);
+    else titleInput.removeAttribute('max');
+    titleInput.placeholder = resource.title_max_value ? `1–${resource.title_max_value}` : 'e.g. 12';
+  } else {
+    titleInput.removeAttribute('min');
+    titleInput.removeAttribute('max');
+    titleInput.placeholder = 'e.g. Staff meeting';
+  }
+
+  const useBlocks = !!resource?.use_time_blocks;
+  document.getElementById('resBookDatetimeRow').style.display = useBlocks ? 'none' : '';
+  document.getElementById('resBookBlockRow').style.display = useBlocks ? '' : 'none';
+  if (useBlocks) {
+    // Blocks offered are scoped to the *resource's* campus (or campus-wide
+    // ones, campus_id null) — not the viewer's — so booking an Upper School
+    // cart always shows Upper School's blocks regardless of who's booking.
+    const sel = document.getElementById('resBookBlockSelect');
+    sel.innerHTML = resTimeBlockCatalog
+      .filter(b => !b.campus_id || b.campus_id === resource.campus_id)
+      .map(b => `<option value="${esc(b.id)}">${esc(b.label)} (${fmtBlockTimeShort(b.start_time)}–${fmtBlockTimeShort(b.end_time)})</option>`)
+      .join('');
+  }
+
+  const policyBlock = document.getElementById('resBookPolicyBlock');
+  if (resource?.policy_text) {
+    document.getElementById('resBookPolicyText').textContent = resource.policy_text;
+    policyBlock.style.display = '';
+  } else {
+    policyBlock.style.display = 'none';
   }
 }
 
@@ -2508,8 +2494,10 @@ document.getElementById('resFilterSelect')?.addEventListener('change', () => {
 });
 
 document.getElementById('resNewBookingBtn')?.addEventListener('click', openResBookingModal);
+document.getElementById('resBookResource')?.addEventListener('change', updateBookingFieldsForResource);
 
 function openResBookingModal() {
+  document.getElementById('resBookResource').value = '';
   document.getElementById('resBookTitle').value = '';
   document.getElementById('resBookNotes').value = '';
   document.getElementById('resBookError').style.display = 'none';
@@ -2519,7 +2507,9 @@ function openResBookingModal() {
   const end = new Date(now.getTime() + 60 * 60 * 1000);
   document.getElementById('resBookStart').value = toLocalDatetimeInput(now);
   document.getElementById('resBookEnd').value = toLocalDatetimeInput(end);
+  document.getElementById('resBookDate').value = toLocalDatetimeInput(now).slice(0, 10);
 
+  updateBookingFieldsForResource();
   document.getElementById('resBookingModal').style.display = 'flex';
 }
 
@@ -2539,19 +2529,62 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
   errorEl.style.display = 'none';
 
   const resourceId = document.getElementById('resBookResource').value;
-  const title = document.getElementById('resBookTitle').value.trim();
+  const resource = resCatalog.find(r => r.id === resourceId);
+  const titleRaw = document.getElementById('resBookTitle').value.trim();
   const notes = document.getElementById('resBookNotes').value.trim();
-  const startVal = document.getElementById('resBookStart').value;
-  const endVal = document.getElementById('resBookEnd').value;
 
-  if (!resourceId || !title || !startVal || !endVal) {
-    errorEl.textContent = 'Resource, title, start, and end are all required.';
+  if (!resourceId) {
+    errorEl.textContent = 'Resource is required.';
     errorEl.style.display = 'block';
     return;
   }
 
-  const startsAt = new Date(startVal);
-  const endsAt = new Date(endVal);
+  const titleLabel = resource?.title_label || 'Title';
+  if (!titleRaw) {
+    errorEl.textContent = `${titleLabel} is required.`;
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  let title = titleRaw;
+  if (resource?.title_input_type === 'number') {
+    const n = parseInt(titleRaw, 10);
+    if (!Number.isInteger(n) || n < 1 || String(n) !== titleRaw) {
+      errorEl.textContent = `${titleLabel} must be a whole number.`;
+      errorEl.style.display = 'block';
+      return;
+    }
+    if (resource.title_max_value && n > resource.title_max_value) {
+      errorEl.textContent = `${titleLabel} can't be more than ${resource.title_max_value}.`;
+      errorEl.style.display = 'block';
+      return;
+    }
+    title = String(n);
+  }
+
+  let startsAt, endsAt;
+  if (resource?.use_time_blocks) {
+    const dateVal = document.getElementById('resBookDate').value;
+    const blockId = document.getElementById('resBookBlockSelect').value;
+    const block = resTimeBlockCatalog.find(b => b.id === blockId);
+    if (!dateVal || !block) {
+      errorEl.textContent = 'Date and time block are required.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    startsAt = new Date(`${dateVal}T${block.start_time}`);
+    endsAt = new Date(`${dateVal}T${block.end_time}`);
+  } else {
+    const startVal = document.getElementById('resBookStart').value;
+    const endVal = document.getElementById('resBookEnd').value;
+    if (!startVal || !endVal) {
+      errorEl.textContent = 'Start and end time are required.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    startsAt = new Date(startVal);
+    endsAt = new Date(endVal);
+  }
 
   if (!(endsAt > startsAt)) {
     errorEl.textContent = 'End time must be after the start time.';
@@ -2592,7 +2625,6 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
     return;
   }
 
-  const resource = resCatalog.find(r => r.id === resourceId);
   const reservedByName = currentProfile.display_name || currentProfile.email || 'Unknown';
 
   btn.disabled = true;
