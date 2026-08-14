@@ -980,7 +980,7 @@ html, body {
 .inp-tag-display {
   flex: 1;
   min-width: 0;
-  text-align: left;
+  text-align: center;
   font-size: 48px;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -989,6 +989,7 @@ html, body {
   line-height: 1;
   display: flex;
   align-items: center;
+  justify-content: center;
   white-space: nowrap;
   overflow: hidden;
 }
