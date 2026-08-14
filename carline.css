@@ -1413,6 +1413,11 @@ html, body {
   .cl-clock         { display: none; }
   #btnFullscreen    { display: none; }
 
+  /* School name is redundant once the campus label is showing (e.g.
+     "RA Lower School") — but single-campus schools have no campus label,
+     so only hide the name when there's something else identifying it. */
+  #clHeader.cl-has-campus .cl-school-name { display: none; }
+
   /* Button labels hidden on mobile — leave icons only */
   .cl-btn-label { display: none; }
 

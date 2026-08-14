@@ -68,7 +68,7 @@
         </button>
       </div>
       <button class="cl-icon-btn cl-more-btn" id="btnHeaderMore" title="More">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden><span>✕</span><span class="cl-btn-label">Close</span></button>
     </div>
@@ -995,6 +995,7 @@ function updateEventUI() {
     } else {
       campusLabel.hidden = true;
     }
+    document.getElementById('clHeader').classList.toggle('cl-has-campus', !campusLabel.hidden);
   }
 }
 
