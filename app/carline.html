@@ -199,6 +199,17 @@
   </div>
 </div>
 
+<div id="clConfirmModal" hidden>
+  <div id="clConfirmDialog">
+    <h3 id="clConfirmTitle"></h3>
+    <p id="clConfirmMsg"></p>
+    <div class="cl-confirm-actions">
+      <button id="clConfirmCancel">Cancel</button>
+      <button id="clConfirmOk">OK</button>
+    </div>
+  </div>
+</div>
+
 <style>
   #campusPicker {
     position: fixed;
@@ -261,6 +272,66 @@
     transition: background 120ms;
   }
   #campusPickerCancel:hover { background: var(--cl-bg); }
+
+  /* ── Generic confirm modal (replaces window.confirm) ── */
+  #clConfirmModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #clConfirmModal[hidden] { display: none !important; }
+  #clConfirmDialog {
+    background: var(--cl-surface);
+    border-radius: 14px;
+    padding: 26px 24px;
+    max-width: 360px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  #clConfirmDialog h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--cl-text);
+    margin-bottom: 8px;
+  }
+  #clConfirmDialog p {
+    font-size: 14px;
+    color: var(--cl-text-sub);
+    line-height: 1.5;
+    margin-bottom: 22px;
+  }
+  .cl-confirm-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .cl-confirm-actions button {
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: background 120ms;
+  }
+  #clConfirmCancel {
+    background: transparent;
+    border: 1px solid var(--cl-border);
+    color: var(--cl-text-muted);
+  }
+  #clConfirmCancel:hover { background: var(--cl-bg); }
+  #clConfirmOk {
+    background: #059669;
+    color: #fff;
+  }
+  #clConfirmOk:hover { background: #047857; }
+  #clConfirmOk.danger { background: #dc2626; }
+  #clConfirmOk.danger:hover { background: #b91c1c; }
 
   /* ── Pickup group pills ── */
   .cl-pickup-group-pill {
@@ -819,9 +890,38 @@ function handleStartClick() {
   document.getElementById('campusPicker').hidden = false;
 }
 
+function clConfirm(message, { title = 'Are you sure?', okText = 'OK', danger = false } = {}) {
+  return new Promise(resolve => {
+    const modal   = document.getElementById('clConfirmModal');
+    const okBtn   = document.getElementById('clConfirmOk');
+    const cancelBtn = document.getElementById('clConfirmCancel');
+    document.getElementById('clConfirmTitle').textContent = title;
+    document.getElementById('clConfirmMsg').textContent = message;
+    okBtn.textContent = okText;
+    okBtn.classList.toggle('danger', danger);
+    modal.hidden = false;
+
+    const cleanup = result => {
+      modal.hidden = true;
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    };
+    const onOk     = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
+
 async function closeDismissal() {
   if (!currentEvent) return;
-  if (!confirm('Close today\'s dismissal? No further calls can be made.')) return;
+  const ok = await clConfirm('No further calls can be made once dismissal is closed.', {
+    title: "Close today's dismissal?",
+    okText: 'Close Dismissal',
+    danger: true,
+  });
+  if (!ok) return;
   const { error } = await supabase
     .from('carline_events')
     .update({ status: 'CLOSED', closed_at: new Date().toISOString(), closed_by_profile_id: profile.id })
@@ -835,7 +935,11 @@ async function closeDismissal() {
 
 async function reopenDismissal() {
   if (!currentEvent) return;
-  if (!confirm("Reopen today's dismissal?")) return;
+  const ok = await clConfirm('Calls can be made again once reopened.', {
+    title: "Reopen today's dismissal?",
+    okText: 'Reopen Dismissal',
+  });
+  if (!ok) return;
   const { error } = await supabase
     .from('carline_events')
     .update({ status: 'OPEN', closed_at: null, closed_by_profile_id: null })

@@ -1416,6 +1416,10 @@ html, body {
   /* Button labels hidden on mobile — leave icons only */
   .cl-btn-label { display: none; }
 
+  /* Close Dismissal keeps its "Close" label on mobile too — a bare ✕ in a
+     red circle reads as "dismiss/close this popup", not "end dismissal" */
+  #btnCloseDismissal .cl-btn-label { display: inline; }
+
   /* Secondary header buttons collapse into a "more" dropdown on mobile */
   .cl-more-btn { display: flex; }
   .cl-header-more { display: none; }
