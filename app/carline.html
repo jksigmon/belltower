@@ -22,6 +22,9 @@
 
   <header id="clHeader">
     <div class="cl-header-left">
+      <a id="clBackBtn" class="cl-icon-btn" href="/staff.html" title="Back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </a>
       <span class="cl-school-name" id="clSchoolName">Belltower</span>
       <span class="cl-event-date" id="clEventDate"></span>
       <span class="cl-status-badge open" id="clStatusBadge">OPEN</span>
@@ -556,6 +559,20 @@ let allCallAt        = null;
 const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
 
 // ─── Boot ─────────────────────────────────────────────────────────────
+function resolveBackTarget(p) {
+  const from = new URLSearchParams(window.location.search).get('from');
+  if (from === 'admin') return '/admin.html';
+  if (from === 'staff') return '/staff.html';
+
+  const ref = document.referrer || '';
+  if (ref.includes('/admin.html')) return '/admin.html';
+  if (ref.includes('/staff.html')) return '/staff.html';
+
+  const isAdmin = p.is_superadmin || p.can_access_admin || p.can_manage_access ||
+    p.can_approve_pto || p.can_adjust_pto || p.can_bulk_upload || p.can_manage_requests;
+  return isAdmin ? '/admin.html' : '/staff.html';
+}
+
 async function boot() {
   const sessionRes = await supabase.auth.getSession();
   const session = sessionRes?.data?.session;
@@ -574,6 +591,7 @@ async function boot() {
   }
   profile = p;
 
+  document.getElementById('clBackBtn').href = resolveBackTarget(p);
   document.getElementById('clSchoolName').textContent = p.schools?.name ?? 'Carline';
   document.getElementById('clEventDate').textContent = new Date().toLocaleDateString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric'

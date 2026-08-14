@@ -728,7 +728,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 <nav id="staffNav" class="nav hidden">
   <a href="#dashboard"><i data-lucide="home"></i> Home</a>
   <a href="#pto"        data-module="pto"><i data-lucide="calendar"></i> Leave</a>
-  <a href="/carline.html" data-module="carline"><i data-lucide="car"></i> Carline</a>
+  <a href="/carline.html?from=staff" data-module="carline"><i data-lucide="car"></i> Carline</a>
   <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
   <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
   <a href="#compliance-report" data-module="compliance"><i data-lucide="clipboard-list"></i> Compliance Report</a>
@@ -1683,7 +1683,7 @@ async function loadStaffDashboard() {
   if (window.staffModules['pto'] === true)
     actions.push({ label: 'Leave Request', icon: 'calendar-plus', href: '#pto' });
   if (window.staffModules['carline'] === true && p.can_view_carline)
-    actions.push({ label: 'Carline', icon: 'car', href: '/carline.html' });
+    actions.push({ label: 'Carline', icon: 'car', href: '/carline.html?from=staff' });
   if (window.staffModules['licensure'] === true)
     actions.push({ label: 'My Licenses', icon: 'badge-check', href: '#licensure' });
   if (window.staffModules['requests'] !== false)
