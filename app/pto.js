@@ -1368,9 +1368,13 @@ async function loadStaffPtoHistory(employeeId) {
     ledgerQuery = ledgerQuery
       .gte('created_at', `${year}-01-01`)
       .lt('created_at', `${nextYear}-01-01`);
+    // Filter on submitted_at (not start_date) to match ledgerQuery's created_at
+    // basis -- otherwise a request submitted/decided this year for next year's
+    // leave dates drops out of the history list while still counting in the
+    // ledger-derived totals below.
     histQuery = histQuery
-      .gte('start_date', `${year}-01-01`)
-      .lt('start_date', `${nextYear}-01-01`);
+      .gte('submitted_at', `${year}-01-01`)
+      .lt('submitted_at', `${nextYear}-01-01`);
   }
 
   const [
