@@ -274,6 +274,36 @@
   margin-top: 1px;
 }
 
+/* Estimated ledger deduction preview */
+.pto-deduction-summary {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  white-space: normal;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.pto-deduction-summary svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #64748b;
+}
+.pto-deduction-summary strong {
+  color: #0f172a;
+}
+.pto-deduction-summary.pto-deduction-tracking-only {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+.pto-deduction-summary.pto-deduction-tracking-only svg { color: #1e40af; }
+
 /* ─── Field Trips ─────────────────────────────────── */
 .trip-badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; }
 .trip-badge-active    { background:#dcfce7; color:#15803d; }
@@ -918,6 +948,12 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
     <span><strong>Tracking only</strong> — This leave type is for record-keeping purposes and will <strong>not count against your leave balance</strong>.</span>
   </div>
 
+  <!-- Estimated ledger deduction preview -->
+  <div id="ptoDeductionSummary" class="pto-deduction-summary" style="display:none;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="14" x2="8" y2="14.01"/><line x1="12" y1="14" x2="12" y2="14.01"/><line x1="16" y1="14" x2="16" y2="14.01"/></svg>
+    <span id="ptoDeductionSummaryText">—</span>
+  </div>
+
   <!-- Submit -->
   <div class="pto-submit-row">
     <span id="ptoRequestMessage" class="pto-form-message"></span>
@@ -1536,6 +1572,7 @@ durationSelect.addEventListener('change', () => {
     ptoDatePicker.clear();
     selectedStartDate = null;
     selectedEndDate = null;
+    updateDeductionSummary();
   }
 });
 
@@ -1552,6 +1589,7 @@ ptoTypeSelect.addEventListener('change', () => {
     document.getElementById('ptoNotesRequiredMark').style.display = 'none';
     document.getElementById('ptoNotesRequiredHint').style.display = 'none';
     document.getElementById('ptoNotes').placeholder = 'Add context for this request (optional)';
+    updateDeductionSummary();
     return;
   }
 
@@ -1563,6 +1601,8 @@ ptoTypeSelect.addEventListener('change', () => {
   document.getElementById('ptoNotes').placeholder = notesReq
     ? 'Required for this leave type — please explain the reason.'
     : 'Add context for this request (optional)';
+
+  updateDeductionSummary();
 });
 
 let ptoSectionLoaded = false;
@@ -1948,6 +1988,7 @@ requestAnimationFrame(() => {
       if (!selectedDates.length) return;
       selectedStartDate = selectedDates[0];
       selectedEndDate = selectedDates.length > 1 ? selectedDates[1] : selectedDates[0];
+      updateDeductionSummary();
     }
   });
 });
@@ -4078,7 +4119,63 @@ function buildTimeSelectOptions() {
 }
 
 
+function updateDeductionSummary() {
+  const el = document.getElementById('ptoDeductionSummary');
+  const textEl = document.getElementById('ptoDeductionSummaryText');
+  if (!el || !textEl) return;
+
+  if (!selectedStartDate || !selectedEndDate) {
+    el.style.display = 'none';
+    return;
+  }
+
+  const duration = document.getElementById('ptoDuration')?.value;
+  const isPartial = duration === 'partial';
+  const isHalfDay = duration === 'half';
+
+  const startDate = toLocalISODate(selectedStartDate);
+  const endDate = toLocalISODate(selectedEndDate);
+
+  let hours = null;
+
+  if (isPartial) {
+    const startRaw = document.getElementById('ptoStartTime')?.value || '';
+    const endRaw = document.getElementById('ptoEndTime')?.value || '';
+    const startTime = (startRaw === 'SOD' || startRaw === '') ? DAY_START_TIME : startRaw;
+    const endTime = (endRaw === 'EOD') ? DAY_END_TIME : endRaw;
+    if (startTime && endRaw) {
+      hours = computeHoursFromTimes(startTime, endTime);
+    }
+  } else {
+    hours = calculateRequestedHours({
+      startDate,
+      endDate,
+      partialDay: isHalfDay,
+      partialHours: isHalfDay ? (SCHOOL_WORKDAY_HOURS / 2) : null
+    });
+  }
+
+  if (hours === null || hours <= 0) {
+    el.style.display = 'none';
+    return;
+  }
+
+  const type = document.getElementById('ptoType')?.value;
+  const meta = schoolPtoTypeMeta[type];
+  const trackingOnly = meta && meta.countsAgainstBalance === false;
+  const breakdown = isHalfDay ? 'Half Day' : formatHoursAsDays(hours);
+
+  el.style.display = 'flex';
+  el.classList.toggle('pto-deduction-tracking-only', !!trackingOnly);
+
+  textEl.innerHTML = trackingOnly
+    ? `This request is <strong>${hours} hours (${breakdown})</strong> — tracking only, it will <strong>not</strong> count against your leave balance.`
+    : `If approved, this will deduct <strong>${hours} hours (${breakdown})</strong> from your balance.`;
+}
+
 function updateComputedHoursUI() {
+  updateDeductionSummary();
+
   const label = document.getElementById('ptoComputedHours');
   if (!label) return;
 
