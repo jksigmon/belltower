@@ -254,6 +254,17 @@ html, body {
 }
 .cl-input-link-btn:hover { background: rgba(255,255,255,0.22); }
 
+/* Labels that only make sense inside the mobile overflow menu (icon-only
+   everywhere else — unlike Input Page/Close/Sign out, which always show
+   a label). */
+.cl-btn-label-menu { display: none; }
+
+/* Mobile overflow menu: on desktop this wrapper is transparent to layout
+   (display:contents) so its buttons sit inline in the header exactly as
+   before; the mobile media query turns it into a collapsible dropdown. */
+.cl-header-more { display: contents; }
+.cl-more-btn { display: none; }
+
 /* ---------- Class bar (display page) ---------- */
 #classBar {
   background: var(--cl-surface);
@@ -1395,14 +1406,49 @@ html, body {
   #clHeader .cl-header-spacer { display: none; }
   #clHeader .cl-header-right  { flex-shrink: 0; }
 
-  /* Hide non-essential header items */
+  /* Hide non-essential header items — the phone already shows a clock,
+     and fullscreen isn't meaningful in a mobile browser */
   .cl-event-date    { display: none; }
   .cl-brand-icon    { display: none; }
+  .cl-clock         { display: none; }
   #btnFullscreen    { display: none; }
-  #clHeader #btnDarkMode { display: none; }
 
   /* Button labels hidden on mobile — leave icons only */
   .cl-btn-label { display: none; }
+
+  /* Secondary header buttons collapse into a "more" dropdown on mobile */
+  .cl-more-btn { display: flex; }
+  .cl-header-more { display: none; }
+  .cl-header-more.open {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: absolute;
+    top: calc(var(--cl-header-h) + 8px);
+    right: 14px;
+    min-width: 200px;
+    background: #0e2e4f;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+    z-index: 100;
+  }
+  .cl-header-more.open .cl-icon-btn,
+  .cl-header-more.open .cl-signout-btn,
+  .cl-header-more.open .cl-input-link-btn {
+    width: 100%;
+    height: auto;
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .cl-header-more.open .cl-btn-label,
+  .cl-header-more.open .cl-btn-label-menu {
+    display: inline;
+  }
 
   /* Input Page link: show as icon-only (📱) */
   .cl-input-link-btn { padding: 0; width: 36px; justify-content: center; }
