@@ -413,7 +413,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 20px;
+  padding: 10px 20px;
   flex-shrink: 0;
   position: relative;
 }
@@ -624,9 +624,11 @@ html, body {
   width: 0%;
 }
 
-/* ---------- Column body — status tinting ---------- */
-.cl-status-col[data-tab="called"]   .cl-status-col-body { background: #ecfdf5; }
-.cl-status-col[data-tab="recalled"] .cl-status-col-body { background: #fffbeb; }
+/* ---------- Column body — status tinting (kept very faint so the
+   illustrated empty-state images stay the visual focus) ---------- */
+.cl-status-col[data-tab="waiting"]  .cl-status-col-body { background: #fbfcfd; }
+.cl-status-col[data-tab="called"]   .cl-status-col-body { background: #fafefc; }
+.cl-status-col[data-tab="recalled"] .cl-status-col-body { background: #fffefa; }
 [data-theme="dark"] .cl-status-col[data-tab="called"]   .cl-status-col-body { background: #042f1e; }
 [data-theme="dark"] .cl-status-col[data-tab="recalled"] .cl-status-col-body { background: #1c1100; }
 
@@ -696,7 +698,7 @@ html, body {
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    font-size: 46px;
+    font-size: 38px;
     line-height: 1;
     padding: 0;
   }
