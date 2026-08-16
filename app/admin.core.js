@@ -87,7 +87,11 @@ const { data: profile, error } = await supabase
   }
 
   const canManageCalendar = profile.is_superadmin || profile.role === 'admin' || profile.can_manage_calendar === true;
-  initCalendarStrip(supabase, effectiveSchoolId, document.getElementById('dashCalChip'), canManageCalendar);
+  initCalendarStrip(supabase, effectiveSchoolId, document.getElementById('dashCalChip'), canManageCalendar, {
+    eventsCard:    document.getElementById('dashEventList'),
+    eventsSection: document.getElementById('dashEvents'),
+    eventsLink:    document.getElementById('dashEventsLink'),
+  });
 
   loadWeather('dashWeather', profile.schools?.weather_lat, profile.schools?.weather_lon, profile.schools?.timezone);
 
@@ -594,53 +598,61 @@ async function loadDashboardStats() {
       const buildLi = s => {
         const isToday    = s.daysLeft === 0;
         const when       = isToday ? 'Today!' : s.daysLeft === 1 ? 'Tomorrow' : `In ${s.daysLeft} days`;
-        const secondary  = s.type === 'student' ? `Turning ${s.age} · ${fmtBday(s.bday)}` : fmtBday(s.bday);
+        const dayLabel   = isToday ? 'Today' : fmtBday(s.bday);
+        const secondary  = s.type === 'student' ? `Turning ${s.age} · ${dayLabel}` : dayLabel;
         const initials   = s.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
         const roleLabel  = s.type === 'staff' ? 'Staff' : `Student`;
         const li = document.createElement('li');
-        li.className = 'staff-dash-request-row dash-bday-row';
+        li.className = 'bday-row';
         li.innerHTML = `
           <span class="dash-bday-av">${esc(initials)}</span>
           <span style="flex:1;min-width:0;">
-            <div style="font-weight:600;font-size:0.8125rem;color:#1e293b;line-height:1.3;">${esc(s.name)}</div>
-            <div style="font-size:0.7rem;color:#94a3b8;line-height:1.3;">${esc(roleLabel)} · ${esc(secondary)}</div>
+            <div class="bday-row-name">${esc(s.name)}</div>
+            <div class="bday-row-meta">${esc(roleLabel)} · ${esc(secondary)}</div>
           </span>
-          <span class="staff-dash-req-badge${isToday ? ' bday-today' : ''}" style="background:#fef08a;color:#92400e;">${when}</span>
+          <span class="bday-pill${isToday ? ' bday-today' : ''}">${when}</span>
         `;
         return li;
       };
 
       const ul = document.createElement('ul');
-      ul.style.cssText = 'list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;';
+      ul.style.cssText = 'list-style:none;margin:0;padding:0;';
 
-      // If no one has a birthday today or tomorrow, show all directly
+      // If no one has a birthday today or tomorrow, show the first few instead
       const hasImminent = shown.length > 0;
-      (hasImminent ? shown : allBdays).forEach(s => ul.appendChild(buildLi(s)));
+      const visible = hasImminent ? shown : allBdays.slice(0, 3);
+      const rest    = hasImminent ? hidden : allBdays.slice(3);
+      visible.forEach(s => ul.appendChild(buildLi(s)));
 
       let extUl = null;
-      if (hasImminent && hidden.length > 0) {
+      const foot = document.getElementById('dashBirthdayFoot');
+      if (rest.length > 0) {
         extUl = document.createElement('ul');
-        extUl.style.cssText = 'list-style:none;margin:0;padding:0;display:none;flex-direction:column;gap:5px;';
-        hidden.forEach(s => extUl.appendChild(buildLi(s)));
+        extUl.style.cssText = 'list-style:none;margin:0;padding:0;display:none;';
+        rest.forEach(s => extUl.appendChild(buildLi(s)));
 
-        const toggleLi = document.createElement('li');
-        toggleLi.style.cssText = 'padding:4px 0 2px;';
         const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
         toggleBtn.className = 'bday-toggle-btn';
         toggleBtn.innerHTML = `
+          <span class="bday-toggle-label">View more birthdays</span>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="bday-toggle-icon"><polyline points="6 9 12 15 18 9"/></svg>
-          <span class="bday-toggle-label">${hidden.length} more birthday${hidden.length > 1 ? 's' : ''} this week</span>
         `;
         toggleBtn.addEventListener('click', () => {
           const expanded = extUl.style.display !== 'none';
           extUl.style.display = expanded ? 'none' : '';
           toggleBtn.classList.toggle('bday-toggle-open', !expanded);
           toggleBtn.querySelector('.bday-toggle-label').textContent = expanded
-            ? `${hidden.length} more birthday${hidden.length > 1 ? 's' : ''} this week`
+            ? 'View more birthdays'
             : 'Show less';
         });
-        toggleLi.appendChild(toggleBtn);
-        ul.appendChild(toggleLi);
+        if (foot) {
+          foot.innerHTML = '';
+          foot.appendChild(toggleBtn);
+          foot.style.display = '';
+        }
+      } else if (foot) {
+        foot.style.display = 'none';
       }
 
       list.innerHTML = '';

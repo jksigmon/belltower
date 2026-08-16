@@ -64,7 +64,14 @@ function metaLine(ev) {
 // Module-level guard: the drawer is injected into <body> once per page load
 let _ready = false;
 
-export async function initCalendarStrip(supabase, schoolId, mountEl, canManage = false) {
+/**
+ * @param {object}  opts
+ * @param {Element} [opts.eventsCard]    list container for the dashboard "Upcoming Events" card
+ * @param {Element} [opts.eventsSection] card wrapper, unhidden once events resolve
+ * @param {Element} [opts.eventsLink]    "View calendar" link that opens the drawer
+ * @param {number}  [opts.eventsLimit]   how many events the card shows (default 4)
+ */
+export async function initCalendarStrip(supabase, schoolId, mountEl, canManage = false, opts = {}) {
   if (_ready || !mountEl) return;
   _ready = true;
 
@@ -114,6 +121,9 @@ export async function initCalendarStrip(supabase, schoolId, mountEl, canManage =
 
   overlay.addEventListener('click', closeDrawer);
   closeBtn.addEventListener('click', closeDrawer);
+  if (opts.eventsLink) {
+    opts.eventsLink.addEventListener('click', e => { e.preventDefault(); openDrawer(); });
+  }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 
   // Persistent structure inside the scrollable body: a list + (optional) add section
@@ -159,6 +169,54 @@ export async function initCalendarStrip(supabase, schoolId, mountEl, canManage =
 
     renderList();
     renderChip();
+    renderEventsCard();
+  }
+
+  // ── Render the dashboard "Upcoming Events" card ────────────────────────
+  function renderEventsCard() {
+    const cardEl = opts.eventsCard;
+    if (!cardEl) return;
+
+    const limit = opts.eventsLimit ?? 4;
+    const shown = upcoming.slice(0, limit);
+
+    cardEl.innerHTML = '';
+    if (!shown.length) {
+      // Nothing scheduled — leave the card hidden rather than showing an
+      // empty panel on the dashboard.
+      if (opts.eventsSection) opts.eventsSection.style.display = 'none';
+      return;
+    }
+
+    shown.forEach(ev => {
+      const cfg   = TYPE_CONFIG[ev.event_type] ?? TYPE_CONFIG.event;
+      const start = parseDate(ev.event_date);
+      const mon   = start.toLocaleDateString('en-US', { month: 'short' });
+      const timeStr = ev.start_time
+        ? (ev.end_time ? `${fmtTime(ev.start_time)} – ${fmtTime(ev.end_time)}` : fmtTime(ev.start_time))
+        : 'All day';
+      const range = ev.end_date && ev.end_date !== ev.event_date
+        ? `Through ${fmtRange(ev.end_date, null)}`
+        : '';
+
+      const row = document.createElement('div');
+      row.className = 'dash-event-row';
+      // cfg values come from the hardcoded TYPE_CONFIG constant — safe to interpolate
+      row.innerHTML = `
+        <div class="dash-event-date" style="background:${cfg.bg};color:${cfg.text}">
+          <span class="dash-event-mon">${esc(mon)}</span>
+          <span class="dash-event-day">${start.getDate()}</span>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div class="dash-event-title">${esc(ev.title)}</div>
+          <div class="dash-event-meta">${esc(timeStr)}</div>
+          ${ev.location ? `<div class="dash-event-meta">${esc(ev.location)}</div>` : ''}
+          ${range ? `<div class="dash-event-meta">${esc(range)}</div>` : ''}
+        </div>`;
+      cardEl.appendChild(row);
+    });
+
+    if (opts.eventsSection) opts.eventsSection.style.display = '';
   }
 
   // ── Render the event list ──────────────────────────────────────────────

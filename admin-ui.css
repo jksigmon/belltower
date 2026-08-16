@@ -1986,15 +1986,131 @@ select {
   transform: translateY(0);
 }
 
-/* Dashboard stat grids: hidden until data resolves, then fade in */
+/* Dashboard card grid: hidden until data resolves, then fades in.
+   Each .dash-section renders as its own panel; sections that carry
+   .dash-section--full span the whole row. */
 #dashGrid,
 #staffDashGrid {
   opacity: 0;
   transition: opacity 220ms ease-out;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 16px;
+  align-items: stretch;
+  margin-top: 22px;
 }
 #dashGrid.loaded,
 #staffDashGrid.loaded {
   opacity: 1;
+}
+
+#dashGrid > .dash-section,
+#staffDashGrid > .dash-section {
+  margin-top: 0;
+  min-width: 0;
+  /* Column layout so a card's footer link pins to the bottom when
+     cards in the same row stretch to a shared height */
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid #e8ecf3;
+  border-radius: 16px;
+  padding: 18px 20px 20px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04),
+              0 12px 30px -24px rgba(15, 23, 42, 0.55);
+}
+
+#dashGrid > .dash-section--full,
+#staffDashGrid > .dash-section--full {
+  grid-column: 1 / -1;
+}
+
+/* Grids nested inside a card don't need their standalone top margin */
+#dashGrid .dash-section .stat-grid,
+#staffDashGrid .dash-section .stat-grid {
+  margin-top: 0;
+}
+
+/* Stat tiles sit on a card now — flatten them so cards don't stack shadows */
+#dashGrid .dash-section .stat,
+#staffDashGrid .dash-section .stat {
+  background: #fbfcfe;
+  box-shadow: none;
+}
+#dashGrid .dash-section a.stat:hover,
+#staffDashGrid .dash-section a.stat:hover {
+  background: #ffffff;
+}
+
+/* Card head: eyebrow on the left, optional action link on the right */
+#dashGrid .dash-section-head,
+#staffDashGrid .dash-section-head {
+  margin-bottom: 14px;
+}
+#dashGrid .dash-section-rule,
+#staffDashGrid .dash-section-rule {
+  background: none;
+}
+#dashGrid .dash-section-head > svg,
+#staffDashGrid .dash-section-head > svg {
+  width: 15px;
+  height: 15px;
+  color: #94a3b8;
+  flex-shrink: 0;
+  margin-right: -3px;
+}
+
+.dash-card-link {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.dash-card-link:hover { color: #1d4ed8; text-decoration: underline; }
+
+/* Footer link row inside a card ("View all birthdays →") */
+.dash-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #eef2f7;
+}
+.dash-card-foot .dash-card-link { font-size: 0.82rem; }
+
+/* List rows sit in a narrower column now — drop the min-widths that
+   force wrapping inside a card */
+#dashGrid .staff-dash-req-type,
+#staffDashGrid .staff-dash-req-type,
+#dashGrid .staff-dash-req-dates,
+#staffDashGrid .staff-dash-req-dates {
+  min-width: 0;
+}
+#dashGrid .staff-dash-request-row,
+#staffDashGrid .staff-dash-request-row {
+  gap: 10px;
+}
+
+.dash-card-empty {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  padding: 6px 2px 2px;
+}
+
+@media (max-width: 700px) {
+  #dashGrid,
+  #staffDashGrid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  #dashGrid > .dash-section,
+  #staffDashGrid > .dash-section {
+    padding: 16px 16px 18px;
+  }
 }
 
 /* Skeleton placeholder for stat card numbers while loading */
@@ -3152,45 +3268,69 @@ nav a[data-cap-group] {
 .stat[data-accent="green"]  .stat-num,
 .stat[data-accent="green"]  strong { color: #16a34a; }
 
-/* ── Birthday section — festive styling ──────────────────────── */
-#dashBirthdays,
-#staffDashBirthdays {
-  background: linear-gradient(135deg, #fffbeb 0%, #fdf4ff 55%, #eff6ff 100%);
-  border: 1px solid rgba(245, 158, 11, 0.28);
-  border-radius: 14px;
-  padding: 16px 20px;
+/* ── Birthday card — festive confetti header ─────────────────── */
+#dashGrid > #dashBirthdays,
+#staffDashGrid > #staffDashBirthdays {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='260' height='86' viewBox='0 0 260 86'%3E%3Cg opacity='.6'%3E%3Cpath d='M14 26c6-9 15-9 21 0' fill='none' stroke='%23fbbf24' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M206 34c6-9 15-9 21 0' fill='none' stroke='%2360a5fa' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='66' cy='16' r='3.5' fill='%23f87171'/%3E%3Ccircle cx='160' cy='22' r='3' fill='%2334d399'/%3E%3Ccircle cx='36' cy='56' r='2.5' fill='%2360a5fa'/%3E%3Ccircle cx='238' cy='60' r='2.5' fill='%23f472b6'/%3E%3Crect x='104' y='10' width='7' height='7' rx='1.6' fill='%23a78bfa' transform='rotate(22 107 13)'/%3E%3Crect x='232' y='12' width='6' height='6' rx='1.5' fill='%23fbbf24' transform='rotate(-16 235 15)'/%3E%3Crect x='132' y='54' width='6' height='6' rx='1.5' fill='%23fbbf24' transform='rotate(30 135 57)'/%3E%3C/g%3E%3C/svg%3E")
+      no-repeat right -14px top 0 / 300px auto,
+    linear-gradient(180deg, #fffaf2 0%, #ffffff 46%);
+  border-color: #f6e7cf;
 }
 
-
-/* Birthday individual card rows */
-#dashBirthdays .staff-dash-request-row,
-#staffDashBirthdays .staff-dash-request-row {
-  background: rgba(255, 255, 255, 0.75);
-  border-left: 3px solid #f59e0b;
-  border-radius: 10px;
-  padding: 7px 12px;
+/* Birthday rows — flat list, no per-row chrome (see mockup) */
+.bday-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 2px;
 }
 
-.dash-bday-row {
-  border: 1px solid #fde68a;
+.bday-row-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #0f172a;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bday-row-meta {
+  font-size: 0.775rem;
+  color: #94a3b8;
+  line-height: 1.35;
+  margin-top: 1px;
+}
+
+.bday-pill {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 @keyframes bday-pulse {
   0%, 100% { transform: scale(1); }
-  50%       { transform: scale(1.1); }
+  50%       { transform: scale(1.06); }
 }
 
 .bday-today {
-  animation: bday-pulse 1.5s ease-in-out infinite;
-  background: #fef08a !important;
-  color: #854d0e !important;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.3);
+  animation: bday-pulse 1.6s ease-in-out infinite;
+  background: #fde68a;
+  color: #854d0e;
 }
 
 /* Birthday avatar initials */
 .dash-bday-av {
-  width: 30px;
-  height: 30px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: linear-gradient(135deg, #f59e0b, #ea580c);
   color: #fff;
@@ -3198,45 +3338,154 @@ nav a[data-cap-group] {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
   flex-shrink: 0;
 }
 
-/* Birthday expand toggle button */
+/* Birthday expand toggle — reads as the card's footer link */
 .bday-toggle-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #fde68a;
-  background: linear-gradient(135deg, #fffbeb 0%, #fef9f0 100%);
-  color: #92400e;
-  font-size: 12.5px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #2563eb;
+  font-size: 0.82rem;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;
-  letter-spacing: 0.01em;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, color 0.15s;
-  box-shadow: 0 1px 3px rgba(245,158,11,0.10), inset 0 1px 0 rgba(255,255,255,0.7);
+  transition: color 0.15s;
 }
-.bday-toggle-btn:hover {
-  border-color: #f59e0b;
-  background: linear-gradient(135deg, #fef3c7 0%, #fef9ee 100%);
-  color: #78350f;
-  box-shadow: 0 2px 6px rgba(245,158,11,0.18), inset 0 1px 0 rgba(255,255,255,0.7);
-}
+.bday-toggle-btn:hover { color: #1d4ed8; text-decoration: underline; }
 .bday-toggle-icon {
   flex-shrink: 0;
   transition: transform 0.2s ease;
-  color: #f59e0b;
 }
 .bday-toggle-btn.bday-toggle-open .bday-toggle-icon {
   transform: rotate(180deg);
 }
 
 /* ── End birthday styling ─────────────────────────────────────── */
+
+/* ── Leave balance cards (staff dashboard) ───────────────────── */
+.bal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.bal-card {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  padding: 15px 15px 13px;
+  border: 1px solid #e8ecf3;
+  border-radius: 13px;
+  background: #ffffff;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s;
+}
+.bal-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--bar, #2563eb);
+}
+.bal-card:hover {
+  border-color: #cfdcf3;
+  box-shadow: 0 8px 20px -14px rgba(15, 23, 42, 0.5);
+  transform: translateY(-1px);
+}
+
+.bal-value {
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  color: var(--bar, #2563eb);
+}
+.bal-unit {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  color: #94a3b8;
+  margin-left: 5px;
+}
+.bal-type {
+  display: block;
+  margin-top: 9px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #334155;
+}
+.bal-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.74rem;
+  color: #94a3b8;
+}
+.bal-foot {
+  display: block;
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid #eef2f7;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+/* ── Upcoming events card ────────────────────────────────────── */
+.dash-event-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px 2px;
+}
+
+.dash-event-date {
+  width: 48px;
+  flex-shrink: 0;
+  text-align: center;
+  border-radius: 11px;
+  padding: 6px 0 7px;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.dash-event-mon {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.dash-event-day {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.dash-event-title {
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: #0f172a;
+  line-height: 1.35;
+}
+.dash-event-meta {
+  font-size: 0.775rem;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin-top: 1px;
+}
 
 .dash-welcome { margin-bottom: 4px; }
 .dash-welcome h1 { margin-bottom: 2px; }
@@ -3278,76 +3527,63 @@ a.stat, a.dash-stat-link {
   letter-spacing: 0;
 }
 
-/* Quick action buttons */
+/* Quick action tiles — even grid of icon + label cards */
 .dash-actions-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(146px, 1fr));
+  gap: 9px;
 }
 
 .dash-action-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 9px;
-  border: 1px solid transparent;
-  font-size: 0.875rem;
-  font-weight: 600;
+  gap: 9px;
+  padding: 9px 12px;
+  min-height: 42px;
+  border-radius: 11px;
+  border: 1px solid #e6eaf1;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 0.83rem;
+  font-weight: 650;
+  line-height: 1.25;
   text-decoration: none;
   cursor: pointer;
-  transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
-  white-space: nowrap;
-  line-height: 1;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s, background 0.15s;
+}
+
+.dash-action-btn:hover {
+  border-color: #bfd3f5;
+  background: #fbfdff;
+  box-shadow: 0 8px 20px -12px rgba(11, 45, 79, 0.45);
+  transform: translateY(-1px);
+  color: #0b2d4f;
 }
 
 .dash-action-btn svg {
-  width: 15px;
-  height: 15px;
+  width: 17px;
+  height: 17px;
   flex-shrink: 0;
+  stroke-width: 1.9;
+  color: #2563eb;
 }
 
-/* Primary: navy filled — for add/create actions */
-.dash-action-btn--primary {
-  background: #0b2d4f;
-  color: #fff;
-  border-color: #0b2d4f;
+/* The Quick Actions card is a dense strip — trim its padding too */
+#dashGrid > #dashQuickActions,
+#staffDashGrid > #staffDashActions {
+  padding: 15px 18px 16px;
 }
-.dash-action-btn--primary:hover {
-  background: #1a3a5c;
-  border-color: #1a3a5c;
-  box-shadow: 0 4px 14px rgba(11, 45, 79, 0.28);
-  transform: translateY(-1px);
-  color: #fff;
+#dashGrid > #dashQuickActions .dash-section-head,
+#staffDashGrid > #staffDashActions .dash-section-head {
+  margin-bottom: 11px;
 }
 
-/* Secondary: outlined — for module shortcuts */
-.dash-action-btn--secondary {
-  background: #fff;
-  color: #374151;
-  border-color: #d1d5db;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-.dash-action-btn--secondary:hover {
-  background: #f0f5ff;
-  border-color: #0b2d4f;
-  color: #0b2d4f;
-  box-shadow: 0 4px 12px rgba(11, 45, 79, 0.12);
-  transform: translateY(-1px);
-}
-
-/* Amber: gradient — for high-emphasis everyday actions */
-.dash-action-btn--amber {
-  background: linear-gradient(135deg, #f59e0b, #ea580c);
-  color: #fff;
-  border-color: transparent;
-  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.25);
-}
-.dash-action-btn--amber:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(234, 88, 12, 0.34);
-  color: #fff;
-}
+/* Variants tint the icon rather than the whole tile, so the row of
+   actions reads as one set (see mockup) while keeping emphasis cues. */
+.dash-action-btn--primary svg { color: #0b2d4f; }
+.dash-action-btn--amber   svg { color: #ea580c; }
+.dash-action-btn--amber:hover { border-color: #fcd9a8; }
 
 .stat-grid {
   display: grid;
@@ -3460,10 +3696,6 @@ a.stat, a.dash-stat-link {
   margin-top: 4px;
 }
 
-/* Balance grid: cap column width so 2-card rows don't stretch wall-to-wall */
-#staffDashBalanceGrid {
-  grid-template-columns: repeat(auto-fill, minmax(155px, 200px));
-}
 
 .staff-dash-request-row {
   display: flex;

@@ -929,33 +929,40 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
     <div id="staffDashGrid">
 
-      <div class="dash-section" id="staffDashActions" style="display:none;">
-        <div class="dash-section-head"><span class="dash-section-eyebrow">Quick Actions</span><span class="dash-section-rule"></span></div>
+      <div class="dash-section dash-section--full" id="staffDashActions" style="display:none;">
+        <div class="dash-section-head"><i data-lucide="zap"></i><span class="dash-section-eyebrow">Quick Actions</span><span class="dash-section-rule"></span></div>
         <div class="dash-actions-row" id="staffDashActionsRow"></div>
       </div>
 
-      <div class="dash-section" id="staffDashFormRequests" style="display:none;">
-        <div class="dash-section-head"><span class="dash-section-eyebrow">My Form Requests</span><span class="dash-section-rule"></span></div>
-        <div id="staffDashFormRequestList" class="staff-dash-list"></div>
+      <div class="dash-section" id="staffDashBalances" style="display:none;">
+        <div class="dash-section-head"><i data-lucide="wallet"></i><span class="dash-section-eyebrow">Leave Balance Summary</span><span class="dash-section-rule"></span></div>
+        <div class="bal-grid" id="staffDashBalanceGrid"></div>
+        <div class="dash-card-foot"><a class="dash-card-link" href="#pto">View leave balances &rarr;</a></div>
       </div>
 
       <div class="dash-section" id="staffDashBirthdays" style="display:none;">
         <div class="dash-section-head"><span class="dash-section-eyebrow">Upcoming Birthdays 🎂</span><span class="dash-section-rule"></span></div>
         <div id="staffDashBirthdayList" class="staff-dash-list"></div>
+        <div class="dash-card-foot" id="staffDashBirthdayFoot" style="display:none;"></div>
       </div>
 
-      <div class="dash-section" id="staffDashBalances" style="display:none;">
-        <div class="dash-section-head"><span class="dash-section-eyebrow">Leave Balances</span><span class="dash-section-rule"></span></div>
-        <div class="stat-grid" id="staffDashBalanceGrid"></div>
+      <div class="dash-section" id="staffDashEvents" style="display:none;">
+        <div class="dash-section-head"><i data-lucide="calendar-days"></i><span class="dash-section-eyebrow">Upcoming Events</span><span class="dash-section-rule"></span><a class="dash-card-link" href="#" id="staffDashEventsLink">View calendar</a></div>
+        <div id="staffDashEventList"></div>
       </div>
 
       <div class="dash-section" id="staffDashRequests" style="display:none;">
-        <div class="dash-section-head"><span class="dash-section-eyebrow">Upcoming Requests</span><span class="dash-section-rule"></span></div>
+        <div class="dash-section-head"><i data-lucide="calendar-clock"></i><span class="dash-section-eyebrow">Upcoming Requests</span><span class="dash-section-rule"></span></div>
         <div id="staffDashRequestList" class="staff-dash-list"></div>
       </div>
 
+      <div class="dash-section" id="staffDashFormRequests" style="display:none;">
+        <div class="dash-section-head"><i data-lucide="file-text"></i><span class="dash-section-eyebrow">My Form Requests</span><span class="dash-section-rule"></span><a class="dash-card-link" href="/app/requests.html">View all</a></div>
+        <div id="staffDashFormRequestList" class="staff-dash-list"></div>
+      </div>
+
       <div class="dash-section" id="staffDashLicenses" style="display:none;">
-        <div class="dash-section-head"><span class="dash-section-eyebrow">License Alerts</span><span class="dash-section-rule"></span></div>
+        <div class="dash-section-head"><i data-lucide="shield-alert"></i><span class="dash-section-eyebrow">License Alerts</span><span class="dash-section-rule"></span></div>
         <div id="staffDashLicenseList" class="staff-dash-list"></div>
       </div>
 
@@ -1813,7 +1820,11 @@ async function loadStaffDashboard() {
     staffDateEl.innerHTML = `<span class="dash-banner-date-day">${dayName}</span><span class="dash-banner-date-full">${fullDate}</span>`;
   }
 
-  initCalendarStrip(supabase, p.school_id, document.getElementById('staffCalChip'));
+  initCalendarStrip(supabase, p.school_id, document.getElementById('staffCalChip'), false, {
+    eventsCard:    document.getElementById('staffDashEventList'),
+    eventsSection: document.getElementById('staffDashEvents'),
+    eventsLink:    document.getElementById('staffDashEventsLink'),
+  });
 
   const in90 = new Date();
   in90.setDate(in90.getDate() + 90);
@@ -1920,14 +1931,15 @@ async function loadStaffDashboard() {
     r.balances.data.forEach(function (b, idx) {
       const card = document.createElement('a');
       card.href = '#pto';
-      card.className = 'stat';
+      card.className = 'bal-card';
       card.setAttribute('data-accent', BALANCE_ACCENTS[idx % BALANCE_ACCENTS.length]);
       const hrs = b.balance_hours.toFixed(1);
       const breakdown = formatHoursAsDays(b.balance_hours);
       card.innerHTML =
-        '<strong>' + hrs + '<span style="font-size:0.6em;font-weight:500;margin-left:4px;">hrs</span></strong>' +
-        '<span style="display:block;margin-top:6px;font-weight:600;font-size:12px;color:#374151;">' + b.pto_type + '</span>' +
-        '<span style="display:block;margin-top:2px;font-size:11px;color:#9ca3af;">' + breakdown + '</span>';
+        '<span class="bal-value">' + hrs + '<span class="bal-unit">HRS</span></span>' +
+        '<span class="bal-type">' + esc(b.pto_type) + '</span>' +
+        '<span class="bal-sub">Available</span>' +
+        '<span class="bal-foot">' + esc(breakdown) + '</span>';
       grid.appendChild(card);
     });
     document.getElementById('staffDashBalances').style.display = '';
@@ -1942,8 +1954,8 @@ async function loadStaffDashboard() {
     const list = document.getElementById('staffDashRequestList');
     list.innerHTML = r.requests.data.map(function (req) {
       const dateText = req.start_date === req.end_date
-        ? req.start_date
-        : req.start_date + ' → ' + req.end_date;
+        ? fmtShortDate(req.start_date)
+        : fmtShortDate(req.start_date) + ' → ' + fmtShortDate(req.end_date);
       const [bg, color, label] = statusStyle[req.status] ?? ['#f1f5f9', '#374151', req.status];
       const hrs = Number(req.requested_hours ?? 0);
       return '<a href="#pto" class="staff-dash-request-row">' +
@@ -2034,22 +2046,54 @@ async function loadStaffDashboard() {
 
     if (upcoming.length > 0) {
       var fmtBday = function (d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
-      document.getElementById('staffDashBirthdayList').innerHTML = upcoming.map(function (item) {
+      var rowHtml = function (item) {
         var when = item.daysLeft === 0 ? 'Today!' : item.daysLeft === 1 ? 'Tomorrow' : 'In ' + item.daysLeft + ' days';
+        var dayLabel = item.daysLeft === 0 ? 'Today' : fmtBday(item.bday);
         var secondary = item.type === 'student'
-          ? 'Turning ' + item.age + ' · ' + fmtBday(item.bday)
-          : fmtBday(item.bday);
+          ? 'Turning ' + item.age + ' · ' + dayLabel
+          : dayLabel;
         var roleLabel = item.type === 'staff' ? 'Staff' : 'Student';
         var initials = item.name.split(' ').map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
-        return '<div class="staff-dash-request-row" style="background:rgba(255,255,255,0.75);border-left:3px solid #f59e0b;border-radius:10px;">' +
-          '<span class="dash-bday-av">' + initials + '</span>' +
+        return '<div class="bday-row">' +
+          '<span class="dash-bday-av">' + esc(initials) + '</span>' +
           '<span style="flex:1;min-width:0;">' +
-          '<div style="font-weight:600;font-size:0.875rem;color:#1e293b;">' + item.name + '</div>' +
-          '<div style="font-size:0.75rem;color:#94a3b8;">' + roleLabel + ' · ' + secondary + '</div>' +
+          '<div class="bday-row-name">' + esc(item.name) + '</div>' +
+          '<div class="bday-row-meta">' + esc(roleLabel + ' · ' + secondary) + '</div>' +
           '</span>' +
-          '<span class="staff-dash-req-badge' + (item.daysLeft === 0 ? ' bday-today' : '') + '" style="background:#fef08a;color:#92400e;">' + when + '</span>' +
+          '<span class="bday-pill' + (item.daysLeft === 0 ? ' bday-today' : '') + '">' + when + '</span>' +
           '</div>';
-      }).join('');
+      };
+
+      // Show the first three; the rest expand from the card footer link.
+      var VISIBLE = 3;
+      var shown  = upcoming.slice(0, VISIBLE);
+      var hidden = upcoming.slice(VISIBLE);
+
+      var listEl = document.getElementById('staffDashBirthdayList');
+      listEl.innerHTML = shown.map(rowHtml).join('') +
+        (hidden.length
+          ? '<div id="staffDashBirthdayMore" style="display:none;">' + hidden.map(rowHtml).join('') + '</div>'
+          : '');
+
+      var footEl = document.getElementById('staffDashBirthdayFoot');
+      if (hidden.length && footEl) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bday-toggle-btn';
+        btn.innerHTML = '<span class="bday-toggle-label">View more birthdays</span>' +
+          '<svg class="bday-toggle-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>';
+        btn.addEventListener('click', function () {
+          var moreEl = document.getElementById('staffDashBirthdayMore');
+          var expanded = moreEl.style.display !== 'none';
+          moreEl.style.display = expanded ? 'none' : '';
+          btn.classList.toggle('bday-toggle-open', !expanded);
+          btn.querySelector('.bday-toggle-label').textContent = expanded ? 'View more birthdays' : 'Show less';
+        });
+        footEl.innerHTML = '';
+        footEl.appendChild(btn);
+        footEl.style.display = '';
+      }
+
       document.getElementById('staffDashBirthdays').style.display = '';
     }
   }());
