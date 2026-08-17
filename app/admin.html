@@ -578,6 +578,12 @@
       <option value="family_name.desc">Family name (Z–A)</option>
     </select>
 
+    <!-- Options are rendered from FAMILY_FLAGS in admin.families.js so a
+         flag added to that registry becomes filterable with no markup change. -->
+    <select id="familyFlagFilter" aria-label="Filter by special permission">
+      <option value="">All flags</option>
+    </select>
+
     <label class="directory-checkbox-filter" for="familyReleasableOnly">
       <input type="checkbox" id="familyReleasableOnly" />
       Releasable only (no active students)
@@ -2111,19 +2117,8 @@
 
     <div class="drawer-field">
       <label>Special Permissions</label>
-      <label class="staff-active-label">
-        <input type="checkbox" id="efSkipCarLine" />
-        <span>Skip car line</span>
-      </label>
-      <label class="staff-active-label">
-        <input type="checkbox" id="efEcNeeds" />
-        <span>EC needs</span>
-      </label>
-      <label class="staff-active-label">
-        <input type="checkbox" id="efOther" />
-        <span>Other</span>
-      </label>
-      <input id="efOtherNote" class="form-input" placeholder="Details for &quot;Other&quot; (optional)" style="margin-top:6px;" />
+      <!-- Checkboxes are rendered from FAMILY_FLAGS in admin.families.js -->
+      <div id="efFlagsList"></div>
     </div>
 
     <hr class="drawer-divider" />

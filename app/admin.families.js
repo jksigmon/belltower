@@ -9,6 +9,39 @@ let initialized = false;
 let familiesDirectory;
 let editingFamilyId = null;
 
+/* ===============================
+   SPECIAL-PERMISSION FLAGS
+================================ */
+
+// Single source of truth for the family special-permission flags. Everything
+// flag-shaped reads from here: the directory's Flags column badges, the edit
+// drawer's checkboxes, the export columns, and the Flags filter dropdown.
+// Adding a flag later is a migration for the boolean column plus one entry
+// here — no other file changes, and the new flag is filterable immediately.
+//
+// `noteColumn` is optional and gives a flag a free-text detail field, which
+// is also folded into the directory search so a specific one-off case can be
+// found by typing its note text.
+export const FAMILY_FLAGS = [
+  { column: 'skip_car_line', label: 'Skip Car Line', inputId: 'efSkipCarLine', badgeClass: 'fam-flag-carline' },
+  { column: 'ec_needs',      label: 'EC Needs',      inputId: 'efEcNeeds',     badgeClass: 'fam-flag-ec' },
+  {
+    column: 'other_flag', label: 'Other', inputId: 'efOther', badgeClass: 'fam-flag-other',
+    noteColumn: 'other_flag_note', noteInputId: 'efOtherNote',
+  },
+];
+
+const FLAG_NOTE_COLUMNS = FAMILY_FLAGS.map(f => f.noteColumn).filter(Boolean);
+
+// Aggregate dropdown options that aren't a single column. Prefixed so they
+// can never collide with a real column name added to the registry later.
+const FLAG_FILTER_ANY  = '__any';
+const FLAG_FILTER_NONE = '__none';
+
+// '' = no flag filter. Otherwise one of the two aggregates above, or a
+// column name from FAMILY_FLAGS.
+let flagFilter = '';
+
 function canManageFamilies() {
   return currentProfile.is_superadmin || currentProfile.role === 'admin' || currentProfile.can_manage_families === true;
 }
@@ -64,6 +97,57 @@ async function fetchReleasableFamilyIds() {
   releasableFamilyIds = (familiesRes.data || []).map(f => f.id).filter(id => !activeIds.has(id));
 }
 
+// Restricts the directory to a single flag, to families carrying at least
+// one flag, or to families carrying none. The "any" case uses .or() while
+// the directory may separately .or() the search term — PostgREST ANDs
+// repeated or= params, so the two compose correctly (same pattern as the
+// compliance directory's credential filter).
+function applyFlagFilter(query) {
+  if (!flagFilter) return query;
+
+  if (flagFilter === FLAG_FILTER_ANY) {
+    return query.or(FAMILY_FLAGS.map(f => `${f.column}.is.true`).join(','));
+  }
+  if (flagFilter === FLAG_FILTER_NONE) {
+    FAMILY_FLAGS.forEach(f => { query = query.eq(f.column, false); });
+    return query;
+  }
+
+  // Match against the registry rather than trusting the select value, so
+  // only known columns ever reach the query.
+  const flag = FAMILY_FLAGS.find(f => f.column === flagFilter);
+  return flag ? query.eq(flag.column, true) : query;
+}
+
+function populateFlagFilterOptions() {
+  const sel = document.getElementById('familyFlagFilter');
+  if (!sel || sel.dataset.populated) return;
+
+  sel.innerHTML = [
+    '<option value="">All flags</option>',
+    `<option value="${FLAG_FILTER_ANY}">Any special permission</option>`,
+    `<option value="${FLAG_FILTER_NONE}">No special permissions</option>`,
+    ...FAMILY_FLAGS.map(f => `<option value="${esc(f.column)}">${esc(f.label)}</option>`),
+  ].join('');
+  sel.dataset.populated = '1';
+}
+
+// The drawer's Special Permissions checkboxes are built from the registry
+// too, so a new flag doesn't need a matching block hand-added to admin.html.
+function renderFlagInputs() {
+  const wrap = document.getElementById('efFlagsList');
+  if (!wrap || wrap.dataset.rendered) return;
+
+  wrap.innerHTML = FAMILY_FLAGS.map(f => `
+    <label class="staff-active-label">
+      <input type="checkbox" id="${esc(f.inputId)}" />
+      <span>${esc(f.label)}</span>
+    </label>
+    ${f.noteColumn ? `<input id="${esc(f.noteInputId)}" class="form-input" placeholder="${esc(f.notePlaceholder ?? `Details for "${f.label}" (optional)`)}" style="margin-top:6px;" />` : ''}
+  `).join('');
+  wrap.dataset.rendered = '1';
+}
+
 // Central reload used everywhere the directory refreshes, so the releasable
 // filter's underlying id set stays in sync with the latest student edits.
 async function reloadFamilies() {
@@ -84,6 +168,9 @@ export async function initFamiliesSection(profile) {
   const addBtn = document.getElementById('addFamilyBtn');
   if (addBtn) addBtn.style.display = canManageFamilies() ? '' : 'none';
 
+  populateFlagFilterOptions();
+  renderFlagInputs();
+
   if (!familiesDirectory) {
     familiesDirectory = createDirectory({
       table: 'families',
@@ -94,27 +181,35 @@ export async function initFamiliesSection(profile) {
         carline_tag_number,
         family_name,
         active,
-        skip_car_line,
-        ec_needs,
-        other_flag,
-        other_flag_note,
+        ${FAMILY_FLAGS.flatMap(f => [f.column, f.noteColumn]).filter(Boolean).join(',\n        ')},
         students ( first_name, last_name, grade_level, active ),
         guardians ( active )
       `,
 
-      searchFields: hasCarline ? ['carline_tag_number', 'family_name'] : ['family_name'],
+      // Flag notes are searchable so a one-off case recorded under a
+      // free-text flag ("wheelchair van", "court order") is findable by
+      // typing it, not just by filtering down to the flag itself.
+      searchFields: [
+        ...(hasCarline ? ['carline_tag_number', 'family_name'] : ['family_name']),
+        ...FLAG_NOTE_COLUMNS,
+      ],
 
-      // "Releasable only" isn't a plain column filter — it restricts to the
-      // precomputed releasable id set above. Handled here (not via the
-      // generic `filters` config) because that engine only supports
-      // single-arg comparisons.
-      augmentQuery(query) {
+      // Neither filter here is a plain column comparison — "Releasable only"
+      // restricts to the precomputed id set above, and the flag filter has
+      // aggregate ("any"/"none") modes. Both are handled here rather than via
+      // the generic `filters` config, which only supports single-arg
+      // comparisons.
+      augmentQuery(query, _search, { all } = {}) {
+        // "Export all" means every family, so neither filter applies there.
+        if (all) return { query };
+
         if (releasableFilterOn) {
           // Empty set legitimately means "no releasable families" — filter
           // on an id that can't exist rather than skipping the filter
           // (skipping would show the unfiltered list instead of zero rows).
           query = query.in('id', releasableFamilyIds.length ? releasableFamilyIds : ['00000000-0000-0000-0000-000000000000']);
         }
+        query = applyFlagFilter(query);
         return { query };
       },
 
@@ -168,16 +263,19 @@ function formatFamilyStudents(students) {
 }
 
 function exportFamilyRow(f) {
-  return {
+  const row = {
     'Carline Tag/Family Number': f.carline_tag_number ?? '',
     'Family Name':               f.family_name ?? '',
     'Active':                    f.active ? 'TRUE' : 'FALSE',
-    'Skip Car Line':             f.skip_car_line ? 'TRUE' : 'FALSE',
-    'EC Needs':                  f.ec_needs ? 'TRUE' : 'FALSE',
-    'Other':                     f.other_flag ? 'TRUE' : 'FALSE',
-    'Other Note':                f.other_flag_note ?? '',
-    'Students':                  formatFamilyStudents(f.students),
   };
+
+  FAMILY_FLAGS.forEach(flag => {
+    row[flag.label] = f[flag.column] ? 'TRUE' : 'FALSE';
+    if (flag.noteColumn) row[`${flag.label} Note`] = f[flag.noteColumn] ?? '';
+  });
+
+  row['Students'] = formatFamilyStudents(f.students);
+  return row;
 }
 
 /* ===============================
@@ -210,11 +308,16 @@ function guardianCountBadge(f) {
 }
 
 function specialFlagsBadges(f) {
-  const badges = [];
-  if (f.skip_car_line) badges.push('<span class="fam-flag-badge fam-flag-carline">Skip Car Line</span>');
-  if (f.ec_needs)      badges.push('<span class="fam-flag-badge fam-flag-ec">EC Needs</span>');
-  if (f.other_flag)    badges.push(`<span class="fam-flag-badge fam-flag-other"${f.other_flag_note ? ` title="${esc(f.other_flag_note)}"` : ''}>Other</span>`);
-  return badges.join('');
+  return FAMILY_FLAGS
+    .filter(flag => f[flag.column])
+    .map(flag => {
+      // A flag registered without its own badge class falls back to the
+      // neutral grey "other" styling rather than rendering unstyled.
+      const cls  = flag.badgeClass || 'fam-flag-other';
+      const note = flag.noteColumn ? f[flag.noteColumn] : null;
+      return `<span class="fam-flag-badge ${cls}"${note ? ` title="${esc(note)}"` : ''}>${esc(flag.label)}</span>`;
+    })
+    .join('');
 }
 
 function renderFamilyRow(f) {
@@ -271,13 +374,19 @@ function openEditFamilyDrawer(f) {
   document.getElementById('efTag').value    = f.carline_tag_number ?? '';
   document.getElementById('efName').value   = f.family_name ?? '';
   document.getElementById('efActive').checked = !!f.active;
-  document.getElementById('efSkipCarLine').checked = !!f.skip_car_line;
-  document.getElementById('efEcNeeds').checked      = !!f.ec_needs;
-  document.getElementById('efOther').checked        = !!f.other_flag;
-  document.getElementById('efOtherNote').value      = f.other_flag_note ?? '';
+
+  FAMILY_FLAGS.forEach(flag => {
+    const cb = document.getElementById(flag.inputId);
+    if (cb) cb.checked = !!f[flag.column];
+    if (flag.noteColumn) {
+      const note = document.getElementById(flag.noteInputId);
+      if (note) note.value = f[flag.noteColumn] ?? '';
+    }
+  });
 
   const canManage = canManageFamilies();
-  ['efTag', 'efName', 'efActive', 'efSkipCarLine', 'efEcNeeds', 'efOther', 'efOtherNote', 'efStudentSearch']
+  const flagInputIds = FAMILY_FLAGS.flatMap(flag => [flag.inputId, flag.noteInputId]).filter(Boolean);
+  ['efTag', 'efName', 'efActive', ...flagInputIds, 'efStudentSearch']
     .forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !canManage; });
 
   const saveBtn = document.getElementById('efSaveBtn');
@@ -364,11 +473,14 @@ async function saveEditFamily() {
     carline_tag_number: tag,
     family_name:        name || null,
     active:             document.getElementById('efActive').checked,
-    skip_car_line:      document.getElementById('efSkipCarLine').checked,
-    ec_needs:           document.getElementById('efEcNeeds').checked,
-    other_flag:         document.getElementById('efOther').checked,
-    other_flag_note:    document.getElementById('efOtherNote').value.trim() || null,
   };
+
+  FAMILY_FLAGS.forEach(flag => {
+    updated[flag.column] = document.getElementById(flag.inputId)?.checked === true;
+    if (flag.noteColumn) {
+      updated[flag.noteColumn] = document.getElementById(flag.noteInputId)?.value.trim() || null;
+    }
+  });
 
   const saveBtn = document.getElementById('efSaveBtn');
   saveBtn.disabled    = true;
@@ -568,10 +680,20 @@ function wireFamilyEvents() {
     });
   }
 
+  const flagSelect = document.getElementById('familyFlagFilter');
+  if (flagSelect) {
+    flagSelect.addEventListener('change', e => {
+      flagFilter = e.target.value;
+      familiesDirectory.resetPage();
+      familiesDirectory.load();
+    });
+  }
+
   const releasableCheckbox = document.getElementById('familyReleasableOnly');
   if (releasableCheckbox) {
     releasableCheckbox.addEventListener('change', async e => {
       releasableFilterOn = e.target.checked;
+      familiesDirectory.resetPage();
       await reloadFamilies();
     });
   }

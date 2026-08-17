@@ -36,8 +36,11 @@ const searchTerm = state.search;
 // ✅ allow augmentQuery to control search
 let skipBaseSearch = false;
 
+// `all` (an unfiltered "Export all") is passed through so an augmentQuery
+// that applies its own filters can opt out of them, the same way the
+// generic `filters` config below is skipped.
 if (typeof config.augmentQuery === 'function') {
-  const result = config.augmentQuery(query, searchTerm);
+  const result = config.augmentQuery(query, searchTerm, { all });
   if (result?.query) {
     query = result.query;
     skipBaseSearch = result.skipBaseSearch === true;
@@ -267,6 +270,13 @@ if (!all && searchTerm && searchFields.length && !skipBaseSearch) {
       state.search = value;
       state.page = 1;
       load();
+    },
+    // For callers whose filtering runs through augmentQuery instead of the
+    // `filters` config: changing what's filtered has to send the view back to
+    // page 1, or a narrowed result set can land on a page that no longer
+    // exists and render empty.
+    resetPage() {
+      state.page = 1;
     },
     setFilter(key, value) {
       state.filters[key] = value;
