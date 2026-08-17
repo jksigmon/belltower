@@ -288,6 +288,8 @@ async function loadDashboardStats() {
   // ── Build all queries synchronously based on capabilities ─────────
   const in7  = new Date(); in7.setDate(in7.getDate() + 7);
   const in7Str  = in7.toISOString().slice(0, 10);
+  const in14 = new Date(); in14.setDate(in14.getDate() + 14);
+  const in14Str = in14.toISOString().slice(0, 10);
   const in30 = new Date(); in30.setDate(in30.getDate() + 30);
   const in30Str = in30.toISOString().slice(0, 10);
 
@@ -323,15 +325,20 @@ async function loadDashboardStats() {
       .eq('school_id', schoolId).eq('status', 'scheduled').eq('start_date', today);
     queries.subCancellations = supabase.from('v_pending_cancellation_days').select('assignment_id', { count: 'exact', head: true })
       .eq('school_id', schoolId).eq('assignment_status', 'scheduled');
-    // Named alert queries
-    // Fetch generously; rows are grouped per-employee client-side, so a
-    // single multi-day absence can't crowd other people's alerts out.
+    // Named alert queries — capped at the next two weeks. The view itself
+    // only filters coverage_date >= today, so without an upper bound a gap
+    // three months out would surface in a panel called "Today's Alerts".
+    // The Needs Attention counts above stay unbounded: those are totals.
+    // Fetch generously within that window; rows are grouped per-employee
+    // client-side, so one multi-day absence can't crowd others out.
     queries.alertCoverage = supabase.from('v_pending_coverage_days')
       .select('out_first_name, out_last_name, coverage_date, pto_type')
-      .eq('school_id', schoolId).order('coverage_date', { ascending: true }).limit(60);
+      .eq('school_id', schoolId).lte('coverage_date', in14Str)
+      .order('coverage_date', { ascending: true }).limit(60);
     queries.alertSubCancellations = supabase.from('v_pending_cancellation_days')
       .select('out_first_name, out_last_name, coverage_date')
       .eq('school_id', schoolId).eq('assignment_status', 'scheduled')
+      .lte('coverage_date', in14Str)
       .order('coverage_date', { ascending: true }).limit(60);
   }
 
@@ -676,9 +683,9 @@ async function loadDashboardStats() {
     const alerts = [];
 
     // Collapse per-day rows into one alert per employee. Eight rows of
-    // "Rachel is out Sep N" bury every other alert; one row with a range
-    // and day count carries the same urgency without the noise. Rows
-    // arrive date-sorted, so dates[0] / dates.at(-1) bound the range.
+    // "Rachel is out Sep N" bury every other alert; one row with a day
+    // count carries the same urgency without the noise. Rows arrive
+    // date-sorted, so dates[0] is always the soonest.
     const groupByEmployee = rows => {
       const byEmp = new Map();
       (rows ?? []).forEach(row => {
@@ -689,26 +696,45 @@ async function loadDashboardStats() {
       return byEmp;
     };
 
+    // Only print "Aug 24 – Aug 27" when the days really are one stretch.
+    // Scattered days (4 single days spread over two months) rendered as a
+    // first–last range read as one long absence, which they aren't.
+    // Gaps of up to 3 days count as contiguous so a Fri→Mon absence — a
+    // weekend, not a return to work — still reads as a single stretch.
+    const isContiguousRun = dates => dates.every((d, i) => {
+      if (i === 0) return true;
+      const gap = (new Date(d + 'T00:00:00') - new Date(dates[i - 1] + 'T00:00:00')) / 86400000;
+      return gap <= 3;
+    });
+
+    // "next today" doesn't read, so call it out directly when one is today
+    const soonestLabel = dates =>
+      dates[0] === today ? 'one is today' : `next ${fmtDate(dates[0])}`;
+
     // 🔴 Coverage gaps (most critical — named, upcoming)
     groupByEmployee(r.alertCoverage?.data).forEach((dates, name) => {
-      alerts.push({
-        level: 'red',
-        text: dates.length === 1
-          ? `${name} is out ${fmtDate(dates[0])} — no substitute assigned`
-          : `${name} is out ${fmtDate(dates[0])} – ${fmtDate(dates.at(-1))} — ${dates.length} days with no substitute assigned`,
-        href: '/app/substitutes.html'
-      });
+      let text;
+      if (dates.length === 1) {
+        text = `${name} is out ${fmtDate(dates[0])} — no substitute assigned`;
+      } else if (isContiguousRun(dates)) {
+        text = `${name} is out ${fmtDate(dates[0])} – ${fmtDate(dates.at(-1))} — ${dates.length} days with no substitute assigned`;
+      } else {
+        text = `${name} — ${dates.length} days with no substitute assigned, ${soonestLabel(dates)}`;
+      }
+      alerts.push({ level: 'red', text, href: '/app/substitutes.html' });
     });
 
     // 🟠 Pending sub cancellations — PTO was cancelled but sub assignment still scheduled
     groupByEmployee(r.alertSubCancellations?.data).forEach((dates, name) => {
-      alerts.push({
-        level: 'amber',
-        text: dates.length === 1
-          ? `${name}'s leave was cancelled — sub assignment on ${fmtDate(dates[0])} still needs to be cancelled`
-          : `${name}'s leave was cancelled — ${dates.length} sub assignments (${fmtDate(dates[0])} – ${fmtDate(dates.at(-1))}) still need to be cancelled`,
-        href: '/app/substitutes.html#cancellations'
-      });
+      let text;
+      if (dates.length === 1) {
+        text = `${name}'s leave was cancelled — sub assignment on ${fmtDate(dates[0])} still needs to be cancelled`;
+      } else if (isContiguousRun(dates)) {
+        text = `${name}'s leave was cancelled — ${dates.length} sub assignments (${fmtDate(dates[0])} – ${fmtDate(dates.at(-1))}) still need to be cancelled`;
+      } else {
+        text = `${name}'s leave was cancelled — ${dates.length} sub assignments still need to be cancelled, ${soonestLabel(dates)}`;
+      }
+      alerts.push({ level: 'amber', text, href: '/app/substitutes.html#cancellations' });
     });
 
     // 🔴 Licenses expiring within 7 days
