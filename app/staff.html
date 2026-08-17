@@ -1554,7 +1554,7 @@ import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps } from '/app/admin.shared.js?v=3';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE } from '/app/admin.shared.js?v=3';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { roleCheckboxGridHTML } from '/app/compliance.roles.js?v=2';
@@ -2064,10 +2064,13 @@ async function loadStaffDashboard() {
           '</div>';
       };
 
-      // Show the first three; the rest expand from the card footer link.
-      var VISIBLE = 3;
-      var shown  = upcoming.slice(0, VISIBLE);
-      var hidden = upcoming.slice(VISIBLE);
+      // Show the soonest few (list is day-sorted), but never collapse
+      // someone whose birthday is today or tomorrow behind the toggle.
+      // Same rule as the admin dashboard card.
+      var imminent = upcoming.filter(function (s) { return s.daysLeft <= 1; }).length;
+      var cut    = Math.max(BDAY_VISIBLE, imminent);
+      var shown  = upcoming.slice(0, cut);
+      var hidden = upcoming.slice(cut);
 
       var listEl = document.getElementById('staffDashBirthdayList');
       listEl.innerHTML = shown.map(rowHtml).join('') +

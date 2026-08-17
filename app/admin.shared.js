@@ -293,6 +293,14 @@ export function toLocalISODate(date) {
  *
  * @param {ParentNode} [root] scope to search; defaults to the document
  */
+/**
+ * How many upcoming birthdays a dashboard card shows before the rest go
+ * behind its "View more birthdays" toggle. Shared so the staff and admin
+ * cards stay in step. Anyone whose birthday is today or tomorrow is shown
+ * regardless — see the callers.
+ */
+export const BDAY_VISIBLE = 4;
+
 const _clampRoots = new Set();
 let _clampResizeBound = false;
 

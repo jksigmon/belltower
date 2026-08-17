@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initUserMenu } from './user-menu.js?v=2';
-import { esc, initDashClamps } from './admin.shared.js?v=3';
+import { esc, initDashClamps, BDAY_VISIBLE } from './admin.shared.js?v=3';
 import { loadWeather } from './weather.js';
 import { initCalendarStrip } from './calendar-strip.js';
 
@@ -597,8 +597,6 @@ async function loadDashboardStats() {
 
     if (allBdays.length > 0) {
       const list = document.getElementById('dashBirthdayList');
-      const shown  = allBdays.filter(s => s.daysLeft <= 1);
-      const hidden = allBdays.filter(s => s.daysLeft > 1);
 
       const buildLi = s => {
         const isToday    = s.daysLeft === 0;
@@ -623,10 +621,13 @@ async function loadDashboardStats() {
       const ul = document.createElement('ul');
       ul.style.cssText = 'list-style:none;margin:0;padding:0;';
 
-      // If no one has a birthday today or tomorrow, show the first few instead
-      const hasImminent = shown.length > 0;
-      const visible = hasImminent ? shown : allBdays.slice(0, 3);
-      const rest    = hasImminent ? hidden : allBdays.slice(3);
+      // Show the soonest few (list is day-sorted), but never collapse
+      // someone whose birthday is today or tomorrow behind the toggle.
+      // Same rule on the staff dashboard so both cards behave alike.
+      const imminent = allBdays.filter(s => s.daysLeft <= 1).length;
+      const cut      = Math.max(BDAY_VISIBLE, imminent);
+      const visible  = allBdays.slice(0, cut);
+      const rest     = allBdays.slice(cut);
       visible.forEach(s => ul.appendChild(buildLi(s)));
 
       let extUl = null;
