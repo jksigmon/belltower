@@ -2152,6 +2152,11 @@ select {
   #staffDashGrid > .dash-section {
     padding: 16px 16px 18px;
   }
+  /* Wider tracks on phones — the desktop min would give 3 cramped
+     columns where 2 readable ones fit */
+  .dash-actions-row {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
 }
 
 /* Skeleton placeholder for stat card numbers while loading */
@@ -3569,9 +3574,11 @@ a.stat, a.dash-stat-link {
 }
 
 /* Quick action tiles — even grid of icon + label cards */
+/* Narrow tracks so a full set of actions (9 today) lands on one row at
+   desktop widths; it still wraps naturally as the viewport narrows */
 .dash-actions-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(146px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
   gap: 9px;
 }
 
