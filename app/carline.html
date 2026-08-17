@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="manifest" href="/icons/site.webmanifest">
   <link rel="icon" href="/icons/favicon.ico">
-  <link rel="stylesheet" href="/carline.css?v=7" />
+  <link rel="stylesheet" href="/carline.css?v=8" />
 </head>
 <body>
 
@@ -97,7 +97,7 @@
   <!-- Bus arrival bar -->
   <div id="busArrivalBar" hidden>
     <span class="cl-bar-label">Buses arrived:</span>
-    <div id="busArrivalPills" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"></div>
+    <div id="busArrivalPills" style="display:flex;align-items:center;flex-wrap:wrap;"></div>
   </div>
 
   <!-- Mobile tab bar (visible on small screens when event is active) -->
@@ -786,6 +786,16 @@ async function loadBusArrivals() {
   renderBusArrivalBar();
 }
 
+// Bus groups have no color column, so a group's color is its position in the
+// alphabetical list wrapped around the 8-slot palette in carline.css. That
+// keeps a bus the same color every day and guarantees neighbors differ, which
+// hashing the name would not.
+const BUS_COLOR_SLOTS = 8;
+function busColorIndex(busGroupId) {
+  const i = allBusGroups.findIndex(g => g.id === busGroupId);
+  return i < 0 ? null : i % BUS_COLOR_SLOTS;
+}
+
 function renderBusArrivalBar() {
   const bar   = document.getElementById('busArrivalBar');
   const pills = document.getElementById('busArrivalPills');
@@ -794,17 +804,25 @@ function renderBusArrivalBar() {
     if (seen.has(a.bus_group_id)) return false;
     seen.add(a.bus_group_id); return true;
   });
-  document.documentElement.style.setProperty('--cl-bus-bar-h', unique.length ? '40px' : '0px');
-  if (!unique.length) { bar.hidden = true; prevBusArrivalIds = new Set(); return; }
+  if (!unique.length) {
+    document.documentElement.style.setProperty('--cl-bus-bar-h', '0px');
+    bar.hidden = true; prevBusArrivalIds = new Set(); return;
+  }
   bar.hidden = false;
   pills.innerHTML = '';
   unique.forEach(a => {
     const group = allBusGroups.find(g => g.id === a.bus_group_id);
     const pill  = document.createElement('span');
     pill.className   = 'cl-bus-arrival-pill' + (prevBusArrivalIds.has(a.bus_group_id) ? '' : ' cl-bus-arrival-new');
+    const colorIdx = busColorIndex(a.bus_group_id);
+    if (colorIdx !== null) pill.dataset.busColor = String(colorIdx);
     pill.textContent = group ? group.name : 'Bus';
     pills.appendChild(pill);
   });
+  // Display-sized pills wrap to a second row once a handful of buses are in,
+  // so measure the bar rather than assuming one row — the activity log and
+  // pickup drawer are positioned off this variable.
+  document.documentElement.style.setProperty('--cl-bus-bar-h', bar.offsetHeight + 'px');
   prevBusArrivalIds = new Set(unique.map(a => a.bus_group_id));
 }
 

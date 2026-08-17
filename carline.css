@@ -35,6 +35,11 @@
   --cl-header-h:        76px;
   --cl-bar-h:           56px;
   --cl-bus-bar-h:       0px;
+
+  /* Bus-group pill colors — overridden per group by the palette below */
+  --bus-bg:             #16a34a;
+  --bus-border:         #15803d;
+  --bus-glow:           22, 163, 74;
   --cl-radius:          10px;
   --cl-font: Inter, ui-sans-serif, system-ui, -apple-system,
              Segoe UI, Roboto, Helvetica Neue, Arial, sans-serif;
@@ -355,7 +360,99 @@ html, body {
 .cl-dropdown-item .item-count { font-size: 13px; color: var(--cl-text-muted); }
 .cl-bar-spacer { flex: 1; }
 
+/* ================================================
+   DISPLAY BOARD — LARGE-FORMAT SIZING
+   carline.html is projected and read from across a classroom, so its
+   chrome runs bigger than the baseline above. Scoped to #clApp on purpose:
+   the same classes dress the phone input page (#inputApp) and the kiosk
+   (#kioskApp), where these sizes would overflow. Desktop/projector only —
+   the mobile breakpoint below keeps its compact header.
+================================================ */
+@media (min-width: 768px) {
+  body:has(#clApp) {
+    --cl-header-h: 92px;   /* was 76 */
+    --cl-bar-h:    92px;   /* was 56 — the add buttons set this floor */
+  }
+
+  /* ---- Header: ~20% up across the board ---- */
+  #clApp #clHeader { padding: 0 17px; gap: 12px; }
+  #clApp .cl-header-left { gap: 12px; }
+  #clApp .cl-brand-icon  { width: 38px; height: 38px; }
+  #clApp .cl-school-name { font-size: 22px; }
+  #clApp .cl-event-date  { font-size: 14.5px; }
+  #clApp .cl-status-badge { font-size: 12px; padding: 3px 10px; }
+  #clApp .cl-campus-label { font-size: 13px; padding: 4px 11px; }
+  #clApp .cl-header-right { gap: 8px; }
+  #clApp .cl-clock { font-size: 46px; }
+
+  #clApp .cl-icon-btn { width: 58px; height: 58px; font-size: 20px; border-radius: 11px; }
+  #clApp .cl-fontsize-btn { font-size: 18px; }
+  #clApp .cl-signout-btn,
+  #clApp .cl-input-link-btn,
+  #clApp .cl-dismiss-btn {
+    height: 58px;
+    padding: 0 19px;
+    font-size: 17px;
+    border-radius: 11px;
+  }
+  /* The SVGs carry width/height attributes in the markup; CSS overrides them
+     so every header icon scales with its button. */
+  #clApp #clHeader .cl-icon-btn svg,
+  #clApp #clHeader .cl-signout-btn svg,
+  #clApp #clHeader .cl-dismiss-btn svg { width: 24px; height: 24px; }
+  #clApp #clHeader .cl-input-link-btn svg { width: 22px; height: 22px; }
+
+  /* Fullscreen is the one control someone hunts for from across the room */
+  #clApp #btnFullscreen { background: #f97316; color: #fff; }
+  #clApp #btnFullscreen:hover { background: #ea580c; }
+
+  /* ---- Class bar: add buttons roughly double ---- */
+  #clApp #classBar { padding: 0 17px; gap: 12px; }
+  #clApp .cl-bar-label { font-size: 13px; }
+  #clApp .cl-add-class-btn {
+    font-size: 26px;
+    padding: 13px 26px;
+    border-width: 2.5px;
+  }
+  #clApp .cl-add-student-btn svg {
+    width: 22px; height: 22px;
+    margin-right: 7px;
+    vertical-align: -3px;
+  }
+  /* Pills sit shoulder-to-shoulder with those buttons — scale them too, or
+     the class list becomes the unreadable thing on a now-92px bar. */
+  #clApp .cl-class-pill {
+    font-size: 20px;
+    padding: 10px 16px 10px 22px;
+    gap: 9px;
+  }
+  #clApp .cl-pill-remove { width: 24px; height: 24px; font-size: 16px; }
+
+  /* ---- Bus arrival bar: roughly double ---- */
+  /* The bus name is the only thing on this bar that matters on a small,
+     low-resolution projector, so it gets display-sized type. */
+  #clApp #busArrivalBar { padding: 10px 16px; gap: 12px; }
+  #clApp #busArrivalPills { gap: 12px; }
+  #clApp .cl-bus-arrival-pill {
+    font-size: 26px;
+    padding: 9px 22px;
+    border-width: 2px;
+  }
+
+  /* ---- Family tag number ---- */
+  /* It's the number on the placard in the windshield, so it needs to be read
+     as fast as the name. Sized off the card name so it still tracks the
+     S/M/L font toggle instead of going flat. */
+  #clApp .cl-card-tag {
+    font-size: calc(var(--cl-card-name-size, 20px) * 0.8);
+    padding: 4px 12px;
+    border-radius: 9px;
+  }
+}
+
 /* ---------- Bus arrival bar (display page) ---------- */
+/* Baseline here is the phone-sized bar; the display block below scales it up
+   for projection. */
 #busArrivalBar {
   background: #f0fdf4;
   border-bottom: 1px solid #bbf7d0;
@@ -366,6 +463,7 @@ html, body {
   flex-shrink: 0;
   flex-wrap: wrap;
 }
+#busArrivalPills { gap: 6px; }
 [data-theme="dark"] #busArrivalBar {
   background: #052e16;
   border-bottom-color: #14532d;
@@ -373,27 +471,44 @@ html, body {
 .cl-bus-arrival-pill {
   display: inline-flex;
   align-items: center;
-  background: #16a34a;
+  background: var(--bus-bg);
   color: #fff;
-  border: 1px solid #15803d;
+  border: 1px solid var(--bus-border);
   border-radius: 99px;
   padding: 4px 12px;
   font-size: 12.5px;
   font-weight: 800;
+  line-height: 1.15;
   letter-spacing: 0.01em;
   white-space: nowrap;
 }
-[data-theme="dark"] .cl-bus-arrival-pill {
+/* Fallback only — a pill whose group isn't in allBusGroups gets no palette
+   slot, so it keeps the original green treatment. */
+[data-theme="dark"] .cl-bus-arrival-pill:not([data-bus-color]) {
   background: #15803d;
   color: #ecfdf5;
   border-color: #22c55e;
 }
 
-/* One-time pop/glow when a bus first appears in the bar */
+/* Bus-group color palette. Assigned by the group's position in the
+   alphabetical bus_groups list (see busColorIndex in carline.html), so a
+   given bus keeps the same color every day and neighbors never collide.
+   All eight carry white text at 26px/800 in both themes. */
+.cl-bus-arrival-pill[data-bus-color="0"] { --bus-bg: #16a34a; --bus-border: #14532d; --bus-glow:  22,163, 74; }
+.cl-bus-arrival-pill[data-bus-color="1"] { --bus-bg: #2563eb; --bus-border: #1e3a8a; --bus-glow:  37, 99,235; }
+.cl-bus-arrival-pill[data-bus-color="2"] { --bus-bg: #7c3aed; --bus-border: #4c1d95; --bus-glow: 124, 58,237; }
+.cl-bus-arrival-pill[data-bus-color="3"] { --bus-bg: #ea580c; --bus-border: #7c2d12; --bus-glow: 234, 88, 12; }
+.cl-bus-arrival-pill[data-bus-color="4"] { --bus-bg: #db2777; --bus-border: #831843; --bus-glow: 219, 39,119; }
+.cl-bus-arrival-pill[data-bus-color="5"] { --bus-bg: #0891b2; --bus-border: #164e63; --bus-glow:   8,145,178; }
+.cl-bus-arrival-pill[data-bus-color="6"] { --bus-bg: #ca8a04; --bus-border: #713f12; --bus-glow: 202,138,  4; }
+.cl-bus-arrival-pill[data-bus-color="7"] { --bus-bg: #dc2626; --bus-border: #7f1d1d; --bus-glow: 220, 38, 38; }
+
+/* One-time pop/glow when a bus first appears in the bar — glow follows the
+   group's own color so the pulse reads as "that bus", not "a bus" */
 @keyframes cl-bus-pop {
-  0%   { transform: scale(0.6); box-shadow: 0 0 0 0 rgba(22,163,74,0.55); }
-  45%  { transform: scale(1.14); box-shadow: 0 0 0 9px rgba(22,163,74,0); }
-  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22,163,74,0); }
+  0%   { transform: scale(0.6);  box-shadow: 0 0 0 0  rgba(var(--bus-glow), 0.55); }
+  45%  { transform: scale(1.14); box-shadow: 0 0 0 9px rgba(var(--bus-glow), 0); }
+  100% { transform: scale(1);    box-shadow: 0 0 0 0  rgba(var(--bus-glow), 0); }
 }
 .cl-bus-arrival-new {
   animation: cl-bus-pop 700ms ease-out;
