@@ -180,6 +180,14 @@
 
 <div class="cl-toast" id="clToast"></div>
 
+<!-- Browsers refuse to make sound until the page itself has been clicked, so
+     a display left untouched on a projector stays silent with no explanation.
+     This says so, and dismisses itself on the click that fixes it. -->
+<button class="cl-sound-blocked" id="clSoundBlocked" hidden>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
+  Click here to turn on call sounds
+</button>
+
 <canvas id="clConfetti"></canvas>
 
 <!-- Pickup Groups drawer (can_manage_carline only) -->
@@ -606,6 +614,7 @@
 <script type="module">
 import { supabase } from '/app/admin.supabase.js?v=2';
 import { GRADE_ORDER } from '/app/admin.shared.js?v=3';
+import { playTones, wireAudioPriming, onAudioReadyChange } from '/app/carline-audio.js';
 
 // ─── SVG icons ────────────────────────────────────────────────────────
 const SVG_MOON     = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
@@ -637,7 +646,6 @@ let currentKioskPin      = null;      // loaded when pickup drawer opens
 let realtimeChannel  = null;
 let eventPollTimer   = null;
 let callsPollTimer   = null;
-let audioCtx         = null;
 let toastTimer       = null;
 let allCallAt        = null;
 let confettiRaf       = null;
@@ -1282,8 +1290,12 @@ function emptyStateHTML(key, fallbackMsg) {
 }
 
 function colEmpty(bodyId, msg) {
-  const key = bodyId === 'bodyWaiting' ? 'waiting' : bodyId === 'bodyCalled' ? 'called' : 'recalled';
-  document.getElementById(bodyId).innerHTML = `<div class="cl-col-empty">${emptyStateHTML(key, msg)}</div>`;
+  const key  = bodyId === 'bodyWaiting' ? 'waiting' : bodyId === 'bodyCalled' ? 'called' : 'recalled';
+  const body = document.getElementById(bodyId);
+  const signature = `no-classes|${key}|${msg}`;
+  if (body.dataset.emptyState === signature) return;
+  body.dataset.emptyState = signature;
+  body.innerHTML = `<div class="cl-col-empty">${emptyStateHTML(key, msg)}</div>`;
 }
 
 function renderColumns() {
@@ -1338,14 +1350,18 @@ function renderColumns() {
 }
 
 function renderColumn(bodyId, emptyId, students, statusClass, multi, emptyMsg) {
-  const body  = document.getElementById(bodyId);
-  const empty = document.getElementById(emptyId);
-
-  // Remove old cards but keep the empty-state element
-  [...body.children].forEach(c => { if (!c.classList.contains('cl-col-empty') && !c.classList.contains('cl-class-group-label')) c.remove(); });
-  body.innerHTML = '';
+  const body = document.getElementById(bodyId);
 
   if (!students.length) {
+    // Re-writing identical empty-state markup tears down and re-creates its
+    // <img>, which visibly flickers. renderColumns() runs on every realtime
+    // event, and a batched call (bus or family group) fires one per student —
+    // so leave the DOM alone when the column is already showing this state.
+    const signature = `${statusClass}|${emptyMsg}`;
+    if (body.dataset.emptyState === signature) return;
+    body.dataset.emptyState = signature;
+    body.innerHTML = '';
+
     if (emptyMsg === '__celebration__') {
       const el = document.createElement('div');
       el.className = 'cl-col-celebration';
@@ -1369,6 +1385,9 @@ function renderColumn(bodyId, emptyId, students, statusClass, multi, emptyMsg) {
     }
     return;
   }
+
+  delete body.dataset.emptyState;
+  body.innerHTML = '';
 
   if (multi) {
     const groups = new Map();
@@ -1438,12 +1457,14 @@ function setupRealtime() {
       filter: `carline_event_id=eq.${currentEvent.id}`,
     }, row => {
       const r = row.new;
-      if (!r) return;
-      const prev = callStatus.get(r.student_id);
+      if (!r?.student_id) return;
+      const prev         = callStatus.get(r.student_id);
+      const prevCalledAt = calledAt.get(r.student_id);
       callStatus.set(r.student_id, r.status);
       if (r.called_at) calledAt.set(r.student_id, r.called_at);
 
-      const changed = r.status !== prev;
+      const changed     = r.status !== prev;
+      const timeChanged = !!r.called_at && r.called_at !== prevCalledAt;
       if (changed && (r.status === 'CALLED' || r.status === 'RECALLED')) {
         const student = allStudents.find(s => s.id === r.student_id);
         if (student) {
@@ -1454,8 +1475,14 @@ function setupRealtime() {
       if (r.status === 'CALLED' && changed && r.call_type !== 'ALL_CALL' && isStudentVisible(r.student_id)) { playCallSound(); if (isMobile()) setActiveTab('called'); }
       if (r.status === 'RECALLED' && changed && isStudentVisible(r.student_id)) { playRecallSound(); if (isMobile()) setActiveTab('recalled'); }
 
-      renderColumns();
-      if (r.student_id) flashCard(`card-${r.student_id}`, r.status);
+      // A batched call (bus group, or a family-flag group) delivers one row
+      // per student on top of the single broadcast that already applied them
+      // all, so rendering per row rebuilds the columns N times for nothing --
+      // N x 50 displays at the busiest moment of the day.
+      if (changed || timeChanged) {
+        renderColumns();
+        flashCard(`card-${r.student_id}`, r.status);
+      }
     })
     .on('broadcast', { event: 'student_call' }, ({ payload }) => {
       if (!payload?.calls?.length) return;
@@ -1630,37 +1657,20 @@ function isStudentVisible(studentId) {
   return activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__');
 }
 
-function getCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  return audioCtx;
-}
-function tone(ctx, freq, start, dur, vol = 0.25, type = 'sine') {
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.connect(gain); gain.connect(ctx.destination);
-  osc.type = type; osc.frequency.value = freq;
-  const t = ctx.currentTime + start;
-  gain.gain.setValueAtTime(vol, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  osc.start(t); osc.stop(t + dur + 0.05);
-}
 function playCallSound() {
-  try {
-    const ctx = getCtx();
-    tone(ctx, 523.25, 0,    0.15);
-    tone(ctx, 659.25, 0.14, 0.15);
-    tone(ctx, 783.99, 0.28, 0.25);
-  } catch(e) {}
+  playTones([
+    [523.25, 0,    0.15],
+    [659.25, 0.14, 0.15],
+    [783.99, 0.28, 0.25],
+  ]);
 }
 function playRecallSound() {
-  try {
-    const ctx = getCtx();
-    tone(ctx, 880, 0,    0.10, 0.28, 'triangle');
-    tone(ctx, 659, 0.09, 0.10, 0.28, 'triangle');
-    tone(ctx, 880, 0.20, 0.10, 0.28, 'triangle');
-    tone(ctx, 659, 0.30, 0.18, 0.28, 'triangle');
-  } catch(e) {}
+  playTones([
+    [880, 0,    0.10, 0.28, 'triangle'],
+    [659, 0.09, 0.10, 0.28, 'triangle'],
+    [880, 0.20, 0.10, 0.28, 'triangle'],
+    [659, 0.30, 0.18, 0.28, 'triangle'],
+  ]);
 }
 let lastAllCallSoundAt = 0;
 function playAllCallSound() {
@@ -1669,13 +1679,12 @@ function playAllCallSound() {
   const now = Date.now();
   if (now - lastAllCallSoundAt < 10_000) return;
   lastAllCallSoundAt = now;
-  try {
-    const ctx = getCtx();
-    tone(ctx, 880,    0,    0.10, 0.35, 'square');
-    tone(ctx, 880,    0.16, 0.10, 0.35, 'square');
-    tone(ctx, 880,    0.32, 0.10, 0.35, 'square');
-    tone(ctx, 1046.5, 0.50, 0.40, 0.35, 'sine');
-  } catch(e) {}
+  playTones([
+    [880,    0,    0.10, 0.35, 'square'],
+    [880,    0.16, 0.10, 0.35, 'square'],
+    [880,    0.32, 0.10, 0.35, 'square'],
+    [1046.5, 0.50, 0.40, 0.35, 'sine'],
+  ]);
   fireConfetti();
 }
 
@@ -1733,11 +1742,10 @@ function fireConfetti() {
 }
 
 function playBusSound() {
-  try {
-    const ctx = getCtx();
-    tone(ctx, 330, 0,    0.25, 0.35, 'sine');
-    tone(ctx, 440, 0.22, 0.35, 0.35, 'sine');
-  } catch(e) {}
+  playTones([
+    [330, 0,    0.25, 0.35, 'sine'],
+    [440, 0.22, 0.35, 0.35, 'sine'],
+  ]);
 }
 
 // ─── UI helpers ───────────────────────────────────────────────────────
@@ -2085,7 +2093,14 @@ function wireEvents() {
   document.getElementById('btnDismissAllCall').addEventListener('click', () => {
     document.getElementById('allCallBanner').hidden = true;
   });
-  document.addEventListener('pointerdown', () => getCtx(), { once: true });
+  wireAudioPriming();
+
+  // The click that dismisses this is itself what unlocks audio -- the
+  // document-level priming listener handles it, so there's nothing to do
+  // here beyond showing the prompt while sound is blocked.
+  onAudioReadyChange(ready => {
+    document.getElementById('clSoundBlocked').hidden = ready;
+  });
 }
 
 boot().catch(err => {

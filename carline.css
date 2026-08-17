@@ -1195,6 +1195,20 @@ html, body {
   line-height: 1;
 }
 
+/* Flag-based family group buttons (Special Dismissal) -- same shape as bus
+   buttons with an amber accent so a batch family call can't be mistaken for
+   a bus at a glance. The .called state is inherited from .inp-bus-btn. */
+.inp-flag-btn:not(.called) {
+  border-color: var(--cl-recalled-border);
+  background: var(--cl-recalled-bg);
+  color: var(--cl-recalled-text);
+}
+.inp-flag-btn:not(.called) .inp-bus-btn-icon,
+.inp-flag-btn:not(.called) .inp-bus-btn-meta {
+  color: var(--cl-recalled-text);
+  opacity: 0.75;
+}
+
 /* Danger buttons */
 .inp-danger-row {
   display: flex;
@@ -1327,6 +1341,28 @@ html, body {
 }
 [data-theme="dark"] .cl-toast { background: #f1f5f9; color: #0f172a; }
 .cl-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ---------- Sound-blocked prompt ---------- */
+.cl-sound-blocked {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 18px;
+  border: 1.5px solid var(--cl-recalled-border);
+  border-radius: 99px;
+  background: var(--cl-recalled-bg);
+  color: var(--cl-recalled-text);
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 9998;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+}
+.cl-sound-blocked[hidden] { display: none !important; }
 
 /* ---------- All Call confetti ---------- */
 #clConfetti {
@@ -1645,4 +1681,8 @@ html, body {
 }
 .cl-toast {
   bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+.cl-sound-blocked {
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  left:   calc(24px + env(safe-area-inset-left, 0px));
 }

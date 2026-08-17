@@ -113,6 +113,14 @@
 
     </div>
 
+    <!-- Flag-based family groups (e.g. Skip Car Line) -->
+    <div class="inp-section" id="flagGroupSection" hidden>
+      <div class="inp-section-title">
+        <span>Special Dismissal</span>
+      </div>
+      <div class="inp-bus-grid" id="flagGroupGrid"></div>
+    </div>
+
     <!-- Bus groups -->
     <div class="inp-section" id="busSection">
       <div class="inp-section-title">
@@ -225,11 +233,23 @@
 
 <script type="module">
 import { supabase } from '/app/admin.supabase.js?v=2';
+import { playTones, wireAudioPriming } from '/app/carline-audio.js';
 
 // ─── SVG constants ────────────────────────────────────────────────────
 const SVG_MOON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
 const SVG_SUN  = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
 const SVG_BUS  = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="19" r="2"/><line x1="9" y1="19" x2="15" y2="19"/></svg>`;
+const SVG_FAMILIES = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+
+// Family-flag groups: batch-call every family carrying a special-handling
+// flag in one tap, instead of keying each tag. Membership is derived from
+// the boolean on families -- there is no group membership table to keep in
+// sync. `callType` is stamped on each carline_calls row so the button's
+// state survives a page reload, is shared across operator devices, and an
+// undo can target only the students this group called.
+const FLAG_GROUPS = [
+  { flag: 'skip_car_line', label: 'Skip Car Line', callType: 'SKIP_LINE', icon: SVG_FAMILIES },
+];
 
 // ─── State ────────────────────────────────────────────────────────────
 let profile      = null;
@@ -243,12 +263,13 @@ let activeCampusId = null;    // null = no campus filter (school-wide)
 let familyTagMap  = new Map(); // family_id → tag_number  (individual family tags)
 let tagFamilyMap  = new Map(); // tag_number → family_id  (individual family lookup)
 let carpoolTagMap = new Map(); // tag_number → [family_id, ...]  (carpool lookup)
+let flagFamilyIds = new Map(); // FLAG_GROUPS flag → Set(family_id)
 let callStatus   = new Map(); // student_id → status
+let callTypeById = new Map(); // student_id → call_type of its current call row
 let undoStack    = [];        // [{ studentIds, prevStatus }]
 let recentCalls  = [];        // [{ tag, names, type, time, ts, isRecall }]
 let realtimeChannel = null;
 let eventPollTimer  = null;
-let audioCtx     = null;
 let tagBuffer    = '';
 let toastTimer   = null;
 
@@ -296,6 +317,7 @@ async function boot() {
 
   buildKeypad();
   renderBusGrid();
+  renderFlagGroupGrid();
   wireEvents();
   watchForNewEvents();
 
@@ -342,19 +364,23 @@ async function loadBusGroups() {
 }
 
 async function loadFamilyTags() {
+  const flagCols = FLAG_GROUPS.map(g => g.flag).join(', ');
   const { data } = await supabase
     .from('families')
-    .select('id, carline_tag_number')
+    .select(`id, carline_tag_number, ${flagCols}`)
     .eq('school_id', profile.school_id)
     .eq('active', true);
   familyTagMap.clear();
   tagFamilyMap.clear();
+  flagFamilyIds.clear();
+  FLAG_GROUPS.forEach(g => flagFamilyIds.set(g.flag, new Set()));
   (data || []).forEach(f => {
     if (f.carline_tag_number) {
       const tag = String(f.carline_tag_number);
       familyTagMap.set(f.id, tag);
       tagFamilyMap.set(tag, f.id);
     }
+    FLAG_GROUPS.forEach(g => { if (f[g.flag]) flagFamilyIds.get(g.flag).add(f.id); });
   });
 }
 
@@ -375,11 +401,15 @@ async function loadCarpoolTags() {
 async function loadExistingCalls() {
   const { data } = await supabase
     .from('carline_calls')
-    .select('student_id, status')
+    .select('student_id, status, call_type')
     .eq('carline_event_id', currentEvent.id);
   callStatus.clear();
-  (data || []).forEach(c => callStatus.set(c.student_id, c.status));
-  updateBusButtonStates();
+  callTypeById.clear();
+  (data || []).forEach(c => {
+    callStatus.set(c.student_id, c.status);
+    callTypeById.set(c.student_id, c.call_type);
+  });
+  updateGroupButtons();
 }
 
 async function loadBusArrivals() {
@@ -390,6 +420,14 @@ async function loadBusArrivals() {
     .eq('carline_event_id', currentEvent.id);
   calledBusIds.clear();
   (data || []).forEach(r => { if (!r.recalled_at) calledBusIds.add(r.bus_group_id); });
+}
+
+// A student belongs to the active campus either directly or by way of a
+// pickup group that assigns their grade to this campus.
+function atActiveCampus(s) {
+  return activeCampusId === null ||
+    s.campus_id === activeCampusId ||
+    allPickupGroups.some(g => g.campus_id === activeCampusId && g.grade_levels.includes(s.grade_level));
 }
 
 // ─── Campus picker ────────────────────────────────────────────────────
@@ -582,6 +620,7 @@ async function onEventStarted(ev) {
   await loadBusArrivals();
   setupRealtime();
   renderBusGrid();
+  renderFlagGroupGrid();
   showToast('Dismissal started');
 }
 
@@ -599,9 +638,16 @@ function setupRealtime() {
       filter: `carline_event_id=eq.${currentEvent.id}`,
     }, row => {
       const r = row.new;
-      if (!r) return;
+      if (!r?.student_id) return;
+      const prevStatus = callStatus.get(r.student_id);
+      const prevType   = callTypeById.get(r.student_id);
       callStatus.set(r.student_id, r.status);
-      updateBusButtonStates();
+      callTypeById.set(r.student_id, r.call_type);
+      // Recounting every group button per row is wasted work when the row is
+      // just the echo of a batch this device already applied locally. Call
+      // type matters as well as status: a student re-called as part of a
+      // group keeps status CALLED but changes which button owns them.
+      if (r.status !== prevStatus || r.call_type !== prevType) updateGroupButtons();
     })
     .on('postgres_changes', {
       event: '*',
@@ -643,14 +689,7 @@ async function callByTag(tag, isRecall = false) {
     familyIds = [fid];
   }
 
-  const students = allStudents.filter(s =>
-    familyIds.includes(s.family_id) &&
-    (
-      activeCampusId === null ||
-      s.campus_id === activeCampusId ||
-      allPickupGroups.some(g => g.campus_id === activeCampusId && g.grade_levels.includes(s.grade_level))
-    )
-  );
+  const students = allStudents.filter(s => familyIds.includes(s.family_id) && atActiveCampus(s));
   if (!students.length) { showToast(`Tag ${tag}: no students at this campus`); return; }
 
   if (isRecall) {
@@ -683,15 +722,16 @@ async function callStudents(students, familyIds, tag, callType) {
 
   if (error) { showToast('Call failed'); return; }
 
-  students.forEach(s => callStatus.set(s.id, 'CALLED'));
+  students.forEach(s => { callStatus.set(s.id, 'CALLED'); callTypeById.set(s.id, callType); });
   undoStack.push({ studentIds: students.map(s => s.id), prevStatuses, tag, callType });
   document.getElementById('btnUndoLast').disabled = false;
 
   const names = students.map(s => `${s.first_name} ${s.last_name}`);
   pushRecent(tag, names, callType, false);
   playCallSound();
-  showToast(`Tag ${tag} — ${students.length} student${students.length !== 1 ? 's' : ''} called`);
-  updateBusButtonStates();
+  const label = callType === 'FAMILY' ? `Tag ${tag}` : tag;
+  showToast(`${label} — ${students.length} student${students.length !== 1 ? 's' : ''} called`);
+  updateGroupButtons();
   broadcastStudentCalls(students.map(s => ({ student_id: s.id, status: 'CALLED', called_at: now, call_type: callType })));
 }
 
@@ -792,6 +832,73 @@ async function recallBusGroup(busGroupId) {
   });
 }
 
+// ─── Flag-based family groups ─────────────────────────────────────────
+
+// Students of every flagged family, scoped to the campus running dismissal.
+function flagGroupStudents(group) {
+  const familyIds = flagFamilyIds.get(group.flag);
+  if (!familyIds?.size) return [];
+  return allStudents.filter(s => familyIds.has(s.family_id) && atActiveCampus(s));
+}
+
+// True while a group call is outstanding: at least one student is still
+// CALLED under this group's call type. Reading it off the call rows (rather
+// than local state) keeps every operator device in agreement.
+function flagGroupIsCalled(group, students) {
+  return students.some(s => callStatus.get(s.id) === 'CALLED' && callTypeById.get(s.id) === group.callType);
+}
+
+async function callFlagGroup(flag) {
+  if (!currentEvent || currentEvent.status === 'CLOSED') {
+    showToast('Dismissal is not open'); return;
+  }
+  const group = FLAG_GROUPS.find(g => g.flag === flag);
+  if (!group) return;
+
+  const students = flagGroupStudents(group);
+  if (flagGroupIsCalled(group, students)) {
+    await undoFlagGroup(group, students);
+    return;
+  }
+  if (!students.length) { showToast(`No ${group.label} students at this campus`); return; }
+
+  await callStudents(students, [], group.label, group.callType);
+}
+
+// Tapping a lit group button undoes an accidental tap: the students drop
+// back to Waiting rather than Recalled, and only rows this group called are
+// touched -- a family also called by tag keeps its own call.
+async function undoFlagGroup(group, students) {
+  const ids = students
+    .filter(s => callStatus.get(s.id) === 'CALLED' && callTypeById.get(s.id) === group.callType)
+    .map(s => s.id);
+  if (!ids.length) return;
+
+  const { error } = await supabase
+    .from('carline_calls')
+    .update({ status: 'WAITING', called_at: null })
+    .eq('carline_event_id', currentEvent.id)
+    .eq('call_type', group.callType)
+    .eq('status', 'CALLED')
+    .in('student_id', ids);
+
+  if (error) { showToast('Undo failed'); return; }
+
+  ids.forEach(id => callStatus.set(id, 'WAITING'));
+
+  // Drop the matching entry from the undo stack / recent list so "Undo Last"
+  // doesn't later rewind a call that has already been undone here.
+  if (undoStack.at(-1)?.callType === group.callType) {
+    undoStack.pop();
+    recentCalls.shift();
+    renderRecentList();
+    document.getElementById('btnUndoLast').disabled = undoStack.length === 0;
+  }
+
+  updateGroupButtons();
+  showToast(`${group.label} call undone`);
+}
+
 async function undoLast() {
   if (!undoStack.length) return;
   const op = undoStack.pop();
@@ -814,7 +921,7 @@ async function undoLast() {
   document.getElementById('btnUndoLast').disabled = undoStack.length === 0;
   recentCalls.shift();
   renderRecentList();
-  updateBusButtonStates();
+  updateGroupButtons();
   showToast(`Undid call for tag ${op.tag}`);
 }
 
@@ -827,14 +934,7 @@ async function undoByTag() {
     (tagFamilyMap.get(trimmed) ? [tagFamilyMap.get(trimmed)] : null);
   if (!familyIds) { showToast(`Tag ${tag} not found`); return; }
 
-  const students = allStudents.filter(s =>
-    familyIds.includes(s.family_id) &&
-    (
-      activeCampusId === null ||
-      s.campus_id === activeCampusId ||
-      allPickupGroups.some(g => g.campus_id === activeCampusId && g.grade_levels.includes(s.grade_level))
-    )
-  );
+  const students = allStudents.filter(s => familyIds.includes(s.family_id) && atActiveCampus(s));
   if (!students.length) { showToast(`No students for tag ${tag} at this campus`); return; }
 
   const { error } = await supabase
@@ -845,7 +945,7 @@ async function undoByTag() {
 
   if (error) { showToast('Undo failed'); return; }
   students.forEach(s => callStatus.set(s.id, 'WAITING'));
-  updateBusButtonStates();
+  updateGroupButtons();
   showToast(`↩ Tag ${tag} reset to Waiting`);
 }
 
@@ -854,12 +954,7 @@ async function allCall() {
   if (!currentEvent || currentEvent.status === 'CLOSED') return;
 
   const waiting = allStudents.filter(s =>
-    (callStatus.get(s.id) ?? 'WAITING') === 'WAITING' &&
-    (
-      activeCampusId === null ||
-      s.campus_id === activeCampusId ||
-      allPickupGroups.some(g => g.campus_id === activeCampusId && g.grade_levels.includes(s.grade_level))
-    )
+    (callStatus.get(s.id) ?? 'WAITING') === 'WAITING' && atActiveCampus(s)
   );
   if (!waiting.length) { showToast('No waiting students remaining at this campus'); return; }
 
@@ -899,11 +994,12 @@ async function resetDay() {
   if (evErr) console.warn('Failed to clear all_call_at:', evErr.message);
 
   callStatus.clear();
+  callTypeById.clear();
   undoStack.length = 0;
   recentCalls.length = 0;
   document.getElementById('btnUndoLast').disabled = true;
   renderRecentList();
-  updateBusButtonStates();
+  updateGroupButtons();
   showToast('Day reset — all calls cleared');
 }
 
@@ -974,6 +1070,52 @@ function renderBusGrid() {
   });
 }
 
+// ─── Flag group grid ──────────────────────────────────────────────────
+function renderFlagGroupGrid() {
+  const section = document.getElementById('flagGroupSection');
+  const grid    = document.getElementById('flagGroupGrid');
+  const active  = FLAG_GROUPS.filter(g => flagFamilyIds.get(g.flag)?.size);
+  section.hidden = active.length === 0;
+  grid.innerHTML = '';
+  active.forEach(g => {
+    const btn = document.createElement('button');
+    btn.className = 'inp-bus-btn inp-flag-btn';
+    btn.dataset.flag = g.flag;
+    btn.innerHTML = `
+      <div class="inp-bus-btn-icon">${g.icon}</div>
+      <div class="inp-bus-btn-name">${esc(g.label)}</div>
+      <div class="inp-bus-btn-meta" data-role="families"></div>
+      <div class="inp-bus-btn-meta" data-role="count"></div>
+    `;
+    btn.addEventListener('click', () => callFlagGroup(g.flag));
+    grid.appendChild(btn);
+  });
+  updateFlagGroupStates();
+}
+
+function updateFlagGroupStates() {
+  FLAG_GROUPS.forEach(g => {
+    const btn = document.querySelector(`.inp-flag-btn[data-flag="${g.flag}"]`);
+    if (!btn) return;
+    const students = flagGroupStudents(g);
+    const called   = students.filter(s => callStatus.get(s.id) === 'CALLED').length;
+    const families = new Set(students.map(s => s.family_id)).size;
+    btn.classList.toggle('called', flagGroupIsCalled(g, students));
+    btn.querySelector('[data-role="families"]').textContent =
+      `${families} famil${families === 1 ? 'y' : 'ies'}`;
+    btn.querySelector('[data-role="count"]').textContent = students.length
+      ? `${called}/${students.length} called`
+      : 'No students at this campus';
+  });
+}
+
+// Every call action refreshes both group grids -- bus buttons and flag
+// buttons both read their state out of the same call records.
+function updateGroupButtons() {
+  updateBusButtonStates();
+  updateFlagGroupStates();
+}
+
 function updateBusButtonStates() {
   allBusGroups.forEach(g => {
     const total    = allStudents.filter(s => s.bus_group_id === g.id).length;
@@ -1011,7 +1153,9 @@ function renderRecentList() {
   recentCalls.forEach(r => {
     const li = document.createElement('li');
     li.className = 'inp-recent-item' + (r.isRecall ? ' recalled' : '');
-    const label = r.type === 'BUS' ? 'Bus' : r.isRecall ? 'Recall' : 'Call';
+    const label = r.type === 'BUS' ? 'Bus'
+      : FLAG_GROUPS.some(g => g.callType === r.type) ? 'Group'
+      : r.isRecall ? 'Recall' : 'Call';
     const namesDisplay = r.names.length
       ? r.names.map(esc).join(', ')
       : (r.type === 'BUS' ? '<em style="opacity:0.6;">no assigned students</em>' : '');
@@ -1026,46 +1170,28 @@ function renderRecentList() {
 }
 
 // ─── Sound ────────────────────────────────────────────────────────────
-function getCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  return audioCtx;
-}
-function tone(ctx, freq, start, dur, vol = 0.25, type = 'sine') {
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.connect(gain); gain.connect(ctx.destination);
-  osc.type = type; osc.frequency.value = freq;
-  const t = ctx.currentTime + start;
-  gain.gain.setValueAtTime(vol, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  osc.start(t); osc.stop(t + dur + 0.05);
-}
 function playCallSound() {
-  try {
-    const ctx = getCtx();
-    tone(ctx, 523.25, 0,    0.15);
-    tone(ctx, 659.25, 0.14, 0.15);
-    tone(ctx, 783.99, 0.28, 0.25);
-  } catch(e) {}
+  playTones([
+    [523.25, 0,    0.15],
+    [659.25, 0.14, 0.15],
+    [783.99, 0.28, 0.25],
+  ]);
 }
 function playAllCallSound() {
-  try {
-    const ctx = getCtx();
-    tone(ctx, 880,    0,    0.10, 0.35, 'square');
-    tone(ctx, 880,    0.16, 0.10, 0.35, 'square');
-    tone(ctx, 880,    0.32, 0.10, 0.35, 'square');
-    tone(ctx, 1046.5, 0.50, 0.40, 0.35, 'sine');
-  } catch(e) {}
+  playTones([
+    [880,    0,    0.10, 0.35, 'square'],
+    [880,    0.16, 0.10, 0.35, 'square'],
+    [880,    0.32, 0.10, 0.35, 'square'],
+    [1046.5, 0.50, 0.40, 0.35, 'sine'],
+  ]);
 }
 function playRecallSound() {
-  try {
-    const ctx = getCtx();
-    tone(ctx, 880, 0,    0.10, 0.28, 'triangle');
-    tone(ctx, 659, 0.09, 0.10, 0.28, 'triangle');
-    tone(ctx, 880, 0.20, 0.10, 0.28, 'triangle');
-    tone(ctx, 659, 0.30, 0.18, 0.28, 'triangle');
-  } catch(e) {}
+  playTones([
+    [880, 0,    0.10, 0.28, 'triangle'],
+    [659, 0.09, 0.10, 0.28, 'triangle'],
+    [880, 0.20, 0.10, 0.28, 'triangle'],
+    [659, 0.30, 0.18, 0.28, 'triangle'],
+  ]);
 }
 
 // ─── UI helpers ───────────────────────────────────────────────────────
@@ -1111,7 +1237,7 @@ function wireEvents() {
   document.getElementById('btnAllCall').addEventListener('click', allCall);
   document.getElementById('btnResetDay').addEventListener('click', resetDay);
 
-  document.addEventListener('pointerdown', () => getCtx(), { once: true });
+  wireAudioPriming();
 }
 
 boot().catch(err => {

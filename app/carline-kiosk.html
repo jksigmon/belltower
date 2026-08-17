@@ -536,6 +536,7 @@
 <script type="module">
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '/app/config.js';
 import { GRADE_ORDER } from '/app/admin.shared.js?v=3';
+import { playTones, wireAudioPriming } from '/app/carline-audio.js';
 
 const EDGE    = `${SUPABASE_URL}/functions/v1/carline_kiosk`;
 const HEADERS = { 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' };
@@ -574,7 +575,6 @@ let lastPollSuccess = null;
 let pollFailCount   = 0;
 let syncStatusTimer = null;
 let toastTimer = null;
-let audioCtx   = null;
 const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
 
 // ── Boot ────────────────────────────────────────────────────────────────
@@ -1280,26 +1280,11 @@ function updateAllCallBanner(isNew) {
 }
 
 // ── Sound ────────────────────────────────────────────────────────────────
-function getCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
-  return audioCtx;
-}
-function tone(ctx, freq, start, dur, vol = 0.25, type = 'sine') {
-  const osc  = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.connect(gain); gain.connect(ctx.destination);
-  osc.type = type; osc.frequency.value = freq;
-  const t = ctx.currentTime + start;
-  gain.gain.setValueAtTime(vol, t);
-  gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-  osc.start(t); osc.stop(t + dur + 0.05);
-}
 function playCallSound() {
-  try { const c = getCtx(); tone(c,523.25,0,0.15); tone(c,659.25,0.14,0.15); tone(c,783.99,0.28,0.25); } catch {}
+  playTones([[523.25,0,0.15], [659.25,0.14,0.15], [783.99,0.28,0.25]]);
 }
 function playRecallSound() {
-  try { const c = getCtx(); tone(c,880,0,0.10,0.28,'triangle'); tone(c,659,0.09,0.10,0.28,'triangle'); tone(c,880,0.20,0.10,0.28,'triangle'); tone(c,659,0.30,0.18,0.28,'triangle'); } catch {}
+  playTones([[880,0,0.10,0.28,'triangle'], [659,0.09,0.10,0.28,'triangle'], [880,0.20,0.10,0.28,'triangle'], [659,0.30,0.18,0.28,'triangle']]);
 }
 let lastAllCallSoundAt = 0;
 function playAllCallSound() {
@@ -1307,7 +1292,7 @@ function playAllCallSound() {
   const now = Date.now();
   if (now - lastAllCallSoundAt < 10_000) return;
   lastAllCallSoundAt = now;
-  try { const c = getCtx(); tone(c,880,0,0.10,0.35,'square'); tone(c,880,0.16,0.10,0.35,'square'); tone(c,880,0.32,0.10,0.35,'square'); tone(c,1046.5,0.50,0.40,0.35,'sine'); } catch {}
+  playTones([[880,0,0.10,0.35,'square'], [880,0.16,0.10,0.35,'square'], [880,0.32,0.10,0.35,'square'], [1046.5,0.50,0.40,0.35,'sine']]);
 }
 
 // ── UI helpers ───────────────────────────────────────────────────────────
@@ -1450,8 +1435,7 @@ function wireEvents() {
     else if (e.key === 'Enter' && pinBuffer.length === 6) tryValidate();
   });
 
-  // Prime AudioContext on first interaction
-  document.addEventListener('pointerdown', () => getCtx(), { once: true });
+  wireAudioPriming();
 }
 
 wireEvents();
