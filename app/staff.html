@@ -953,17 +953,17 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
       <div class="dash-section" id="staffDashRequests" style="display:none;">
         <div class="dash-section-head"><i data-lucide="calendar-clock"></i><span class="dash-section-eyebrow">Upcoming Requests</span><span class="dash-section-rule"></span></div>
-        <div id="staffDashRequestList" class="staff-dash-list"></div>
+        <div id="staffDashRequestList" class="staff-dash-list" data-clamp></div>
       </div>
 
       <div class="dash-section" id="staffDashFormRequests" style="display:none;">
         <div class="dash-section-head"><i data-lucide="file-text"></i><span class="dash-section-eyebrow">My Form Requests</span><span class="dash-section-rule"></span><a class="dash-card-link" href="/app/requests.html">View all</a></div>
-        <div id="staffDashFormRequestList" class="staff-dash-list"></div>
+        <div id="staffDashFormRequestList" class="staff-dash-list" data-clamp></div>
       </div>
 
       <div class="dash-section" id="staffDashLicenses" style="display:none;">
         <div class="dash-section-head"><i data-lucide="shield-alert"></i><span class="dash-section-eyebrow">License Alerts</span><span class="dash-section-rule"></span></div>
-        <div id="staffDashLicenseList" class="staff-dash-list"></div>
+        <div id="staffDashLicenseList" class="staff-dash-list" data-clamp></div>
       </div>
 
     </div>
@@ -1554,7 +1554,7 @@ import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate } from '/app/admin.shared.js?v=3';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps } from '/app/admin.shared.js?v=3';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { roleCheckboxGridHTML } from '/app/compliance.roles.js?v=2';
@@ -2099,6 +2099,7 @@ async function loadStaffDashboard() {
   }());
 
   document.getElementById('staffDashGrid')?.classList.add('loaded');
+  initDashClamps(document.getElementById('staffDashGrid') ?? document);
 
 }
 

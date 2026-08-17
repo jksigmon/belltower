@@ -2095,6 +2095,47 @@ select {
   gap: 10px;
 }
 
+/* Clamped card lists — keeps one long list from stretching every card in
+   its row; the JS helper adds a Show more/less toggle when it overflows */
+.dash-clamp {
+  position: relative;
+  max-height: 300px;
+  overflow: hidden;
+}
+.dash-clamp::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 46px;
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, #ffffff 85%);
+  pointer-events: none;
+}
+.dash-clamp-open {
+  max-height: none;
+  overflow: visible;
+}
+.dash-clamp-open::after { display: none; }
+
+.dash-clamp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: #2563eb;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.dash-clamp-btn:hover { color: #1d4ed8; text-decoration: underline; }
+.dash-clamp-icon { flex-shrink: 0; transition: transform 0.2s ease; }
+.dash-clamp-btn.dash-clamp-open .dash-clamp-icon { transform: rotate(180deg); }
+
 .dash-card-empty {
   font-size: 0.8rem;
   color: #94a3b8;

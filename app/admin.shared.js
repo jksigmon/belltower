@@ -282,6 +282,77 @@ export function toLocalISODate(date) {
 }
 
 /**
+ * Dashboard cards sit in a stretch-aligned grid, so one long list makes
+ * every card in its row grow to match. This clamps any element marked
+ * `data-clamp` to a fixed height and appends a "Show more" toggle to its
+ * card when the content actually overflows.
+ *
+ * Call once after the dashboard's data has rendered (the elements must be
+ * laid out — a clamped list inside a display:none card measures as 0 and
+ * is skipped). Safe to re-run; it re-measures and drops stale toggles.
+ *
+ * @param {ParentNode} [root] scope to search; defaults to the document
+ */
+const _clampRoots = new Set();
+let _clampResizeBound = false;
+
+export function initDashClamps(root = document) {
+  // Card width changes with the viewport, so what overflows changes too —
+  // re-measure on resize (one listener, however many roots register).
+  _clampRoots.add(root);
+  if (!_clampResizeBound) {
+    _clampResizeBound = true;
+    window.addEventListener('resize', debounce(() => {
+      _clampRoots.forEach(r => initDashClamps(r));
+    }, 200));
+  }
+
+  root.querySelectorAll('[data-clamp]').forEach(el => {
+    const card = el.closest('.dash-section');
+    if (!card) return;
+
+    const existing = card.querySelector('.dash-clamp-foot');
+    const wasOpen  = el.classList.contains('dash-clamp-open');
+
+    el.classList.add('dash-clamp');
+    el.classList.toggle('dash-clamp-open', wasOpen);
+
+    // scrollHeight only exceeds clientHeight while the clamp is applied
+    const overflowing = wasOpen
+      ? true
+      : el.scrollHeight > el.clientHeight + 4;
+
+    if (!overflowing) {
+      el.classList.remove('dash-clamp', 'dash-clamp-open');
+      existing?.remove();
+      return;
+    }
+    if (existing) return;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'dash-clamp-btn';
+    const setLabel = open => {
+      btn.innerHTML = `
+        <span>${open ? 'Show less' : 'Show more'}</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="dash-clamp-icon"><polyline points="6 9 12 15 18 9"/></svg>`;
+      btn.classList.toggle('dash-clamp-open', open);
+    };
+    setLabel(false);
+    btn.addEventListener('click', () => {
+      const open = !el.classList.contains('dash-clamp-open');
+      el.classList.toggle('dash-clamp-open', open);
+      setLabel(open);
+    });
+
+    const foot = document.createElement('div');
+    foot.className = 'dash-card-foot dash-clamp-foot';
+    foot.appendChild(btn);
+    card.appendChild(foot);
+  });
+}
+
+/**
  * Formats a date string or ISO timestamp as "May 22, 2026".
  * Handles date-only strings safely (avoids UTC-midnight timezone shift).
  */
