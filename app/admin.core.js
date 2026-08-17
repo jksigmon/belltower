@@ -288,8 +288,6 @@ async function loadDashboardStats() {
   // ── Build all queries synchronously based on capabilities ─────────
   const in7  = new Date(); in7.setDate(in7.getDate() + 7);
   const in7Str  = in7.toISOString().slice(0, 10);
-  const in14 = new Date(); in14.setDate(in14.getDate() + 14);
-  const in14Str = in14.toISOString().slice(0, 10);
   const in30 = new Date(); in30.setDate(in30.getDate() + 30);
   const in30Str = in30.toISOString().slice(0, 10);
 
@@ -325,7 +323,7 @@ async function loadDashboardStats() {
       .eq('school_id', schoolId).eq('status', 'scheduled').eq('start_date', today);
     queries.subCancellations = supabase.from('v_pending_cancellation_days').select('assignment_id', { count: 'exact', head: true })
       .eq('school_id', schoolId).eq('assignment_status', 'scheduled');
-    // Named alert queries — capped at the next two weeks. The view itself
+    // Named alert queries — capped at the next 30 days. The view itself
     // only filters coverage_date >= today, so without an upper bound a gap
     // three months out would surface in a panel called "Today's Alerts".
     // The Needs Attention counts above stay unbounded: those are totals.
@@ -333,12 +331,12 @@ async function loadDashboardStats() {
     // client-side, so one multi-day absence can't crowd others out.
     queries.alertCoverage = supabase.from('v_pending_coverage_days')
       .select('out_first_name, out_last_name, coverage_date, pto_type')
-      .eq('school_id', schoolId).lte('coverage_date', in14Str)
+      .eq('school_id', schoolId).lte('coverage_date', in30Str)
       .order('coverage_date', { ascending: true }).limit(60);
     queries.alertSubCancellations = supabase.from('v_pending_cancellation_days')
       .select('out_first_name, out_last_name, coverage_date')
       .eq('school_id', schoolId).eq('assignment_status', 'scheduled')
-      .lte('coverage_date', in14Str)
+      .lte('coverage_date', in30Str)
       .order('coverage_date', { ascending: true }).limit(60);
   }
 
