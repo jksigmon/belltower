@@ -236,13 +236,17 @@ function setResMode(mode) {
 
   document.getElementById('resModeSingle').checked = mode === 'single';
   document.getElementById('resModeGroup').checked = mode === 'group';
-  document.getElementById('resNameRow').style.display = addingToGroup ? 'none' : '';
+  // resNameRow/resMembersLabel are newer than this module — guard them so a
+  // browser holding a cached admin.html can't throw on opening the drawer.
+  const nameRow = document.getElementById('resNameRow');
+  if (nameRow) nameRow.style.display = addingToGroup ? 'none' : '';
   document.getElementById('resNameLabel').textContent = mode === 'group' ? 'Group name' : 'Name';
   document.getElementById('resNameInput').placeholder =
     mode === 'group' ? 'e.g. Upper School Chromebook Carts' : 'e.g. Conference Room, School Van';
   document.getElementById('resGroupSelectRow').style.display = (addingToGroup || mode === 'group') ? 'none' : '';
   document.getElementById('resGroupModeFields').style.display = showMembers ? '' : 'none';
-  document.getElementById('resMembersLabel').textContent = addingToGroup ? 'New resources' : 'Members';
+  const membersLabel = document.getElementById('resMembersLabel');
+  if (membersLabel) membersLabel.textContent = addingToGroup ? 'New resources' : 'Members';
   refreshCustomFieldsLock();
 }
 
