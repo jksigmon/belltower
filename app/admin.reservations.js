@@ -11,6 +11,7 @@ let campuses = [];
 let timeBlocks = [];
 let editingResourceId = null;
 let editingGroupId = null;
+let addToGroupId = null;
 let editingTimeBlockId = null;
 let resMode = 'single';
 
@@ -130,8 +131,8 @@ function updateTitleTypeUI(prefix) {
 // sync with what the group's booking modal is supposed to look like.
 function refreshCustomFieldsLock() {
   const groupSel = document.getElementById('resGroupSelectInput');
-  const groupId = groupSel ? groupSel.value : '';
-  const isNewGroup = resMode === 'group' && !editingResourceId;
+  const groupId = addToGroupId || (groupSel ? groupSel.value : '');
+  const isNewGroup = resMode === 'group' && !editingResourceId && !addToGroupId;
   const locked = !isNewGroup && !!groupId;
 
   document.getElementById('resCampusRow').style.display = locked ? 'none' : '';
@@ -188,6 +189,7 @@ function renderResourceTable() {
       <td class="staff-cell-actions">
         <button class="btn btn-sm res-add-member-btn" data-group-id="${esc(g.id)}">+ Add</button>
         <button class="btn btn-sm res-edit-group-btn" data-group-id="${esc(g.id)}">Edit Group</button>
+        <button class="btn btn-sm res-delete-group-btn" data-group-id="${esc(g.id)}" style="color:#dc2626;border-color:#fca5a5;">Delete Group</button>
       </td>
     </tr>`;
 
@@ -218,17 +220,29 @@ function renderResourceTable() {
     btn.addEventListener('click', () => openAddResourceDrawer(btn.dataset.groupId)));
   tbody.querySelectorAll('.res-edit-group-btn').forEach(btn =>
     btn.addEventListener('click', () => openEditGroupDrawer(btn.dataset.groupId)));
+  tbody.querySelectorAll('.res-delete-group-btn').forEach(btn =>
+    btn.addEventListener('click', () => deleteGroup(btn.dataset.groupId)));
 }
 
+// Three drawer shapes share this one form:
+//   - single resource      → name field, group picker
+//   - new group            → group name field + members list
+//   - adding to a group    → members list only (the group is already fixed
+//                            by the "+ Add" button that opened the drawer)
 function setResMode(mode) {
   resMode = mode;
+  const addingToGroup = !!addToGroupId && !editingResourceId;
+  const showMembers = addingToGroup || mode === 'group';
+
   document.getElementById('resModeSingle').checked = mode === 'single';
   document.getElementById('resModeGroup').checked = mode === 'group';
+  document.getElementById('resNameRow').style.display = addingToGroup ? 'none' : '';
   document.getElementById('resNameLabel').textContent = mode === 'group' ? 'Group name' : 'Name';
   document.getElementById('resNameInput').placeholder =
     mode === 'group' ? 'e.g. Upper School Chromebook Carts' : 'e.g. Conference Room, School Van';
-  document.getElementById('resGroupSelectRow').style.display = mode === 'group' ? 'none' : '';
-  document.getElementById('resGroupModeFields').style.display = mode === 'group' ? '' : 'none';
+  document.getElementById('resGroupSelectRow').style.display = (addingToGroup || mode === 'group') ? 'none' : '';
+  document.getElementById('resGroupModeFields').style.display = showMembers ? '' : 'none';
+  document.getElementById('resMembersLabel').textContent = addingToGroup ? 'New resources' : 'Members';
   refreshCustomFieldsLock();
 }
 
@@ -242,13 +256,19 @@ function populateGroupSelect(selectedId) {
 
 function openAddResourceDrawer(prefillGroupId) {
   editingResourceId = null;
-  document.getElementById('resDrawerTitle').textContent = 'Add Resource';
-  document.getElementById('resModeRow').style.display = '';
+  const group = typeof prefillGroupId === 'string' ? groups.find(g => g.id === prefillGroupId) : null;
+  addToGroupId = group ? group.id : null;
+
+  document.getElementById('resDrawerTitle').textContent =
+    group ? `Add to “${group.name}”` : 'Add Resource';
+  // Adding to an existing group: the Type choice would only let the admin
+  // accidentally start a second group, so it's hidden.
+  document.getElementById('resModeRow').style.display = group ? 'none' : '';
   setResMode('single');
   document.getElementById('resNameInput').value = '';
   document.getElementById('resDescInput').value = '';
-  document.getElementById('resColorInput').value = '#2563eb';
-  document.getElementById('resApprovalInput').checked = false;
+  document.getElementById('resColorInput').value = group?.color || '#2563eb';
+  document.getElementById('resApprovalInput').checked = !!group?.requires_approval;
   document.getElementById('resActiveRow').style.display = 'none';
   document.getElementById('resMembersInput').value = '';
   document.getElementById('resMemberPrefix').value = '';
@@ -270,6 +290,7 @@ function openEditResourceDrawer(id) {
   const r = resources.find(x => x.id === id);
   if (!r) return;
   editingResourceId = id;
+  addToGroupId = null;
   document.getElementById('resDrawerTitle').textContent = 'Edit Resource';
   document.getElementById('resModeRow').style.display = 'none';
   setResMode('single');
@@ -297,15 +318,16 @@ async function saveResource() {
   const color = document.getElementById('resColorInput').value || '#2563eb';
   const requiresApproval = document.getElementById('resApprovalInput').checked;
   const creatingGroup = !editingResourceId && resMode === 'group';
+  const addingToGroup = !editingResourceId && !!addToGroupId;
 
-  if (!name) { alert(`${creatingGroup ? 'Group' : 'Resource'} name is required.`); return; }
+  if (!name && !addingToGroup) { alert(`${creatingGroup ? 'Group' : 'Resource'} name is required.`); return; }
 
   let memberNames = [];
-  if (creatingGroup) {
+  if (creatingGroup || addingToGroup) {
     memberNames = document.getElementById('resMembersInput').value
       .split('\n').map(s => s.trim()).filter(Boolean);
     if (!memberNames.length) {
-      alert('Add at least one member (e.g. "Cart 1"), one per line.');
+      alert(`Add at least one ${addingToGroup ? 'resource' : 'member'} (e.g. "Cart 1"), one per line.`);
       return;
     }
   }
@@ -315,6 +337,39 @@ async function saveResource() {
   btn.textContent = 'Saving…';
 
   let error;
+
+  if (addingToGroup) {
+    const group = groups.find(g => g.id === addToGroupId);
+    const members = resources.filter(r => r.group_id === addToGroupId);
+    const nextSort = members.reduce((max, r) => Math.max(max, r.sort_order ?? 0), -1) + 1;
+
+    const { error: addErr } = await supabase.from('reservable_resources').insert(
+      memberNames.map((n, i) => ({
+        school_id: profile.school_id,
+        group_id: addToGroupId,
+        name: n,
+        description: description || null,
+        color,
+        requires_approval: requiresApproval,
+        sort_order: nextSort + i,
+        ...fieldSettingsFromGroup(group),
+      }))
+    );
+
+    btn.disabled = false;
+    btn.textContent = 'Save';
+
+    if (addErr) {
+      dbError(addErr, 'Failed to add to group');
+      alert('Failed to add to the group: ' + addErr.message);
+      return;
+    }
+
+    window.closeDrawer?.('resourceDrawer');
+    addToGroupId = null;
+    await loadResources();
+    return;
+  }
 
   if (creatingGroup) {
     const groupFieldSettings = readFieldSettingsFromForm('res');
@@ -458,8 +513,10 @@ function openEditGroupDrawer(id) {
 
   const memberCount = resources.filter(r => r.group_id === id).length;
   const delBtn = document.getElementById('resGroupDeleteBtn');
-  delBtn.disabled = memberCount > 0;
-  delBtn.title = memberCount > 0 ? 'Remove all resources from this group first.' : '';
+  delBtn.disabled = false;
+  delBtn.title = memberCount > 0
+    ? `Also deletes the ${memberCount} resource(s) in this group (any with bookings are kept and moved to Ungrouped).`
+    : '';
 
   window.openDrawer?.('resourceGroupDrawer');
 }
@@ -516,18 +573,52 @@ async function deleteGroup(id) {
   const g = groups.find(x => x.id === id);
   if (!g) return;
 
-  const memberCount = resources.filter(r => r.group_id === id).length;
-  if (memberCount > 0) {
-    alert(`"${g.name}" still has ${memberCount} resource(s) in it. Move or delete them first.`);
+  const members = resources.filter(r => r.group_id === id);
+
+  if (!members.length) {
+    if (!confirm(`Delete the group "${g.name}"? This cannot be undone.`)) return;
+    const { error } = await supabase.from('resource_groups').delete().eq('id', id);
+    if (error) { alert('Failed to delete group: ' + error.message); return; }
+    await loadGroups();
+    renderResourceTable();
     return;
   }
 
-  if (!confirm(`Delete the group "${g.name}"? This cannot be undone.`)) return;
+  // Members with reservations on record can't be deleted (same rule as
+  // deleteResource — booking history has to survive), so they're left behind
+  // as ungrouped resources instead. The group_id FK is ON DELETE SET NULL,
+  // so dropping the group is what moves them out.
+  const memberIds = members.map(r => r.id);
+  const { data: booked, error: bookedErr } = await supabase
+    .from('reservations')
+    .select('resource_id')
+    .eq('school_id', profile.school_id)
+    .in('resource_id', memberIds);
+
+  if (bookedErr) { alert('Failed to check existing reservations: ' + bookedErr.message); return; }
+
+  const bookedIds = new Set((booked ?? []).map(r => r.resource_id));
+  const deletable = memberIds.filter(rid => !bookedIds.has(rid));
+
+  const msg = bookedIds.size
+    ? `Delete the group "${g.name}"?\n\n` +
+      `${deletable.length} of its resource(s) will be deleted with it.\n` +
+      `${bookedIds.size} have reservations on record and can't be deleted — they'll move to Ungrouped instead.\n\n` +
+      `This cannot be undone.`
+    : `Delete the group "${g.name}" and all ${deletable.length} of its resources? This cannot be undone.`;
+
+  if (!confirm(msg)) return;
+
+  if (deletable.length) {
+    const { error: delErr } = await supabase.from('reservable_resources').delete().in('id', deletable);
+    if (delErr) { alert("Failed to delete the group's resources: " + delErr.message); return; }
+  }
+
   const { error } = await supabase.from('resource_groups').delete().eq('id', id);
   if (error) { alert('Failed to delete group: ' + error.message); return; }
 
   await loadGroups();
-  renderResourceTable();
+  await loadResources();
 }
 
 /* ===============================
