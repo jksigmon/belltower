@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/carline.css?v=9" />
+  <link rel="stylesheet" href="/carline.css?v=10" />
 </head>
 <body>
 
@@ -1256,14 +1256,17 @@ function buildCard(student, statusClass) {
   el.className = `cl-student-card ${statusClass}`;
   el.id        = `kcard-${student.id}`;
   el.dataset.studentId = student.id;
+  // Still mid-pulse from a call that arrived moments ago — keep it flashing
+  const flash = flashing.get(student.id);
+  if (flash && Date.now() < flash.until) el.classList.add(flash.cls);
   el.innerHTML = `
     ${icon ? `<span class="cl-card-icon">${icon}</span>` : ''}
     <span class="cl-card-body">
       <span class="cl-card-name">${esc(student.preferred_name || student.first_name)} ${esc(student.last_name)}${grade}</span>
     </span>
     <span class="cl-card-meta">
-      ${tag ? `<span class="cl-card-tag">${esc(tag)}</span>` : ''}
       ${timeStr}
+      ${tag ? `<span class="cl-card-tag">${esc(tag)}</span>` : ''}
     </span>
   `;
   return el;
@@ -1296,15 +1299,33 @@ function playAllCallSound() {
 }
 
 // ── UI helpers ───────────────────────────────────────────────────────────
+// Total pulse duration — must match the animation in carline.css
+// (.cl-student-card.new-call / .new-recall).
+const FLASH_MS = 1800;
+
+// A re-render rebuilds every card element, so a render landing inside the
+// pulse window would drop the animation partway through. Remember who is still
+// pulsing and let buildCard() re-apply the class to the new element.
+const flashing = new Map(); // student id -> { cls, until }
+
 function flashCard(id, status) {
-  const el = document.getElementById(id);
-  if (!el) return;
   const cls = status === 'CALLED' ? 'new-call' : status === 'RECALLED' ? 'new-recall' : null;
   if (!cls) return;
+  const studentId = id.replace(/^kcard-/, '');
+  flashing.set(studentId, { cls, until: Date.now() + FLASH_MS });
+  setTimeout(() => {
+    const entry = flashing.get(studentId);
+    // A newer flash for the same student pushed the deadline out — leave it be
+    if (!entry || Date.now() < entry.until) return;
+    flashing.delete(studentId);
+    document.getElementById(`kcard-${studentId}`)?.classList.remove('new-call', 'new-recall');
+  }, FLASH_MS);
+
+  const el = document.getElementById(id);
+  if (!el) return;
   el.classList.remove('new-call', 'new-recall');
   void el.offsetWidth;
   el.classList.add(cls);
-  setTimeout(() => el.classList.remove(cls), 700);
 }
 
 function showToast(msg) {

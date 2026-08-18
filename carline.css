@@ -701,16 +701,17 @@ html, body {
   font-weight: 400;
   opacity: 0.55;
 }
-/* Number over time, both stretched to the wider of the two and center-set, so
-   the pair reads as one aligned block. Right-aligning them instead left a
-   ragged edge that shifted with the digit count (a 2-digit tag is narrower
-   than the time, a 4-digit tag wider). */
+/* Time then number, side by side. These used to stack (number over time),
+   which set the card's height off the two-line meta block rather than the
+   name — every called/recalled row was taller than its waiting counterpart
+   for the sake of a timestamp. Side by side, the meta block is one line and
+   the row height comes from the name again. */
 .cl-card-meta {
   flex-shrink: 0;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
   text-align: center;
 }
 .cl-card-tag {
@@ -746,8 +747,13 @@ html, body {
   40%  { box-shadow: 0 0 0 12px rgba(245,158,11,0.1); }
   100% { box-shadow: 0 0 0 0 rgba(245,158,11,0); }
 }
-.cl-student-card.new-call   { animation: callFlash   0.7s ease-out; }
-.cl-student-card.new-recall { animation: recallFlash 0.7s ease-out; }
+/* Three repeats (~1.8s) rather than one 0.7s flash: a single pulse fires and
+   fades before someone watching the room can look up at the screen. Staff
+   need long enough to notice the motion, then find the name. Keep the JS
+   class-removal timeout in carline.html / carline-kiosk.html in sync with
+   the total duration below. */
+.cl-student-card.new-call   { animation: callFlash   0.6s ease-out 3; }
+.cl-student-card.new-recall { animation: recallFlash 0.6s ease-out 3; }
 
 /* ---------- Waiting column progress bar ---------- */
 .cl-col-progress {
