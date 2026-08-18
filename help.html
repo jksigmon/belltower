@@ -744,33 +744,46 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>The Carline operator opens the Carline screen and uses a keypad to enter a family's or carpool's tag number. Pressing <strong>Call</strong> moves the associated students to a "Called" status, signaling staff inside the school to send those students out.</p>
+        <p>The Carline operator opens the Carline screen and uses a keypad to enter a family number or a pickup tag number. Pressing <strong>Call</strong> moves the associated students to a "Called" status, signaling staff inside the school to send those students out.</p>
         <p>The system supports <strong>Recall</strong> (if a student didn't make it out in time and needs to be called again), <strong>Undo</strong> (to reverse the last action), and <strong>All Call</strong> (to call all remaining students at once at the end of dismissal).</p>
       </div>
     </div>
 
     <div class="faq-item">
       <button class="faq-question">
-        What is a carpool tag?
+        What is a pickup tag?
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>A carpool tag is a shared pickup tag number assigned to a group of families who ride together. For example, Family A (#100) and Family B (#200) might share Carpool tag #300. When the operator enters #300, students from <em>both</em> Family A and Family B are called out together.</p>
-        <p>Individual family tags still work as normal. The carpool tag is an additional number, not a replacement.</p>
+        <p>A pickup tag is an extra number, alongside the normal family numbers, that calls a specific set of people. It can hold <strong>whole families</strong>, <strong>individual students</strong>, or a mix of both.</p>
+        <p><strong>Carpool example:</strong> Family A (#100) and Family B (#200) ride together, so they share pickup tag #300. Entering #300 calls students from both families at once.</p>
+        <p><strong>Individual student example:</strong> two siblings share family number #309, but one of them sometimes gets picked up on her own. A pickup tag #542 holding just that student means #309 calls both children and #542 calls only her. The parents keep both placards and put up whichever matches.</p>
+        <p>Family numbers still work as normal. Pickup tags are additional numbers, not replacements.</p>
       </div>
     </div>
 
     <div class="faq-item">
       <button class="faq-question">
-        How do I set up and manage carpools?
+        How do I set up and manage pickup tags?
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>In the Admin Panel, go to <strong>Carpools</strong> (under Directory, below Bus Groups). Click <strong>Add Carpool</strong> to create a new carpool tag number. You can enter a new number or inherit an existing family's tag. Once created, open the carpool to add families to it.</p>
+        <p>In the Admin Panel, go to <strong>Pickup Tags</strong> (under Directory, below Bus Groups). Click <strong>Add Pickup Tag</strong> to create a number, then open it and use <strong>+ Add Family</strong> or <strong>+ Add Student</strong> to choose who it calls.</p>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          You need <strong>Manage Carpools</strong> permission to access this section.
+          You need <strong>Manage Pickup Tags</strong> permission to access this section.
         </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        Can a pickup tag reuse a family's number?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>No. Family numbers and pickup tags draw from one shared pool, and Belltower blocks a duplicate on either side.</p>
+        <p>This matters because dismissal checks pickup tags <em>first</em>. If a family and a pickup tag shared a number, entering it would call the pickup tag's members and that family could never be called at all — with no error to warn anyone. To free a number that's already taken, delete or renumber whichever record is holding it, then reuse it.</p>
       </div>
     </div>
 
@@ -853,6 +866,33 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <p>Go to Admin Panel → <strong>Exports</strong>. Choose a report type: class placements, rosters (by teacher or grade), bus assignments, or contact lists (all families, by grade, or by homeroom). Everything downloads as an Excel file.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I print class rosters?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Go to Admin Panel → <strong>Exports</strong> → <strong>Class Rosters</strong>. Choose whether to group <strong>By Homeroom Teacher</strong> or <strong>By Grade</strong>, then either print every class at once or pick a single teacher or grade. Each class starts on its own page, so you can hand out one sheet per teacher.</p>
+        <p><strong>Print</strong> opens your browser's print dialog. <strong>Save PDF</strong> downloads the same sheet as a PDF file instead — better when you want to email rosters or file them rather than print them right away.</p>
+        <p>Rosters list student name, grade, carline tag, and bus group, plus a blank column for check-offs — useful for attendance, permission slips, and field trip headcounts. They intentionally leave out guardian names, phone numbers, and email addresses, since printed rosters get left on desks and buses.</p>
+        <p>Use <strong>Active students only</strong> (on by default) to leave withdrawn and inactive students off the sheet.</p>
+        <p class="tip">
+          <strong>Print</strong> opens a new tab, so allow pop-ups for Belltower if nothing happens. <strong>Save PDF</strong> doesn't use a pop-up — if pop-ups are blocked and you can't change that, use Save PDF instead.
+        </p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        Can teachers see their own homeroom roster?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Yes. Teachers see a <strong>My Roster</strong> link in the Staff Portal showing every active student assigned to their homeroom, with <strong>Print</strong> and <strong>Save PDF</strong> buttons that produce the same sheet admins get.</p>
+        <p>The link only appears for staff who actually have a homeroom — that is, at least one active student whose <strong>Homeroom Teacher</strong> field points at them. If a teacher says the link is missing, open Admin Panel → <strong>Students</strong>, filter by that homeroom, and confirm students are assigned. Teachers only ever see their own homeroom; to give someone a different roster, print it for them from the Exports tab.</p>
       </div>
     </div>
 

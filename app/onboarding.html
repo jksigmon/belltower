@@ -351,7 +351,7 @@ td strong { color: #111827; }
         <ul>
           <li><strong>Leave</strong> — leave requests, approvals, balances, substitutes trigger</li>
           <li><strong>Substitutes</strong> — substitute assignment board</li>
-          <li><strong>Carline</strong> — dismissal screen, carline input, bus groups, carpools in nav</li>
+          <li><strong>Carline</strong> — dismissal screen, carline input, bus groups, pickup tags in nav</li>
           <li><strong>Licensure</strong> — staff license tracking and expiry alerts</li>
           <li><strong>Compliance</strong> — background checks and volunteer agreement forms</li>
           <li><strong>Field Trips</strong> — trip planning, chaperone management, vehicle assignment</li>
@@ -431,7 +431,7 @@ td strong { color: #111827; }
         </div>
         <div class="note">
           <span class="note-icon">ℹ</span>
-          <p><strong>Walk-ups and cut-in families:</strong> tick <strong>Skip Car Line</strong> on those family records (Directory → Families). A <strong>Skip Car Line</strong> button appears in the Special Dismissal section of the carline input screen and calls every flagged family in one tap — no bus group or carpool setup needed, and no group badge on the dismissal screen. Tapping it again returns those students to Waiting.</p>
+          <p><strong>Walk-ups and cut-in families:</strong> tick <strong>Skip Car Line</strong> on those family records (Directory → Families). A <strong>Skip Car Line</strong> button appears in the Special Dismissal section of the carline input screen and calls every flagged family in one tap — no bus group or pickup tag setup needed, and no group badge on the dismissal screen. Tapping it again returns those students to Waiting.</p>
         </div>
       </div>
     </div>
@@ -602,7 +602,7 @@ td strong { color: #111827; }
       <div>
         <table>
           <tr><th>Item</th><th>Where</th></tr>
-          <tr><td><strong>Carpool groups</strong><br><span style="color:#9ca3af;font-size:11px;">Families that share a pickup tag</span></td><td>Admin → Directory → Carpools</td></tr>
+          <tr><td><strong>Pickup tags</strong><br><span style="color:#9ca3af;font-size:11px;">Extra numbers that call a set of families and/or individual students. Cannot reuse a family number.</span></td><td>Admin → Directory → Pickup Tags</td></tr>
           <tr><td><strong>Guardian records</strong><br><span style="color:#9ca3af;font-size:11px;">Or use Guardian Intake campaigns</span></td><td>Admin → Directory → Guardians</td></tr>
           <tr><td><strong>Employee leave policies</strong><br><span style="color:#9ca3af;font-size:11px;">Per-person allotment overrides</span></td><td>Leave Mgmt → Adjust Balances</td></tr>
           <tr><td><strong>Homeroom teacher assignments</strong><br><span style="color:#9ca3af;font-size:11px;">Assign students to teachers for carline/class placement</span></td><td>Admin → Students → Edit student</td></tr>
@@ -639,9 +639,9 @@ td strong { color: #111827; }
       <tr><td><code>can_manage_guardians</code></td><td>Guardians tab + Data Collection tab.</td></tr>
       <tr><td><code>can_manage_access</code></td><td>User Access &amp; Permissions tab — can activate users and change anyone's permissions. <strong>Grant carefully.</strong></td></tr>
       <tr><td><code>can_bulk_upload</code></td><td>Bulk Upload tab, and (for schools with the integration) the IC Sync page — previewing/running syncs, reviewing matches, and pulling in field differences.</td></tr>
-      <tr><td><code>can_export_data</code></td><td>Exports tab — rosters, class placements, contact lists.</td></tr>
+      <tr><td><code>can_export_data</code></td><td>Exports tab — rosters, class placements, contact lists, and <strong>Class Rosters</strong> (print or save PDF class lists for any teacher or grade).</td></tr>
       <tr><td><code>can_manage_bus_groups</code></td><td>Bus Groups tab.</td></tr>
-      <tr><td><code>can_manage_carpools</code></td><td>Carpools tab.</td></tr>
+      <tr><td><code>can_manage_carpools</code></td><td>Pickup Tags tab.</td></tr>
       <tr><td><code>can_manage_campuses</code></td><td>Campuses tab.</td></tr>
       <tr><td><code>can_manage_calendar</code></td><td>Add and edit events on the dashboard School Calendar. Grantable to front office, not just admins.</td></tr>
       <tr><td><code>can_manage_resource_docs</code></td><td>Upload, edit, replace, and delete the documents staff see under the Resources quick link, and manage the categories they're filed under. Staff can view and print but not download. Staff pin their own favorites; pinning needs no permission and is private to each person.</td></tr>
@@ -691,7 +691,7 @@ td strong { color: #111827; }
       </tr>
       <tr>
         <td><code>carline</code></td>
-        <td>Carline screen, Carline Input, Bus Groups, Carpools</td>
+        <td>Carline screen, Carline Input, Bus Groups, Pickup Tags</td>
         <td>can_view_carline or can_manage_carline (for carline); can_manage_bus_groups, can_manage_carpools (for admin tabs)</td>
       </tr>
       <tr>
@@ -728,6 +728,10 @@ td strong { color: #111827; }
     <div class="note" style="margin-top:10px;">
       <span class="note-icon">ℹ</span>
       <p><strong>Class Placement is permission-gated, not module-gated.</strong> The Class Placement tool (<code>/app/placement.html</code>) is always available as a standalone page — no module toggle required. It shows in the Staff Portal nav and Admin Panel nav for any user with <code>can_manage_placement</code>. Enable this permission for teachers during placement season, then remove it once placements are committed.</p>
+    </div>
+    <div class="note" style="margin-top:10px;">
+      <span class="note-icon">ℹ</span>
+      <p><strong>My Roster is data-gated, not permission- or module-gated.</strong> The <strong>My Roster</strong> link in the Staff Portal appears automatically for any staff member who has at least one active student assigned to them via the student's <strong>Homeroom Teacher</strong> field — no permission to grant. It never appears for schools with <strong>Uses homerooms</strong> turned off. Teachers see only their own homeroom; to give someone another teacher's roster, print or save it for them from Admin Panel → Exports → Class Rosters.</p>
     </div>
   </div>
 

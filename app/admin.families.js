@@ -1,13 +1,14 @@
 
 import { supabase } from './admin.supabase.js?v=2';
 import { createDirectory } from './admin.directory.js?v=2';
-import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError, showToast, GRADE_ORDER, invalidateFamilyCache } from './admin.shared.js?v=3';
+import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError, showToast, GRADE_ORDER, invalidateFamilyCache, findTagConflict } from './admin.shared.js?v=3';
 
 let currentProfile;
 let schoolConfig = null;
 let initialized = false;
 let familiesDirectory;
 let editingFamilyId = null;
+let editingFamilyTag = null; // tag as loaded, so an unchanged tag skips the conflict check
 
 /* ===============================
    SPECIAL-PERMISSION FLAGS
@@ -359,7 +360,8 @@ function renderFamilyRow(f) {
 ================================ */
 
 function openEditFamilyDrawer(f) {
-  editingFamilyId = f.id;
+  editingFamilyId  = f.id;
+  editingFamilyTag = f.carline_tag_number ?? '';
 
   const initial = (f.family_name ?? '?')[0].toUpperCase();
   const color   = getAvatarColor(f.family_name ?? '');
@@ -485,6 +487,18 @@ async function saveEditFamily() {
   const saveBtn = document.getElementById('efSaveBtn');
   saveBtn.disabled    = true;
   saveBtn.textContent = 'Saving…';
+
+  // Only check when the number actually moves — see the matching note in
+  // admin.carpools.js. Leaves pre-existing collisions editable so they can be fixed.
+  const conflict = tag === String(editingFamilyTag ?? '')
+    ? null
+    : await findTagConflict(currentProfile.school_id, tag, { ignoreFamilyId: editingFamilyId });
+  if (conflict) {
+    saveBtn.disabled    = false;
+    saveBtn.textContent = 'Save Changes';
+    showToast(`${conflict.message} Pick a different number.`, 'error', 8000);
+    return;
+  }
 
   const { error } = await supabase.from('families').update(updated).eq('id', editingFamilyId);
 
@@ -637,6 +651,12 @@ async function createFamily() {
 
   const hasCarline = schoolConfig?.modules?.carline !== false;
   if (hasCarline && !tag) { alert('Carline tag number is required.'); return; }
+
+  const conflict = await findTagConflict(currentProfile.school_id, tag);
+  if (conflict) {
+    showToast(`${conflict.message} Pick a different number.`, 'error', 8000);
+    return;
+  }
 
   const { data, error } = await supabase.from('families').insert({
     school_id:          currentProfile.school_id,

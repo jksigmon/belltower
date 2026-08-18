@@ -16,6 +16,7 @@ const schoolConfigCache = {};
 /**
  * Loads and caches per-school configuration (grades, feature flags, etc.).
  * Returns an object with:
+ *   name: string                 — school display name
  *   grade_levels: string[]       — ordered grade list for this school
  *   terminal_grade: string       — last grade before graduation
  *   uses_homerooms: boolean
@@ -28,7 +29,7 @@ export async function loadSchoolConfig(schoolId) {
   const [schoolRes, modulesRes] = await Promise.all([
     supabase
       .from('schools')
-      .select('grade_levels, terminal_grade, uses_homerooms, require_mvr_for_drivers')
+      .select('name, grade_levels, terminal_grade, uses_homerooms, require_mvr_for_drivers')
       .eq('id', schoolId)
       .single(),
     supabase
@@ -138,6 +139,72 @@ export function getFamilyById(schoolId, id) {
 export function invalidateBusGroupCache(schoolId) {
   if (schoolId) delete busGroupCache[schoolId];
   else Object.keys(busGroupCache).forEach(k => delete busGroupCache[k]);
+}
+
+/* ===============================
+   CARLINE TAG NUMBER POOL
+================================ */
+
+// Family numbers (families.carline_tag_number) and pickup tags
+// (carpools.tag_number) are unique within their own tables but draw from one
+// shared pool at dismissal: carline resolves pickup tags BEFORE family numbers,
+// so a duplicate silently makes the family unreachable and calls someone else's
+// children. DB triggers reject these outright (see
+// 20260817000001_carpool_students_and_tag_collisions.sql); this is the
+// pre-flight check so the admin gets a plain-language warning instead of a
+// raw Postgres error.
+//
+// Pass ignoreFamilyId/ignoreCarpoolId when editing an existing record so it
+// doesn't collide with itself. Returns a description of the conflict, or null.
+export async function findTagConflict(schoolId, tag, { ignoreFamilyId, ignoreCarpoolId } = {}) {
+  const trimmed = String(tag ?? '').trim();
+  if (!schoolId || !trimmed) return null;
+
+  let familyQuery = supabase
+    .from('families')
+    .select('id, family_name, active')
+    .eq('school_id', schoolId)
+    .eq('carline_tag_number', trimmed);
+  if (ignoreFamilyId) familyQuery = familyQuery.neq('id', ignoreFamilyId);
+
+  let carpoolQuery = supabase
+    .from('carpools')
+    .select('id, tag_number, label, active')
+    .eq('school_id', schoolId)
+    .eq('tag_number', trimmed);
+  if (ignoreCarpoolId) carpoolQuery = carpoolQuery.neq('id', ignoreCarpoolId);
+
+  const [familyRes, carpoolRes] = await Promise.all([familyQuery, carpoolQuery]);
+
+  // A failed lookup must not read as "no conflict" — that would wave through
+  // exactly the collision this exists to prevent. Let the caller proceed and
+  // rely on the DB trigger, but say so.
+  if (familyRes.error || carpoolRes.error) {
+    console.error('Tag conflict check failed', familyRes.error || carpoolRes.error);
+    return null;
+  }
+
+  const family = familyRes.data?.[0];
+  if (family) {
+    const name = family.family_name?.trim() || '(Unnamed family)';
+    return {
+      type: 'family',
+      message: `Number ${trimmed} is already the family number for ${name}` +
+               `${family.active ? '' : ' (inactive)'}.`,
+    };
+  }
+
+  const carpool = carpoolRes.data?.[0];
+  if (carpool) {
+    const name = carpool.label?.trim() || `Pickup tag #${carpool.tag_number}`;
+    return {
+      type: 'carpool',
+      message: `Number ${trimmed} is already in use by the pickup tag "${name}"` +
+               `${carpool.active ? '' : ' (inactive)'}.`,
+    };
+  }
+
+  return null;
 }
 
 /* ===============================

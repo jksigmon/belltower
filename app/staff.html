@@ -886,6 +886,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="#dashboard"><i data-lucide="home"></i> Home</a>
   <a href="#pto"        data-module="pto"><i data-lucide="calendar"></i> Leave</a>
   <a href="/carline.html?from=staff" data-module="carline"><i data-lucide="car"></i> Carline</a>
+  <a href="#my-roster" id="navMyRoster" style="display:none;"><i data-lucide="users"></i> My Roster</a>
   <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
   <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
   <a href="#compliance-report" data-module="compliance"><i data-lucide="clipboard-list"></i> Compliance Report</a>
@@ -1261,6 +1262,45 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
     </section>
 
+    <!-- ── My Roster ──────────────────────────────── -->
+    <section id="my-roster" style="display:none;">
+
+      <div class="panel">
+        <div class="comp-report-result-header">
+          <div>
+            <h3 style="margin:0 0 3px;" id="myRosterTitle">My Homeroom</h3>
+            <p class="muted" style="margin:0;font-size:13px;" id="myRosterCount"></p>
+          </div>
+          <div class="comp-filter-actions">
+            <button id="myRosterPrint" class="btn comp-report-cta" style="display:none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Print
+            </button>
+            <button id="myRosterPdf" class="btn comp-report-cta" style="display:none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Save PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table class="admin-table" id="myRosterTable">
+            <thead>
+              <tr>
+                <th style="width:36px;">#</th>
+                <th>Student</th>
+                <th>Grade</th>
+                <th>Carline Tag</th>
+                <th>Bus Group</th>
+              </tr>
+            </thead>
+            <tbody id="myRosterTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
     <!-- ── Request Access ─────────────────────────── -->
     <section id="access-request" style="display:none;">
 
@@ -1565,6 +1605,7 @@ import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODat
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { roleCheckboxGridHTML } from '/app/compliance.roles.js?v=2';
+import { printRosters, saveRostersPdf, toRosterStudent, ROSTER_SELECT } from '/app/roster-print.js?v=5';
 
 document.getElementById('bgRoleGrid').innerHTML = roleCheckboxGridHTML('bgRole');
 
@@ -2170,6 +2211,7 @@ async function initStaff() {
 
   applyModuleNavVisibility();
   showRequestManagerNavIfManager();
+  showMyRosterNavIfHomeroomTeacher();
   document.getElementById('staffNav')?.classList.remove('hidden');
   setActive('#dashboard');
   window.scrollTo(0, 0);
@@ -2230,6 +2272,7 @@ function setActive(hash) {
     if (hash === '#licensure')          subtitle.textContent = 'My Licenses';
     if (hash === '#bg-checks')          subtitle.textContent = 'Background Checks';
     if (hash === '#compliance-report')  subtitle.textContent = 'Compliance Report';
+    if (hash === '#my-roster')          subtitle.textContent = 'My Roster';
     if (hash === '#access-request')     subtitle.textContent = 'Request Access';
     if (hash === '#data-collection')    subtitle.textContent = 'Form Links';
     if (hash === '#resources')          subtitle.textContent = 'Resources';
@@ -2255,6 +2298,7 @@ function setActive(hash) {
   if (hash === '#licensure')           loadMyLicenses();
   if (hash === '#bg-checks')           loadMyBgRequests();
   if (hash === '#compliance-report')   initComplianceReport();
+  if (hash === '#my-roster')           initMyRoster();
   if (hash === '#access-request')      { buildAccessRequestOptions(); loadMyAccessRequests(); }
   if (hash === '#data-collection')     loadStaffFormLinks();
   if (hash === '#resources')           initStaffResources(currentProfile);
@@ -4112,6 +4156,26 @@ function applyModuleNavVisibility() {
 // Request Manager: shown only to staff assigned as a manager on at least
 // one request category. Runs after nav is shown since it's not needed to
 // unblock the rest of the dashboard.
+// My Roster: shown only to staff who actually have a homeroom — i.e. at
+// least one student points at them via homeroom_teacher_id. Uses a HEAD
+// count so the gate costs one cheap query and fetches no rows.
+async function showMyRosterNavIfHomeroomTeacher() {
+  const link = document.getElementById('navMyRoster');
+  if (!link) return;
+
+  const schoolConfig = await loadSchoolConfig(currentProfile.school_id);
+  if (schoolConfig?.uses_homerooms === false) return;
+
+  const { count } = await supabase
+    .from('students')
+    .select('id', { count: 'exact', head: true })
+    .eq('school_id', currentProfile.school_id)
+    .eq('homeroom_teacher_id', currentProfile.employee_id)
+    .eq('active', true);
+
+  if (count) link.style.display = 'flex';
+}
+
 async function showRequestManagerNavIfManager() {
   if (window.staffModules?.requests === false) return;
 
@@ -4553,6 +4617,94 @@ document.getElementById('bgSubmitBtn')?.addEventListener('click', async () => {
 });
 
 /* ── Compliance Report ── */
+
+/* ── My Roster ────────────────────────────────── */
+let myRosterInitialized = false;
+let myRosterStudents = [];
+
+async function initMyRoster() {
+  if (myRosterInitialized) return;
+  myRosterInitialized = true;
+
+  const tbody = document.getElementById('myRosterTbody');
+  const countEl = document.getElementById('myRosterCount');
+  const printBtn = document.getElementById('myRosterPrint');
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center;padding:24px 0;">Loading…</td></tr>';
+
+  const { data, error } = await supabase
+    .from('students')
+    .select(ROSTER_SELECT)
+    .eq('school_id', currentProfile.school_id)
+    .eq('homeroom_teacher_id', currentProfile.employee_id)
+    .eq('active', true)
+    .order('last_name', { ascending: true })
+    .order('first_name', { ascending: true });
+
+  if (error) {
+    console.error('My Roster load failed', error);
+    tbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center;padding:24px 0;">Could not load your roster.</td></tr>';
+    // Allow a retry on the next visit rather than caching the failure.
+    myRosterInitialized = false;
+    return;
+  }
+
+  myRosterStudents = (data ?? []).map(toRosterStudent);
+
+  if (!myRosterStudents.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center;padding:24px 0;">No students are assigned to your homeroom.</td></tr>';
+    if (countEl) countEl.textContent = '';
+    return;
+  }
+
+  tbody.innerHTML = myRosterStudents.map((s, i) => `<tr>
+    <td class="muted">${i + 1}</td>
+    <td style="font-weight:600;">${esc(rosterDisplayName(s))}</td>
+    <td>${s.grade_level ? esc(gradeLabel(s.grade_level)) : '—'}</td>
+    <td>${s.carline_tag ? esc(s.carline_tag) : '—'}</td>
+    <td>${s.bus_group ? esc(s.bus_group) : '—'}</td>
+  </tr>`).join('');
+
+  if (countEl) {
+    countEl.textContent = `${myRosterStudents.length} ${myRosterStudents.length === 1 ? 'student' : 'students'}`;
+  }
+
+  const rosterPayload = () => ({
+    groups: [{
+      label: currentProfile.display_name ?? 'My Homeroom',
+      sublabel: 'Homeroom',
+      students: myRosterStudents
+    }],
+    schoolName: currentProfile.schools?.name ?? ''
+  });
+
+  if (printBtn) {
+    printBtn.style.display = 'inline-flex';
+    printBtn.addEventListener('click', () => printRosters(rosterPayload()));
+  }
+
+  const pdfBtn = document.getElementById('myRosterPdf');
+  if (pdfBtn) {
+    pdfBtn.style.display = 'inline-flex';
+    pdfBtn.addEventListener('click', async () => {
+      pdfBtn.disabled = true;
+      try { await saveRostersPdf(rosterPayload()); }
+      finally { pdfBtn.disabled = false; }
+    });
+  }
+}
+
+// Mirrors the name formatting in roster-print.js so the on-screen table
+// and the printed sheet read identically.
+function rosterDisplayName(s) {
+  const base = `${s.last_name ?? ''}, ${s.first_name ?? ''}`.replace(/^, |, $/, '').trim();
+  const preferred = (s.preferred_name ?? '').trim();
+  if (preferred && preferred.toLowerCase() !== (s.first_name ?? '').trim().toLowerCase()) {
+    return `${base} ("${preferred}")`;
+  }
+  return base || '—';
+}
 
 let compReportData = null;
 let compReportInitialized = false;

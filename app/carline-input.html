@@ -13,7 +13,7 @@
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
   <link rel="manifest" href="/icons/site.webmanifest">
   <link rel="icon" href="/icons/favicon.ico">
-  <link rel="stylesheet" href="/carline.css?v=8" />
+  <link rel="stylesheet" href="/carline.css?v=9" />
 </head>
 <body>
 
@@ -262,7 +262,8 @@ let allCampuses  = [];
 let activeCampusId = null;    // null = no campus filter (school-wide)
 let familyTagMap  = new Map(); // family_id → tag_number  (individual family tags)
 let tagFamilyMap  = new Map(); // tag_number → family_id  (individual family lookup)
-let carpoolTagMap = new Map(); // tag_number → [family_id, ...]  (carpool lookup)
+let carpoolTagMap = new Map(); // tag_number → [family_id, ...]  (pickup tag → member families)
+let carpoolStudentMap = new Map(); // tag_number → [student_id, ...]  (pickup tag → individual students)
 let flagFamilyIds = new Map(); // FLAG_GROUPS flag → Set(family_id)
 let callStatus   = new Map(); // student_id → status
 let callTypeById = new Map(); // student_id → call_type of its current call row
@@ -325,15 +326,41 @@ async function boot() {
   document.getElementById('inputApp').hidden  = false;
 }
 
+// The dismissal "day" must follow the school's clock, not UTC. Eastern time is
+// UTC-4/-5, so toISOString().slice(0,10) rolls the date over at 8pm local and
+// every carline page starts looking for tomorrow's event. Mirrors
+// toLocalISODate() in admin.shared.js, which these standalone pages don't import.
+function localToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 // ─── Data loaders ─────────────────────────────────────────────────────
+// PostgREST caps an unranged select at 1000 rows, so anything past the cap is
+// dropped with no error — on a roster ordered by last_name that silently made
+// every student from the end of the alphabet uncallable at dismissal. Page
+// through instead. Same reasoning as fetchAllIds in admin.families.js.
+const ROW_PAGE_SIZE = 1000;
+
+async function fetchAllRows(build) {
+  const rows = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await build().range(from, from + ROW_PAGE_SIZE - 1);
+    if (error) { console.error('Paged fetch failed', error); return rows; }
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < ROW_PAGE_SIZE) return rows;
+    from += ROW_PAGE_SIZE;
+  }
+}
+
 async function loadStudents() {
-  const { data } = await supabase
+  allStudents = await fetchAllRows(() => supabase
     .from('students')
     .select('id, first_name, last_name, family_id, bus_group_id, campus_id, grade_level')
     .eq('school_id', profile.school_id)
     .eq('active', true)
-    .order('last_name');
-  allStudents = data || [];
+    .order('last_name'));
 }
 
 async function loadPickupGroups() {
@@ -365,11 +392,14 @@ async function loadBusGroups() {
 
 async function loadFamilyTags() {
   const flagCols = FLAG_GROUPS.map(g => g.flag).join(', ');
-  const { data } = await supabase
+  // Paged for the same reason as loadStudents — a family past the 1000-row cap
+  // would drop out of tagFamilyMap and its number would read as "not found".
+  const data = await fetchAllRows(() => supabase
     .from('families')
     .select(`id, carline_tag_number, ${flagCols}`)
     .eq('school_id', profile.school_id)
-    .eq('active', true);
+    .eq('active', true)
+    .order('id'));
   familyTagMap.clear();
   tagFamilyMap.clear();
   flagFamilyIds.clear();
@@ -387,15 +417,46 @@ async function loadFamilyTags() {
 async function loadCarpoolTags() {
   const { data } = await supabase
     .from('carpools')
-    .select('tag_number, carline_tags ( family_id )')
+    .select('tag_number, carline_tags ( family_id ), carpool_students ( student_id )')
     .eq('school_id', profile.school_id)
     .eq('active', true);
   carpoolTagMap.clear();
+  carpoolStudentMap.clear();
   (data || []).forEach(cp => {
-    const tag       = String(cp.tag_number);
-    const familyIds = (cp.carline_tags || []).map(ct => ct.family_id).filter(Boolean);
-    if (familyIds.length) carpoolTagMap.set(tag, familyIds);
+    const tag        = String(cp.tag_number);
+    const familyIds  = (cp.carline_tags     || []).map(ct => ct.family_id).filter(Boolean);
+    const studentIds = (cp.carpool_students || []).map(cs => cs.student_id).filter(Boolean);
+    if (familyIds.length)  carpoolTagMap.set(tag, familyIds);
+    if (studentIds.length) carpoolStudentMap.set(tag, studentIds);
   });
+}
+
+// Single resolution path for every place a tag is typed. A pickup tag can carry
+// whole families, individual students, or both; a plain family number resolves
+// to that one household. Pickup tags win over family numbers (unchanged), which
+// is why the two can never share a number — see findTagConflict / the DB guards.
+// Returns null when the tag is unknown.
+function resolveTag(tag) {
+  const familyIds  = carpoolTagMap.get(tag);
+  const studentIds = carpoolStudentMap.get(tag);
+  if (familyIds || studentIds) {
+    return { familyIds: familyIds ?? [], studentIds: studentIds ?? [] };
+  }
+  const fid = tagFamilyMap.get(tag);
+  if (!fid) return null;
+  return { familyIds: [fid], studentIds: [] };
+}
+
+// Resolves a tag all the way to the students it should call, scoped to the
+// active campus. Returns null for an unknown tag (distinct from a known tag
+// with nobody at this campus, which returns an empty array).
+function studentsForTag(tag) {
+  const resolved = resolveTag(tag);
+  if (!resolved) return null;
+  const directIds = new Set(resolved.studentIds);
+  return allStudents.filter(s =>
+    (resolved.familyIds.includes(s.family_id) || directIds.has(s.id)) && atActiveCampus(s)
+  );
 }
 
 async function loadExistingCalls() {
@@ -422,10 +483,19 @@ async function loadBusArrivals() {
   (data || []).forEach(r => { if (!r.recalled_at) calledBusIds.add(r.bus_group_id); });
 }
 
-// A student belongs to the active campus either directly or by way of a
-// pickup group that assigns their grade to this campus.
+// A student belongs to the active campus either directly, by having no campus
+// at all, or by way of a pickup group that assigns their grade to this campus.
+//
+// A null campus_id means "all campuses" — the same convention used on
+// carline_events, staff_licenses and field_trips. Treating null as "no campus"
+// instead made every unassigned student silently uncallable the moment a
+// campus was active, and since a school with a single campus starts dismissal
+// scoped to it (see handleStartClick) rather than school-wide, that hit any
+// school that had created a campus without backfilling students — the tag
+// resolved fine and the operator just got "no students at this campus".
 function atActiveCampus(s) {
   return activeCampusId === null ||
+    s.campus_id == null ||
     s.campus_id === activeCampusId ||
     allPickupGroups.some(g => g.campus_id === activeCampusId && g.grade_levels.includes(s.grade_level));
 }
@@ -453,7 +523,7 @@ function handleStartClick() {
 
 // ─── Carline event ─────────────────────────────────────────────────────
 async function ensureCarlineEvent() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   let q = supabase
     .from('carline_events')
     .select('id, status, name')
@@ -473,7 +543,7 @@ async function ensureCarlineEvent() {
 
 async function startDismissal(campusId = null) {
   activeCampusId = campusId;
-  const today      = new Date().toISOString().slice(0, 10);
+  const today      = localToday();
   const campusName = allCampuses.find(c => c.id === campusId)?.name ?? null;
   const { data, error } = await supabase
     .from('carline_events')
@@ -600,7 +670,7 @@ function watchForNewEvents() {
 
 async function pollForEvent() {
   if (currentEvent) { clearInterval(eventPollTimer); eventPollTimer = null; return; }
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localToday();
   let q = supabase
     .from('carline_events')
     .select('id, status, name')
@@ -666,13 +736,52 @@ function setupRealtime() {
 
 // ─── Call actions ──────────────────────────────────────────────────────
 
-function broadcastStudentCalls(calls) {
-  const bc = supabase.channel(`carline-display-${currentEvent.id}`);
-  bc.subscribe(st => {
+// carline_calls is NOT in the supabase_realtime publication, so the dismissal
+// board's postgres_changes listener never fires — broadcast is the only channel
+// that actually drives it. Anything that changes call state must broadcast, or
+// the board silently keeps showing stale statuses until someone refreshes.
+//
+// One long-lived channel per event, created on demand and never torn down.
+// Previously each broadcast made a fresh channel on the same topic and removed
+// it 1500ms later; two calls inside that window (tapping bus buttons in quick
+// succession) had the first teardown kill the topic the second was sending on,
+// so the second and third updates were dropped.
+let displayChannel     = null;
+let displayChannelKey  = null;
+let displayChannelReady = false;
+const pendingBroadcasts = [];
+
+function getDisplayChannel() {
+  const key = `carline-display-${currentEvent.id}`;
+  if (displayChannel && displayChannelKey === key) return displayChannel;
+
+  if (displayChannel) supabase.removeChannel(displayChannel);
+  displayChannelKey   = key;
+  displayChannelReady = false;
+  displayChannel      = supabase.channel(key);
+  displayChannel.subscribe(st => {
     if (st !== 'SUBSCRIBED') return;
-    bc.send({ type: 'broadcast', event: 'student_call', payload: { calls } });
-    setTimeout(() => supabase.removeChannel(bc), 1500);
+    displayChannelReady = true;
+    while (pendingBroadcasts.length) {
+      const msg = pendingBroadcasts.shift();
+      displayChannel.send(msg);
+    }
   });
+  return displayChannel;
+}
+
+// Queues until the channel is live so the very first call of the day — sent
+// while the socket is still connecting — isn't dropped.
+function broadcastToDisplay(event, payload) {
+  if (!currentEvent) return;
+  const ch  = getDisplayChannel();
+  const msg = { type: 'broadcast', event, payload };
+  if (displayChannelReady) ch.send(msg);
+  else pendingBroadcasts.push(msg);
+}
+
+function broadcastStudentCalls(calls) {
+  broadcastToDisplay('student_call', { calls });
 }
 
 async function callByTag(tag, isRecall = false) {
@@ -681,27 +790,20 @@ async function callByTag(tag, isRecall = false) {
     showToast('Dismissal is not open'); return;
   }
 
-  // Carpool tags take precedence over individual family tags
-  let familyIds = carpoolTagMap.get(tag);
-  if (!familyIds) {
-    const fid = tagFamilyMap.get(tag);
-    if (!fid) { showToast(`Tag ${tag} not found`); return; }
-    familyIds = [fid];
-  }
-
-  const students = allStudents.filter(s => familyIds.includes(s.family_id) && atActiveCampus(s));
+  const students = studentsForTag(tag);
+  if (students === null) { showToast(`Tag ${tag} not found`); return; }
   if (!students.length) { showToast(`Tag ${tag}: no students at this campus`); return; }
 
   if (isRecall) {
-    await recallStudents(students, familyIds, tag);
+    await recallStudents(students, tag);
   } else {
-    await callStudents(students, familyIds, tag, 'FAMILY');
+    await callStudents(students, tag, 'FAMILY');
   }
 
   clearTag();
 }
 
-async function callStudents(students, familyIds, tag, callType) {
+async function callStudents(students, tag, callType) {
   const prevStatuses = students.map(s => ({ id: s.id, prev: callStatus.get(s.id) ?? 'WAITING' }));
   const now = new Date().toISOString();
 
@@ -735,14 +837,18 @@ async function callStudents(students, familyIds, tag, callType) {
   broadcastStudentCalls(students.map(s => ({ student_id: s.id, status: 'CALLED', called_at: now, call_type: callType })));
 }
 
-async function recallStudents(students, familyIds, tag) {
+async function recallStudents(students, tag) {
   const prevStatuses = students.map(s => ({ id: s.id, prev: callStatus.get(s.id) ?? 'WAITING' }));
 
+  // Targets the exact students this tag resolved to, not their family_id. A tag
+  // carrying individual students has no family to filter on, so the old
+  // family_id filter matched zero rows and the recall failed silently — the
+  // update succeeds either way, so nothing surfaced the miss.
   const { error } = await supabase
     .from('carline_calls')
     .update({ status: 'RECALLED', recalled_at: new Date().toISOString() })
     .eq('carline_event_id', currentEvent.id)
-    .in('family_id', familyIds)
+    .in('student_id', students.map(s => s.id))
     .in('status', ['CALLED', 'WAITING']);
 
   if (error) { showToast('Recall failed'); return; }
@@ -787,16 +893,10 @@ async function callBusGroup(busGroupId) {
 
   calledBusIds.add(busGroupId);
 
-  // Broadcast instantly to the display page (mirrors all_call pattern)
-  const bc = supabase.channel(`carline-display-${currentEvent.id}`);
-  bc.subscribe(status => {
-    if (status !== 'SUBSCRIBED') return;
-    bc.send({ type: 'broadcast', event: 'bus_arrival', payload: { bus_group_id: busGroupId } });
-    setTimeout(() => supabase.removeChannel(bc), 1500);
-  });
+  broadcastToDisplay('bus_arrival', { bus_group_id: busGroupId });
 
   if (students.length) {
-    await callStudents(students, [], group?.name ?? 'Bus', 'BUS');
+    await callStudents(students, group?.name ?? 'Bus', 'BUS');
   } else {
     showToast(`${group?.name ?? 'Bus'} called`);
     pushRecent(group?.name ?? busGroupId, [], 'BUS', false);
@@ -824,12 +924,7 @@ async function recallBusGroup(busGroupId) {
   updateBusButtonStates();
   showToast(`${group?.name ?? 'Bus'} call undone`);
 
-  const bc = supabase.channel(`carline-display-${currentEvent.id}`);
-  bc.subscribe(status => {
-    if (status !== 'SUBSCRIBED') return;
-    bc.send({ type: 'broadcast', event: 'bus_recall', payload: { bus_group_id: busGroupId } });
-    setTimeout(() => supabase.removeChannel(bc), 1500);
-  });
+  broadcastToDisplay('bus_recall', { bus_group_id: busGroupId });
 }
 
 // ─── Flag-based family groups ─────────────────────────────────────────
@@ -862,7 +957,7 @@ async function callFlagGroup(flag) {
   }
   if (!students.length) { showToast(`No ${group.label} students at this campus`); return; }
 
-  await callStudents(students, [], group.label, group.callType);
+  await callStudents(students, group.label, group.callType);
 }
 
 // Tapping a lit group button undoes an accidental tap: the students drop
@@ -896,6 +991,9 @@ async function undoFlagGroup(group, students) {
   }
 
   updateGroupButtons();
+  broadcastStudentCalls(ids.map(id => ({
+    student_id: id, status: 'WAITING', called_at: null, call_type: group.callType,
+  })));
   showToast(`${group.label} call undone`);
 }
 
@@ -922,6 +1020,9 @@ async function undoLast() {
   recentCalls.shift();
   renderRecentList();
   updateGroupButtons();
+  broadcastStudentCalls(op.prevStatuses.map(({ id, prev }) => ({
+    student_id: id, status: prev, called_at: null, call_type: op.callType,
+  })));
   showToast(`Undid call for tag ${op.tag}`);
 }
 
@@ -930,22 +1031,23 @@ async function undoByTag() {
   if (!tag) return;
   const trimmed = tag.trim();
 
-  const familyIds = carpoolTagMap.get(trimmed) ??
-    (tagFamilyMap.get(trimmed) ? [tagFamilyMap.get(trimmed)] : null);
-  if (!familyIds) { showToast(`Tag ${tag} not found`); return; }
-
-  const students = allStudents.filter(s => familyIds.includes(s.family_id) && atActiveCampus(s));
+  const students = studentsForTag(trimmed);
+  if (students === null) { showToast(`Tag ${tag} not found`); return; }
   if (!students.length) { showToast(`No students for tag ${tag} at this campus`); return; }
 
+  // Same reasoning as recallStudents: target students, not family_id.
   const { error } = await supabase
     .from('carline_calls')
     .update({ status: 'WAITING' })
     .eq('carline_event_id', currentEvent.id)
-    .in('family_id', familyIds);
+    .in('student_id', students.map(s => s.id));
 
   if (error) { showToast('Undo failed'); return; }
   students.forEach(s => callStatus.set(s.id, 'WAITING'));
   updateGroupButtons();
+  broadcastStudentCalls(students.map(s => ({
+    student_id: s.id, status: 'WAITING', called_at: null, call_type: 'FAMILY',
+  })));
   showToast(`↩ Tag ${tag} reset to Waiting`);
 }
 
@@ -973,12 +1075,7 @@ async function allCall() {
   playAllCallSound();
   showToast('All Call sent');
 
-  const bc = supabase.channel(`carline-display-${currentEvent.id}`);
-  bc.subscribe(st => {
-    if (st !== 'SUBSCRIBED') return;
-    bc.send({ type: 'broadcast', event: 'all_call', payload: {} });
-    setTimeout(() => supabase.removeChannel(bc), 1500);
-  });
+  broadcastToDisplay('all_call', {});
 }
 
 async function resetDay() {
@@ -1000,6 +1097,10 @@ async function resetDay() {
   document.getElementById('btnUndoLast').disabled = true;
   renderRecentList();
   updateGroupButtons();
+  // Its own event rather than a student_call listing every student: a reset
+  // deletes the rows outright, and on a 1000+ roster that payload would be
+  // enormous for what is really just "clear everything".
+  broadcastToDisplay('reset_day', {});
   showToast('Day reset — all calls cleared');
 }
 

@@ -10,7 +10,7 @@
   <link rel="modulepreload" href="/app/admin.supabase.js">
   <link rel="modulepreload" href="/app/admin.shared.js">
   <link rel="modulepreload" href="/app/admin.staff.js">
-  <link rel="modulepreload" href="/app/admin.students.js">
+  <link rel="modulepreload" href="/app/admin.students.js?v=2">
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
@@ -103,7 +103,7 @@
         <a href="#data-collection" data-cap="can_manage_guardians"><i data-lucide="clipboard-list"></i> Data Collection</a>
         <a href="#campuses" data-cap="can_manage_campuses"><i data-lucide="building-2"></i> Campuses</a>
         <a href="#bus" data-cap="can_manage_bus_groups" data-module="bus_groups"><i data-lucide="bus"></i> Bus Groups</a>
-        <a href="#carpools" data-cap="can_manage_carpools" data-module="carline"><i data-lucide="users-round"></i> Carpools</a>
+        <a href="#carpools" data-cap="can_manage_carpools" data-module="carline"><i data-lucide="users-round"></i> Pickup Tags</a>
       </div>
 
       <button class="nav-section-toggle" data-group="settings">
@@ -474,7 +474,7 @@
           <label data-module="families"><input type="checkbox" data-field="can_view_families"><span class="perm-name">View families</span><span class="perm-desc">Can view the Families tab, read-only. Not needed if Manage families is already checked.</span></label>
           <label data-module="guardians"><input type="checkbox" data-field="can_manage_guardians"><span class="perm-name">Manage guardians</span><span class="perm-desc">Can add and edit guardian contacts linked to students.</span></label>
           <label data-module="bus_groups"><input type="checkbox" data-field="can_manage_bus_groups"><span class="perm-name">Manage bus groups</span><span class="perm-desc">Can create and manage student bus route groups.</span></label>
-          <label data-module="carline"><input type="checkbox" data-field="can_manage_carpools"><span class="perm-name">Manage carpools</span><span class="perm-desc">Can manage student carpool pickup assignments.</span></label>
+          <label data-module="carline"><input type="checkbox" data-field="can_manage_carpools"><span class="perm-name">Manage pickup tags</span><span class="perm-desc">Can manage carpool and individual-student pickup tag numbers.</span></label>
           <label data-module="substitutes"><input type="checkbox" data-field="can_manage_substitutes"><span class="perm-name">Manage substitutes</span><span class="perm-desc">Can assign substitute teachers to cover approved leave absences.</span></label>
           <label><input type="checkbox" data-field="can_manage_campuses"><span class="perm-name">Manage campuses</span><span class="perm-desc">Can add and edit school campus locations and their settings.</span></label>
           <label><input type="checkbox" data-field="can_manage_calendar"><span class="perm-name">Manage school calendar</span><span class="perm-desc">Can add and edit events on the dashboard school calendar.</span></label>
@@ -858,7 +858,7 @@
   <!-- Real content -->
   <div class="admin-content fade-in">
     <div class="panel panel-history">
-      <h3>Carpools</h3>
+      <h3>Pickup Tags</h3>
 
       <div class="directory-header">
         <div class="directory-filters">
@@ -870,7 +870,7 @@
           </select>
         </div>
         <div class="directory-actions">
-          <button class="btn btn-primary" onclick="openDrawer('carpoolDrawer')">+ Add Carpool</button>
+          <button class="btn btn-primary" onclick="openDrawer('carpoolDrawer')">+ Add Pickup Tag</button>
         </div>
       </div>
 
@@ -881,7 +881,7 @@
         </colgroup>
         <thead>
           <tr>
-            <th>Carpool</th>
+            <th>Pickup Tag</th>
             <th></th>
           </tr>
         </thead>
@@ -1021,6 +1021,39 @@
           </button>
         </div>
 
+      </div>
+    </div>
+
+    <div class="panel panel-history" id="printRostersPanel">
+      <h3>Class Rosters</h3>
+      <p class="muted" style="margin:0 0 14px;font-size:13px;">
+        Printable class lists — one class per page, with a blank column for check-offs.
+      </p>
+
+      <div class="directory-actions">
+        <div class="export-group">
+          <select id="rosterGroupBy" class="form-input">
+            <option value="teacher">By Homeroom Teacher</option>
+            <option value="grade">By Grade</option>
+          </select>
+
+          <select id="rosterScope" class="form-input">
+            <option value="">All homerooms</option>
+          </select>
+
+          <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;">
+            <input type="checkbox" id="rosterActiveOnly" checked />
+            Active students only
+          </label>
+
+          <button id="printRosters" class="btn">
+            Print
+          </button>
+
+          <button id="saveRostersPdf" class="btn">
+            Save PDF
+          </button>
+        </div>
       </div>
     </div>
 
@@ -2071,6 +2104,7 @@
     <div class="drawer-field">
       <label>Carline Tag # <span class="required">*</span></label>
       <input id="familyTag" class="form-input" placeholder="e.g. 104" />
+      <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Must not match an existing pickup tag — the two share one pool of numbers.</small>
     </div>
     <div class="drawer-field">
       <label>Family Name</label>
@@ -2427,46 +2461,40 @@
 </div>
 
 <!-- =============================================
-     ADD CARPOOL DRAWER
+     ADD PICKUP TAG DRAWER
      ============================================= -->
-<div id="carpoolDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Carpool">
+<div id="carpoolDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Add Pickup Tag">
   <div class="drawer-header">
-    <h3>Add Carpool</h3>
+    <h3>Add Pickup Tag</h3>
     <button class="drawer-close" onclick="closeDrawer('carpoolDrawer')" aria-label="Close">✕</button>
   </div>
   <div class="drawer-body">
     <div class="drawer-field">
-      <label>Carpool Tag # <span class="required">*</span></label>
+      <label>Pickup Tag # <span class="required">*</span></label>
       <input id="carpoolTag" class="form-input" placeholder="e.g. 400" />
-    </div>
-    <div class="drawer-field">
-      <label>Or inherit from a family's tag</label>
-      <select id="carpoolInheritTag" class="form-input">
-        <option value="">— Select a family tag to use —</option>
-      </select>
-      <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Selecting a family's tag will fill in the Tag # above.</small>
+      <small class="muted" style="font-size:12px;margin-top:4px;display:block;">Must not match an existing family number — carline reads pickup tags first, so a duplicate would make that family unreachable.</small>
     </div>
     <div class="drawer-field">
       <label>Label <span class="muted" style="font-weight:400;">(optional)</span></label>
-      <input id="carpoolLabel" class="form-input" placeholder="e.g. Smith / Jones Carpool" />
+      <input id="carpoolLabel" class="form-input" placeholder="e.g. Smith / Jones carpool, or Bella Tucker (solo)" />
     </div>
-    <p class="muted" style="font-size:12px;margin-top:8px;">After creating the carpool, open it to assign member families.</p>
+    <p class="muted" style="font-size:12px;margin-top:8px;">After creating the tag, open it to add member families or individual students.</p>
   </div>
   <div class="drawer-footer">
     <button class="btn" onclick="closeDrawer('carpoolDrawer')">Cancel</button>
-    <button id="addCarpool" class="btn btn-primary">Add Carpool</button>
+    <button id="addCarpool" class="btn btn-primary">Add Pickup Tag</button>
   </div>
 </div>
 
 <!-- =============================================
-     EDIT CARPOOL DRAWER
+     EDIT PICKUP TAG DRAWER
      ============================================= -->
-<div id="editCarpoolDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Edit Carpool">
+<div id="editCarpoolDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Edit Pickup Tag">
   <div class="drawer-header">
     <div class="staff-drawer-person">
       <div class="staff-avatar-lg carpool-avatar" id="ecpAvatar">#</div>
       <div style="min-width:0;">
-        <h3 id="ecpTitle">Carpool</h3>
+        <h3 id="ecpTitle">Pickup Tag</h3>
         <span class="staff-drawer-subtitle" id="ecpSubtitle"></span>
       </div>
     </div>
@@ -2474,12 +2502,12 @@
   </div>
   <div class="drawer-body">
     <div class="drawer-field">
-      <label>Carpool Tag # <span class="required">*</span></label>
+      <label>Pickup Tag # <span class="required">*</span></label>
       <input id="ecpTag" class="form-input" />
     </div>
     <div class="drawer-field">
       <label>Label <span class="muted" style="font-weight:400;">(optional)</span></label>
-      <input id="ecpLabel" class="form-input" placeholder="e.g. Smith / Jones Carpool" />
+      <input id="ecpLabel" class="form-input" placeholder="e.g. Smith / Jones carpool, or Bella Tucker (solo)" />
     </div>
     <div class="drawer-field">
       <label class="staff-active-label">
@@ -2488,16 +2516,26 @@
       </label>
     </div>
 
-    <div class="drawer-section-title" style="margin-top:20px;margin-bottom:8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;">Member Families</div>
+    <div class="drawer-section-title" style="margin-top:20px;margin-bottom:4px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#6b7280;">Members</div>
+    <p class="muted" style="font-size:12px;margin:0 0 8px;">Add families or individual students. Whoever is on this tag gets called when the number is entered.</p>
 
     <div id="ecpMemberList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
 
-    <button id="ecpAddFamilyBtn" class="btn" style="width:100%;margin-bottom:4px;">+ Add Family</button>
+    <div style="display:flex;gap:8px;margin-bottom:4px;">
+      <button id="ecpAddFamilyBtn"  class="btn" style="flex:1;">+ Add Family</button>
+      <button id="ecpAddStudentBtn" class="btn" style="flex:1;">+ Add Student</button>
+    </div>
 
     <!-- Inline family picker -->
     <div id="ecpAddFamilyPicker" hidden style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-top:4px;background:#f9fafb;">
       <input id="ecpFamilySearch" class="form-input" placeholder="Search by name or tag #…" style="margin-bottom:8px;" />
       <div id="ecpFamilyOptions" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;"></div>
+    </div>
+
+    <!-- Inline student picker -->
+    <div id="ecpAddStudentPicker" hidden style="border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin-top:4px;background:#f9fafb;">
+      <input id="ecpStudentSearch" class="form-input" placeholder="Search students by name…" style="margin-bottom:8px;" />
+      <div id="ecpStudentOptions" style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;"></div>
     </div>
   </div>
   <div class="drawer-footer-split">
@@ -2512,7 +2550,7 @@
 <!-- Delete carpool confirmation -->
 <div id="deleteCarpoolModal" class="confirm-modal-overlay" hidden>
   <div class="confirm-modal-dialog">
-    <h3 class="confirm-modal-title">Delete Carpool?</h3>
+    <h3 class="confirm-modal-title">Delete Pickup Tag?</h3>
     <p class="confirm-modal-body" id="deleteCarpoolMsg"></p>
     <div class="confirm-modal-actions">
       <button id="deleteCarpoolCancel" class="btn">Cancel</button>

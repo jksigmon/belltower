@@ -65,15 +65,37 @@ serve(async (req) => {
   }
 });
 
+// PostgREST caps an unranged select at 1000 rows and returns the truncated set
+// with no error. Ordered by last_name, that silently dropped every student past
+// the cap from the kiosk display. Page through instead.
+const ROW_PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  build: () => { range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }> }
+): Promise<T[]> {
+  const rows: T[] = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await build().range(from, from + ROW_PAGE_SIZE - 1);
+    if (error) {
+      console.error("carline_kiosk paged fetch failed:", error);
+      return rows;
+    }
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < ROW_PAGE_SIZE) return rows;
+    from += ROW_PAGE_SIZE;
+  }
+}
+
 async function buildSnapshot(schoolId: string) {
   const today = new Date().toISOString().slice(0, 10);
 
   const [
     schoolRes,
     eventsRes,
-    studentsRes,
+    students,
     employeesRes,
-    familiesRes,
+    families,
     campusesRes,
     pickupGroupsRes,
   ] = await Promise.all([
@@ -84,22 +106,23 @@ async function buildSnapshot(schoolId: string) {
       .eq("school_id", schoolId)
       .eq("event_date", today)
       .neq("status", "CLOSED"),
-    supabase
+    fetchAllRows(() => supabase
       .from("students")
       .select("id, first_name, last_name, preferred_name, grade_level, homeroom_teacher_id, family_id, campus_id")
       .eq("school_id", schoolId)
       .eq("active", true)
-      .order("last_name"),
+      .order("last_name")),
     supabase
       .from("employees")
       .select("id, first_name, last_name")
       .eq("school_id", schoolId)
       .eq("active", true),
-    supabase
+    fetchAllRows(() => supabase
       .from("families")
       .select("id, carline_tag_number")
       .eq("school_id", schoolId)
-      .eq("active", true),
+      .eq("active", true)
+      .order("id")),
     supabase.from("campuses").select("id, name").eq("school_id", schoolId).order("name"),
     supabase
       .from("carline_pickup_groups")
@@ -123,9 +146,9 @@ async function buildSnapshot(schoolId: string) {
   return {
     school:       schoolRes.data,
     events,
-    students:     studentsRes.data     ?? [],
+    students,
     employees:    employeesRes.data    ?? [],
-    families:     familiesRes.data     ?? [],
+    families,
     campuses:     campusesRes.data     ?? [],
     pickupGroups: pickupGroupsRes.data ?? [],
     calls,

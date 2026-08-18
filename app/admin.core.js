@@ -147,7 +147,7 @@ if (fade) {
   /* ✅ Lazy‑load feature modules */
   const routes = {
     '#staff':       () => import('./admin.staff.js').then(m => m.initStaffSection(currentProfile)),
-    '#students':    () => import('./admin.students.js').then(m => m.initStudentsSection(currentProfile)),
+    '#students':    () => import('./admin.students.js?v=2').then(m => m.initStudentsSection(currentProfile)),
     '#families':    () => import('./admin.families.js').then(m => m.initFamiliesSection(currentProfile)),
     '#guardians':   () => import('./admin.guardians.js').then(m => m.initGuardiansSection(currentProfile)),
     '#bus':         () => import('./admin.busgroups.js').then(m => m.initBusGroupsSection(currentProfile)),
@@ -157,7 +157,7 @@ if (fade) {
       import('./admin.access-requests.js').then(m => m.initAccessRequests(currentProfile)),
     ]),
     '#bulk-upload': () => import('./admin.bulk.js').then(m => m.initBulkSection()),
-    '#exports':     () => import('./admin.exports.js').then(m => m.initExportsSection(currentProfile)),
+    '#exports':     () => import('./admin.exports.js?v=2').then(m => m.initExportsSection(currentProfile)),
     '#campuses':    () => import('./admin.campuses.js').then(m => m.initCampusesSection(currentProfile)),
     '#schools':     () => import('./admin.schools.js').then(m => m.initSchoolsSection(currentProfile)),
     '#promotion':        () => import('./admin.promotion.js').then(m => m.initPromotionSection(currentProfile)),

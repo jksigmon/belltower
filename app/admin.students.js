@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { loadFamilyOptions, loadBusGroupOptions, searchFamilies, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER, todayISO, dbError, showToast } from './admin.shared.js?v=3';
+import { loadFamilyOptions, loadBusGroupOptions, searchFamilies, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER, todayISO, fmtShortDate, dbError, showToast } from './admin.shared.js?v=3';
 import { createDirectory } from './admin.directory.js?v=2';
 
 let currentProfile;
@@ -90,6 +90,7 @@ export async function initStudentsSection(profile) {
       tbodySelector: '#studentsTable tbody',
       paginationContainer: '#studentsPagination',
       renderRow: renderStudentRow,
+      exportRow: exportStudentRow,
 
       augmentQuery(query, searchTerm) {
         if (!searchTerm) return query;
@@ -196,6 +197,46 @@ async function loadSchoolPlacementFlags() {
    HELPERS
 ================================ */
 
+
+/* ===============================
+   EXPORT ROW
+================================ */
+
+// Shapes one student for the Excel export. Without this the directory
+// falls back to flattening the raw row, which spills every foreign key
+// (family_id, homeroom_teacher_id, campus_id, employees.id, …) and
+// column-name headers into the sheet — none of which mean anything to
+// the front-office staff who actually open these files.
+function exportStudentRow(r) {
+  const flagLabels = (r.student_placement_flags ?? [])
+    .map(sf => schoolFlags.find(f => f.id === sf.flag_id))
+    .filter(Boolean)
+    .map(f => f.label)
+    .join(', ');
+
+  return {
+    'Student Number':    r.student_number ?? '',
+    'First Name':        r.first_name ?? '',
+    'Last Name':         r.last_name ?? '',
+    'Preferred Name':    r.preferred_name ?? '',
+    'Grade':             r.grade_level ?? '',
+    'Homeroom Teacher':  r.employees ? `${r.employees.last_name}, ${r.employees.first_name}` : '',
+    'Campus':            r.campuses?.name ?? '',
+    'Family':            r.families?.family_name ?? '',
+    'Family Number':     r.families?.carline_tag_number ?? '',
+    'Bus Group':         r.bus_groups?.name ?? '',
+    'Birthdate':         r.birthdate ? fmtShortDate(r.birthdate) : '',
+    'Placement Flags':   flagLabels,
+    'Status':            r.active ? 'Active' : 'Inactive',
+    // Two separate states: `retained` means promotion actually held the
+    // student back; `is_retained` is the admin's pre-flag marking them a
+    // retention candidate for the next promotion run.
+    'Retained':          r.retained ? 'Yes' : 'No',
+    'Retention Flagged': r.is_retained ? 'Yes' : 'No',
+    'Withdrawn On':      r.withdrawn_at ? fmtShortDate(r.withdrawn_at) : '',
+    'Withdrawal Reason': r.withdrawal_reason ?? ''
+  };
+}
 
 /* ===============================
    RENDER ROW

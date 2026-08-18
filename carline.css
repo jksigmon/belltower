@@ -448,6 +448,16 @@ html, body {
     padding: 4px 12px;
     border-radius: 9px;
   }
+  #clApp .cl-card-time-pill { font-size: 12px; padding: 3px 9px; }
+
+  /* ---- Empty-column states ---- */
+  /* These are what's on screen for most of the day before dismissal starts,
+     so they carry the "nothing is wrong, nothing to do yet" message from the
+     back of the room. Source PNGs are 480px square, so 220 doesn't soften. */
+  #clApp .cl-col-empty { gap: 16px; font-size: 19px; }
+  #clApp .cl-empty-img { width: 220px; height: 220px; margin-bottom: 8px; }
+  #clApp .cl-empty-title { font-size: 28px; }
+  #clApp .cl-empty-sub { font-size: 19px; max-width: 380px; }
 }
 
 /* ---------- Bus arrival bar (display page) ---------- */
@@ -691,12 +701,17 @@ html, body {
   font-weight: 400;
   opacity: 0.55;
 }
+/* Number over time, both stretched to the wider of the two and center-set, so
+   the pair reads as one aligned block. Right-aligning them instead left a
+   ragged edge that shifted with the digit count (a 2-digit tag is narrower
+   than the time, a 4-digit tag wider). */
 .cl-card-meta {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 2px;
+  text-align: center;
 }
 .cl-card-tag {
   font-size: 12px;
