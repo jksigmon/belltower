@@ -25,6 +25,7 @@ let _boardSearchTerm = '';
 let _targetClassSize = null;
 let _undoStack = [];          // array of move groups [{studentId, fromTeacherId}]
 let _homeroomTeacherNames = {}; // employeeId → last name for comparison display
+let _priorTeacherNames = {};    // employeeId → display name for teachers replaced off the board this session
 let _draggingColumnTeacherId = null;
 let _managingColId = null;
 let _placeholderColIds = new Set(); // PST row IDs that are placeholder columns
@@ -365,6 +366,7 @@ async function loadBoardData(sessionId) {
 
   // Batch 3: load names for homeroom teachers not already on this board
   _homeroomTeacherNames = {};
+  _priorTeacherNames = {};  // scoped to one board; a stale entry would mislabel a column
   _teachers.forEach(t => {
     if (!t.isPlaceholder) _homeroomTeacherNames[t.id] = t.last_name;
   });
@@ -394,20 +396,42 @@ function renderBoard() {
   updateCommitNewBtn();
 }
 
-function getUncommittedNewStudents() {
+/* Students whose board position no longer matches their saved homeroom.
+   On a committed board this covers three cases with one predicate:
+     - added since the commit (homeroom is null)
+     - dragged into a different column
+     - a whole column repointed via Manage Column → Replace Teacher
+   Before this, only the first case was detected, so replacing a teacher or
+   moving a student after the commit changed the board and nothing else —
+   the roster kept the old teacher with no indication anything was pending. */
+function getPendingStudents() {
   if (!_session || _session.status !== 'committed') return [];
   return _students.filter(s => {
     const assigned = _assignments[s.id];
-    return assigned != null && !_placeholderColIds.has(assigned) && s.homeroom_teacher_id == null;
+    if (assigned == null || _placeholderColIds.has(assigned)) return false;
+    return (s.homeroom_teacher_id ?? null) !== assigned;
   });
+}
+
+function teacherLabel(teacherId) {
+  const t = _teachers.find(x => x.id === teacherId && !x.isPlaceholder);
+  if (t) return `${t.first_name} ${t.last_name}`;
+  // A teacher replaced off the board this session is still the saved homeroom for
+  // every student on that column until the changes are applied, so the pending list
+  // has to name them even though they no longer appear in _teachers.
+  return _priorTeacherNames[teacherId] ?? _homeroomTeacherNames[teacherId] ?? 'Unknown teacher';
 }
 
 function updateCommitNewBtn() {
   const btn = document.getElementById('commitNewPlacementBtn');
   if (!btn) return;
-  const newStudents = getUncommittedNewStudents();
-  btn.hidden = newStudents.length === 0;
-  btn.textContent = `Commit New Students (${newStudents.length})`;
+  const pending = getPendingStudents();
+  btn.hidden = pending.length === 0;
+  // A mix of additions and moves reads wrong as "Commit New Students", so only
+  // use that label while every pending student is genuinely unplaced.
+  btn.textContent = pending.every(s => s.homeroom_teacher_id == null)
+    ? `Commit New Students (${pending.length})`
+    : `Apply Changes (${pending.length})`;
 }
 
 function buildColumn(teacherId, name) {
@@ -1920,18 +1944,22 @@ async function runCommit() {
 
 /* ── Commit New Students Only ── */
 async function confirmCommitNew() {
-  const newStudents = getUncommittedNewStudents();
-  if (!newStudents.length) return;
+  const pending = getPendingStudents();
+  if (!pending.length) return;
 
   const modal   = document.getElementById('commitNewConfirmModal');
   const body    = document.getElementById('commitNewConfirmBody');
   const okBtn   = document.getElementById('commitNewConfirmOkBtn');
   const cancelBtn = document.getElementById('commitNewConfirmCancelBtn');
 
-  let html = `<p style="margin:0 0 12px;">${newStudents.length} student${newStudents.length !== 1 ? 's' : ''} will be assigned to ` +
-    `their homeroom teacher. This will not affect any student already committed.</p>`;
+  let html = `<p style="margin:0 0 12px;">${pending.length} student${pending.length !== 1 ? 's' : ''} will have their ` +
+    `homeroom teacher updated to match the board. Students already sitting with the right teacher are not touched.</p>`;
   html += `<ul style="margin:0;padding-left:20px;">`;
-  newStudents.forEach(s => { html += `<li>${esc(s.last_name)}, ${esc(s.first_name)}</li>`; });
+  pending.forEach(s => {
+    const from = s.homeroom_teacher_id ? teacherLabel(s.homeroom_teacher_id) : 'No homeroom';
+    const to   = teacherLabel(_assignments[s.id]);
+    html += `<li>${esc(s.last_name)}, ${esc(s.first_name)} — ${esc(from)} → ${esc(to)}</li>`;
+  });
   html += `</ul>`;
 
   body.innerHTML = html;
@@ -1947,26 +1975,27 @@ async function confirmCommitNew() {
 
 async function runCommitNew() {
   const btn = document.getElementById('commitNewPlacementBtn');
-  const newStudents = getUncommittedNewStudents();
-  if (!newStudents.length) return;
+  const pending = getPendingStudents();
+  if (!pending.length) return;
 
-  if (btn) { btn.disabled = true; btn.textContent = 'Committing…'; }
+  const label = btn?.textContent ?? '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Applying…'; }
 
   if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; }
   await saveAssignments();
 
-  // These students have never had a homeroom teacher, so their "previous" snapshot is null
-  const prevRows = newStudents.map(s => ({
-    session_id: _currentSessionId,
-    student_id: s.id,
-    prev_homeroom_teacher_id: null,
-  }));
-  await supabase
-    .from('placement_assignments')
-    .upsert(prevRows, { onConflict: 'session_id,student_id' });
+  // prev_homeroom_teacher_id is deliberately NOT written here. It is the snapshot
+  // Undo Commit restores, and it must keep meaning "the teacher this student had
+  // before the session was first committed". saveAssignments() has already upserted
+  // a row for every changed student without touching that column, so a student who
+  // was in the original commit keeps their true pre-commit teacher, and a student
+  // added since then gets the column default of NULL — which is correct, they had
+  // no homeroom. Writing NULL for everyone here (the old behaviour, harmless while
+  // this only ever ran on never-placed students) would erase the real snapshot for
+  // anyone being moved, and Undo Commit would silently strip their homeroom.
 
   const byTeacher = {};
-  newStudents.forEach(s => {
+  pending.forEach(s => {
     const tid = _assignments[s.id];
     if (!byTeacher[tid]) byTeacher[tid] = [];
     byTeacher[tid].push(s.id);
@@ -1983,19 +2012,21 @@ async function runCommitNew() {
   }
 
   if (errors.length) {
-    console.error('Commit new students errors:', errors);
+    console.error('Apply placement changes errors:', errors);
     showToast('Some student updates failed. Check the console for details.', 'error');
-    if (btn) { btn.disabled = false; btn.textContent = `Commit New Students (${newStudents.length})`; }
+    if (btn) { btn.disabled = false; btn.textContent = label; }
     return;
   }
 
-  // Reflect the new homeroom assignments locally so the button updates without a reload
-  newStudents.forEach(s => { s.homeroom_teacher_id = _assignments[s.id]; });
+  // Reflect the new homeroom assignments locally so the button and the per-card
+  // "previous homeroom" chips update without a reload.
+  pending.forEach(s => { s.homeroom_teacher_id = _assignments[s.id]; });
   if (btn) btn.disabled = false;
   updateCommitNewBtn();
   updateSaveStatus('');
+  renderBoard();
 
-  showToast(`Done! ${newStudents.length} student${newStudents.length !== 1 ? 's' : ''} committed.`, 'success');
+  showToast(`Done! ${pending.length} student${pending.length !== 1 ? 's' : ''} updated.`, 'success');
 }
 
 /* ── Flag editor ── */
@@ -2401,6 +2432,10 @@ async function confirmReplaceColumnTeacher() {
       _savedAssignments[s.id] = newEmpId;
     }
   });
+
+  if (!teacher.isPlaceholder) {
+    _priorTeacherNames[oldTeacherId] = `${teacher.first_name} ${teacher.last_name}`;
+  }
 
   const idx = _teachers.findIndex(t => t.id === oldTeacherId);
   if (idx !== -1) {
