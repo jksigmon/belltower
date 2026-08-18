@@ -935,8 +935,15 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       </div>
 
       <div class="dash-section" id="staffDashBalances" style="display:none;">
-        <div class="dash-section-head"><i data-lucide="wallet"></i><span class="dash-section-eyebrow">Leave Balance Summary</span><span class="dash-section-rule"></span></div>
-        <div class="bal-grid" id="staffDashBalanceGrid"></div>
+        <div class="dash-section-head"><i data-lucide="wallet"></i><span class="dash-section-eyebrow">Leave Balance Summary</span><span class="dash-section-rule"></span><button type="button" class="bal-hide-btn" id="balPrivacyHide" hidden><i data-lucide="eye-off"></i>Hide</button></div>
+        <div class="bal-shield" id="staffDashBalanceShield">
+          <div class="bal-grid" id="staffDashBalanceGrid"></div>
+          <button type="button" class="bal-veil" id="balPrivacyReveal" aria-expanded="false" aria-controls="staffDashBalanceGrid">
+            <span class="bal-veil-icon"><i data-lucide="eye"></i></span>
+            <span class="bal-veil-label">Show leave balances</span>
+            <span class="bal-veil-hint">Hidden for privacy</span>
+          </button>
+        </div>
         <div class="dash-card-foot"><a class="dash-card-link" href="#pto">View leave balances &rarr;</a></div>
       </div>
 
@@ -1933,6 +1940,7 @@ async function loadStaffDashboard() {
       card.href = '#pto';
       card.className = 'bal-card';
       card.setAttribute('data-accent', BALANCE_ACCENTS[idx % BALANCE_ACCENTS.length]);
+      card.style.setProperty('--i', idx);
       const hrs = b.balance_hours.toFixed(1);
       const breakdown = formatHoursAsDays(b.balance_hours);
       card.innerHTML =
@@ -1943,6 +1951,7 @@ async function loadStaffDashboard() {
       grid.appendChild(card);
     });
     document.getElementById('staffDashBalances').style.display = '';
+    initBalancePrivacy();
   }
 
   // Upcoming / pending requests
@@ -3434,6 +3443,39 @@ async function openMyLicenseFile(file) {
 
 function redirectToFirstEnabledModule() {
   setActive('#dashboard');
+}
+
+// Dashboard leave balances sit behind a privacy shade by default — staff often
+// have their screen visible to students/colleagues and don't want their balances
+// readable at a glance. Reveal is per-visit only: it resets on reload and
+// whenever the tab loses focus.
+function initBalancePrivacy() {
+  const shield = document.getElementById('staffDashBalanceShield');
+  const revealBtn = document.getElementById('balPrivacyReveal');
+  const hideBtn = document.getElementById('balPrivacyHide');
+  if (!shield || !revealBtn || !hideBtn) return;
+
+  function setRevealed(on) {
+    shield.classList.toggle('is-revealed', on);
+    revealBtn.setAttribute('aria-expanded', on ? 'true' : 'false');
+    revealBtn.tabIndex = on ? -1 : 0;
+    hideBtn.hidden = !on;
+    // Keep the concealed cards out of the tab order and off screen readers.
+    shield.querySelectorAll('.bal-card').forEach(function (card) {
+      card.tabIndex = on ? 0 : -1;
+    });
+    shield.querySelector('.bal-grid')?.setAttribute('aria-hidden', on ? 'false' : 'true');
+  }
+
+  if (!shield.dataset.wired) {
+    shield.dataset.wired = '1';
+    revealBtn.addEventListener('click', function () { setRevealed(true); });
+    hideBtn.addEventListener('click', function () { setRevealed(false); });
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) setRevealed(false);
+    });
+  }
+  setRevealed(false);
 }
 
 function formatHoursAsDays(hours) {

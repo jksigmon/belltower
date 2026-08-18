@@ -3422,6 +3422,114 @@ nav a[data-cap-group] {
   gap: 12px;
 }
 
+/* Privacy shade: balances stay frosted until the staff member reveals them. */
+.bal-shield {
+  position: relative;
+  border-radius: 13px;
+}
+.bal-shield .bal-grid {
+  filter: blur(10px);
+  opacity: 0.6;
+  transform: scale(0.985);
+  pointer-events: none;
+  user-select: none;
+  transition: filter 0.35s ease, opacity 0.35s ease, transform 0.35s ease;
+}
+.bal-shield.is-revealed .bal-grid {
+  filter: none;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.bal-shield.is-revealed .bal-card {
+  animation: bal-reveal 0.4s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@keyframes bal-reveal {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+.bal-veil {
+  position: absolute;
+  inset: -4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 12px;
+  border: 1px dashed #d7dfec;
+  border-radius: 15px;
+  background: rgba(248, 250, 253, 0.55);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+  font-family: inherit;
+  cursor: pointer;
+  transition: opacity 0.3s ease, visibility 0.3s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.bal-veil:hover {
+  background: rgba(239, 246, 255, 0.72);
+  border-color: #bfd3f5;
+}
+.bal-veil:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.bal-shield.is-revealed .bal-veil {
+  opacity: 0;
+  visibility: hidden;
+}
+.bal-veil-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-bottom: 3px;
+  border-radius: 50%;
+  background: #e8effc;
+  color: #2563eb;
+  transition: transform 0.2s ease;
+}
+.bal-veil-icon svg { width: 17px; height: 17px; }
+.bal-veil:hover .bal-veil-icon { transform: scale(1.08); }
+.bal-veil-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+.bal-veil-hint {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.bal-hide-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #64748b;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.bal-hide-btn:hover { color: #334155; border-color: #cbd5e1; background: #f8fafc; }
+.bal-hide-btn svg { width: 13px; height: 13px; }
+.bal-hide-btn[hidden] { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bal-shield .bal-grid,
+  .bal-veil { transition: none; }
+  .bal-shield.is-revealed .bal-card { animation: none; }
+}
+
 .bal-card {
   position: relative;
   display: block;
