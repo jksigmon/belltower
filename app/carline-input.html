@@ -271,6 +271,7 @@ let undoStack    = [];        // [{ studentIds, prevStatus }]
 let recentCalls  = [];        // [{ tag, names, type, time, ts, isRecall }]
 let realtimeChannel = null;
 let eventPollTimer  = null;
+let callsPollTimer  = null;
 let tagBuffer    = '';
 let toastTimer   = null;
 
@@ -313,7 +314,7 @@ async function boot() {
   if (currentEvent) {
     await loadExistingCalls();
     await loadBusArrivals();
-    if (currentEvent.status !== 'CLOSED') setupRealtime();
+    if (currentEvent.status !== 'CLOSED') { setupRealtime(); startCallsPoller(); }
   }
 
   buildKeypad();
@@ -522,22 +523,39 @@ function handleStartClick() {
 }
 
 // ─── Carline event ─────────────────────────────────────────────────────
+// Picks the event this screen should be driving. The old version filtered on
+// `campus_id is null` whenever activeCampusId was unknown, which is every
+// operator who didn't personally tap Start -- and with more than one campus
+// every event HAS a campus, so they found nothing, got the "Start Dismissal"
+// screen in the middle of a live dismissal, and tapping Start just bounced off
+// the school+date+campus unique index. Dead end with no way out.
+//
+// Prefer this screen's campus, then a school-wide (null campus) event, then
+// whatever is open. The header shows currentEvent.name (the campus name) so an
+// operator can see which campus they landed on.
+function pickEventForCampus(rows) {
+  const all = rows || [];
+  if (!all.length) return null;
+  const open = all.filter(e => e.status !== 'CLOSED');
+  const pool = open.length ? open : all;
+  const byNewest = [...pool].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  return (activeCampusId && byNewest.find(e => e.campus_id === activeCampusId))
+      || byNewest.find(e => e.campus_id == null)
+      || byNewest[0];
+}
+
 async function ensureCarlineEvent() {
   const today = localToday();
-  let q = supabase
+  const { data } = await supabase
     .from('carline_events')
-    .select('id, status, name')
+    .select('id, status, name, campus_id, created_at')
     .eq('school_id', profile.school_id)
     .eq('event_date', today);
 
-  if (activeCampusId) {
-    q = q.eq('campus_id', activeCampusId);
-  } else {
-    q = q.is('campus_id', null);
-  }
-
-  const { data } = await q.maybeSingle();
-  currentEvent = data ?? null;
+  currentEvent = pickEventForCampus(data);
+  // Adopt the event's campus so tag lookups (atActiveCampus) scope to the same
+  // campus this screen is calling for.
+  if (currentEvent && !activeCampusId) activeCampusId = currentEvent.campus_id ?? null;
   updateEventUI();
 }
 
@@ -561,6 +579,7 @@ async function startDismissal(campusId = null) {
   currentEvent = data;
   updateEventUI();
   setupRealtime();
+  startCallsPoller();
   showToast('Dismissal started');
 }
 
@@ -574,6 +593,7 @@ async function closeDismissal() {
   if (error) { showToast('Failed to close dismissal'); return; }
   currentEvent.status = 'CLOSED';
   if (realtimeChannel) { supabase.removeChannel(realtimeChannel); realtimeChannel = null; }
+  clearInterval(callsPollTimer); callsPollTimer = null;
   updateEventUI();
   showToast('Dismissal closed');
 }
@@ -589,6 +609,7 @@ async function reopenDismissal() {
   currentEvent.status = 'OPEN';
   updateEventUI();
   setupRealtime();
+  startCallsPoller();
   await loadExistingCalls();
   showToast('Dismissal reopened');
 }
@@ -658,9 +679,9 @@ function watchForNewEvents() {
       if (!ev || !currentEvent || ev.id !== currentEvent.id) return;
       currentEvent.status = ev.status;
       updateEventUI();
-      if (ev.status === 'CLOSED' && realtimeChannel) {
-        supabase.removeChannel(realtimeChannel);
-        realtimeChannel = null;
+      if (ev.status === 'CLOSED') {
+        if (realtimeChannel) { supabase.removeChannel(realtimeChannel); realtimeChannel = null; }
+        clearInterval(callsPollTimer); callsPollTimer = null;
       }
     })
     .subscribe();
@@ -668,18 +689,24 @@ function watchForNewEvents() {
   eventPollTimer = setInterval(pollForEvent, 10_000);
 }
 
+// carline_events is not in the supabase_realtime publication, so the INSERT
+// listener never fires and this poll is the only way a waiting input screen
+// notices dismissal started. Same campus-filter trap as ensureCarlineEvent --
+// see the note there.
 async function pollForEvent() {
   if (currentEvent) { clearInterval(eventPollTimer); eventPollTimer = null; return; }
   const today = localToday();
-  let q = supabase
+  const { data } = await supabase
     .from('carline_events')
-    .select('id, status, name')
+    .select('id, status, name, campus_id, created_at')
     .eq('school_id', profile.school_id)
     .eq('event_date', today)
     .neq('status', 'CLOSED');
-  q = activeCampusId ? q.eq('campus_id', activeCampusId) : q.is('campus_id', null);
-  const { data } = await q.maybeSingle();
-  if (data) await onEventStarted(data);
+  const ev = pickEventForCampus(data);
+  if (ev) {
+    if (!activeCampusId) activeCampusId = ev.campus_id ?? null;
+    await onEventStarted(ev);
+  }
 }
 
 async function onEventStarted(ev) {
@@ -689,6 +716,7 @@ async function onEventStarted(ev) {
   await loadExistingCalls();
   await loadBusArrivals();
   setupRealtime();
+  startCallsPoller();
   renderBusGrid();
   renderFlagGroupGrid();
   showToast('Dismissal started');
@@ -732,6 +760,29 @@ function setupRealtime() {
       updateBusButtonStates();
     })
     .subscribe();
+}
+
+// With several operators working the line at once, each input screen only ever
+// knew about its own calls: carline_calls is not in the supabase_realtime
+// publication so the postgres_changes listener above never fires, and the
+// broadcast channel is send-only from here. Operator B's screen therefore
+// showed a family as WAITING that operator A had already called, and every
+// bus/flag group count was wrong on every screen but the one that pressed it.
+//
+// Same 8s cadence as the dismissal board's poller. Safe to run under the
+// keypad: updateGroupButtons() and updateBusButtonStates() mutate the existing
+// buttons in place rather than rebuilding the grids, so a poll landing while an
+// operator is mid-entry cannot steal focus or drop a typed digit.
+function startCallsPoller() {
+  clearInterval(callsPollTimer);
+  callsPollTimer = setInterval(async () => {
+    if (!currentEvent || currentEvent.status === 'CLOSED') {
+      clearInterval(callsPollTimer); callsPollTimer = null;
+      return;
+    }
+    await loadBusArrivals();
+    await loadExistingCalls();   // repaints the group buttons itself
+  }, 8000);
 }
 
 // ─── Call actions ──────────────────────────────────────────────────────

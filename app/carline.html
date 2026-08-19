@@ -643,6 +643,7 @@ let activePickupGroupIds = new Set(); // pickup group ids selected in class bar
 let allPickupGroups      = [];        // carline_pickup_groups for this school
 let teacherNameMap       = new Map(); // employee_id → "First Last"
 let currentKioskPin      = null;      // loaded when pickup drawer opens
+let activeCampusId   = null;   // this board's campus; null = unassigned/school-wide
 let realtimeChannel  = null;
 let eventPollTimer   = null;
 let callsPollTimer   = null;
@@ -691,13 +692,18 @@ async function boot() {
   });
 
   await Promise.all([ loadStudents(), loadFamilyTags(), loadTeacherNames(), loadCampuses(), loadBusGroups(), loadPickupGroups() ]);
+
+  // Class first: resolveBoardCampus() reads it, and ensureCarlineEvent() needs
+  // the campus to pick the right event.
+  detectTeacherClass();
+  resolveBoardCampus();
+
   await ensureCarlineEvent();
   if (currentEvent) {
     await loadExistingCalls();
     await loadBusArrivals();
   }
 
-  detectTeacherClass();
   wireEvents();
   renderClassBar();
   renderColumns();
@@ -846,11 +852,19 @@ function renderBusArrivalBar() {
   prevBusArrivalIds = new Set(unique.map(a => a.bus_group_id));
 }
 
+// Reads every call recorded for the school today rather than only the event
+// this board attached to. With two campuses running two events, a board that
+// guessed wrong would sit empty all afternoon while its students were being
+// called; this way the attachment only decides the realtime fast path and the
+// 8s poll heals a wrong guess within one cycle. A student belongs to one
+// campus, so the extra rows can never collide -- and the board renders only the
+// teacher's own class regardless.
 async function loadExistingCalls() {
   const { data } = await supabase
     .from('carline_calls')
-    .select('student_id, status, called_at, call_type')
-    .eq('carline_event_id', currentEvent.id);
+    .select('student_id, status, called_at, call_type, carline_events!inner(id)')
+    .eq('school_id', profile.school_id)
+    .eq('carline_events.event_date', localToday());
   callStatus.clear();
   calledAt.clear();
   (data || []).forEach(c => {
@@ -890,31 +904,45 @@ function localToday() {
 }
 
 // ─── Carline event ─────────────────────────────────────────────────────
+// Today can legitimately hold more than one event: one per campus (the unique
+// index is on school + date + campus), plus the race where two staff tap Start
+// at the same moment on different devices. Never use maybeSingle() here -- it
+// errors on two rows and blanks the board, the worst possible failure for a
+// screen nobody is watching until dismissal starts.
+//
+// Pick the event this board belongs to: my campus first, then a school-wide
+// (null campus) event, then anything OPEN. A board whose teacher has no campus
+// assigned falls through to the last case and may attach to the wrong campus --
+// so with multiple campuses every employee needs campus_id set.
+function pickEventForCampus(rows) {
+  const all = rows || [];
+  if (!all.length) return null;
+  const open = all.filter(e => e.status !== 'CLOSED');
+  const pool = open.length ? open : all;
+  const byNewest = [...pool].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+  return (activeCampusId && byNewest.find(e => e.campus_id === activeCampusId))
+      || byNewest.find(e => e.campus_id == null)
+      || byNewest[0];
+}
+
 async function ensureCarlineEvent() {
   const today = localToday();
-  // Tolerate more than one event for the same date. maybeSingle() throws when
-  // it gets two rows, which blanked the board entirely — the worst possible
-  // failure for a screen nobody is watching until dismissal starts. Two rows
-  // are reachable if two staff tap Start at the same moment on different
-  // devices, or if a school ever runs a second event in one day. Prefer the
-  // OPEN one ('OPEN' sorts after 'CLOSED' descending), newest first.
   const { data } = await supabase
     .from('carline_events')
-    .select('id, status, name, all_call_at')
+    .select('id, status, name, all_call_at, campus_id, created_at')
     .eq('school_id', profile.school_id)
-    .eq('event_date', today)
-    .order('status', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .eq('event_date', today);
 
-  currentEvent = data ?? null;
+  currentEvent = pickEventForCampus(data);
   allCallAt = currentEvent?.all_call_at ?? null;
   updateEventUI();
   updateAllCallBanner(false);
 }
 
 async function startDismissal(campusId = null) {
+  // Starting a campus's dismissal pins this board to that campus, so a later
+  // re-resolve (reconnect, refresh) doesn't drift onto the other campus's event.
+  activeCampusId   = campusId ?? activeCampusId;
   const today      = localToday();
   const campusName = allCampuses.find(c => c.id === campusId)?.name ?? null;
   const { data, error } = await supabase
@@ -927,7 +955,7 @@ async function startDismissal(campusId = null) {
       campus_id:             campusId,
       created_by_profile_id: profile.id,
     })
-    .select('id, status, name')
+    .select('id, status, name, campus_id, created_at')
     .single();
   if (error) { showToast('Failed to start dismissal'); return; }
   currentEvent = data;
@@ -1072,6 +1100,27 @@ function updateEventUI() {
 }
 
 // ─── Teacher auto-detection ────────────────────────────────────────────
+// Which campus this board belongs to, derived from the campus of the teacher's
+// own students. Deliberately NOT read off the employee record the way
+// carline-input does: employees has no campus_id column, so that lookup returns
+// nothing and every board would fall through to "pick whichever event is
+// newest" -- a coin flip between campuses. students.campus_id is the field the
+// roster actually maintains.
+//
+// Only consulted when the school has more than one campus; with one campus
+// every event is that campus and there is nothing to choose between.
+function resolveBoardCampus() {
+  if (allCampuses.length <= 1) return;
+  const tally = new Map();
+  allStudents.forEach(s => {
+    if (!s.campus_id) return;
+    if (!activeTeacherIds.has(s.homeroom_teacher_id ?? '__none__')) return;
+    tally.set(s.campus_id, (tally.get(s.campus_id) || 0) + 1);
+  });
+  if (!tally.size) return;   // no class detected, or no campus on the roster
+  activeCampusId = [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
+
 function detectTeacherClass() {
   if (!profile.employee_id) return;
   const hasStudents = allStudents.some(s => s.homeroom_teacher_id === profile.employee_id);
@@ -1630,6 +1679,8 @@ function watchForNewEvents() {
     }, async payload => {
       const ev = payload.new;
       if (!ev || ev.status === 'CLOSED' || currentEvent) return;
+      // Another campus starting its own dismissal is not this board's event.
+      if (activeCampusId && ev.campus_id && ev.campus_id !== activeCampusId) return;
       await onEventStarted(ev);
     })
     .on('postgres_changes', {
@@ -1669,17 +1720,23 @@ function watchForNewEvents() {
   eventPollTimer = setInterval(pollForEvent, 10_000);
 }
 
+// carline_events is NOT in the supabase_realtime publication, so the INSERT
+// listener in watchForNewEvents never fires -- this poll is the ONLY thing that
+// gets a waiting board to notice dismissal started. It previously used
+// maybeSingle(), which errors the moment a second campus starts its own event,
+// leaving every board stuck on "No Active Dismissal" until someone walked to
+// each room and refreshed it. Never reintroduce maybeSingle() here.
 async function pollForEvent() {
   if (currentEvent) { clearInterval(eventPollTimer); eventPollTimer = null; return; }
   const today = localToday();
   const { data } = await supabase
     .from('carline_events')
-    .select('id, status, name, all_call_at')
+    .select('id, status, name, all_call_at, campus_id, created_at')
     .eq('school_id', profile.school_id)
     .eq('event_date', today)
-    .neq('status', 'CLOSED')
-    .maybeSingle();
-  if (data) await onEventStarted(data);
+    .neq('status', 'CLOSED');
+  const ev = pickEventForCampus(data);
+  if (ev) await onEventStarted(ev);
 }
 
 async function onEventStarted(ev) {
