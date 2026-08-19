@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, GRADE_ORDER, gradeLabel } from './admin.shared.js?v=3';
+import { esc, GRADE_ORDER, gradeLabel, invalidateSchoolConfigCache } from './admin.shared.js?v=3';
 
 export function showConfirmModal({ title, body, okLabel = 'Delete', danger = true }) {
   return new Promise(resolve => {
@@ -41,9 +41,55 @@ let _showArchived = false;
 let _showDeleted  = false;
 let _formEmployees = [];
 let _selectedTeacherIds = new Set();
+let _periods      = [];   // schedule_periods for this school, active only
+
+/* A board is "live" once it has been applied to the world: a committed
+   homeroom board has written students.homeroom_teacher_id, a published
+   section board is visible to teachers. The two differ in what that means
+   for editing -- a published section stays fully editable, a committed
+   homeroom does not -- so callers check isLive() plus the kind, never
+   `status === 'committed'` on its own. */
+export function isLive(session) {
+  return session?.status === 'committed' || session?.status === 'published';
+}
+
+export function isSection(session) {
+  return session?.session_kind === 'section';
+}
+
+/* Schools with uses_homerooms = false have no homeroom to commit to, so
+   every board there is a section. */
+export function homeroomBoardsAllowed(schoolConfig) {
+  return schoolConfig?.uses_homerooms !== false;
+}
+
+export async function loadPeriods(schoolId) {
+  const { data, error } = await supabase
+    .from('schedule_periods')
+    .select('id, label, short_label, grade_levels, sort_order')
+    .eq('school_id', schoolId)
+    .is('archived_at', null)
+    .order('sort_order');
+  if (error) { console.error('Failed to load periods', error); return []; }
+  _periods = data ?? [];
+  return _periods;
+}
+
+export function getPeriods() { return _periods; }
+
+/* NULL grade_levels means the period applies to every grade (e.g. a
+   school-wide Advisory). */
+export function periodsForGrade(grade) {
+  if (!grade) return _periods;
+  return _periods.filter(p => !p.grade_levels?.length || p.grade_levels.includes(grade));
+}
+
+export function periodLabel(periodId) {
+  return _periods.find(p => p.id === periodId)?.label ?? null;
+}
 
 function showPlacementView(id) {
-  ['placementSessionListView', 'placementCreateFormView', 'placementBoardView'].forEach(v => {
+  ['placementSessionListView', 'placementCreateFormView', 'placementBoardView', 'placementGridView'].forEach(v => {
     const el = document.getElementById(v);
     if (el) el.hidden = v !== id;
   });
@@ -57,9 +103,13 @@ function openBoard(sessionId) {
 // ENTRY
 // ═══════════════════════════════════════════════════════════════════════
 
-export function initSessions(profile, schoolConfig) {
+export async function initSessions(profile, schoolConfig) {
   _profile      = profile;
   _schoolConfig = schoolConfig;
+  // Awaited by the caller: periodLabel() is read during the first board
+  // paint, so resolving this later would drop the period chip until the
+  // next render.
+  await loadPeriods(profile.school_id);
 }
 
 export function setShowArchived(val) {
@@ -76,7 +126,95 @@ export function setShowDeleted(val) {
 
 export async function showSessionList() {
   showPlacementView('placementSessionListView');
-  await renderSessionList();
+  await Promise.all([renderSessionList(), renderCurrentYearControl()]);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CURRENT ACADEMIC YEAR
+// ═══════════════════════════════════════════════════════════════════════
+// schools.current_academic_year is what every schedule read surface (My
+// Roster tabs, Student Lookup, the admin grid) filters on to show this
+// year's classes instead of every year ever committed or published. The
+// migration backfills it from each school's newest board, but a school
+// created after that backfill -- or one whose boards all got trashed --
+// can end up with it null, which would make every schedule view silently
+// render empty with no clue why. Surfacing it here, on the page that
+// already owns academic_year end to end, means an admin builds a board
+// and can set the year in the same breath.
+
+async function distinctAcademicYears() {
+  const { data } = await supabase
+    .from('placement_sessions')
+    .select('academic_year')
+    .eq('school_id', _profile.school_id)
+    .is('deleted_at', null);
+
+  const years = new Set((data ?? []).map(r => r.academic_year).filter(Boolean));
+  // Always offer this year and next, even for a school with no boards yet.
+  const now = new Date().getFullYear();
+  years.add(`${now}-${now + 1}`);
+  years.add(`${now + 1}-${now + 2}`);
+  return [...years].sort().reverse();
+}
+
+export async function renderCurrentYearControl() {
+  const wrap = document.getElementById('currentYearControl');
+  if (!wrap) return;
+
+  const current = _schoolConfig?.current_academic_year ?? null;
+
+  if (!current) {
+    wrap.innerHTML = `
+      <div class="placement-year-warning">
+        <i data-lucide="triangle-alert" style="width:14px;height:14px;flex-shrink:0;"></i>
+        <span>No current year set — schedules won't show to teachers until this is set.</span>
+        <button class="btn btn-sm btn-primary" id="setCurrentYearBtn" style="height:26px;padding:0 10px;">Set current year</button>
+      </div>`;
+  } else {
+    wrap.innerHTML = `
+      <div class="placement-year-chip-row">
+        <span class="muted" style="font-size:12px;">Current year:</span>
+        <span class="placement-year-chip">${esc(current.replace('-', '–'))}</span>
+        <button class="psc-icon-btn" id="setCurrentYearBtn" title="Change current year">
+          <i data-lucide="pencil" style="width:12px;height:12px;"></i>
+        </button>
+      </div>`;
+  }
+  if (window.lucide) lucide.createIcons({ nodes: [wrap] });
+  document.getElementById('setCurrentYearBtn')?.addEventListener('click', openCurrentYearEditor);
+}
+
+async function openCurrentYearEditor() {
+  const wrap = document.getElementById('currentYearControl');
+  if (!wrap) return;
+
+  const years = await distinctAcademicYears();
+  const current = _schoolConfig?.current_academic_year ?? '';
+
+  wrap.innerHTML = `
+    <div class="placement-year-chip-row">
+      <span class="muted" style="font-size:12px;">Current year:</span>
+      <select id="currentYearSelect" class="form-input" style="height:28px;font-size:12px;padding:0 6px;width:auto;">
+        ${years.map(y => `<option value="${esc(y)}" ${y === current ? 'selected' : ''}>${esc(y.replace('-', '–'))}</option>`).join('')}
+      </select>
+      <button class="btn btn-sm btn-primary" id="saveCurrentYearBtn" style="height:26px;padding:0 10px;">Save</button>
+      <button class="btn btn-sm btn-outline" id="cancelCurrentYearBtn" style="height:26px;padding:0 10px;">Cancel</button>
+    </div>`;
+
+  document.getElementById('saveCurrentYearBtn')?.addEventListener('click', async () => {
+    const value = document.getElementById('currentYearSelect')?.value;
+    if (!value) return;
+    const { error } = await supabase
+      .from('schools')
+      .update({ current_academic_year: value })
+      .eq('id', _profile.school_id);
+    if (error) { alert('Failed to save the current year: ' + error.message); return; }
+
+    if (_schoolConfig) _schoolConfig.current_academic_year = value;
+    invalidateSchoolConfigCache(_profile.school_id);
+    await renderCurrentYearControl();
+  });
+  document.getElementById('cancelCurrentYearBtn')?.addEventListener('click', renderCurrentYearControl);
 }
 
 export async function renderSessionList() {
@@ -103,7 +241,7 @@ export async function renderSessionList() {
 
   let query = supabase
     .from('placement_sessions')
-    .select('id, label, academic_year, incoming_grade, target_grade, status, created_at, committed_at, target_class_size, archived_at, deleted_at, sort_order')
+    .select('id, label, academic_year, incoming_grade, target_grade, status, created_at, committed_at, target_class_size, archived_at, deleted_at, sort_order, session_kind, period_id, published_at')
     .eq('school_id', _profile.school_id)
     .order('sort_order', { ascending: true });
 
@@ -136,11 +274,14 @@ export async function renderSessionList() {
   data.forEach(s => {
     const row = document.createElement('div');
     const committed = s.status === 'committed';
+    const published = s.status === 'published';
+    const section   = isSection(s);
     const archived  = !!s.archived_at;
     const deleted   = !!s.deleted_at;
 
     row.className = 'placement-session-card' +
       (committed ? ' placement-session-card--committed' : '') +
+      (published ? ' placement-session-card--published' : '') +
       (archived  ? ' placement-session-card--archived'  : '') +
       (deleted   ? ' placement-session-card--deleted'   : '');
 
@@ -150,11 +291,16 @@ export async function renderSessionList() {
       row.dataset.id = s.id;
     }
 
+    const shortDate = d => new Date(d).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' });
     const dateLabel = deleted
-      ? 'Deleted '    + new Date(s.deleted_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' })
+      ? 'Deleted '   + shortDate(s.deleted_at)
       : committed && s.committed_at
-        ? 'Committed ' + new Date(s.committed_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' })
-        : 'Created '   + new Date(s.created_at).toLocaleDateString([], { month:'short', day:'numeric', year:'numeric' });
+        ? 'Committed ' + shortDate(s.committed_at)
+        : published && s.published_at
+          ? 'Published ' + shortDate(s.published_at)
+          : 'Created '   + shortDate(s.created_at);
+
+    const periodName = s.period_id ? periodLabel(s.period_id) : null;
 
     row.innerHTML = `
       <div class="placement-session-card-accent"></div>
@@ -167,6 +313,8 @@ export async function renderSessionList() {
           <div class="placement-session-meta">
             <span class="placement-year-chip">${esc(s.academic_year.replace('-','–'))}</span>
             <span class="placement-grade-chip placement-grade-chip--to">${gradeLabel(s.incoming_grade)}</span>
+            <span class="placement-kind-chip placement-kind-chip--${section ? 'section' : 'homeroom'}">${section ? 'Section' : 'Homeroom'}</span>
+            ${periodName ? `<span class="placement-period-chip">${esc(periodName)}</span>` : ''}
             ${archived ? '<span class="placement-grade-chip" style="background:#f1f5f9;color:#64748b;">Archived</span>' : ''}
             ${deleted  ? '<span class="placement-grade-chip" style="background:#fef2f2;color:#dc2626;">Deleted</span>' : ''}
           </div>
@@ -175,7 +323,9 @@ export async function renderSessionList() {
           <div class="placement-session-card-status">
             ${deleted
               ? `<span class="placement-status-badge" style="background:#fef2f2;color:#dc2626;">Trash</span>`
-              : `<span class="placement-status-badge ${committed ? 'badge-committed' : 'badge-draft'}">${committed ? 'Committed' : 'Draft'}</span>`
+              : published
+                ? `<span class="placement-status-badge badge-published">Published</span>`
+                : `<span class="placement-status-badge ${committed ? 'badge-committed' : 'badge-draft'}">${committed ? 'Committed' : 'Draft'}</span>`
             }
             <span class="placement-session-date">${dateLabel}</span>
           </div>
@@ -197,7 +347,7 @@ export async function renderSessionList() {
               <button class="psc-icon-btn archive-session-btn" data-id="${s.id}" data-archived="${archived}" title="${archived ? 'Unarchive' : 'Archive'} session">
                 <i data-lucide="${archived ? 'archive-restore' : 'archive'}" style="width:14px;height:14px;"></i>
               </button>
-              ${!committed && !archived ? `<button class="psc-icon-btn psc-icon-btn--danger delete-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" title="Move to trash">
+              ${!committed && !published && !archived ? `<button class="psc-icon-btn psc-icon-btn--danger delete-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" title="Move to trash">
                 <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
               </button>` : ''}
               ${!archived ? `<button class="btn btn-sm ${committed ? 'btn-outline' : 'btn-primary'} open-session-btn" data-id="${s.id}" style="gap:6px;">
@@ -408,6 +558,10 @@ async function cloneSession(original) {
       status:            'draft',
       target_class_size: original.target_class_size ?? null,
       sort_order:        await nextTopSortOrder(),
+      // Without these the clone of a section board comes back as a homeroom
+      // board, and committing it would rewrite every student's homeroom.
+      session_kind:      original.session_kind ?? 'homeroom',
+      period_id:         original.period_id ?? null,
     })
     .select('id')
     .single();
@@ -445,6 +599,213 @@ function nextAcademicYear(year) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// PERIODS
+// ═══════════════════════════════════════════════════════════════════════
+
+export async function openPeriodsModal() {
+  await loadPeriods(_profile.school_id);
+  renderPeriodsList();
+  renderPeriodGradePicker();
+  const labelEl = document.getElementById('newPeriodLabel');
+  if (labelEl) labelEl.value = '';
+  document.getElementById('periodsModal').hidden = false;
+}
+
+function renderPeriodGradePicker() {
+  const wrap = document.getElementById('newPeriodGrades');
+  if (!wrap) return;
+  const grades = _schoolConfig?.grade_levels ?? GRADE_ORDER;
+  wrap.innerHTML = grades.map(g =>
+    `<label class="placement-grade-pick"><input type="checkbox" value="${esc(g)}"> ${esc(gradeLabel(g))}</label>`
+  ).join('');
+}
+
+function renderPeriodsList() {
+  const wrap = document.getElementById('periodsList');
+  if (!wrap) return;
+
+  if (!_periods.length) {
+    wrap.innerHTML = '<p class="muted" style="font-size:13px;margin:0;">No periods yet. Add your first one below.</p>';
+    return;
+  }
+
+  wrap.innerHTML = _periods.map(p => {
+    const scope = p.grade_levels?.length
+      ? p.grade_levels.map(g => gradeLabel(g)).join(', ')
+      : 'All grades';
+    return `
+      <div class="placement-period-row">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;">${esc(p.label)}</div>
+          <div class="muted" style="font-size:12px;">${esc(scope)}</div>
+        </div>
+        <button class="psc-icon-btn psc-icon-btn--danger archive-period-btn" data-id="${p.id}" data-label="${esc(p.label)}" title="Remove period">
+          <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+        </button>
+      </div>`;
+  }).join('');
+
+  wrap.querySelectorAll('.archive-period-btn').forEach(btn =>
+    btn.addEventListener('click', () => archivePeriod(btn.dataset.id, btn.dataset.label))
+  );
+  if (window.lucide) lucide.createIcons({ nodes: [wrap] });
+}
+
+export async function addPeriod() {
+  const labelEl = document.getElementById('newPeriodLabel');
+  const label   = labelEl?.value.trim();
+  if (!label) { alert('Give the period a name.'); return; }
+
+  const grades = [...document.querySelectorAll('#newPeriodGrades input:checked')].map(c => c.value);
+
+  const { error } = await supabase.from('schedule_periods').insert({
+    school_id:    _profile.school_id,
+    label,
+    grade_levels: grades.length ? grades : null,
+    sort_order:   _periods.length,
+  });
+
+  if (error) {
+    alert(error.code === '23505'
+      ? `There is already a period called “${label}”.`
+      : 'Failed to add the period: ' + error.message);
+    return;
+  }
+
+  labelEl.value = '';
+  document.querySelectorAll('#newPeriodGrades input:checked').forEach(c => { c.checked = false; });
+  await loadPeriods(_profile.school_id);
+  renderPeriodsList();
+}
+
+/* Archived rather than deleted: placement_sessions.period_id is ON DELETE
+   SET NULL, so a hard delete would silently strip the period off every
+   board that used it -- including published ones, which would then be
+   sections with nowhere to sit in the day. */
+async function archivePeriod(id, label) {
+  const { count } = await supabase
+    .from('placement_sessions')
+    .select('id', { count: 'exact', head: true })
+    .eq('school_id', _profile.school_id)
+    .eq('period_id', id)
+    .is('deleted_at', null);
+
+  const inUse = count ?? 0;
+  const ok = await showConfirmModal({
+    title: 'Remove Period',
+    body: inUse
+      ? `“${label}” is used by ${inUse} board${inUse !== 1 ? 's' : ''}. Removing it hides it from new boards; those boards keep their period.`
+      : `Remove “${label}”?`,
+    okLabel: 'Remove',
+  });
+  if (!ok) return;
+
+  const { error } = await supabase
+    .from('schedule_periods')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) { alert('Failed to remove the period.'); return; }
+  await loadPeriods(_profile.school_id);
+  renderPeriodsList();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// GRID — every live board this year, by period × grade
+// ═══════════════════════════════════════════════════════════════════════
+// A quick-scan view of the schedule as a whole, the way an admin actually
+// thinks about it: which grades have which classes in which period, and
+// is anything missing. Rows are periods (Homeroom first, since it's the
+// one slot every K-7 board defaults into), columns are grades.
+
+export async function showGrid() {
+  showPlacementView('placementGridView');
+  await renderGrid();
+}
+
+export async function renderGrid() {
+  const wrap = document.getElementById('placementGridWrap');
+  if (!wrap) return;
+
+  const year = _schoolConfig?.current_academic_year;
+  if (!year) {
+    wrap.innerHTML = `<p class="muted" style="padding:20px 0;">Set a current academic year on the sessions list first — the grid reads live boards for that year.</p>`;
+    return;
+  }
+
+  wrap.innerHTML = `<p class="muted" style="padding:20px 0;">Loading…</p>`;
+
+  const { data: sessions, error } = await supabase
+    .from('placement_sessions')
+    .select('id, label, incoming_grade, session_kind, period_id, status')
+    .eq('school_id', _profile.school_id)
+    .eq('academic_year', year)
+    .in('status', ['committed', 'published'])
+    .is('deleted_at', null)
+    .is('archived_at', null);
+
+  if (error) { wrap.innerHTML = `<p class="muted" style="padding:20px 0;">Failed to load the grid.</p>`; return; }
+
+  if (!sessions?.length) {
+    wrap.innerHTML = `<p class="muted" style="padding:20px 0;">No committed or published boards for ${esc(year.replace('-', '–'))} yet.</p>`;
+    return;
+  }
+
+  // One query for every visible board's headcount, grouped client-side --
+  // cheaper than a per-session count query, and the row count here is
+  // bounded by one school's live rosters, not the whole database.
+  const sessionIds = sessions.map(s => s.id);
+  const { data: assignments } = await supabase
+    .from('placement_assignments')
+    .select('session_id, teacher_id, assigned_col_id')
+    .in('session_id', sessionIds);
+
+  const countBySession = {};
+  (assignments ?? []).forEach(a => {
+    if (a.teacher_id == null && a.assigned_col_id == null) return;
+    countBySession[a.session_id] = (countBySession[a.session_id] ?? 0) + 1;
+  });
+
+  const grades = _schoolConfig?.grade_levels ?? GRADE_ORDER;
+
+  // Homeroom row: homeroom-kind boards with no period (the common case).
+  // A homeroom that doubles as a period ("Core 1 & HR") sorts into that
+  // period's own row instead, via period_id -- not duplicated into both.
+  const homeroomRow = { key: 'homeroom', label: 'Homeroom', sessions: sessions.filter(s => s.session_kind === 'homeroom' && !s.period_id) };
+  const periodRows = _periods.map(p => ({ key: p.id, label: p.label, sessions: sessions.filter(s => s.period_id === p.id) }));
+  const rows = [homeroomRow, ...periodRows].filter(r => r.sessions.length > 0);
+
+  if (!rows.length) {
+    wrap.innerHTML = `<p class="muted" style="padding:20px 0;">No committed or published boards for ${esc(year.replace('-', '–'))} yet.</p>`;
+    return;
+  }
+
+  const cell = (row, grade) => {
+    const cellSessions = row.sessions.filter(s => s.incoming_grade === grade);
+    if (!cellSessions.length) return `<td class="placement-grid-cell placement-grid-cell--empty">—</td>`;
+    return `<td class="placement-grid-cell">${cellSessions.map(s => `
+      <button type="button" class="placement-grid-pill placement-grid-pill--${s.status}" data-id="${s.id}">
+        <span class="placement-grid-pill-label">${esc(s.label)}</span>
+        <span class="placement-grid-pill-count">${countBySession[s.id] ?? 0} students</span>
+      </button>`).join('')}</td>`;
+  };
+
+  wrap.innerHTML = `
+    <div class="table-wrap">
+      <table class="admin-table placement-grid-table">
+        <thead><tr><th>Period</th>${grades.map(g => `<th>${esc(gradeLabel(g))}</th>`).join('')}</tr></thead>
+        <tbody>
+          ${rows.map(row => `<tr><td class="placement-grid-row-label">${esc(row.label)}</td>${grades.map(g => cell(row, g)).join('')}</tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  wrap.querySelectorAll('.placement-grid-pill').forEach(btn =>
+    btn.addEventListener('click', () => openBoard(btn.dataset.id))
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // CREATE FORM
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -452,10 +813,68 @@ export async function showCreateForm() {
   showPlacementView('placementCreateFormView');
   populateCreateFormYears();
   populateGradeSelect();
+  await loadPeriods(_profile.school_id);
+  setupBoardKindControls();
   _selectedTeacherIds = new Set();
   const searchEl = document.getElementById('placementStaffSearch');
   if (searchEl) searchEl.value = '';
   await loadEmployeesForForm();
+}
+
+/* Board type + period. At a school with uses_homerooms = false there is no
+   homeroom to commit to, so the choice is meaningless -- the whole control
+   is hidden and every board is created as a section. */
+function setupBoardKindControls() {
+  const wrap      = document.getElementById('placementKindWrap');
+  const homeroom  = document.getElementById('placementKindHomeroom');
+  const section   = document.getElementById('placementKindSection');
+  const gradeSel  = document.getElementById('placementIncomingGrade');
+  const allowed   = homeroomBoardsAllowed(_schoolConfig);
+
+  if (wrap) wrap.hidden = !allowed;
+  if (homeroom) homeroom.checked = allowed;
+  if (section)  section.checked  = !allowed;
+
+  const sync = () => {
+    populatePeriodSelect(gradeSel?.value ?? '');
+    const isSec = !!section?.checked;
+    const hint  = document.getElementById('placementKindHint');
+    if (hint) {
+      hint.textContent = isSec
+        ? 'Publishing this board shows it to teachers as part of the student’s schedule. It does not change anyone’s homeroom.'
+        : 'Committing this board sets each student’s homeroom teacher, which drives dismissal, rosters, and compliance reporting.';
+    }
+    // A period is what makes a section addressable in a schedule, so it is
+    // required there. On a homeroom board it stays optional -- it only
+    // matters when the homeroom doubles as a period ("Core 1 & HR").
+    const periodLbl = document.getElementById('placementPeriodLabel');
+    if (periodLbl) periodLbl.innerHTML = isSec
+      ? 'Period'
+      : 'Period <span class="muted" style="font-weight:400;">(optional)</span>';
+  };
+
+  homeroom?.addEventListener('change', sync);
+  section?.addEventListener('change', sync);
+  gradeSel?.addEventListener('change', () => populatePeriodSelect(gradeSel.value));
+  sync();
+}
+
+function populatePeriodSelect(grade) {
+  const sel = document.getElementById('placementPeriod');
+  if (!sel) return;
+  const prev = sel.value;
+  const list = periodsForGrade(grade);
+  sel.innerHTML = '<option value="">— None —</option>';
+  list.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.label;
+    sel.appendChild(opt);
+  });
+  if (prev && list.some(p => p.id === prev)) sel.value = prev;
+
+  const empty = document.getElementById('placementPeriodEmpty');
+  if (empty) empty.hidden = list.length > 0;
 }
 
 function populateCreateFormYears() {
@@ -606,7 +1025,20 @@ export async function submitCreateForm() {
     return;
   }
 
-  const label  = labelInput || `${gradeLabel(grade)} Placement`;
+  const sessionKind = document.getElementById('placementKindSection')?.checked ? 'section' : 'homeroom';
+  const periodId    = document.getElementById('placementPeriod')?.value || null;
+
+  // A section with no period cannot be placed in a schedule -- it would
+  // publish and then show up nowhere, which reads as the feature being broken.
+  if (sessionKind === 'section' && !periodId) {
+    alert('Pick a period for this section board. Teachers need it to know where the class sits in the day.');
+    return;
+  }
+
+  const label  = labelInput ||
+    (sessionKind === 'section' && periodId
+      ? `${gradeLabel(grade)} ${periodLabel(periodId)}`
+      : `${gradeLabel(grade)} Placement`);
 
   const checked = _formEmployees
     .filter(e => _selectedTeacherIds.has(e.id))
@@ -635,6 +1067,8 @@ export async function submitCreateForm() {
       status:            'draft',
       target_class_size: targetClassSize,
       sort_order:        await nextTopSortOrder(),
+      session_kind:      sessionKind,
+      period_id:         periodId,
     })
     .select('id')
     .single();
@@ -658,23 +1092,31 @@ export async function submitCreateForm() {
     return;
   }
 
-  const { data: gradeStudents } = await supabase
-    .from('students')
-    .select('id')
-    .eq('school_id', _profile.school_id)
-    .eq('active', true)
-    .eq('grade_level', grade);
+  // Loading the whole grade is right for a homeroom board and for cores,
+  // where every student in the grade is placed somewhere. It is wrong for
+  // an elective, where only the students who signed up belong on the board
+  // -- so that case starts empty and students are added individually.
+  const startEmpty = document.getElementById('placementStartEmpty')?.checked;
 
-  if (gradeStudents && gradeStudents.length > 0) {
-    const { error: assignErr } = await supabase.from('placement_assignments').insert(
-      gradeStudents.map((s, i) => ({
-        session_id: session.id,
-        student_id: s.id,
-        teacher_id: null,
-        sort_order: i,
-      }))
-    );
-    if (assignErr) console.error('Failed to pre-populate student assignments:', assignErr);
+  if (!startEmpty) {
+    const { data: gradeStudents } = await supabase
+      .from('students')
+      .select('id')
+      .eq('school_id', _profile.school_id)
+      .eq('active', true)
+      .eq('grade_level', grade);
+
+    if (gradeStudents && gradeStudents.length > 0) {
+      const { error: assignErr } = await supabase.from('placement_assignments').insert(
+        gradeStudents.map((s, i) => ({
+          session_id: session.id,
+          student_id: s.id,
+          teacher_id: null,
+          sort_order: i,
+        }))
+      );
+      if (assignErr) console.error('Failed to pre-populate student assignments:', assignErr);
+    }
   }
 
   btn.disabled = false;

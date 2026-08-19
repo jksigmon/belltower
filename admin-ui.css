@@ -5781,6 +5781,363 @@ a.staff-dash-request-row:hover {
 
 .placement-grade-arrow { font-size: 12px; color: #94a3b8; }
 
+.placement-year-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.placement-year-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 6px 10px;
+  max-width: fit-content;
+}
+
+/* ── Scheduling: board kind, periods, live state ────────────────────── */
+.placement-kind-chip {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.placement-kind-chip--homeroom { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
+.placement-kind-chip--section  { background: #ecfeff; color: #0e7490; border: 1px solid #a5f3fc; }
+
+.placement-period-chip {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.badge-published { background: #ecfeff; color: #0e7490; }
+
+.placement-session-card--published .placement-session-card-accent { background: #06b6d4; }
+
+/* Sits next to Publish/Unpublish so the board says plainly that edits are
+   already visible to teachers -- there is no second "apply" step. */
+.placement-live-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #ecfeff;
+  color: #0e7490;
+  border: 1px solid #a5f3fc;
+  white-space: nowrap;
+}
+
+/* Board Type and Period each land in a narrow track of the create-form
+   grid by auto-placement (placement-form-grid's columns are sized for
+   Year/Grade/Label/Target Size). Span two tracks so "Core / Block" has
+   room to sit on one line instead of wrapping word-by-word. */
+#placementKindWrap,
+#placementPeriodWrap {
+  grid-column: span 2;
+}
+@media (max-width: 700px) {
+  #placementKindWrap,
+  #placementPeriodWrap {
+    grid-column: 1;
+  }
+}
+
+.placement-kind-choice {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  flex-wrap: wrap;
+  min-height: 38px;
+}
+.placement-kind-choice label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  color: var(--text-secondary, #4b5563);
+}
+.placement-kind-choice input { width: auto; }
+
+/* Explains what Commit/Publish is actually about to do -- easy to skim
+   past as plain gray text, so it gets alert styling to make sure it's
+   read before the admin picks Homeroom vs Core/Block. */
+.placement-kind-hint {
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  color: #92400e;
+}
+.placement-kind-hint:empty { display: none; }
+
+.placement-period-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.placement-period-row:last-child { border-bottom: none; }
+
+.placement-grade-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 6px;
+}
+.placement-grade-pick {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-secondary, #4b5563);
+}
+.placement-grade-pick input { width: auto; }
+
+/* ── My Roster tabs / Student Lookup (staff portal) ─────────────────── */
+.roster-tab-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 4px 0 16px;
+}
+.roster-tab-btn {
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #4b5563;
+  cursor: pointer;
+}
+.roster-tab-btn:hover { background: #f9fafb; }
+.roster-tab-btn.active {
+  background: var(--primary, #1d4ed8);
+  border-color: var(--primary, #1d4ed8);
+  color: #fff;
+}
+
+.sl-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+  max-height: 320px;
+  overflow-y: auto;
+  z-index: 20;
+}
+.sl-search-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 9px 14px;
+  border: none;
+  border-bottom: 1px solid #f3f4f6;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 13px;
+  color: #111827;
+}
+.sl-search-result:last-child { border-bottom: none; }
+.sl-search-result:hover { background: #f9fafb; }
+.sl-search-empty {
+  padding: 14px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.sl-student-header {
+  padding: 4px 0 14px;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 14px;
+}
+
+.sl-schedule-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 200px;
+  gap: 16px;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.sl-schedule-row:last-child { border-bottom: none; }
+.sl-schedule-period {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+.sl-schedule-class {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+.sl-schedule-teacher {
+  font-size: 13px;
+  color: #374151;
+}
+
+@media (max-width: 640px) {
+  .sl-schedule-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}
+
+/* Student drawer's compact read-only schedule list */
+.estu-schedule-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px;
+}
+.estu-schedule-row:last-child { border-bottom: none; }
+.estu-schedule-period {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+.estu-schedule-teacher {
+  font-weight: 600;
+  color: #111827;
+}
+
+/* ── Class Rosters (staff portal) ───────────────────────────────────── */
+.cr-board-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+.cr-board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.cr-board-teacher {
+  font-weight: 700;
+  font-size: 15px;
+  color: #111827;
+}
+.cr-board-students {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cr-student-chip {
+  font-size: 12.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+/* Reusable "read this before you proceed" callout -- same amber treatment
+   as .placement-kind-hint, named generically since it's not specific to
+   placement boards (first use: the student drawer's homeroom warning). */
+.drawer-inline-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  margin-top: 8px;
+  padding: 9px 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  color: #92400e;
+}
+
+/* ── Admin schedule grid (period × grade) ───────────────────────────── */
+.placement-grid-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.placement-grid-table th {
+  white-space: nowrap;
+}
+.placement-grid-row-label {
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  background: #f9fafb;
+}
+.placement-grid-cell {
+  vertical-align: top;
+  padding: 8px !important;
+  min-width: 150px;
+}
+.placement-grid-cell--empty {
+  color: #d1d5db;
+  text-align: center;
+  vertical-align: middle;
+}
+.placement-grid-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 6px 9px;
+  margin-bottom: 5px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.placement-grid-pill:last-child { margin-bottom: 0; }
+.placement-grid-pill-label {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.placement-grid-pill-count {
+  font-size: 11px;
+  opacity: 0.8;
+}
+.placement-grid-pill--committed {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #6d28d9;
+}
+.placement-grid-pill--published {
+  background: #ecfeff;
+  border-color: #a5f3fc;
+  color: #0e7490;
+}
+
 .placement-session-card-right {
   display: flex;
   align-items: center;
@@ -5863,28 +6220,38 @@ a.staff-dash-request-row:hover {
   }
 }
 
-/* Scoped form-group / form-label for placement — not globally defined */
-#placement .form-group {
+/* Scoped to the grid itself rather than an #placement id -- no element on
+   this page has that id, so this block never matched anything and every
+   label here rendered in unstyled browser defaults. That's what produced
+   the ragged mid-sentence wraps: an inline muted hint with no size/width
+   control wrapping wherever the column happened to run out of room. */
+.placement-form-grid .form-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-#placement .form-label {
+.placement-form-grid .form-label {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: #374151;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin: 0;
 }
 
-#placement .form-label .muted {
+/* Forced onto its own line rather than left to wrap inline -- a hint that
+   sometimes takes one line and sometimes two, breaking mid-phrase, is what
+   made the row look uneven. This way every label is a clean two-line
+   stack: the label, then the hint below it, every time. */
+.placement-form-grid .form-label .muted {
+  display: block;
   text-transform: none;
   letter-spacing: 0;
   font-weight: 400;
-  font-size: 12px;
+  font-size: 11.5px;
+  margin-top: 2px;
 }
 
 #placement .form-input,

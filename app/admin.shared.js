@@ -52,6 +52,7 @@ export async function fetchAllRows(builder) {
  *   terminal_grade: string       — last grade before graduation
  *   uses_homerooms: boolean
  *   require_mvr_for_drivers: boolean
+ *   current_academic_year: string — the year schedule/roster views treat as current
  *   modules: { [module]: boolean } — enabled state per module key
  */
 export async function loadSchoolConfig(schoolId) {
@@ -60,7 +61,7 @@ export async function loadSchoolConfig(schoolId) {
   const [schoolRes, modulesRes] = await Promise.all([
     supabase
       .from('schools')
-      .select('name, grade_levels, terminal_grade, uses_homerooms, require_mvr_for_drivers')
+      .select('name, grade_levels, terminal_grade, uses_homerooms, require_mvr_for_drivers, current_academic_year')
       .eq('id', schoolId)
       .single(),
     supabase
@@ -74,6 +75,13 @@ export async function loadSchoolConfig(schoolId) {
 
   schoolConfigCache[schoolId] = { ...(schoolRes.data ?? {}), modules };
   return schoolConfigCache[schoolId];
+}
+
+/** Drops a school's cached config so the next loadSchoolConfig() call refetches.
+ *  Needed after writing a column loadSchoolConfig selects (e.g. current_academic_year)
+ *  so the change is visible without a full page reload. */
+export function invalidateSchoolConfigCache(schoolId) {
+  delete schoolConfigCache[schoolId];
 }
 
 /* ===============================

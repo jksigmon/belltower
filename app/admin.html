@@ -2004,6 +2004,10 @@
     <div class="drawer-field">
       <label>Homeroom Teacher</label>
       <select id="estuHomeroom" class="form-input"></select>
+      <div id="estuHomeroomBoardWarning" class="drawer-inline-warning" hidden>
+        <i data-lucide="triangle-alert" style="width:14px;height:14px;flex-shrink:0;"></i>
+        <span>This student's homeroom comes from a committed placement board (<strong id="estuHomeroomBoardLabel"></strong>). Changing it here won't move their card on that board — the board can later overwrite this change. To reassign mid-year, move their card on the board in Class Placement instead.</span>
+      </div>
     </div>
     <div class="drawer-row-2">
       <div class="drawer-field">
@@ -2044,6 +2048,13 @@
       <div class="drawer-field">
         <label class="drawer-label">Placement Flags</label>
         <div id="estuFlagsContainer" class="student-flags-chips"></div>
+      </div>
+    </div>
+    <div id="estuScheduleSection" hidden>
+      <hr class="drawer-divider">
+      <div class="drawer-field">
+        <label class="drawer-label">Schedule <span class="muted" style="font-weight:400;">(this year — read-only; edit on Class Placement boards)</span></label>
+        <div id="estuScheduleList"></div>
       </div>
     </div>
     <hr class="drawer-divider">

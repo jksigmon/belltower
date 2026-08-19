@@ -518,6 +518,7 @@ export async function saveRostersXlsx({
 export function toRosterStudent(row) {
   const t = row.employees;
   return {
+    id:             row.id,
     first_name:     row.first_name,
     last_name:      row.last_name,
     preferred_name: row.preferred_name,

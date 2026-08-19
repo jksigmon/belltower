@@ -3,6 +3,7 @@ import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast, g
 import {
   initSessions, showSessionList, showCreateForm, renderSessionList,
   setShowArchived, setShowDeleted, submitCreateForm, showConfirmModal,
+  isLive, isSection, periodLabel, openPeriodsModal, addPeriod, showGrid,
 } from './admin.placement.sessions.js';
 
 /* ── Helpers ── */
@@ -54,7 +55,7 @@ export async function initPlacementSection(profile) {
   }
 
   _schoolConfig = await loadSchoolConfig(_profile.school_id);
-  initSessions(_profile, _schoolConfig);
+  await initSessions(_profile, _schoolConfig);
 
   if (!_initialized) {
     _initialized = true;
@@ -82,6 +83,19 @@ function showView(id) {
 function wireGlobalEvents() {
   document.getElementById('newPlacementSessionBtn')
     ?.addEventListener('click', showCreateForm);
+  document.getElementById('managePeriodsBtn')
+    ?.addEventListener('click', openPeriodsModal);
+  document.getElementById('openGridBtn')
+    ?.addEventListener('click', showGrid);
+  document.getElementById('backFromGridBtn')
+    ?.addEventListener('click', showSessionList);
+  document.getElementById('addPeriodBtn')
+    ?.addEventListener('click', addPeriod);
+  document.getElementById('periodsCloseBtn')
+    ?.addEventListener('click', () => {
+      document.getElementById('periodsModal').hidden = true;
+      renderSessionList();   // period chips on the cards may have changed
+    });
   document.getElementById('cancelCreatePlacementBtn')
     ?.addEventListener('click', () => { sessionStorage.removeItem('placement:boardId'); showSessionList(); });
   document.getElementById('cancelCreatePlacementBtn2')
@@ -98,6 +112,10 @@ function wireGlobalEvents() {
   window.addEventListener('beforeunload', teardownRealtime);
   document.getElementById('commitPlacementBtn')
     ?.addEventListener('click', confirmCommit);
+  document.getElementById('publishSectionBtn')
+    ?.addEventListener('click', confirmPublish);
+  document.getElementById('unpublishSectionBtn')
+    ?.addEventListener('click', confirmUnpublish);
   document.getElementById('undoCommitPlacementBtn')
     ?.addEventListener('click', confirmUndoCommit);
   document.getElementById('commitNewPlacementBtn')
@@ -275,7 +293,7 @@ async function loadBoardData(sessionId) {
     { data: flags }
   ] = await Promise.all([
     supabase.from('placement_sessions')
-      .select('id, label, academic_year, incoming_grade, target_grade, status, target_class_size')
+      .select('id, label, academic_year, incoming_grade, target_grade, status, target_class_size, session_kind, period_id, published_at, schedule_updated_at')
       .eq('id', sessionId)
       .eq('school_id', _profile.school_id)
       .single(),
@@ -296,22 +314,15 @@ async function loadBoardData(sessionId) {
 
   const titleEl = document.getElementById('placementBoardTitle');
   const metaEl  = document.getElementById('placementBoardMeta');
-  const commitBtn = document.getElementById('commitPlacementBtn');
   if (titleEl && session) titleEl.textContent = session.label;
   if (metaEl && session) {
-    metaEl.textContent = `${session.academic_year.replace('-', '–')} · ${gradeLabel(session.incoming_grade)}`;
+    const bits = [session.academic_year.replace('-', '–'), gradeLabel(session.incoming_grade)];
+    const per  = session.period_id ? periodLabel(session.period_id) : null;
+    if (per) bits.push(per);
+    if (isSection(session)) bits.push('Section');
+    metaEl.textContent = bits.join(' · ');
   }
-  const isCommitted = session?.status === 'committed';
-  if (commitBtn) {
-    commitBtn.disabled = isCommitted;
-    commitBtn.textContent = isCommitted ? 'Committed ✓' : 'Commit Placement';
-  }
-  const undoBtn = document.getElementById('undoCommitPlacementBtn');
-  if (undoBtn) undoBtn.hidden = !isCommitted;
-  const autoBtn = document.getElementById('autoPlacementBtn');
-  if (autoBtn) autoBtn.disabled = isCommitted;
-  const addColBtn = document.getElementById('addPlacementColumnBtn');
-  if (addColBtn) addColBtn.disabled = isCommitted;
+  applyBoardControlState();
 
   // Derive IDs from batch 1 results
   // Separate real teachers from placeholder rows
@@ -384,6 +395,61 @@ async function loadBoardData(sessionId) {
     const { data: extras } = await supabase
       .from('employees').select('id, last_name').in('id', extraHomeroomIds);
     (extras || []).forEach(e => { _homeroomTeacherNames[e.id] = e.last_name; });
+  }
+}
+
+/* Board controls, driven by kind + status.
+
+   The two live states lock differently, and that difference is the whole
+   point of the feature:
+
+   - A COMMITTED homeroom board is frozen. students.homeroom_teacher_id has
+     already been written from it, so letting it be reshaped freely would
+     silently drift from the roster the rest of the app trusts. Changes go
+     through "Commit New Students", which reconciles explicitly.
+
+   - A PUBLISHED section board stays fully editable. Nothing outside the
+     board was written -- the schedule views read it live -- so moving a
+     student simply updates what teachers see, which is exactly what a
+     mid-year schedule change is. */
+function applyBoardControlState() {
+  const s          = _session;
+  const section    = isSection(s);
+  const live       = isLive(s);
+  const frozen     = live && !section;   // committed homeroom only
+
+  const commitBtn    = document.getElementById('commitPlacementBtn');
+  const publishBtn   = document.getElementById('publishSectionBtn');
+  const unpublishBtn = document.getElementById('unpublishSectionBtn');
+  const undoBtn      = document.getElementById('undoCommitPlacementBtn');
+  const autoBtn      = document.getElementById('autoPlacementBtn');
+  const addColBtn    = document.getElementById('addPlacementColumnBtn');
+  const freshEl      = document.getElementById('placementScheduleFresh');
+
+  if (commitBtn) {
+    commitBtn.hidden   = section;
+    commitBtn.disabled = frozen;
+    commitBtn.textContent = frozen ? 'Committed ✓' : 'Commit Placement';
+  }
+  if (publishBtn) {
+    publishBtn.hidden   = !section || s?.status === 'published';
+    publishBtn.disabled = false;
+  }
+  if (unpublishBtn) unpublishBtn.hidden = !section || s?.status !== 'published';
+  if (undoBtn)      undoBtn.hidden      = !frozen;
+
+  // Only a committed homeroom board loses these.
+  if (autoBtn)   autoBtn.disabled   = frozen;
+  if (addColBtn) addColBtn.disabled = frozen;
+
+  if (freshEl) {
+    const live_ = section && s?.status === 'published';
+    freshEl.hidden = !live_;
+    freshEl.textContent = live_
+      ? (s.schedule_updated_at
+          ? `Live · updated ${fmtShortDate(s.schedule_updated_at)}`
+          : 'Live — teachers see changes as you make them')
+      : '';
   }
 }
 
@@ -1253,6 +1319,22 @@ async function saveAssignments() {
 
   if (error) {
     console.error('Placement auto-save error:', error);
+
+    // On a published section the likeliest rejection is the period-conflict
+    // trigger: this student is already in another live class for the same
+    // period. Its message names the other board, which is the only thing
+    // that makes the failure actionable -- a generic "save failed" would
+    // leave the mover with no idea what to do. Roll the card back so the
+    // board matches what is actually stored.
+    const conflict = /only be in one class per period/i.test(error.message || '');
+    if (conflict) {
+      changed.forEach(s => { _assignments[s.id] = _savedAssignments[s.id] ?? null; });
+      renderBoard();
+      updateSaveStatus('');
+      showToast(error.message, 'error', 9000);
+      return;
+    }
+
     updateSaveStatus('⚠ Save failed — changes may be lost');
     // Leave the error visible until the next successful save or page reload
   } else {
@@ -1574,8 +1656,7 @@ async function confirmUndoCommit() {
 }
 
 async function runUndoCommit() {
-  const undoBtn   = document.getElementById('undoCommitPlacementBtn');
-  const commitBtn = document.getElementById('commitPlacementBtn');
+  const undoBtn = document.getElementById('undoCommitPlacementBtn');
   if (undoBtn) { undoBtn.disabled = true; undoBtn.textContent = 'Reverting…'; }
 
   // Load the saved prev_homeroom_teacher_id values
@@ -1639,10 +1720,8 @@ async function runUndoCommit() {
     .eq('id', _currentSessionId);
 
   _session.status = 'draft';
-  if (undoBtn)   { undoBtn.hidden = true; undoBtn.disabled = false; undoBtn.textContent = 'Undo Commit'; }
-  if (commitBtn) { commitBtn.disabled = false; commitBtn.textContent = 'Commit Placement'; }
-  const autoBtn = document.getElementById('autoPlacementBtn');
-  if (autoBtn) autoBtn.disabled = false;
+  if (undoBtn) { undoBtn.disabled = false; undoBtn.textContent = 'Undo Commit'; }
+  applyBoardControlState();
 
   showToast('Commit reverted. Session is back in Draft.', 'success');
 }
@@ -1778,6 +1857,15 @@ function setFullscreenIcon(isFs) {
 async function confirmCommit() {
   if (!_session || _session.status === 'committed') return;
 
+  // Structural guard, not just a hidden button. Committing a section board
+  // would rewrite students.homeroom_teacher_id for the whole grade and
+  // scramble dismissal. The DB rejects it too (placement_sessions_kind_status_check);
+  // this stops it one layer earlier with an explanation.
+  if (isSection(_session)) {
+    showToast('This is a section board — use Publish. Committing would change every student’s homeroom.', 'warn', 6000);
+    return;
+  }
+
   // Hard block: cannot commit while any students are in placeholder columns
   const placeholderStudentCount = _students.filter(s =>
     _assignments[s.id] && _placeholderColIds.has(_assignments[s.id])
@@ -1878,8 +1966,7 @@ function validatePlacement() {
 }
 
 async function runCommit() {
-  const btn     = document.getElementById('commitPlacementBtn');
-  const undoBtn = document.getElementById('undoCommitPlacementBtn');
+  const btn = document.getElementById('commitPlacementBtn');
   btn.disabled = true;
   btn.textContent = 'Committing…';
 
@@ -1939,12 +2026,110 @@ async function runCommit() {
     .eq('id', _currentSessionId);
 
   _session.status = 'committed';
-  btn.textContent = 'Committed ✓';
-  if (undoBtn) undoBtn.hidden = false;
+  applyBoardControlState();
   updateSaveStatus('');
 
   const placed = placedEntries.length;
   showToast(`Done! ${placed} student${placed !== 1 ? 's' : ''} assigned to their homeroom teacher.`, 'success');
+}
+
+/* ── Publish / Unpublish (section boards) ──────────────────────────────
+   Publishing writes nothing outside placement_sessions. It flips the board
+   to 'published', which is what makes it visible through the
+   student_schedule view. Students, homerooms, and carline are untouched.
+
+   Unlike Commit, this is reversible with no data to restore: Unpublish just
+   hides the board again.
+─────────────────────────────────────────────────────────────────────── */
+async function confirmPublish() {
+  if (!_session || !isSection(_session)) return;
+
+  const placed      = Object.values(_assignments).filter(v => v != null && !_placeholderColIds.has(v)).length;
+  const inOpenCol   = _students.filter(s => _assignments[s.id] && _placeholderColIds.has(_assignments[s.id])).length;
+  const unplaced    = _students.length - placed - inOpenCol;
+  const per         = _session.period_id ? periodLabel(_session.period_id) : null;
+
+  let html = `<p style="margin:0 0 12px;">Publish <strong>${esc(_session.label)}</strong>` +
+    `${per ? ` as <strong>${esc(per)}</strong>` : ''}?</p>`;
+  html += `<ul style="margin:0 0 12px;padding-left:20px;">`;
+  html += `<li>${placed} student${placed !== 1 ? 's' : ''} will appear in this class on teacher schedules</li>`;
+  if (inOpenCol > 0) {
+    html += `<li>${inOpenCol} in an Open Position column — shown to teachers as “Not yet assigned”</li>`;
+  }
+  if (unplaced > 0) {
+    html += `<li>${unplaced} unplaced — they will not show a teacher for this period</li>`;
+  }
+  html += `</ul>`;
+  html += `<p style="margin:0;color:#6b7280;font-size:13px;">No one’s homeroom changes. After publishing, the board stays editable and teachers see changes right away.</p>`;
+
+  const modal   = document.getElementById('publishConfirmModal');
+  const body    = document.getElementById('publishConfirmBody');
+  const okBtn   = document.getElementById('publishConfirmOkBtn');
+  const cancelBtn = document.getElementById('publishConfirmCancelBtn');
+  body.innerHTML = html;
+  modal.hidden = false;
+
+  const cleanup = () => { modal.hidden = true; okBtn.removeEventListener('click', onOk); cancelBtn.removeEventListener('click', onCancel); };
+  const onOk = async () => { cleanup(); await runPublish(); };
+  const onCancel = () => cleanup();
+  okBtn.addEventListener('click', onOk);
+  cancelBtn.addEventListener('click', onCancel);
+}
+
+async function runPublish() {
+  const btn = document.getElementById('publishSectionBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Publishing…'; }
+
+  if (_saveTimer) { clearTimeout(_saveTimer); _saveTimer = null; }
+  await saveAssignments();
+
+  const { error } = await supabase
+    .from('placement_sessions')
+    .update({ status: 'published', published_at: new Date().toISOString() })
+    .eq('id', _currentSessionId);
+
+  if (error) {
+    // The period-conflict trigger raises here when a student on this board
+    // is already in another live board for the same period. Its message
+    // names the students and the other board, so surface it verbatim.
+    console.error('Publish error:', error);
+    showToast(error.message || 'Failed to publish this board.', 'error', 10000);
+    if (btn) { btn.disabled = false; btn.textContent = 'Publish'; }
+    return;
+  }
+
+  _session.status = 'published';
+  _session.published_at = new Date().toISOString();
+  if (btn) { btn.disabled = false; btn.textContent = 'Publish'; }
+  applyBoardControlState();
+  showToast('Published. Teachers can see this class on student schedules now.', 'success');
+}
+
+async function confirmUnpublish() {
+  if (!_session || _session.status !== 'published') return;
+
+  const ok = await showConfirmModal({
+    title: 'Unpublish Section',
+    body: `“${_session.label}” will disappear from teacher schedules and go back to draft. Nothing on the board is lost, and you can publish it again at any time.`,
+    okLabel: 'Unpublish',
+    danger: true,
+  });
+  if (!ok) return;
+
+  const { error } = await supabase
+    .from('placement_sessions')
+    .update({ status: 'draft', published_at: null })
+    .eq('id', _currentSessionId);
+
+  if (error) {
+    showToast('Failed to unpublish this board.', 'error');
+    return;
+  }
+
+  _session.status = 'draft';
+  _session.published_at = null;
+  applyBoardControlState();
+  showToast('Unpublished. This class no longer shows on schedules.', 'success');
 }
 
 /* ── Commit New Students Only ── */

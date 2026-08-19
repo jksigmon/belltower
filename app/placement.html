@@ -169,7 +169,8 @@
           <div class="placement-header">
             <div>
               <h3 style="margin:0 0 4px;">Class Placement</h3>
-              <p class="muted" style="font-size:13px;margin:0;">Draft and commit student class assignments for the upcoming year.</p>
+              <p class="muted" style="font-size:13px;margin:0 0 8px;">Draft and commit student class assignments for the upcoming year.</p>
+              <div id="currentYearControl"></div>
             </div>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
               <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary);">
@@ -178,6 +179,12 @@
               <label style="font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text-secondary);">
                 <input type="checkbox" id="showDeletedSessionsToggle"> Show trash
               </label>
+              <button class="btn btn-outline btn-sm" id="managePeriodsBtn" title="Define Core / Block periods for the school day">
+                <i data-lucide="clock"></i> Periods
+              </button>
+              <button class="btn btn-outline btn-sm" id="openGridBtn" title="See every live board by period and grade">
+                <i data-lucide="table"></i> Grid
+              </button>
               <button class="btn btn-primary btn-sm" id="newPlacementSessionBtn">
                 <i data-lucide="plus"></i> New Session
               </button>
@@ -215,7 +222,26 @@
               <label class="form-label">Target Class Size <span class="muted" style="font-weight:400;">(optional)</span></label>
               <input type="number" id="placementTargetSize" class="form-input" placeholder="e.g. 25" min="1" max="100">
             </div>
+            <div class="form-group" id="placementKindWrap">
+              <label class="form-label">Board Type</label>
+              <div class="placement-kind-choice">
+                <label><input type="radio" name="placementKind" id="placementKindHomeroom" checked> Homeroom</label>
+                <label><input type="radio" name="placementKind" id="placementKindSection"> Core / Block</label>
+              </div>
+            </div>
+            <div class="form-group" id="placementPeriodWrap">
+              <label class="form-label" id="placementPeriodLabel">Period <span class="muted" style="font-weight:400;">(optional)</span></label>
+              <select id="placementPeriod" class="form-input"></select>
+              <p class="muted" id="placementPeriodEmpty" hidden style="font-size:12px;margin:6px 0 0;">
+                No periods set up for this grade yet — add them with <strong>Periods</strong> on the sessions list.
+              </p>
+            </div>
           </div>
+          <p class="placement-kind-hint" id="placementKindHint"></p>
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;margin-top:10px;cursor:pointer;color:var(--text-secondary);">
+            <input type="checkbox" id="placementStartEmpty" style="width:auto;">
+            Start with an empty board <span class="muted">— for electives, where only some of the grade takes the class</span>
+          </label>
           <div style="margin-top:24px;">
             <div class="placement-teachers-header">
               <div class="placement-teachers-header-left">
@@ -246,6 +272,19 @@
             <button class="btn btn-primary" id="submitCreatePlacementBtn">Create Session</button>
             <button class="btn btn-outline" id="cancelCreatePlacementBtn2">Cancel</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Grid view -->
+      <div id="placementGridView" hidden>
+        <div class="panel">
+          <div class="placement-header" style="margin-bottom:12px;">
+            <h3 style="margin:0;">Schedule Grid</h3>
+            <button class="btn btn-outline btn-sm" id="backFromGridBtn">
+              <i data-lucide="arrow-left"></i> Back
+            </button>
+          </div>
+          <div id="placementGridWrap"></div>
         </div>
       </div>
 
@@ -301,7 +340,10 @@
               <button class="btn btn-outline btn-sm" id="addPlacementColumnBtn" title="Add a teacher or open-position column">
                 <i data-lucide="plus" style="width:15px;height:15px;"></i> Column
               </button>
+              <span id="placementScheduleFresh" class="placement-live-chip" hidden></span>
               <button class="btn btn-primary btn-sm" id="commitPlacementBtn">Commit Placement</button>
+              <button class="btn btn-primary btn-sm" id="publishSectionBtn" hidden>Publish</button>
+              <button class="btn btn-outline btn-sm" id="unpublishSectionBtn" hidden style="color:#b45309;border-color:#fcd34d;">Unpublish</button>
               <button class="btn btn-primary btn-sm" id="commitNewPlacementBtn" hidden>Commit New Students</button>
               <button class="btn btn-outline btn-sm" id="undoCommitPlacementBtn" hidden style="color:#dc2626;border-color:#fca5a5;">Undo Commit</button>
             </div>
@@ -522,6 +564,44 @@
       <div class="confirm-modal-actions">
         <button id="commitConfirmCancelBtn" class="btn btn-outline">Cancel</button>
         <button id="commitConfirmOkBtn" class="btn btn-primary">Commit Placement</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage periods modal -->
+  <div id="periodsModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:560px;width:100%;">
+      <h3 class="confirm-modal-title">Periods</h3>
+      <p class="muted" style="font-size:13px;margin:0 0 14px;line-height:1.5;">
+        The named slots in your day — Core 1–4, Block A–D, Advisory. Limit a period to certain
+        grades so lower-school Cores and upper-school Blocks stay out of each other’s lists.
+      </p>
+      <div id="periodsList" style="margin-bottom:16px;"></div>
+      <div style="border-top:1px solid #e5e7eb;padding-top:14px;">
+        <label class="form-label">Add a period</label>
+        <div style="display:flex;gap:8px;align-items:flex-start;">
+          <input type="text" id="newPeriodLabel" class="form-input" placeholder="e.g. Core 2" style="flex:1;">
+          <button class="btn btn-primary btn-sm" id="addPeriodBtn" style="height:38px;">Add</button>
+        </div>
+        <div style="margin-top:10px;">
+          <label class="form-label" style="font-size:12px;">Applies to grades <span class="muted" style="font-weight:400;">(none selected = all grades)</span></label>
+          <div id="newPeriodGrades" class="placement-grade-picker"></div>
+        </div>
+      </div>
+      <div class="confirm-modal-actions">
+        <button id="periodsCloseBtn" class="btn btn-outline">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Publish section confirmation modal -->
+  <div id="publishConfirmModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:460px;width:100%;">
+      <h3 class="confirm-modal-title">Publish Section</h3>
+      <div id="publishConfirmBody" style="font-size:14px;line-height:1.6;color:#374151;"></div>
+      <div class="confirm-modal-actions">
+        <button id="publishConfirmCancelBtn" class="btn btn-outline">Cancel</button>
+        <button id="publishConfirmOkBtn" class="btn btn-primary">Publish</button>
       </div>
     </div>
   </div>

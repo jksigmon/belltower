@@ -887,6 +887,8 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="#pto"        data-module="pto"><i data-lucide="calendar"></i> Leave</a>
   <a href="/carline.html?from=staff" data-module="carline"><i data-lucide="car"></i> Carline</a>
   <a href="#my-roster" id="navMyRoster" style="display:none;"><i data-lucide="users"></i> My Roster</a>
+  <a href="#student-lookup" id="navStudentLookup" style="display:none;"><i data-lucide="search"></i> Student Lookup</a>
+  <a href="#class-rosters" id="navClassRosters" style="display:none;"><i data-lucide="users-round"></i> Class Rosters</a>
   <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
   <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
   <a href="#compliance-report" data-module="compliance"><i data-lucide="clipboard-list"></i> Compliance Report</a>
@@ -1272,6 +1274,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
             <p class="muted" style="margin:0;font-size:13px;" id="myRosterCount"></p>
           </div>
           <div class="comp-filter-actions">
+            <span id="myRosterFresh" class="placement-live-chip" hidden></span>
             <button id="myRosterPrint" class="btn comp-report-cta" style="display:none;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
               Print
@@ -1282,6 +1285,8 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
             </button>
           </div>
         </div>
+
+        <div id="myRosterTabs" class="roster-tab-row" hidden></div>
 
         <div class="table-wrap">
           <table class="admin-table" id="myRosterTable">
@@ -1297,6 +1302,54 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
             <tbody id="myRosterTbody"></tbody>
           </table>
         </div>
+      </div>
+
+    </section>
+
+    <!-- ── Student Lookup ─────────────────────────── -->
+    <section id="student-lookup" style="display:none;">
+
+      <div class="panel">
+        <div class="comp-report-result-header">
+          <div>
+            <h3 style="margin:0 0 3px;">Student Lookup</h3>
+            <p class="muted" style="margin:0;font-size:13px;">Search a student to see their homeroom and classes for the day.</p>
+          </div>
+        </div>
+
+        <div style="position:relative;max-width:420px;margin:14px 0;">
+          <input type="search" id="slSearchInput" class="form-input" placeholder="Search by student name…" autocomplete="off" style="width:100%;box-sizing:border-box;">
+          <div id="slSearchResults" class="sl-search-results" hidden></div>
+        </div>
+
+        <div id="slResult"></div>
+      </div>
+
+    </section>
+
+    <!-- ── Class Rosters ──────────────────────────── -->
+    <section id="class-rosters" style="display:none;">
+
+      <div class="panel">
+        <div class="comp-report-result-header">
+          <div>
+            <h3 style="margin:0 0 3px;">Class Rosters</h3>
+            <p class="muted" style="margin:0;font-size:13px;">Browse the full roster for any grade's homeroom or Core/Block class.</p>
+          </div>
+        </div>
+
+        <div class="comp-report-filter-row">
+          <div class="comp-filter-field">
+            <label class="comp-filter-label" for="crGradeSelect">Grade</label>
+            <select id="crGradeSelect"><option value="">— Select grade —</option></select>
+          </div>
+          <div class="comp-filter-field">
+            <label class="comp-filter-label" for="crPeriodSelect">Period</label>
+            <select id="crPeriodSelect" disabled></select>
+          </div>
+        </div>
+
+        <div id="crBoardsWrap"></div>
       </div>
 
     </section>
@@ -2213,6 +2266,7 @@ async function initStaff() {
   applyModuleNavVisibility();
   showRequestManagerNavIfManager();
   showMyRosterNavIfHomeroomTeacher();
+  showStudentLookupNavIfScheduleExists();
   document.getElementById('staffNav')?.classList.remove('hidden');
   setActive('#dashboard');
   window.scrollTo(0, 0);
@@ -2274,6 +2328,8 @@ function setActive(hash) {
     if (hash === '#bg-checks')          subtitle.textContent = 'Background Checks';
     if (hash === '#compliance-report')  subtitle.textContent = 'Compliance Report';
     if (hash === '#my-roster')          subtitle.textContent = 'My Roster';
+    if (hash === '#student-lookup')     subtitle.textContent = 'Student Lookup';
+    if (hash === '#class-rosters')      subtitle.textContent = 'Class Rosters';
     if (hash === '#access-request')     subtitle.textContent = 'Request Access';
     if (hash === '#data-collection')    subtitle.textContent = 'Form Links';
     if (hash === '#resources')          subtitle.textContent = 'Resources';
@@ -2300,6 +2356,8 @@ function setActive(hash) {
   if (hash === '#bg-checks')           loadMyBgRequests();
   if (hash === '#compliance-report')   initComplianceReport();
   if (hash === '#my-roster')           initMyRoster();
+  if (hash === '#student-lookup')      initStudentLookup();
+  if (hash === '#class-rosters')       initClassRosters();
   if (hash === '#access-request')      { buildAccessRequestOptions(); loadMyAccessRequests(); }
   if (hash === '#data-collection')     loadStaffFormLinks();
   if (hash === '#resources')           initStaffResources(currentProfile);
@@ -4160,24 +4218,48 @@ function applyModuleNavVisibility() {
 // Request Manager: shown only to staff assigned as a manager on at least
 // one request category. Runs after nav is shown since it's not needed to
 // unblock the rest of the dashboard.
-// My Roster: shown only to staff who actually have a homeroom — i.e. at
-// least one student points at them via homeroom_teacher_id. Uses a HEAD
-// count so the gate costs one cheap query and fetches no rows.
+//
+// My Roster: shown to any staff member who teaches at least one LIVE
+// board this year — a committed homeroom OR a published Core/Block
+// section. Reads student_schedule rather than students.homeroom_teacher_id
+// directly, so a section-only teacher (5th-7th grade Core/Block, no
+// homeroom of their own) gets the tab too. is_current_year keeps a
+// leftover board from a prior year from lighting this up after rollover.
 async function showMyRosterNavIfHomeroomTeacher() {
   const link = document.getElementById('navMyRoster');
   if (!link) return;
 
-  const schoolConfig = await loadSchoolConfig(currentProfile.school_id);
-  if (schoolConfig?.uses_homerooms === false) return;
-
   const { count } = await supabase
-    .from('students')
-    .select('id', { count: 'exact', head: true })
+    .from('student_schedule')
+    .select('session_id', { count: 'exact', head: true })
     .eq('school_id', currentProfile.school_id)
-    .eq('homeroom_teacher_id', currentProfile.employee_id)
-    .eq('active', true);
+    .eq('teacher_id', currentProfile.employee_id)
+    .eq('is_current_year', true);
 
   if (count) link.style.display = 'flex';
+}
+
+// Student Lookup and Class Rosters are both school-wide, not scoped to
+// what THIS staff member teaches — RLS already grants read on every
+// active student in the school, so gating is only about whether there's
+// anything to find. Hidden until the school has published or committed
+// at least one live board this year, so neither sits in the nav as a
+// dead end before admin has set anything up. One query gates both.
+async function showStudentLookupNavIfScheduleExists() {
+  const slLink = document.getElementById('navStudentLookup');
+  const crLink = document.getElementById('navClassRosters');
+  if (!slLink && !crLink) return;
+
+  const { count } = await supabase
+    .from('student_schedule')
+    .select('session_id', { count: 'exact', head: true })
+    .eq('school_id', currentProfile.school_id)
+    .eq('is_current_year', true);
+
+  if (count) {
+    if (slLink) slLink.style.display = 'flex';
+    if (crLink) crLink.style.display = 'flex';
+  }
 }
 
 async function showRequestManagerNavIfManager() {
@@ -4623,79 +4705,188 @@ document.getElementById('bgSubmitBtn')?.addEventListener('click', async () => {
 /* ── Compliance Report ── */
 
 /* ── My Roster ────────────────────────────────── */
+// One tab per LIVE board this teacher is on this year -- Homeroom (if
+// committed) plus any published Core/Block section, sourced from the
+// student_schedule view built for exactly this. A section stays fully
+// editable after publishing (unlike a committed homeroom), so its roster
+// is read fresh on every visit rather than cached like the old
+// homeroom-only version was.
 let myRosterInitialized = false;
-let myRosterStudents = [];
+let myRosterTabs = [];   // [{ session_id, tabLabel, fullLabel, session_kind, period_sort_order, schedule_updated_at, studentIds, students }]
+let myRosterActiveIdx = 0;
 
 async function initMyRoster() {
   if (myRosterInitialized) return;
   myRosterInitialized = true;
 
   const tbody = document.getElementById('myRosterTbody');
-  const countEl = document.getElementById('myRosterCount');
-  const printBtn = document.getElementById('myRosterPrint');
   if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px 0;">Loading…</td></tr>';
 
-  tbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center;padding:24px 0;">Loading…</td></tr>';
-
-  const { data, error } = await supabase
-    .from('students')
-    .select(ROSTER_SELECT)
+  const { data: schedRows, error } = await supabase
+    .from('student_schedule')
+    .select('student_id, session_id, section_label, session_kind, period_id, period_label, period_short_label, period_sort_order, schedule_updated_at')
     .eq('school_id', currentProfile.school_id)
-    .eq('homeroom_teacher_id', currentProfile.employee_id)
-    .eq('active', true)
-    .order('last_name', { ascending: true })
-    .order('first_name', { ascending: true });
+    .eq('teacher_id', currentProfile.employee_id)
+    .eq('is_current_year', true);
 
   if (error) {
     console.error('My Roster load failed', error);
-    tbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center;padding:24px 0;">Could not load your roster.</td></tr>';
-    // Allow a retry on the next visit rather than caching the failure.
+    tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px 0;">Could not load your roster.</td></tr>';
     myRosterInitialized = false;
     return;
   }
 
-  myRosterStudents = (data ?? []).map(toRosterStudent);
-
-  if (!myRosterStudents.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="muted" style="text-align:center;padding:24px 0;">No students are assigned to your homeroom.</td></tr>';
-    if (countEl) countEl.textContent = '';
+  if (!schedRows?.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px 0;">No students are assigned to you this year.</td></tr>';
+    document.getElementById('myRosterCount').textContent = '';
+    document.getElementById('myRosterTabs').hidden = true;
     return;
   }
 
-  tbody.innerHTML = myRosterStudents.map((s, i) => `<tr>
-    <td class="muted">${i + 1}</td>
-    <td style="font-weight:600;">${esc(rosterDisplayName(s))}</td>
-    <td>${s.grade_level ? esc(gradeLabel(s.grade_level)) : '—'}</td>
-    <td>${s.carline_tag ? esc(s.carline_tag) : '—'}</td>
-    <td>${s.bus_group ? esc(s.bus_group) : '—'}</td>
-  </tr>`).join('');
+  // Group into one tab per board, ordered the way a teacher thinks about
+  // their day: Homeroom first, then sections by period order.
+  const bySession = new Map();
+  schedRows.forEach(r => {
+    if (!bySession.has(r.session_id)) {
+      bySession.set(r.session_id, {
+        session_id: r.session_id,
+        tabLabel: r.session_kind === 'homeroom' ? 'Homeroom' : (r.period_short_label || r.period_label || r.section_label),
+        fullLabel: r.section_label,
+        session_kind: r.session_kind,
+        period_sort_order: r.period_sort_order ?? 9999,
+        schedule_updated_at: r.schedule_updated_at,
+        studentIds: [],
+      });
+    }
+    bySession.get(r.session_id).studentIds.push(r.student_id);
+  });
+  myRosterTabs = [...bySession.values()].sort((a, b) =>
+    a.session_kind === b.session_kind
+      ? a.period_sort_order - b.period_sort_order
+      : (a.session_kind === 'homeroom' ? -1 : 1)
+  );
 
-  if (countEl) {
-    countEl.textContent = `${myRosterStudents.length} ${myRosterStudents.length === 1 ? 'student' : 'students'}`;
+  // One query for every student across every tab -- a teacher has a
+  // handful of sections at most, so this is one round trip rather than
+  // one query per tab.
+  const allIds = [...new Set(schedRows.map(r => r.student_id))];
+  const { data: studentRows } = await supabase
+    .from('students')
+    .select(ROSTER_SELECT)
+    .in('id', allIds)
+    .order('last_name', { ascending: true })
+    .order('first_name', { ascending: true });
+
+  myRosterTabs.forEach(tab => {
+    tab.students = (studentRows ?? [])
+      .filter(r => tab.studentIds.includes(r.id))
+      .map(toRosterStudent);
+  });
+
+  myRosterActiveIdx = 0;
+  renderRosterTabs();
+  renderRosterTab(0);
+}
+
+function renderRosterTabs() {
+  const wrap = document.getElementById('myRosterTabs');
+  if (!wrap) return;
+  if (myRosterTabs.length <= 1) { wrap.hidden = true; return; }
+
+  wrap.hidden = false;
+  wrap.innerHTML = myRosterTabs.map((t, i) =>
+    `<button type="button" class="roster-tab-btn${i === myRosterActiveIdx ? ' active' : ''}" data-idx="${i}">${esc(t.tabLabel)}</button>`
+  ).join('');
+  wrap.querySelectorAll('.roster-tab-btn').forEach(btn =>
+    btn.addEventListener('click', () => renderRosterTab(parseInt(btn.dataset.idx, 10)))
+  );
+}
+
+function renderRosterTab(idx) {
+  const tab = myRosterTabs[idx];
+  if (!tab) return;
+  myRosterActiveIdx = idx;
+
+  document.querySelectorAll('#myRosterTabs .roster-tab-btn').forEach((btn, i) =>
+    btn.classList.toggle('active', i === idx)
+  );
+
+  const titleEl = document.getElementById('myRosterTitle');
+  const countEl = document.getElementById('myRosterCount');
+  const freshEl = document.getElementById('myRosterFresh');
+  const tbody   = document.getElementById('myRosterTbody');
+  const thead   = document.querySelector('#myRosterTable thead tr');
+
+  if (titleEl) titleEl.textContent = tab.session_kind === 'homeroom' ? 'My Homeroom' : tab.fullLabel;
+  if (countEl) countEl.textContent = `${tab.students.length} ${tab.students.length === 1 ? 'student' : 'students'}`;
+
+  // A published section stays editable and is read live, with no second
+  // "apply" step -- surface that the same way the admin board does, so a
+  // teacher knows a schedule change appears here immediately.
+  const isSection = tab.session_kind !== 'homeroom';
+  if (freshEl) {
+    freshEl.hidden = !isSection;
+    if (isSection) {
+      freshEl.textContent = tab.schedule_updated_at
+        ? `Live · updated ${fmtShortDate(tab.schedule_updated_at)}`
+        : 'Live';
+    }
+  }
+
+  // A Homeroom column only earns its place on a section tab -- on the
+  // Homeroom tab itself it would just repeat the row's own teacher.
+  if (thead) {
+    thead.innerHTML = `
+      <th style="width:36px;">#</th>
+      <th>Student</th>
+      <th>Grade</th>
+      ${isSection ? '<th>Homeroom</th>' : ''}
+      <th>Carline Tag</th>
+      <th>Bus Group</th>`;
+  }
+
+  const colspan = isSection ? 6 : 5;
+  if (!tab.students.length) {
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="muted" style="text-align:center;padding:24px 0;">No students on this roster.</td></tr>`;
+  } else {
+    tbody.innerHTML = tab.students.map((s, i) => `<tr>
+      <td class="muted">${i + 1}</td>
+      <td style="font-weight:600;">${esc(rosterDisplayName(s))}</td>
+      <td>${s.grade_level ? esc(gradeLabel(s.grade_level)) : '—'}</td>
+      ${isSection ? `<td>${s.teacher ? esc(s.teacher) : '—'}</td>` : ''}
+      <td>${s.carline_tag ? esc(s.carline_tag) : '—'}</td>
+      <td>${s.bus_group ? esc(s.bus_group) : '—'}</td>
+    </tr>`).join('');
   }
 
   const rosterPayload = () => ({
     groups: [{
-      label: currentProfile.display_name ?? 'My Homeroom',
-      sublabel: 'Homeroom',
-      students: myRosterStudents
+      label: currentProfile.display_name ?? 'My Roster',
+      sublabel: tab.session_kind === 'homeroom' ? 'Homeroom' : tab.fullLabel,
+      students: tab.students
     }],
     schoolName: currentProfile.schools?.name ?? ''
   });
 
+  // .onclick rather than addEventListener: this function re-runs on every
+  // tab switch, and addEventListener here would stack a new listener per
+  // switch -- clicking Print after visiting three tabs would open three
+  // print dialogs. Assignment keeps exactly one handler, always the
+  // current tab's.
+  const printBtn = document.getElementById('myRosterPrint');
   if (printBtn) {
     printBtn.style.display = 'inline-flex';
-    printBtn.addEventListener('click', () => printRosters(rosterPayload()));
+    printBtn.onclick = () => printRosters(rosterPayload());
   }
-
   const pdfBtn = document.getElementById('myRosterPdf');
   if (pdfBtn) {
     pdfBtn.style.display = 'inline-flex';
-    pdfBtn.addEventListener('click', async () => {
+    pdfBtn.onclick = async () => {
       pdfBtn.disabled = true;
       try { await saveRostersPdf(rosterPayload()); }
       finally { pdfBtn.disabled = false; }
-    });
+    };
   }
 }
 
@@ -4708,6 +4899,268 @@ function rosterDisplayName(s) {
     return `${base} ("${preferred}")`;
   }
   return base || '—';
+}
+
+/* ── Student Lookup ───────────────────────────── */
+// "5th-7th grade teachers need to see students' schedules without asking
+// me" — this is that, for any student in the school (RLS already grants
+// read on the whole school's roster; the tool doesn't add extra scoping
+// on top of it). Wired once; search itself is fully live, no init-time load.
+let slWired = false;
+
+function initStudentLookup() {
+  if (slWired) return;
+  slWired = true;
+
+  const input   = document.getElementById('slSearchInput');
+  const results = document.getElementById('slSearchResults');
+  if (!input || !results) return;
+
+  const runSearch = debounce(async () => {
+    const term = input.value.trim();
+    if (term.length < 2) { results.hidden = true; results.innerHTML = ''; return; }
+
+    const { data, error } = await supabase
+      .from('students')
+      .select('id, first_name, last_name, preferred_name, grade_level')
+      .eq('school_id', currentProfile.school_id)
+      .eq('active', true)
+      .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%`)
+      .order('last_name', { ascending: true })
+      .limit(10);
+
+    if (error) { results.hidden = true; return; }
+
+    if (!data?.length) {
+      results.innerHTML = '<div class="sl-search-empty">No students found.</div>';
+      results.hidden = false;
+      return;
+    }
+
+    results.innerHTML = data.map(s => `
+      <button type="button" class="sl-search-result" data-id="${esc(s.id)}" data-name="${esc(rosterDisplayName(s))}">
+        <span>${esc(rosterDisplayName(s))}</span>
+        <span class="muted" style="font-size:12px;">${s.grade_level ? esc(gradeLabel(s.grade_level)) : ''}</span>
+      </button>`).join('');
+    results.hidden = false;
+
+    results.querySelectorAll('.sl-search-result').forEach(btn =>
+      btn.addEventListener('click', () => {
+        input.value = btn.dataset.name;
+        results.hidden = true;
+        loadStudentSchedule(btn.dataset.id);
+      })
+    );
+  }, 250);
+
+  input.addEventListener('input', runSearch);
+  input.addEventListener('focus', () => { if (results.innerHTML) results.hidden = false; });
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#slSearchInput') && !e.target.closest('#slSearchResults')) results.hidden = true;
+  });
+}
+
+async function loadStudentSchedule(studentId) {
+  const resultEl = document.getElementById('slResult');
+  if (!resultEl) return;
+  resultEl.innerHTML = '<p class="muted" style="padding:16px 0;">Loading…</p>';
+
+  const [{ data: stu }, { data: sched }] = await Promise.all([
+    supabase.from('students')
+      .select('id, first_name, last_name, preferred_name, grade_level')
+      .eq('id', studentId).single(),
+    supabase.from('student_schedule')
+      .select('session_id, section_label, session_kind, period_label, period_short_label, period_sort_order, teacher_first_name, teacher_last_name, placeholder_name, schedule_updated_at')
+      .eq('student_id', studentId)
+      .eq('is_current_year', true),
+  ]);
+
+  if (!stu) { resultEl.innerHTML = '<p class="muted">Student not found.</p>'; return; }
+
+  const rows = (sched ?? []).slice().sort((a, b) =>
+    a.session_kind === b.session_kind
+      ? (a.period_sort_order ?? 9999) - (b.period_sort_order ?? 9999)
+      : (a.session_kind === 'homeroom' ? -1 : 1)
+  );
+
+  resultEl.innerHTML = `
+    <div class="sl-student-header">
+      <div style="font-weight:700;font-size:16px;">${esc(rosterDisplayName(stu))}</div>
+      <div class="muted" style="font-size:13px;">${stu.grade_level ? esc(gradeLabel(stu.grade_level)) : ''}</div>
+    </div>
+    <div class="sl-schedule-list">
+      ${rows.length ? rows.map(r => {
+        // Placeholder columns ("Open Position") show up here too rather
+        // than being filtered out -- the alternative is the student
+        // simply missing that period with no explanation, which reads as
+        // a bug, not as "the school hasn't hired that teacher yet".
+        const teacher = r.placeholder_name
+          ? r.placeholder_name
+          : (r.teacher_last_name ? `${r.teacher_last_name}, ${r.teacher_first_name}` : 'Not yet assigned');
+        const period = r.session_kind === 'homeroom'
+          ? (r.period_label ? `Homeroom · ${r.period_label}` : 'Homeroom')
+          : (r.period_label || r.period_short_label || 'Class');
+        return `
+          <div class="sl-schedule-row">
+            <div class="sl-schedule-period">${esc(period)}</div>
+            <div class="sl-schedule-class">${esc(r.section_label)}</div>
+            <div class="sl-schedule-teacher">${esc(teacher)}</div>
+          </div>`;
+      }).join('') : '<p class="muted" style="padding:12px 0;">No schedule on file for this student yet.</p>'}
+    </div>`;
+}
+
+/* ── Class Rosters ────────────────────────────── */
+// The inverse of Student Lookup: pick a grade and a period, see every
+// class's full roster -- "what's in 6th grade Core 2" rather than
+// "where is this one kid". Same student_schedule data, browsed the other
+// direction. Grade/period choice is unrestricted (any active staff can
+// already read the whole school's roster under RLS; Student Lookup makes
+// the same call), so this isn't limited to grades the viewer teaches.
+let crPeriods = [];
+let crWired = false;
+
+async function initClassRosters() {
+  if (crWired) return;
+  crWired = true;
+
+  const gradeSel = document.getElementById('crGradeSelect');
+  const periodSel = document.getElementById('crPeriodSelect');
+  if (!gradeSel || !periodSel) return;
+
+  const [schoolConfig, periodsResult] = await Promise.all([
+    loadSchoolConfig(currentProfile.school_id),
+    supabase.from('schedule_periods')
+      .select('id, label, grade_levels, sort_order')
+      .eq('school_id', currentProfile.school_id)
+      .is('archived_at', null)
+      .order('sort_order'),
+  ]);
+
+  const grades = schoolConfig?.grade_levels ?? GRADE_ORDER;
+  gradeSel.innerHTML = '<option value="">— Select grade —</option>' +
+    grades.map(g => `<option value="${esc(g)}">${esc(gradeLabel(g))}</option>`).join('');
+
+  crPeriods = periodsResult.data ?? [];
+
+  gradeSel.addEventListener('change', () => {
+    populateClassRosterPeriods(gradeSel.value);
+    renderClassRosterBoards();
+  });
+  periodSel.addEventListener('change', renderClassRosterBoards);
+}
+
+function populateClassRosterPeriods(grade) {
+  const periodSel = document.getElementById('crPeriodSelect');
+  if (!periodSel) return;
+
+  if (!grade) {
+    periodSel.innerHTML = '';
+    periodSel.disabled = true;
+    return;
+  }
+
+  // NULL grade_levels on a period means it applies to every grade (e.g. a
+  // school-wide Advisory) -- same rule the admin's period picker uses.
+  const scoped = crPeriods.filter(p => !p.grade_levels?.length || p.grade_levels.includes(grade));
+  periodSel.innerHTML = '<option value="homeroom">Homeroom</option>' +
+    scoped.map(p => `<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('');
+  periodSel.disabled = false;
+}
+
+async function renderClassRosterBoards() {
+  const grade    = document.getElementById('crGradeSelect')?.value;
+  const periodId = document.getElementById('crPeriodSelect')?.value;
+  const wrap     = document.getElementById('crBoardsWrap');
+  if (!wrap) return;
+
+  if (!grade || !periodId) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = '<p class="muted" style="padding:16px 0;">Loading…</p>';
+
+  const schoolConfig = await loadSchoolConfig(currentProfile.school_id);
+
+  // Boards, not students: "Homeroom" pulls homeroom-kind boards with no
+  // period tag; a real period pulls whatever board (of either kind) is
+  // tagged with it -- the same split the admin grid uses, so a homeroom
+  // that doubles as a period ("Core 1 & HR") sorts under that period here
+  // too, not duplicated into both.
+  let sessQuery = supabase
+    .from('placement_sessions')
+    .select('id, label, session_kind')
+    .eq('school_id', currentProfile.school_id)
+    .eq('incoming_grade', grade)
+    .in('status', ['committed', 'published'])
+    .is('deleted_at', null)
+    .is('archived_at', null);
+  sessQuery = periodId === 'homeroom'
+    ? sessQuery.eq('session_kind', 'homeroom').is('period_id', null)
+    : sessQuery.eq('period_id', periodId);
+  if (schoolConfig?.current_academic_year) {
+    sessQuery = sessQuery.eq('academic_year', schoolConfig.current_academic_year);
+  }
+
+  const { data: sessions, error } = await sessQuery;
+  if (error) { wrap.innerHTML = '<p class="muted" style="padding:16px 0;">Could not load classes.</p>'; return; }
+  if (!sessions?.length) {
+    wrap.innerHTML = '<p class="muted" style="padding:16px 0;">No classes found for this grade and period.</p>';
+    return;
+  }
+
+  const sessionIds = sessions.map(s => s.id);
+  const { data: schedRows } = await supabase
+    .from('student_schedule')
+    .select('session_id, student_id, teacher_id, teacher_first_name, teacher_last_name, placeholder_name')
+    .in('session_id', sessionIds);
+
+  const studentIds = [...new Set((schedRows ?? []).map(r => r.student_id))];
+  const { data: studentRows } = studentIds.length
+    ? await supabase.from('students').select(ROSTER_SELECT).in('id', studentIds)
+        .order('last_name', { ascending: true }).order('first_name', { ascending: true })
+    : { data: [] };
+  const studentById = new Map((studentRows ?? []).map(r => [r.id, toRosterStudent(r)]));
+
+  // A board is not one class -- a homeroom board or a section board can
+  // both carry several parallel teacher columns for the same grade and
+  // period (e.g. "6th Core 2" split across Baker's class and Chen's).
+  // Group by the actual teacher/column, not the board, so each card here
+  // is one real class. Two distinctly-unnamed placeholder columns in the
+  // same board are the one case this can't tell apart and folds together
+  // -- rare, and still shows every student either way.
+  const classes = new Map();
+  (schedRows ?? []).forEach(r => {
+    const session = sessions.find(s => s.id === r.session_id);
+    if (!session) return;
+    const key = `${r.session_id}::${r.teacher_id ?? r.placeholder_name ?? 'unassigned'}`;
+    if (!classes.has(key)) {
+      classes.set(key, {
+        boardLabel: session.label,
+        teacherLabel: r.placeholder_name
+          ? r.placeholder_name
+          : (r.teacher_last_name ? `${r.teacher_last_name}, ${r.teacher_first_name}` : 'Not yet assigned'),
+        studentIds: [],
+      });
+    }
+    classes.get(key).studentIds.push(r.student_id);
+  });
+
+  wrap.innerHTML = [...classes.values()].map(c => {
+    const students = c.studentIds.map(id => studentById.get(id)).filter(Boolean);
+    return `
+      <div class="cr-board-card">
+        <div class="cr-board-header">
+          <div>
+            <div class="cr-board-teacher">${esc(c.teacherLabel)}</div>
+            <div class="muted" style="font-size:12px;">${esc(c.boardLabel)}</div>
+          </div>
+          <div class="muted" style="font-size:12px;">${students.length} ${students.length === 1 ? 'student' : 'students'}</div>
+        </div>
+        <div class="cr-board-students">
+          ${students.length
+            ? students.map(s => `<span class="cr-student-chip">${esc(rosterDisplayName(s))}</span>`).join('')
+            : '<p class="muted" style="font-size:12px;margin:0;">No students.</p>'}
+        </div>
+      </div>`;
+  }).join('');
 }
 
 let compReportData = null;

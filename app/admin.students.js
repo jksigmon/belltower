@@ -367,8 +367,77 @@ async function openEditStudentDrawer(r) {
 
   loadDrawerGuardians(r.family_id);
   loadStudentFlagsSection(r.id);
+  loadStudentScheduleSection(r.id);
+  checkHomeroomBoardWarning(r.id);
 
   window.openDrawer?.('editStudentDrawer');
+}
+
+/* Warns before an admin edits the homeroom dropdown directly for a
+   student whose homeroom is currently board-backed (a committed
+   placement board agrees with students.homeroom_teacher_id). Changing it
+   here writes only the student record -- the board never hears about it,
+   and if that board is later reconciled via "Apply Changes" it can push
+   its own stale value back over this edit with no warning at that point.
+   Reassigning through the board's own drag + Apply Changes flow keeps
+   both in sync; this note exists to steer mid-year moves there instead. */
+async function checkHomeroomBoardWarning(studentId) {
+  const warning = document.getElementById('estuHomeroomBoardWarning');
+  const labelEl = document.getElementById('estuHomeroomBoardLabel');
+  if (!warning) return;
+  warning.hidden = true;
+
+  const { data } = await supabase
+    .from('student_schedule')
+    .select('session_id, section_label')
+    .eq('student_id', studentId)
+    .eq('session_kind', 'homeroom')
+    .maybeSingle();
+
+  if (data?.session_id) {
+    if (labelEl) labelEl.textContent = data.section_label ?? 'the committed board';
+    warning.hidden = false;
+    if (window.lucide) lucide.createIcons({ nodes: [warning] });
+  }
+}
+
+/* Read-only — the drawer edits the students row directly, but homeroom
+   and section assignments both flow from placement boards (homeroom via
+   Commit, sections via Publish). Editing them here would bypass the
+   period-conflict guards those flows enforce, so this only reads. */
+async function loadStudentScheduleSection(studentId) {
+  const section = document.getElementById('estuScheduleSection');
+  const list    = document.getElementById('estuScheduleList');
+  if (!section || !list) return;
+
+  const { data, error } = await supabase
+    .from('student_schedule')
+    .select('session_id, section_label, session_kind, period_label, period_short_label, period_sort_order, teacher_first_name, teacher_last_name, placeholder_name')
+    .eq('student_id', studentId)
+    .eq('is_current_year', true);
+
+  if (error || !data?.length) { section.hidden = true; return; }
+
+  const rows = data.slice().sort((a, b) =>
+    a.session_kind === b.session_kind
+      ? (a.period_sort_order ?? 9999) - (b.period_sort_order ?? 9999)
+      : (a.session_kind === 'homeroom' ? -1 : 1)
+  );
+
+  section.hidden = false;
+  list.innerHTML = rows.map(r => {
+    const teacher = r.placeholder_name
+      ? r.placeholder_name
+      : (r.teacher_last_name ? `${r.teacher_last_name}, ${r.teacher_first_name}` : 'Not yet assigned');
+    const period = r.session_kind === 'homeroom'
+      ? (r.period_label ? `Homeroom · ${r.period_label}` : 'Homeroom')
+      : (r.period_label || r.period_short_label || 'Class');
+    return `
+      <div class="estu-schedule-row">
+        <span class="estu-schedule-period">${esc(period)}</span>
+        <span class="estu-schedule-teacher">${esc(teacher)}</span>
+      </div>`;
+  }).join('');
 }
 
 async function saveEditStudent() {
