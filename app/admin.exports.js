@@ -1,8 +1,10 @@
 
 // admin.exports.js
 import { supabase } from './admin.supabase.js?v=2';
-import { loadSchoolConfig, gradeLabel, GRADE_ORDER } from './admin.shared.js?v=3';
-import { printRosters, saveRostersPdf, toRosterStudent, ROSTER_SELECT } from './roster-print.js?v=5';
+import { loadSchoolConfig, gradeLabel, GRADE_ORDER, fetchAllRows } from './admin.shared.js?v=3';
+import {
+  printRosters, saveRostersPdf, saveRostersXlsx, toRosterStudent, ROSTER_SELECT
+} from './roster-print.js?v=6';
 
 let currentProfile;
 let schoolConfig = null;
@@ -169,6 +171,8 @@ async function initRosterPrinting() {
   printBtn.addEventListener('click', e => runRosterOutput('print', e.currentTarget));
   document.getElementById('saveRostersPdf')
     ?.addEventListener('click', e => runRosterOutput('pdf', e.currentTarget));
+  document.getElementById('saveRostersExcel')
+    ?.addEventListener('click', e => runRosterOutput('excel', e.currentTarget));
 }
 
 function populateRosterScope() {
@@ -189,8 +193,9 @@ function populateRosterScope() {
   }
 }
 
-// mode: 'print' opens the print dialog, 'pdf' downloads a file. Both read the
-// same controls and run the same query — only the final hand-off differs.
+// mode: 'print' opens the print dialog, 'pdf' and 'excel' download a file. All
+// three read the same controls and run the same query — only the final hand-off
+// differs, so a printed roster and an exported one can never disagree.
 async function runRosterOutput(mode, buttonEl) {
   const groupBy    = document.getElementById('rosterGroupBy')?.value ?? 'grade';
   const scope      = document.getElementById('rosterScope')?.value ?? '';
@@ -203,21 +208,32 @@ async function runRosterOutput(mode, buttonEl) {
   }
 
   try {
-    let query = supabase
-      .from('students')
-      .select(ROSTER_SELECT)
-      .eq('school_id', currentProfile.school_id)
-      .order('last_name', { ascending: true })
-      .order('first_name', { ascending: true });
+    // Paged: an "All homerooms"/"All grades" roster selects every student in
+    // the school, and an unranged select stops at PostgREST's 1000-row cap —
+    // which silently drops the tail of the last_name ordering, so whichever
+    // classes hold those students print short with no error.
+    const buildQuery = () => {
+      let query = supabase
+        .from('students')
+        .select(ROSTER_SELECT)
+        .eq('school_id', currentProfile.school_id)
+        .order('last_name', { ascending: true })
+        .order('first_name', { ascending: true })
+        // Tiebreaker: without a fully deterministic sort, two students sharing
+        // a name can shuffle between page requests — one gets fetched twice and
+        // the other not at all.
+        .order('id', { ascending: true });
 
-    if (activeOnly) query = query.eq('active', true);
-    if (scope) {
-      query = groupBy === 'teacher'
-        ? query.eq('homeroom_teacher_id', scope)
-        : query.eq('grade_level', scope);
-    }
+      if (activeOnly) query = query.eq('active', true);
+      if (scope) {
+        query = groupBy === 'teacher'
+          ? query.eq('homeroom_teacher_id', scope)
+          : query.eq('grade_level', scope);
+      }
+      return query;
+    };
 
-    const { data, error } = await query;
+    const { data, error } = await fetchAllRows(buildQuery);
     if (error) {
       console.error('Roster load failed', error);
       alert('Could not load students for the roster.');
@@ -235,6 +251,7 @@ async function runRosterOutput(mode, buttonEl) {
     };
 
     if (mode === 'pdf') await saveRostersPdf(payload);
+    else if (mode === 'excel') await saveRostersXlsx(payload);
     else printRosters(payload);
   } catch (err) {
     // Without this the click handler's promise rejects unhandled and the only

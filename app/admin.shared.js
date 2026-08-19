@@ -10,6 +10,37 @@ const busGroupCache = {};
 const schoolConfigCache = {};
 
 /* ===============================
+   PAGINATED FETCH
+================================ */
+
+const FETCH_ALL_BATCH_SIZE = 1000;
+
+/**
+ * Runs a select that may return more than PostgREST's 1000-row cap.
+ *
+ * An unranged select is silently truncated at 1000 rows — no error, no
+ * warning, the tail of the ordering just disappears. Anything that reads a
+ * whole school's students, families, or guardians must page through with
+ * .range() instead.
+ *
+ * @param {() => object} builder - returns a *fresh* PostgREST query each call
+ *                                 (queries aren't reusable once awaited)
+ * @returns {Promise<{ data?: any[], error?: object }>}
+ */
+export async function fetchAllRows(builder) {
+  const rows = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await builder().range(from, from + FETCH_ALL_BATCH_SIZE - 1);
+    if (error) return { error };
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < FETCH_ALL_BATCH_SIZE) break;
+    from += FETCH_ALL_BATCH_SIZE;
+  }
+  return { data: rows };
+}
+
+/* ===============================
    SCHOOL CONFIG
 ================================ */
 

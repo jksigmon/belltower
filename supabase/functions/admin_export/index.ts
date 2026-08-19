@@ -25,6 +25,35 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+const FETCH_ALL_BATCH_SIZE = 1000;
+
+/**
+ * Runs a select that may return more than PostgREST's 1000-row cap.
+ *
+ * Every export here reads a whole school's students or guardians, and an
+ * unranged select is truncated at 1000 rows with no error — the tail of the
+ * last_name ordering just vanishes, so classes holding those students export
+ * short and nothing anywhere says so. The service-role key bypasses RLS but
+ * not this cap.
+ *
+ * The builder must return a *fresh* query each call — a PostgREST query can
+ * only be awaited once.
+ */
+async function fetchAllRows<T = any>(
+  builder: () => any
+): Promise<{ data?: T[]; error?: any }> {
+  const rows: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await builder().range(from, from + FETCH_ALL_BATCH_SIZE - 1);
+    if (error) return { error };
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < FETCH_ALL_BATCH_SIZE) break;
+    from += FETCH_ALL_BATCH_SIZE;
+  }
+  return { data: rows };
+}
+
 function bufferToBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = '';
@@ -102,7 +131,7 @@ const { type, split } = await req.json();
        teacher last name then student last name.
     -------------------------------------------------- */
     if (type === "class_placement") {
-      const { data, error } = await admin
+      const { data, error } = await fetchAllRows(() => admin
         .from("students")
         .select(`
           grade_level,
@@ -120,7 +149,11 @@ const { type, split } = await req.json();
           )
         `)
         .eq("school_id", profile.school_id)
-        .order("last_name", { ascending: true });
+        .order("last_name", { ascending: true })
+        // Tiebreaker: without a fully deterministic sort, students sharing a
+        // last name can shuffle between page requests — one gets fetched twice
+        // and the other not at all.
+        .order("id", { ascending: true }));
 
       if (error) throw error;
 
@@ -183,7 +216,7 @@ const { type, split } = await req.json();
    by student last name within each tab.
 -------------------------------------------------- */
 if (type === "teacher_rosters") {
-  const { data, error } = await admin
+  const { data, error } = await fetchAllRows(() => admin
     .from("students")
     .select(`
       grade_level,
@@ -202,7 +235,8 @@ if (type === "teacher_rosters") {
       )
     `)
     .eq("school_id", profile.school_id)
-    .order("last_name", { ascending: true });
+    .order("last_name", { ascending: true })
+    .order("id", { ascending: true }));
 
   if (error) throw error;
 
@@ -278,7 +312,7 @@ if (type === "teacher_rosters") {
    homeroom teacher then student last name.
 -------------------------------------------------- */
 if (type === "grade_rosters") {
-  const { data, error } = await admin
+  const { data, error } = await fetchAllRows(() => admin
     .from("students")
     .select(`
       grade_level,
@@ -296,7 +330,8 @@ if (type === "grade_rosters") {
       )
     `)
     .eq("school_id", profile.school_id)
-    .order("last_name", { ascending: true });
+    .order("last_name", { ascending: true })
+    .order("id", { ascending: true }));
 
   if (error) throw error;
 
@@ -356,7 +391,7 @@ if (type === "grade_rosters") {
    BUS GROUP ASSIGNMENTS EXPORT
 -------------------------------------------------- */
 if (type === "bus_assignments") {
-  const { data, error } = await admin
+  const { data, error } = await fetchAllRows(() => admin
     .from("students")
     .select(`
       grade_level,
@@ -377,7 +412,8 @@ if (type === "bus_assignments") {
       )
     `)
     .eq("school_id", profile.school_id)
-    .order("last_name", { ascending: true });
+    .order("last_name", { ascending: true })
+    .order("id", { ascending: true }));
 
   if (error) throw error;
 
@@ -455,7 +491,7 @@ if (type === "bus_assignments") {
    CONTACT LISTS EXPORT (optionally split)
 -------------------------------------------------- */
 if (type === "contact_lists") {
-  const { data, error } = await admin
+  const { data, error } = await fetchAllRows(() => admin
     .from("guardians")
     .select(`
       first_name,
@@ -478,7 +514,10 @@ if (type === "contact_lists") {
       )
     `)
     .eq("school_id", profile.school_id)
-    .eq("active", true);
+    .eq("active", true)
+    // Unordered pagination is not stable — PostgREST can return the same row on
+    // two pages and skip another. Any deterministic order will do here.
+    .order("id", { ascending: true }));
 
   if (error) throw error;
 

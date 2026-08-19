@@ -362,6 +362,131 @@ export async function saveRostersPdf({ groups = [], schoolName = '', subtitle = 
   return true;
 }
 
+/* ===============================
+   EXCEL OUTPUT
+================================ */
+
+// Same lazy-load reasoning as jsPDF above: rosters are exported rarely, so the
+// spreadsheet library is only fetched when someone actually asks for one. Same
+// version the admin_export edge function uses, so the two paths can't drift.
+const XLSX_ESM = 'https://esm.sh/xlsx@0.18.5';
+const XLSX_SRC = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+
+let xlsxPromise = null;
+
+function loadXlsx() {
+  if (!xlsxPromise) {
+    xlsxPromise = import(/* @vite-ignore */ XLSX_ESM)
+      .then(mod => {
+        const lib = mod.utils ? mod : mod.default;
+        if (!lib?.utils) throw new Error('xlsx ESM build exposed no utils.');
+        return lib;
+      })
+      .catch(async esmErr => {
+        console.warn('xlsx ESM load failed, falling back to UMD', esmErr);
+        await loadScript(XLSX_SRC);
+        if (!window.XLSX?.utils) throw new Error('xlsx loaded but did not register itself.');
+        return window.XLSX;
+      })
+      .catch(err => {
+        xlsxPromise = null;   // let the next click retry from scratch
+        throw err;
+      });
+  }
+  return xlsxPromise;
+}
+
+/**
+ * Excel sheet names are capped at 31 characters, may not contain : \ / ? * [ ],
+ * may not be blank, and must be unique within the workbook. A teacher name like
+ * "O'Brien-Nakashima, Christopher" or two grades that truncate to the same 31
+ * characters would otherwise make book_append_sheet throw mid-export.
+ */
+function sheetName(label, used) {
+  let base = String(label ?? '').replace(/[:\\/?*[\]]/g, ' ').trim().slice(0, 31) || 'Roster';
+
+  let name = base;
+  let n = 2;
+  while (used.has(name.toLowerCase())) {
+    const suffix = ` (${n++})`;
+    name = base.slice(0, 31 - suffix.length) + suffix;
+  }
+  used.add(name.toLowerCase());
+  return name;
+}
+
+/**
+ * Saves the same roster selection as an .xlsx workbook — one sheet per group.
+ *
+ * Names are split into separate last/first columns rather than the single
+ * "Last, First" cell the printed sheet uses: a spreadsheet gets sorted and
+ * filtered, and the other exports on this page split them the same way.
+ *
+ * Takes the same arguments as printRosters, plus an optional filename.
+ *
+ * @returns {Promise<boolean>} false if nothing was saved
+ */
+export async function saveRostersXlsx({ groups = [], subtitle = '', filename } = {}) {
+  if (!groups.length) {
+    alert('No students match that selection.');
+    return false;
+  }
+
+  let XLSX;
+  try {
+    XLSX = await loadXlsx();
+  } catch (err) {
+    console.error('Spreadsheet library failed to load', err);
+    alert('Could not load the Excel tool. Check your connection and try again.');
+    return false;
+  }
+
+  const wb = XLSX.utils.book_new();
+  const used = new Set();
+
+  groups.forEach(g => {
+    const rows = g.students.map((s, i) => ({
+      '#': i + 1,
+      'Student Last Name': s.last_name ?? '',
+      'Student First Name': s.first_name ?? '',
+      'Preferred Name': s.preferred_name ?? '',
+      Grade: s.grade_level ? gradeLabel(s.grade_level) : '',
+      'Carline Tag': s.carline_tag ?? '',
+      'Bus Group': s.bus_group ?? ''
+    }));
+
+    // json_to_sheet on an empty array writes a sheet with no header row at all,
+    // which reads as a corrupt-looking blank tab. Give it the headers explicitly.
+    const ws = rows.length
+      ? XLSX.utils.json_to_sheet(rows)
+      : XLSX.utils.aoa_to_sheet([[
+          '#', 'Student Last Name', 'Student First Name', 'Preferred Name',
+          'Grade', 'Carline Tag', 'Bus Group'
+        ]]);
+
+    ws['!cols'] = [
+      { wch: 4 }, { wch: 18 }, { wch: 18 }, { wch: 16 },
+      { wch: 10 }, { wch: 12 }, { wch: 18 }
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, sheetName(g.label, used));
+  });
+
+  const name = filename
+    ?? (groups.length === 1
+      ? `${sanitizeFilename(groups[0].label)}-Roster.xlsx`
+      : 'Class-Rosters.xlsx');
+
+  // subtitle ("Includes inactive students") has no home in a grid; it's folded
+  // into the filename so the file is still self-describing on disk.
+  const finalName = subtitle
+    ? name.replace(/\.xlsx$/, '-with-inactive.xlsx')
+    : name;
+
+  XLSX.writeFile(wb, finalName);
+  return true;
+}
+
 /**
  * Maps a raw Supabase students row (with families/bus_groups joined) to
  * the flat shape printRosters expects. Shared so both callers select the
