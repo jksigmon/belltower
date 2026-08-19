@@ -2,6 +2,7 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { createDirectory } from './admin.directory.js?v=2';
 import { esc, getAvatarColor, debounce, dbError, showToast, findTagConflict, gradeLabel } from './admin.shared.js?v=3';
+import { openAvailableTagsModal } from './admin.tag-availability.js?v=1';
 
 let currentProfile;
 let initialized    = false;
@@ -438,6 +439,7 @@ async function createCarpool() {
 
 function wireCarpoolEvents() {
   document.getElementById('addCarpool')?.addEventListener('click', createCarpool);
+  document.getElementById('carpoolAvailableTags')?.addEventListener('click', () => openAvailableTagsModal(currentProfile));
 
   const searchInput = document.getElementById('carpoolSearch');
   const sortSelect  = document.getElementById('carpoolSort');

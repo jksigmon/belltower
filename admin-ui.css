@@ -5202,6 +5202,10 @@ a.staff-dash-request-row:hover {
   color: var(--text-muted, #6b7280);
   margin: 0 0 24px;
   line-height: 1.5;
+  /* Bodies are set with textContent, so a blank line is the only way to
+     paragraph-break one (see confirmReleaseFamily). Single-line bodies
+     are unaffected. */
+  white-space: pre-line;
 }
 .confirm-modal-actions {
   display: flex;
@@ -5212,6 +5216,117 @@ a.staff-dash-request-row:hover {
 
 .confirm-modal-actions .btn-primary {
   height: 34px;
+}
+
+/* ---------------------------------------------
+   Available tag numbers modal
+   Wider than a confirm dialog because it lists ranges and reclaimable
+   families; the body scrolls so the actions stay reachable.
+   --------------------------------------------- */
+.tag-avail-dialog {
+  max-width: 560px;
+  padding: 22px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  max-height: min(80vh, 720px);
+}
+.tag-avail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tag-avail-header .confirm-modal-title { margin-bottom: 4px; }
+.tag-avail-intro {
+  font-size: 0.82rem;
+  color: var(--text-muted, #6b7280);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+.tag-avail-body {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.tag-avail-summary {
+  font-size: 0.88rem;
+  color: var(--text);
+  margin: 0 0 16px;
+  line-height: 1.55;
+}
+.tag-avail-heading {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted, #6b7280);
+  margin: 18px 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+.tag-avail-heading:first-child { margin-top: 0; }
+.tag-avail-heading-note {
+  display: block;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+  font-size: 0.74rem;
+  margin-top: 3px;
+}
+.tag-avail-note,
+.tag-avail-empty {
+  font-size: 0.8rem;
+  color: var(--text-muted, #6b7280);
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+.tag-avail-warning {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin-bottom: 14px;
+}
+.tag-avail-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tag-avail-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tag-avail-reclaim-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tag-avail-reclaim-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 2px;
+  border-bottom: 1px solid var(--border-light, #f1f5f9);
+}
+.tag-avail-reclaim-row:last-child { border-bottom: none; }
+.tag-avail-reclaim-name {
+  font-size: 0.84rem;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Student/guardian count + at-risk badges (families directory) — sit inline

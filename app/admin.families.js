@@ -2,6 +2,7 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { createDirectory } from './admin.directory.js?v=2';
 import { esc, getAvatarColor, debounce, loadSchoolConfig, dbError, showToast, GRADE_ORDER, invalidateFamilyCache, findTagConflict } from './admin.shared.js?v=3';
+import { openAvailableTagsModal } from './admin.tag-availability.js?v=1';
 
 let currentProfile;
 let schoolConfig = null;
@@ -523,7 +524,9 @@ function confirmReleaseFamily() {
     `This unlinks every student currently on tag #${tag} (${name}), including inactive and withdrawn students, ` +
     `and permanently removes every guardian on this family (a guardian record must always belong to a family, so ` +
     `it can't just be unlinked like a student). Afterward you can rename this family and link the new students and ` +
-    `guardians to the same tag. This cannot be undone from here.`;
+    `guardians to the same tag. This cannot be undone from here.\n\n` +
+    `Note: #${tag} stays claimed as a family number — releasing empties the family but does not free the number. ` +
+    `If you want to use #${tag} for a pickup tag instead, delete this family rather than releasing it.`;
   document.getElementById('releaseFamilyModal').hidden = false;
 }
 
@@ -685,6 +688,7 @@ async function createFamily() {
 
 function wireFamilyEvents() {
   document.getElementById('addFamily')?.addEventListener('click', createFamily);
+  document.getElementById('familyAvailableTags')?.addEventListener('click', () => openAvailableTagsModal(currentProfile));
 
   const searchInput = document.getElementById('familySearch');
   const sortSelect  = document.getElementById('familySort');
