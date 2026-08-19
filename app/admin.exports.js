@@ -4,7 +4,7 @@ import { supabase } from './admin.supabase.js?v=2';
 import { loadSchoolConfig, gradeLabel, GRADE_ORDER, fetchAllRows } from './admin.shared.js?v=3';
 import {
   printRosters, saveRostersPdf, saveRostersXlsx, toRosterStudent, ROSTER_SELECT
-} from './roster-print.js?v=6';
+} from './roster-print.js?v=7';
 
 let currentProfile;
 let schoolConfig = null;
@@ -247,7 +247,10 @@ async function runRosterOutput(mode, buttonEl) {
     const payload = {
       groups,
       schoolName: schoolConfig?.name ?? '',
-      subtitle: activeOnly ? '' : 'Includes inactive students'
+      subtitle: activeOnly ? '' : 'Includes inactive students',
+      // Only worth a column when grouping by grade — a homeroom roster already
+      // names the teacher in its heading, so the column would repeat one value.
+      showTeacher: groupBy === 'grade' && usesHomerooms()
     };
 
     if (mode === 'pdf') await saveRostersPdf(payload);

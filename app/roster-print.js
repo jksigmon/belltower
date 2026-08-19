@@ -41,7 +41,7 @@ function generatedOn() {
   });
 }
 
-function rosterTable(students) {
+function rosterTable(students, showTeacher) {
   if (!students.length) {
     return '<p class="empty">No students assigned.</p>';
   }
@@ -52,6 +52,7 @@ function rosterTable(students) {
       <th class="num">#</th>
       <th>Student</th>
       <th>Grade</th>
+      ${showTeacher ? '<th>Homeroom Teacher</th>' : ''}
       <th>Carline Tag</th>
       <th>Bus Group</th>
       <th class="tick"></th>
@@ -62,6 +63,7 @@ function rosterTable(students) {
       <td class="num">${i + 1}</td>
       <td class="name">${esc(studentName(s))}</td>
       <td>${s.grade_level ? esc(gradeLabel(s.grade_level)) : '—'}</td>
+      ${showTeacher ? `<td>${s.teacher ? esc(s.teacher) : '—'}</td>` : ''}
       <td>${s.carline_tag ? esc(s.carline_tag) : '—'}</td>
       <td>${s.bus_group ? esc(s.bus_group) : '—'}</td>
       <td class="tick"><span class="box"></span></td>
@@ -76,12 +78,16 @@ function rosterTable(students) {
  * @param {object}   opts
  * @param {Array}    opts.groups     - [{ label, sublabel?, students: [] }]
  *                                     student: { first_name, last_name, preferred_name,
- *                                                grade_level, carline_tag, bus_group }
+ *                                                grade_level, carline_tag, bus_group,
+ *                                                teacher }
  * @param {string}   [opts.schoolName]
- * @param {string}   [opts.subtitle] - shown under each group heading
+ * @param {string}   [opts.subtitle]    - shown under each group heading
+ * @param {boolean}  [opts.showTeacher] - adds a Homeroom Teacher column. Set it
+ *                                        when grouping by grade; grouping by
+ *                                        teacher already names them in the heading.
  * @returns {boolean} false if the pop-up was blocked
  */
-export function printRosters({ groups = [], schoolName = '', subtitle = '' } = {}) {
+export function printRosters({ groups = [], schoolName = '', subtitle = '', showTeacher = false } = {}) {
   if (!groups.length) {
     alert('No students match that selection.');
     return false;
@@ -123,7 +129,7 @@ ${groups.map(g => `<section class="roster">
     <h1>${esc(g.label)}</h1>
     <div class="meta">${esc(metaLine(g, subtitle, generatedAt))}</div>
   </div>
-  ${rosterTable(g.students)}
+  ${rosterTable(g.students, showTeacher)}
 </section>`).join('')}
 </body>
 </html>`;
@@ -249,7 +255,9 @@ function sanitizeFilename(str) {
  *
  * @returns {Promise<boolean>} false if nothing was saved
  */
-export async function saveRostersPdf({ groups = [], schoolName = '', subtitle = '', filename } = {}) {
+export async function saveRostersPdf({
+  groups = [], schoolName = '', subtitle = '', showTeacher = false, filename
+} = {}) {
   if (!groups.length) {
     alert('No students match that selection.');
     return false;
@@ -268,6 +276,15 @@ export async function saveRostersPdf({ groups = [], schoolName = '', subtitle = 
   const doc = new JsPDF({ unit: 'pt', format: 'letter' });
   const margin = 40;
   const rightEdge = doc.internal.pageSize.getWidth() - margin;
+
+  // Derived rather than hard-coded: the tick-box column is the last one, and
+  // its index shifts when the teacher column is present.
+  const head = [
+    '#', 'Student', 'Grade',
+    ...(showTeacher ? ['Homeroom Teacher'] : []),
+    'Carline Tag', 'Bus Group', ''
+  ];
+  const tickCol = head.length - 1;
 
   groups.forEach((g, i) => {
     if (i > 0) doc.addPage();
@@ -304,20 +321,21 @@ export async function saveRostersPdf({ groups = [], schoolName = '', subtitle = 
           n + 1,
           studentName(s),
           s.grade_level ? gradeLabel(s.grade_level) : '—',
+          ...(showTeacher ? [s.teacher || '—'] : []),
           s.carline_tag || '—',
           s.bus_group || '—',
           ''
         ])
       : [[{
           content: 'No students assigned.',
-          colSpan: 6,
+          colSpan: head.length,
           styles: { fontStyle: 'italic', textColor: [107, 114, 128] }
         }]];
 
     autoTable(doc, {
       startY: y,
       margin: { left: margin, right: margin },
-      head: [['#', 'Student', 'Grade', 'Carline Tag', 'Bus Group', '']],
+      head: [head],
       body,
       theme: 'grid',
       styles: {
@@ -336,12 +354,12 @@ export async function saveRostersPdf({ groups = [], schoolName = '', subtitle = 
       columnStyles: {
         0: { cellWidth: 26, textColor: [156, 163, 175] },
         1: { fontStyle: 'bold' },
-        5: { cellWidth: 34 }
+        [tickCol]: { cellWidth: 34 }
       },
       // Draw the tick box centered in the last column, matching the
       // printed sheet's empty check-off square.
       didDrawCell: data => {
-        if (data.section !== 'body' || data.column.index !== 5) return;
+        if (data.section !== 'body' || data.column.index !== tickCol) return;
         if (!g.students.length) return;
         const size = 9;
         const x = data.cell.x + (data.cell.width - size) / 2;
@@ -426,7 +444,9 @@ function sheetName(label, used) {
  *
  * @returns {Promise<boolean>} false if nothing was saved
  */
-export async function saveRostersXlsx({ groups = [], subtitle = '', filename } = {}) {
+export async function saveRostersXlsx({
+  groups = [], subtitle = '', showTeacher = false, filename
+} = {}) {
   if (!groups.length) {
     alert('No students match that selection.');
     return false;
@@ -444,30 +464,33 @@ export async function saveRostersXlsx({ groups = [], subtitle = '', filename } =
   const wb = XLSX.utils.book_new();
   const used = new Set();
 
+  // Header order and column widths kept as one list so an added column can't
+  // land the widths on the wrong columns.
+  const columns = [
+    { header: '#',                  width: 4,  get: (s, i) => i + 1 },
+    { header: 'Student Last Name',  width: 18, get: s => s.last_name ?? '' },
+    { header: 'Student First Name', width: 18, get: s => s.first_name ?? '' },
+    { header: 'Preferred Name',     width: 16, get: s => s.preferred_name ?? '' },
+    { header: 'Grade',              width: 10, get: s => s.grade_level ? gradeLabel(s.grade_level) : '' },
+    ...(showTeacher
+      ? [{ header: 'Homeroom Teacher', width: 22, get: s => s.teacher ?? '' }]
+      : []),
+    { header: 'Carline Tag',        width: 12, get: s => s.carline_tag ?? '' },
+    { header: 'Bus Group',          width: 18, get: s => s.bus_group ?? '' }
+  ];
+
   groups.forEach(g => {
-    const rows = g.students.map((s, i) => ({
-      '#': i + 1,
-      'Student Last Name': s.last_name ?? '',
-      'Student First Name': s.first_name ?? '',
-      'Preferred Name': s.preferred_name ?? '',
-      Grade: s.grade_level ? gradeLabel(s.grade_level) : '',
-      'Carline Tag': s.carline_tag ?? '',
-      'Bus Group': s.bus_group ?? ''
-    }));
+    const rows = g.students.map((s, i) =>
+      Object.fromEntries(columns.map(c => [c.header, c.get(s, i)]))
+    );
 
     // json_to_sheet on an empty array writes a sheet with no header row at all,
     // which reads as a corrupt-looking blank tab. Give it the headers explicitly.
     const ws = rows.length
-      ? XLSX.utils.json_to_sheet(rows)
-      : XLSX.utils.aoa_to_sheet([[
-          '#', 'Student Last Name', 'Student First Name', 'Preferred Name',
-          'Grade', 'Carline Tag', 'Bus Group'
-        ]]);
+      ? XLSX.utils.json_to_sheet(rows, { header: columns.map(c => c.header) })
+      : XLSX.utils.aoa_to_sheet([columns.map(c => c.header)]);
 
-    ws['!cols'] = [
-      { wch: 4 }, { wch: 18 }, { wch: 18 }, { wch: 16 },
-      { wch: 10 }, { wch: 12 }, { wch: 18 }
-    ];
+    ws['!cols'] = columns.map(c => ({ wch: c.width }));
 
     XLSX.utils.book_append_sheet(wb, ws, sheetName(g.label, used));
   });
@@ -493,13 +516,17 @@ export async function saveRostersXlsx({ groups = [], subtitle = '', filename } =
  * same columns and get the same output.
  */
 export function toRosterStudent(row) {
+  const t = row.employees;
   return {
     first_name:     row.first_name,
     last_name:      row.last_name,
     preferred_name: row.preferred_name,
     grade_level:    row.grade_level,
     carline_tag:    row.families?.carline_tag_number ?? null,
-    bus_group:      row.bus_groups?.name ?? null
+    bus_group:      row.bus_groups?.name ?? null,
+    // Read off the FK rather than the legacy students.homeroom_teacher text
+    // column, which isn't kept in sync with homeroom_teacher_id.
+    teacher:        t ? `${t.last_name ?? ''}, ${t.first_name ?? ''}`.replace(/^, |, $/, '').trim() : null
   };
 }
 
@@ -513,5 +540,6 @@ export const ROSTER_SELECT = `
   homeroom_teacher_id,
   active,
   families(carline_tag_number),
-  bus_groups(name)
+  bus_groups(name),
+  employees:homeroom_teacher_id(first_name, last_name)
 `;
