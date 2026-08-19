@@ -416,14 +416,15 @@ async function loadFamilyTags() {
 }
 
 async function loadCarpoolTags() {
-  const { data } = await supabase
+  const data = await fetchAllRows(() => supabase
     .from('carpools')
     .select('tag_number, carline_tags ( family_id ), carpool_students ( student_id )')
     .eq('school_id', profile.school_id)
-    .eq('active', true);
+    .eq('active', true)
+    .order('id'));
   carpoolTagMap.clear();
   carpoolStudentMap.clear();
-  (data || []).forEach(cp => {
+  data.forEach(cp => {
     const tag        = String(cp.tag_number);
     const familyIds  = (cp.carline_tags     || []).map(ct => ct.family_id).filter(Boolean);
     const studentIds = (cp.carpool_students || []).map(cs => cs.student_id).filter(Boolean);
