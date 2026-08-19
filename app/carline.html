@@ -860,20 +860,26 @@ function renderBusArrivalBar() {
 // campus, so the extra rows can never collide -- and the board renders only the
 // teacher's own class regardless.
 async function loadExistingCalls() {
-  const { data } = await supabase
+  // Paginated: on a two-campus day this table's row count is shared across
+  // both events, and PostgREST silently caps an unpaginated select at 1000
+  // rows with no stable order between polls -- past that cap, whichever
+  // students land outside a given poll's arbitrary cutoff would blink out of
+  // callStatus (and back into Waiting, or out of Called entirely) every 8s.
+  const data = await fetchAllRows(() => supabase
     .from('carline_calls')
     .select('student_id, status, called_at, call_type, carline_events!inner(id)')
     .eq('school_id', profile.school_id)
-    .eq('carline_events.event_date', localToday());
+    .eq('carline_events.event_date', localToday())
+    .order('id'));
   callStatus.clear();
   calledAt.clear();
-  (data || []).forEach(c => {
+  data.forEach(c => {
     callStatus.set(c.student_id, c.status);
     if (c.called_at) calledAt.set(c.student_id, c.called_at);
   });
 
   // Rebuild call log sorted newest-first
-  callLog = (data || [])
+  callLog = data
     .filter(c => c.called_at && (c.status === 'CALLED' || c.status === 'RECALLED'))
     .sort((a, b) => b.called_at.localeCompare(a.called_at))
     .map(c => {
@@ -887,7 +893,7 @@ async function loadExistingCalls() {
 
   // Detect All Call from data — works on boot and every poll cycle
   const hadAllCall = !!allCallAt;
-  const hasAllCall = (data || []).some(c => c.call_type === 'ALL_CALL');
+  const hasAllCall = data.some(c => c.call_type === 'ALL_CALL');
   if (hasAllCall && !hadAllCall) {
     allCallAt = new Date().toISOString();
     updateAllCallBanner(true);
