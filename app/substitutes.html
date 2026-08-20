@@ -39,6 +39,9 @@
 .substitutes-page .admin-main {
   width: 100%;
   max-width: none;
+  /* Reserve the scrollbar track. Without this, a short panel (a no-match
+     search) removes the scrollbar and the whole layout jumps ~15px wider. */
+  scrollbar-gutter: stable;
 }
 
 .substitutes-page .panel {
@@ -83,6 +86,542 @@
   font-size: 13px;
   line-height: 32px;
   border-radius: 8px;
+}
+
+/* ================================================================
+   PENDING COVERAGE — triage view (chips + list + detail rail)
+   ================================================================ */
+
+/* ── Filter chips ── */
+.cov-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.cov-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 104px;
+  padding: 9px 14px;
+  background: #ffffff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cov-chip:hover { border-color: #c7d2fe; }
+
+.cov-chip.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.cov-chip-value {
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--text-primary, #111827);
+}
+
+.cov-chip-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #6b7280);
+}
+
+.cov-chip[data-accent="red"]   .cov-chip-value { color: #dc2626; }
+.cov-chip[data-accent="amber"] .cov-chip-value { color: #d97706; }
+
+/* ── Two-column layout: list + sticky detail rail ── */
+.cov-layout {
+  display: grid;
+  /* Scales with the viewport: wide enough for the coverage signals on a big
+     monitor, without starving the list on a smaller laptop */
+  grid-template-columns: minmax(0, 1fr) clamp(360px, 26vw, 440px);
+  gap: 18px;
+  align-items: start;
+}
+
+.cov-list { min-width: 0; }
+
+.cov-detail {
+  position: sticky;
+  top: 16px;
+  background: #ffffff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+}
+
+.cov-detail-placeholder {
+  padding: 42px 24px;
+  text-align: center;
+}
+
+.cov-placeholder-icon {
+  color: #cbd5e1;
+  margin-bottom: 12px;
+}
+
+.cov-placeholder-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 5px;
+}
+
+.cov-placeholder-text {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #94a3b8;
+  max-width: 220px;
+  margin: 0 auto;
+}
+
+.cov-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+}
+
+.cov-detail-head .staff-avatar {
+  width: 38px;
+  height: 38px;
+  font-size: 13px;
+  flex: 0 0 auto;
+}
+
+.cov-detail-who { min-width: 0; flex: 1; }
+
+.cov-detail-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cov-detail-role {
+  font-size: 12px;
+  color: var(--text-muted, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cov-detail-close {
+  border: 0;
+  background: none;
+  font-size: 17px;
+  line-height: 1;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.cov-detail-close:hover { background: #f3f4f6; color: #4b5563; }
+
+.cov-detail-body { padding: 12px 14px; }
+
+.cov-meta-row {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: 13px;
+}
+
+.cov-meta-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #6b7280);
+}
+
+.cov-meta-value { color: var(--text-primary, #111827); }
+
+/* Notes read as one more labelled field rather than a floating box */
+.cov-meta-row-notes { align-items: start; }
+
+.cov-notes {
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #475569;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Substitute picker ── */
+.cov-pick-title {
+  margin: 16px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #111827);
+}
+
+.cov-seg {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 3px;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 9px;
+  margin-bottom: 10px;
+}
+
+.cov-seg button {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  padding: 6px 8px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.cov-seg button.active {
+  background: #ffffff;
+  color: #1d4ed8;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Type-to-filter for the picker — mirrors the directory search input */
+.cov-pick-search {
+  width: 100%;
+  height: 34px;
+  margin-bottom: 8px;
+  padding: 0 10px 0 32px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  font-size: 13px;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 9px center;
+  background-size: 14px 14px;
+  transition: border-color 100ms, box-shadow 100ms;
+}
+
+.cov-pick-search:focus {
+  outline: none;
+  border-color: var(--primary, #2563eb);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.cov-sub-list {
+  max-height: 290px;
+  overflow-y: auto;
+  margin: 0 -2px;
+  padding: 0 2px;
+}
+
+.cov-sub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cov-sub + .cov-sub { margin-top: 7px; }
+.cov-sub:hover { border-color: #c7d2fe; }
+
+.cov-sub.selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 1px #2563eb;
+}
+
+.cov-sub .staff-avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+  flex: 0 0 auto;
+}
+
+.cov-sub-text { display: block; min-width: 0; flex: 1; }
+
+.cov-sub-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Wraps rather than truncating — the coverage signals are the whole point
+   of the card, so a second line beats an ellipsis */
+.cov-sub-meta {
+  display: block;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--text-muted, #6b7280);
+}
+
+.cov-avail {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: #dcfce7;
+  color: #15803d;
+  white-space: nowrap;
+}
+
+.cov-avail.booked { background: #fef3c7; color: #b45309; }
+
+/* Rank marker for the top suggestion — in the Suggested tab every card is
+   free by definition, so an "Available" badge on each would be noise */
+.cov-best {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  white-space: nowrap;
+}
+
+/* Who already has this assignment, in the edit modal's picker */
+.cov-current {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: #ede9fe;
+  color: #6d28d9;
+  white-space: nowrap;
+}
+
+.cov-pick-empty {
+  padding: 26px 16px;
+  text-align: center;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted, #6b7280);
+}
+
+.cov-pick-empty svg {
+  color: #cbd5e1;
+  margin-bottom: 8px;
+}
+
+.cov-detail-foot {
+  padding: 12px 14px;
+  border-top: 1px solid var(--border, #e5e7eb);
+  background: #f8fafc;
+}
+
+.cov-detail-foot .btn { width: 100%; }
+
+/* Neutral rather than a washed-out blue, which reads as a broken button */
+.cov-detail-foot .btn:disabled {
+  opacity: 1;
+  background: #e2e8f0;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* ── List rows ── */
+#pendingCoverageTable tbody tr { cursor: pointer; }
+
+#pendingCoverageTable tbody tr.selected {
+  background: #eff6ff;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.cov-out-role {
+  display: block;
+  font-weight: 400;
+  font-size: 11.5px;
+  color: var(--text-muted, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cov-date-sub {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-muted, #6b7280);
+}
+
+.cov-note-cell {
+  font-size: 12.5px;
+  color: #475569;
+  max-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Detail rail drops below the chips on narrower screens. Keep this breakpoint
+   in sync with the matchMedia check in covSelectRow(). */
+@media (max-width: 1279px) {
+  .cov-layout { grid-template-columns: 1fr; }
+  .cov-detail { position: static; order: -1; }
+  .cov-detail.is-empty { display: none; }
+}
+
+/* ================================================================
+   ASSIGNMENT MODAL — "Who's out / Who's covering / When"
+   ================================================================ */
+
+.asg-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+
+.asg-section:first-of-type {
+  margin-top: 14px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.asg-section-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #6b7280);
+  margin-bottom: 9px;
+}
+
+/* Read-only "who's out" summary for PTO-linked assignments */
+.asg-outperson-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+}
+
+.asg-outperson-chip .staff-avatar {
+  width: 32px;
+  height: 32px;
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
+.asg-outperson-text { min-width: 0; flex: 1; }
+
+.asg-outperson-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.asg-outperson-role {
+  font-size: 11.5px;
+  color: var(--text-muted, #6b7280);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.asg-outperson-tag {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: #fef3c7;
+  color: #b45309;
+  white-space: nowrap;
+}
+
+/* The picker list runs shorter here than in the coverage rail — the modal
+   already has three sections stacked above the fold */
+.asg-pick-list {
+  max-height: 220px;
+}
+
+.asg-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.asg-partial-toggle {
+  margin-top: 12px;
+}
+
+/* Inline validation banner — replaces alert() so errors read like the rest
+   of the app instead of interrupting with a browser dialog */
+.asg-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 9px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #b91c1c;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.asg-error svg { flex: 0 0 auto; }
+
+.asg-actions {
+  justify-content: space-between;
+}
+
+.asg-actions-right {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 520px) {
+  .asg-row-2 { grid-template-columns: 1fr; }
+  .asg-actions { flex-direction: column-reverse; align-items: stretch; gap: 10px; }
+  .asg-actions-right { width: 100%; }
+  .asg-actions-right .btn { flex: 1; }
 }
 
 /* ================================================================
@@ -146,31 +685,37 @@
     margin-bottom: 2px;
   }
 
-  /* ── Pending Coverage: Out(1) Date(2) Time(3) Type(4) Notes(5) Assign(6) ── */
+  /* ── Pending Coverage: bypass the table-layout algorithm, or the colgroup
+     widths squeeze the card rows into a fraction of the screen ── */
+  #pendingCoverageTable,
+  #pendingCoverageTable tbody {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* ── Pending Coverage: Out(1) Date(2) Type(3) Notes(4) Chevron(5) ── */
   #pendingCoverageTable tbody tr {
     grid-template-areas:
-      "out    date"
-      "type   time"
-      "notes  notes"
-      "action action";
+      "out   out"
+      "date  type"
+      "notes notes";
   }
 
   #pendingCoverageTable tbody tr td:nth-child(1) { grid-area: out;    font-weight: 600; }
-  #pendingCoverageTable tbody tr td:nth-child(2) { grid-area: date;   text-align: right; }
-  #pendingCoverageTable tbody tr td:nth-child(3) { grid-area: time;   text-align: right; }
-  #pendingCoverageTable tbody tr td:nth-child(4) { grid-area: type; }
-  #pendingCoverageTable tbody tr td:nth-child(5) { grid-area: notes;  color: #6b7280; font-size: 12px; }
-  #pendingCoverageTable tbody tr td:nth-child(6) { grid-area: action; margin-top: 4px; }
+  #pendingCoverageTable tbody tr td:nth-child(2) { grid-area: date; }
+  #pendingCoverageTable tbody tr td:nth-child(3) { grid-area: type;   text-align: right; }
+  #pendingCoverageTable tbody tr td:nth-child(4) { grid-area: notes;  color: #6b7280; font-size: 12px; }
+  #pendingCoverageTable tbody tr td:nth-child(5) { display: none; }
 
-  #pendingCoverageTable tbody tr td:nth-child(1)::before { content: "Out"; }
+  #pendingCoverageTable tbody tr td:nth-child(1)::before { content: ""; }
   #pendingCoverageTable tbody tr td:nth-child(2)::before { content: "Date"; }
-  #pendingCoverageTable tbody tr td:nth-child(3)::before { content: "Time"; }
-  #pendingCoverageTable tbody tr td:nth-child(4)::before { content: "Type"; }
-  #pendingCoverageTable tbody tr td:nth-child(5)::before { content: "Notes"; }
-  #pendingCoverageTable tbody tr td:nth-child(6)::before { content: ""; }
+  #pendingCoverageTable tbody tr td:nth-child(3)::before { content: "Type"; }
+  #pendingCoverageTable tbody tr td:nth-child(4)::before { content: "Notes"; }
 
-  #pendingCoverageTable tbody tr td:nth-child(6) .btn {
-    width: 100%;
+  /* Notes cell truncates via max-width on desktop; let it wrap in card mode */
+  #pendingCoverageTable tbody tr td.cov-note-cell {
+    max-width: none;
+    white-space: normal;
   }
 
   /* ── Pending Cancellations: Out(1) Date(2) Time(3) Assigned(4) Cancel(5) ── */
@@ -376,23 +921,71 @@
     ========================== -->
     <section id="view-pending" class="panel panel-history sub-view">
       <h3>Pending Coverage</h3>
-      <table id="pendingCoverageTable" style="margin-top:12px; width:100%;">
-        <thead>
-          <tr>
-            <th>Out</th>
-            <th>Date</th>
-            <th>Time</th>
-            <th>Type</th>
-            <th>Notes</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
 
-      <div id="pendingCoverageEmpty" class="empty-state" hidden>
-        <div class="empty-title">No pending coverage</div>
-        <div class="empty-text">All approved coverage-needed leave days are assigned.</div>
+      <div class="cov-layout">
+        <div class="cov-list">
+          <div class="cov-chips" id="covChips"></div>
+
+          <div class="directory-header">
+            <div class="directory-filters">
+              <input id="covSearch" type="text" placeholder="Search by name or notes…" />
+              <select id="covDateFilter">
+                <option value="">All dates</option>
+                <option value="week">This week</option>
+                <option value="next14">Next 14 days</option>
+                <option value="month">This month</option>
+              </select>
+              <select id="covTypeFilter">
+                <option value="">All types</option>
+              </select>
+              <select id="covSort">
+                <option value="date.asc">Date (earliest)</option>
+                <option value="date.desc">Date (latest)</option>
+                <option value="name.asc">Staff name (A–Z)</option>
+              </select>
+            </div>
+          </div>
+
+          <table id="pendingCoverageTable" style="margin-top:12px; width:100%;">
+            <colgroup>
+              <col>                    <!-- Staff member -->
+              <col style="width:20%">  <!-- Date -->
+              <col style="width:14%">  <!-- Type -->
+              <col style="width:26%">  <!-- Notes -->
+              <col style="width:36px"> <!-- Chevron -->
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Staff Member</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Notes</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+
+          <div id="covPagination" class="pagination"></div>
+
+          <div id="pendingCoverageEmpty" class="empty-state" hidden>
+            <div class="empty-title">No pending coverage</div>
+            <div class="empty-text">All approved coverage-needed leave days are assigned.</div>
+          </div>
+
+          <div id="covFilteredEmpty" class="empty-state" hidden>
+            <div class="empty-title">No matching days</div>
+            <div class="empty-text">Try clearing the search or filters.</div>
+          </div>
+        </div>
+
+        <aside class="cov-detail is-empty" id="covDetail">
+          <div class="cov-detail-placeholder">
+            <svg class="cov-placeholder-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+            <div class="cov-placeholder-title">No day selected</div>
+            <div class="cov-placeholder-text">Pick a pending day from the list to find and assign coverage.</div>
+          </div>
+        </aside>
       </div>
     </section>
 
@@ -516,44 +1109,73 @@
 <div class="modal modal-md" id="assignModal">
   <div class="modal-content">
     <div class="modal-header">
-      <h3>Schedule Substitute</h3>
+      <h3 id="asgTitle">New Coverage Assignment</h3>
       <span class="modal-close" data-close="assignModal">×</span>
     </div>
 
-<!-- Who is out / being covered -->
-<div class="field" id="coveredEmployeeReadOnlyWrap" style="display:none;">
-  <label>Covered Employee</label>
-  <input id="assignCoveredEmployeeText" disabled />
-</div>
+    <div class="asg-error" id="asgError" hidden></div>
 
-<div class="field" id="coveredEmployeeSelectWrap" style="display:none;">
-  <label>Covered Employee</label>
-  <select id="assignCoveredEmployee"></select>
-  <div class="muted" style="font-size:12px; margin-top:6px;">
-    Required for manual calendar assignments.
-  </div>
-</div>
+    <!-- Who's out -->
+    <div class="asg-section">
+      <div class="asg-section-label">Who's Out</div>
 
-<div class="admin-form-row compact two">
-  <div class="field" style="flex:1;">
-    <label>Substitute</label>
-    <select id="assignSub"></select>
-  </div>
+      <div class="asg-outperson-chip" id="asgOutChip" hidden>
+        <span class="staff-avatar" id="asgOutAvatar"></span>
+        <div class="asg-outperson-text">
+          <div class="asg-outperson-name" id="asgOutName"></div>
+          <div class="asg-outperson-role" id="asgOutRole"></div>
+        </div>
+        <span class="asg-outperson-tag">On leave</span>
+      </div>
 
-  <div class="field" style="flex:1;">
-    <label>Internal Coverage</label>
-    <select id="assignEmployee"></select>
-  </div>
-</div>
-
-    <div class="admin-form-row compact two">
-      <input id="assignStart" placeholder="Start date" />
-      <input id="assignEnd" placeholder="End date" />
+      <div class="field" id="asgOutSelectWrap" hidden style="margin-top:0;">
+        <select id="assignCoveredEmployee"></select>
+      </div>
     </div>
 
-    <div class="admin-form-row compact two">
-      <input id="assignStartTime" placeholder="Start time" />
-      <input id="assignEndTime" placeholder="End time" />
+    <!-- Who's covering -->
+    <div class="asg-section">
+      <div class="asg-section-label">Who's Covering</div>
+
+      <div class="cov-seg" id="asgSeg">
+        <button type="button" data-tab="suggested">Suggested</button>
+        <button type="button" data-tab="available">Substitutes</button>
+        <button type="button" data-tab="staff">Staff</button>
+      </div>
+      <input id="asgPickSearch" class="cov-pick-search" type="text" autocomplete="off" />
+      <div class="cov-sub-list asg-pick-list" id="asgPickList"></div>
+    </div>
+
+    <!-- When -->
+    <div class="asg-section">
+      <div class="asg-section-label">When</div>
+
+      <div class="asg-row-2">
+        <div class="field" style="margin-top:0;">
+          <label>Start date</label>
+          <input id="assignStart" />
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>End date</label>
+          <input id="assignEnd" />
+        </div>
+      </div>
+
+      <label class="staff-active-label asg-partial-toggle">
+        <input type="checkbox" id="asgPartialDay" />
+        <span>Partial day (specific start/end time)</span>
+      </label>
+
+      <div class="asg-row-2" id="asgTimeRow" hidden>
+        <div class="field" style="margin-top:0;">
+          <label>Start time</label>
+          <input id="assignStartTime" />
+        </div>
+        <div class="field" style="margin-top:0;">
+          <label>End time</label>
+          <input id="assignEndTime" />
+        </div>
+      </div>
     </div>
 
     <div class="field">
@@ -561,9 +1183,12 @@
       <input id="assignReason" placeholder="Leave, sick, training…" />
     </div>
 
-    <div class="modal-actions">
-      <button class="btn btn-sm" id="cancelAssignBtn">Cancel</button>
-      <button class="btn btn-primary btn-sm" id="saveAssignBtn">Save Assignment</button>
+    <div class="modal-actions asg-actions">
+      <button class="btn danger btn-sm" id="asgRemoveBtn" type="button" hidden>Remove Assignment</button>
+      <div class="asg-actions-right">
+        <button class="btn btn-sm" id="cancelAssignBtn">Cancel</button>
+        <button class="btn btn-primary btn-sm" id="saveAssignBtn">Save Assignment</button>
+      </div>
     </div>
   </div>
 </div>
@@ -662,7 +1287,16 @@
 <script type="module">
 import { supabase } from '/app/admin.supabase.js?v=2';
 import { initPage } from '/app/admin.auth.js?v=2';
-import { esc } from '/app/admin.shared.js?v=3';
+import {
+  esc,
+  debounce,
+  getAvatarColor,
+  fmtTime,
+  todayISO,
+  toLocalISODate,
+  dbError,
+  showToast
+} from '/app/admin.shared.js?v=3';
 
 let currentProfile;
 let calendar;
@@ -743,19 +1377,82 @@ async function loadSubstitutes() {
   data.forEach(sub => tbody.appendChild(renderSubRow(sub)));
 }
 
-/* ── Helpers ── */
-function getAvatarColor(name) {
-  const colors = ['#6366f1', '#0ea5e9', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6'];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return colors[Math.abs(hash) % colors.length];
+// ================================================================
+// PENDING COVERAGE — triage view
+//
+// One row per un-covered leave day (v_pending_coverage_days already
+// explodes multi-day requests), filtered/sorted/paged client-side, with a
+// detail rail that assigns a coverer inline instead of opening the shared
+// assignment modal. The modal is still used by the calendar, where the
+// covered employee has to be chosen by hand.
+// ================================================================
+
+const COV_PAGE_SIZE = 15;
+
+const covState = {
+  rows: [],          // pending coverage days for this school
+  positions: {},     // employee_id -> position, for the row subtitle
+  subs: [],          // active substitutes
+  staff: [],         // active employees, for internal coverage
+  history: [],       // ~1 year of assignments: powers availability + ranking
+  supportLoaded: false,
+  filtered: [],
+  page: 1,
+  selectedKey: null,
+  renderedKey: null,
+  pickTab: 'suggested',
+  pickQuery: '',     // type-to-filter within the picker (kept across tabs)
+  pickKind: null,    // 'sub' | 'staff'
+  pickId: null,
+  pickName: ''
+};
+
+const covRowKey = row => `${row.pto_request_id}|${row.coverage_date}`;
+
+const COV_TYPE_BADGES = {
+  VACATION:     'badge-pto-vacation',
+  SICK:         'badge-pto-sick',
+  PERSONAL:     'badge-pto-personal',
+  PROFESSIONAL: 'badge-pto-professional'
+};
+
+function covTypeLabel(type) {
+  const t = String(type ?? '');
+  return t ? t.charAt(0) + t.slice(1).toLowerCase() : '—';
+}
+
+function covTypeBadge(type) {
+  const cls = COV_TYPE_BADGES[type] ?? 'badge-pto-other';
+  return `<span class="pto-type-badge ${cls}">${esc(covTypeLabel(type))}</span>`;
+}
+
+function covFmtDay(dateStr, withYear = false) {
+  if (!dateStr) return '—';
+  const d = new Date(`${dateStr}T12:00:00`);
+  return d.toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    ...(withYear ? { year: 'numeric' } : {})
+  });
+}
+
+function covTimeLabel(row) {
+  return (row.start_time && row.end_time)
+    ? `${fmtTime(row.start_time)}–${fmtTime(row.end_time)}`
+    : 'Full day';
+}
+
+function covInitials(first, last) {
+  return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase();
+}
+
+function covSelectedRow() {
+  if (!covState.selectedKey) return null;
+  return covState.rows.find(r => covRowKey(r) === covState.selectedKey) ?? null;
 }
 
 async function loadPendingCoverage() {
-  const tbody = document.querySelector('#pendingCoverageTable tbody');
-  const empty = document.getElementById('pendingCoverageEmpty');
-  tbody.innerHTML = '';
-
   const { data, error } = await supabase
     .from('v_pending_coverage_days')
     .select('*')
@@ -763,41 +1460,1063 @@ async function loadPendingCoverage() {
     .order('coverage_date', { ascending: true });
 
   if (error) {
-    console.error(error);
-    empty.hidden = false;
+    dbError(error, 'Could not load pending coverage');
+    covState.rows = [];
+    renderCoverage();
     return;
   }
 
-  if (!data || data.length === 0) {
-    empty.hidden = false;
-    return;
+  covState.rows = data ?? [];
+
+  // A day covered from the calendar (or by someone else) leaves the view
+  if (covState.selectedKey && !covSelectedRow()) covState.selectedKey = null;
+
+  await Promise.all([loadCoveragePositions(), loadCoverageSupport()]);
+
+  populateCovTypeFilter();
+  renderCoverage();
+}
+
+async function loadCoveragePositions() {
+  const ids = [...new Set(covState.rows.map(r => r.out_employee_id).filter(Boolean))]
+    .filter(id => !(id in covState.positions));
+  if (!ids.length) return;
+
+  const { data, error } = await supabase
+    .from('employees')
+    .select('id, position')
+    .in('id', ids);
+
+  if (error) { console.error('Position lookup failed:', error); return; }
+  (data ?? []).forEach(e => { covState.positions[e.id] = e.position ?? ''; });
+}
+
+/**
+ * Substitutes, staff, and a rolling year of assignments. Cached for the
+ * session and invalidated (covState.supportLoaded = false) whenever the
+ * substitute directory or an assignment changes — feeds both the Pending
+ * Coverage picker and the Schedule Substitute modal's picker.
+ */
+async function loadCoverageSupport() {
+  if (covState.supportLoaded) return;
+
+  const since = new Date();
+  since.setDate(since.getDate() - 365);
+
+  const [subsRes, staffRes, histRes] = await Promise.all([
+    supabase
+      .from('substitutes')
+      .select('id, first_name, last_name')
+      .eq('school_id', currentProfile.school_id)
+      .eq('active', true)
+      .order('last_name'),
+    supabase
+      .from('employees')
+      .select('id, first_name, last_name, position')
+      .eq('school_id', currentProfile.school_id)
+      .eq('active', true)
+      .order('last_name'),
+    supabase
+      .from('substitute_assignments')
+      .select(`
+        id,
+        substitute_id,
+        employee_id,
+        covered_employee_id,
+        start_date,
+        end_date,
+        status,
+        pto:pto_requests!substitute_assignments_pto_request_id_fkey ( employee_id )
+      `)
+      .eq('school_id', currentProfile.school_id)
+      .gte('start_date', toLocalISODate(since))
+      .limit(2000)
+  ]);
+
+  if (subsRes.error)  console.error('Substitute load failed:', subsRes.error);
+  if (staffRes.error) console.error('Staff load failed:', staffRes.error);
+  if (histRes.error)  console.error('Assignment history load failed:', histRes.error);
+
+  covState.subs    = subsRes.data ?? [];
+  covState.staff   = staffRes.data ?? [];
+  covState.history = histRes.data ?? [];
+  covState.supportLoaded = true;
+}
+
+/** Who an assignment covered — via its PTO request, or directly for manual ones. */
+function covAssignmentOutId(a) {
+  return a.pto?.employee_id ?? a.covered_employee_id ?? null;
+}
+
+/**
+ * Ranking signals that are actually derivable from substitute_assignments:
+ * how often this person covers, when they last worked, how many times
+ * they've covered this particular staff member, and whether they already
+ * have a scheduled assignment overlapping the target range.
+ *
+ * `range` is { start, end } ISO dates — pass start === end for a single day
+ * (the Pending Coverage panel). The assignment modal passes a real range
+ * since it can cover multiple days.
+ *
+ * `excludeAssignmentId` skips one assignment entirely — the modal passes the
+ * assignment currently being edited, so its own coverer doesn't get counted
+ * as "booked" against themselves and silently vanish from Suggested.
+ */
+function covCovererStats(kind, id, range, outEmployeeId, excludeAssignmentId = null) {
+  const field = kind === 'sub' ? 'substitute_id' : 'employee_id';
+  const today = todayISO();
+  const stats = { assignments: 0, lastWorked: null, forThisStaff: 0, booked: false };
+
+  for (const a of covState.history) {
+    if (a[field] !== id || a.status !== 'scheduled') continue;
+    if (excludeAssignmentId && a.id === excludeAssignmentId) continue;
+
+    stats.assignments++;
+    if (a.end_date <= today && (!stats.lastWorked || a.end_date > stats.lastWorked)) {
+      stats.lastWorked = a.end_date;
+    }
+    if (outEmployeeId && covAssignmentOutId(a) === outEmployeeId) stats.forThisStaff++;
+    if (range && a.start_date <= range.end && a.end_date >= range.start) stats.booked = true;
   }
 
-  empty.hidden = true;
+  return stats;
+}
 
-  data.forEach(row => {
-    const tr = document.createElement('tr');
+function covDateWindow(mode) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-    const outName = `${row.out_last_name}, ${row.out_first_name}`;
-    const timeText = (row.start_time && row.end_time)
-      ? `${row.start_time.slice(0,5)}–${row.end_time.slice(0,5)}`
-      : 'Full day';
+  if (mode === 'week') {
+    const end = new Date(today);
+    end.setDate(end.getDate() + (6 - end.getDay())); // through Saturday
+    return [toLocalISODate(today), toLocalISODate(end)];
+  }
+  if (mode === 'next14') {
+    const end = new Date(today);
+    end.setDate(end.getDate() + 13);
+    return [toLocalISODate(today), toLocalISODate(end)];
+  }
+  if (mode === 'month') {
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return [toLocalISODate(today), toLocalISODate(end)];
+  }
+  return null;
+}
 
-    tr.innerHTML = `
-      <td>${outName}</td>
-      <td>${row.coverage_date}</td>
-      <td>${timeText}</td>
-      <td>${row.pto_type}</td>
-      <td class="truncate">${row.notes ?? '—'}</td>
-      <td><button class="btn btn-primary btn-sm">Assign</button></td>
-    `;
+function populateCovTypeFilter() {
+  const sel = document.getElementById('covTypeFilter');
+  if (!sel) return;
 
-    tr.querySelector('button').addEventListener('click', () => {
-      openAssignFromPending(row);
-    });
+  const current = sel.value;
+  const types = [...new Set(covState.rows.map(r => r.pto_type).filter(Boolean))].sort();
 
-    tbody.appendChild(tr);
+  sel.innerHTML = '<option value="">All types</option>';
+  types.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = covTypeLabel(t);
+    sel.appendChild(opt);
   });
+
+  sel.value = types.includes(current) ? current : '';
+}
+
+function applyCovFilters() {
+  const q        = (document.getElementById('covSearch')?.value ?? '').trim().toLowerCase();
+  const dateMode = document.getElementById('covDateFilter')?.value ?? '';
+  const type     = document.getElementById('covTypeFilter')?.value ?? '';
+  const sort     = document.getElementById('covSort')?.value ?? 'date.asc';
+  const window_  = covDateWindow(dateMode);
+
+  const rows = covState.rows.filter(r => {
+    if (type && r.pto_type !== type) return false;
+    if (window_ && (r.coverage_date < window_[0] || r.coverage_date > window_[1])) return false;
+    if (q) {
+      const hay = `${r.out_first_name} ${r.out_last_name} ${r.notes ?? ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const byName = (a, b) =>
+    `${a.out_last_name} ${a.out_first_name}`.localeCompare(`${b.out_last_name} ${b.out_first_name}`);
+
+  rows.sort((a, b) => {
+    if (sort === 'name.asc') return byName(a, b) || a.coverage_date.localeCompare(b.coverage_date);
+    const cmp = a.coverage_date.localeCompare(b.coverage_date);
+    return (sort === 'date.desc' ? -cmp : cmp) || byName(a, b);
+  });
+
+  covState.filtered = rows;
+
+  const maxPage = Math.max(1, Math.ceil(rows.length / COV_PAGE_SIZE));
+  if (covState.page > maxPage) covState.page = maxPage;
+}
+
+function renderCoverage() {
+  applyCovFilters();
+  renderCovChips();
+  renderCovTable();
+  renderCovPagination();
+  renderCovDetail();
+}
+
+function covSetFilter(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.value = value;
+  covState.page = 1;
+  renderCoverage();
+}
+
+function covClearFilters() {
+  ['covSearch', 'covDateFilter', 'covTypeFilter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  covState.page = 1;
+  renderCoverage();
+}
+
+function renderCovChips() {
+  const host = document.getElementById('covChips');
+  if (!host) return;
+  host.innerHTML = '';
+
+  const q        = (document.getElementById('covSearch')?.value ?? '').trim();
+  const dateMode = document.getElementById('covDateFilter')?.value ?? '';
+  const typeVal  = document.getElementById('covTypeFilter')?.value ?? '';
+
+  const [weekStart, weekEnd] = covDateWindow('week');
+  const weekCount = covState.rows.filter(
+    r => r.coverage_date >= weekStart && r.coverage_date <= weekEnd
+  ).length;
+
+  const typeCounts = {};
+  covState.rows.forEach(r => { typeCounts[r.pto_type] = (typeCounts[r.pto_type] ?? 0) + 1; });
+
+  const chips = [
+    {
+      label: 'Pending',
+      value: covState.rows.length,
+      accent: 'red',
+      active: !dateMode && !typeVal && !q,
+      onClick: covClearFilters
+    },
+    {
+      label: 'This week',
+      value: weekCount,
+      accent: 'amber',
+      active: dateMode === 'week',
+      onClick: () => covSetFilter('covDateFilter', dateMode === 'week' ? '' : 'week')
+    }
+  ];
+
+  Object.entries(typeCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .forEach(([type, count]) => chips.push({
+      label: covTypeLabel(type),
+      value: count,
+      active: typeVal === type,
+      onClick: () => covSetFilter('covTypeFilter', typeVal === type ? '' : type)
+    }));
+
+  chips.forEach(chip => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cov-chip' + (chip.active ? ' active' : '');
+    if (chip.accent) btn.dataset.accent = chip.accent;
+    btn.innerHTML = `
+      <span class="cov-chip-value">${chip.value}</span>
+      <span class="cov-chip-label">${esc(chip.label)}</span>
+    `;
+    btn.addEventListener('click', chip.onClick);
+    host.appendChild(btn);
+  });
+}
+
+function renderCovTable() {
+  const table   = document.getElementById('pendingCoverageTable');
+  const tbody   = table?.querySelector('tbody');
+  const emptyAll      = document.getElementById('pendingCoverageEmpty');
+  const emptyFiltered = document.getElementById('covFilteredEmpty');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  const hasAny     = covState.rows.length > 0;
+  const hasMatches = covState.filtered.length > 0;
+
+  emptyAll.hidden      = hasAny;
+  emptyFiltered.hidden = !hasAny || hasMatches;
+  table.hidden         = !hasMatches;
+
+  const start = (covState.page - 1) * COV_PAGE_SIZE;
+  covState.filtered
+    .slice(start, start + COV_PAGE_SIZE)
+    .forEach(row => tbody.appendChild(renderCovRow(row)));
+}
+
+function renderCovRow(row) {
+  const key  = covRowKey(row);
+  const name = `${row.out_first_name} ${row.out_last_name}`;
+  const role = covState.positions[row.out_employee_id] ?? '';
+
+  const tr = document.createElement('tr');
+  tr.dataset.key = key;
+  if (key === covState.selectedKey) tr.classList.add('selected');
+
+  tr.innerHTML = `
+    <td>
+      <div class="staff-name-cell">
+        <div class="staff-avatar" style="background:${getAvatarColor(name)}">${esc(covInitials(row.out_first_name, row.out_last_name))}</div>
+        <div class="staff-name-group">
+          <span class="staff-fullname">${esc(name)}</span>
+          ${role ? `<span class="cov-out-role">${esc(role)}</span>` : ''}
+        </div>
+      </div>
+    </td>
+    <td>
+      ${esc(covFmtDay(row.coverage_date))}
+      <span class="cov-date-sub">${esc(covTimeLabel(row))}</span>
+    </td>
+    <td>${covTypeBadge(row.pto_type)}</td>
+    <td class="cov-note-cell" title="${esc(row.notes ?? '')}">${esc(row.notes ?? '—')}</td>
+    <td class="staff-cell-chevron">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </td>
+  `;
+
+  // Selecting the row is the assign action — on a narrow screen that means
+  // bringing the stacked detail panel into view
+  tr.addEventListener('click', () => covSelectRow(key, { scrollToDetail: true }));
+
+  return tr;
+}
+
+function covPageRange(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, '…', total];
+  if (current >= total - 3) return [1, '…', total - 4, total - 3, total - 2, total - 1, total];
+  return [1, '…', current - 1, current, current + 1, '…', total];
+}
+
+function renderCovPagination() {
+  const host = document.getElementById('covPagination');
+  if (!host) return;
+
+  host.innerHTML = '';
+  const total = covState.filtered.length;
+
+  if (!total) { host.hidden = true; return; }
+  host.hidden = false;
+
+  const totalPages = Math.ceil(total / COV_PAGE_SIZE);
+  const from = (covState.page - 1) * COV_PAGE_SIZE + 1;
+  const to   = Math.min(covState.page * COV_PAGE_SIZE, total);
+
+  const info = document.createElement('span');
+  info.className = 'pagination-info';
+  info.textContent = totalPages <= 1
+    ? `${total} day${total !== 1 ? 's' : ''}`
+    : `${from}–${to} of ${total}`;
+  host.appendChild(info);
+
+  if (totalPages <= 1) return;
+
+  const controls = document.createElement('div');
+  controls.className = 'pagination-controls';
+
+  function makeBtn(label, page, disabled = false, ariaLabel = '') {
+    const btn = document.createElement('button');
+    btn.innerHTML = label;
+    btn.className = 'pagination-btn' + (page === covState.page ? ' pagination-active' : '');
+    btn.disabled = disabled;
+    if (ariaLabel) btn.setAttribute('aria-label', ariaLabel);
+    if (!disabled && page !== covState.page) {
+      btn.onclick = () => {
+        covState.page = page;
+        renderCoverage();
+      };
+    }
+    return btn;
+  }
+
+  controls.appendChild(makeBtn('&#8249;', covState.page - 1, covState.page === 1, 'Previous page'));
+  covPageRange(covState.page, totalPages).forEach(p => {
+    if (p === '…') {
+      const el = document.createElement('span');
+      el.className = 'pagination-ellipsis';
+      el.textContent = '…';
+      controls.appendChild(el);
+    } else {
+      controls.appendChild(makeBtn(p, p));
+    }
+  });
+  controls.appendChild(makeBtn('&#8250;', covState.page + 1, covState.page === totalPages, 'Next page'));
+
+  host.appendChild(controls);
+}
+
+function covSelectRow(key, { scrollToDetail = false } = {}) {
+  covState.selectedKey = key;
+  covState.pickTab   = 'suggested';
+  covState.pickQuery = '';
+  covState.pickKind  = null;
+  covState.pickId    = null;
+  covState.pickName  = '';
+
+  document.querySelectorAll('#pendingCoverageTable tbody tr').forEach(tr => {
+    tr.classList.toggle('selected', tr.dataset.key === key);
+  });
+
+  renderCovDetail();
+
+  // Breakpoint must match the .cov-layout media query in this page's <style>
+  if (scrollToDetail && window.matchMedia('(max-width: 1279px)').matches) {
+    document.getElementById('covDetail')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function renderCovDetail() {
+  const host = document.getElementById('covDetail');
+  if (!host) return;
+
+  const row = covSelectedRow();
+  const key = row ? covRowKey(row) : null;
+
+  // Filtering/paging shouldn't rebuild an open panel — just refresh the picker
+  if (key && key === covState.renderedKey && host.querySelector('#covPickList')) {
+    renderCovPickList();
+    covUpdateAssignBtn();
+    return;
+  }
+  covState.renderedKey = key;
+
+  if (!row) {
+    host.classList.add('is-empty');
+    host.innerHTML = `
+      <div class="cov-detail-placeholder">
+        <svg class="cov-placeholder-icon" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+        <div class="cov-placeholder-title">No day selected</div>
+        <div class="cov-placeholder-text">Pick a pending day from the list to find and assign coverage.</div>
+      </div>
+    `;
+    return;
+  }
+
+  host.classList.remove('is-empty');
+
+  const name = `${row.out_first_name} ${row.out_last_name}`;
+  const role = covState.positions[row.out_employee_id] ?? '';
+
+  host.innerHTML = `
+    <div class="cov-detail-head">
+      <div class="staff-avatar" style="background:${getAvatarColor(name)}">${esc(covInitials(row.out_first_name, row.out_last_name))}</div>
+      <div class="cov-detail-who">
+        <div class="cov-detail-name">${esc(name)}</div>
+        <div class="cov-detail-role">${esc(role || 'Staff')}</div>
+      </div>
+      <button class="cov-detail-close" id="covDetailClose" type="button" aria-label="Close">✕</button>
+    </div>
+
+    <div class="cov-detail-body">
+      <div class="cov-meta-row">
+        <span class="cov-meta-label">Date</span>
+        <span class="cov-meta-value">${esc(covFmtDay(row.coverage_date, true))}</span>
+      </div>
+      <div class="cov-meta-row">
+        <span class="cov-meta-label">Time</span>
+        <span class="cov-meta-value">${esc(covTimeLabel(row))}</span>
+      </div>
+      <div class="cov-meta-row">
+        <span class="cov-meta-label">Type</span>
+        <span class="cov-meta-value">${covTypeBadge(row.pto_type)}</span>
+      </div>
+      ${row.notes ? `
+        <div class="cov-meta-row cov-meta-row-notes">
+          <span class="cov-meta-label">Notes</span>
+          <span class="cov-notes">${esc(row.notes)}</span>
+        </div>` : ''}
+
+      <div class="cov-pick-title">Find a Substitute</div>
+      <div class="cov-seg" id="covSeg">
+        <button type="button" data-tab="suggested">Suggested</button>
+        <button type="button" data-tab="available">Available</button>
+        <button type="button" data-tab="staff">Staff</button>
+      </div>
+      <input id="covPickSearch" class="cov-pick-search" type="text" autocomplete="off" />
+      <div class="cov-sub-list" id="covPickList"></div>
+    </div>
+
+    <div class="cov-detail-foot">
+      <button class="btn btn-primary" id="covAssignBtn" type="button" disabled>Select a substitute</button>
+    </div>
+  `;
+
+  host.querySelector('#covDetailClose').addEventListener('click', () => covSelectRow(null));
+  host.querySelectorAll('#covSeg button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      covState.pickTab = btn.dataset.tab;
+      renderCovPickList();
+    });
+  });
+  host.querySelector('#covAssignBtn').addEventListener('click', covAssign);
+
+  // The input lives outside #covPickList, so filtering never rebuilds it and
+  // typing keeps focus
+  const search = host.querySelector('#covPickSearch');
+  search.value = covState.pickQuery;
+  search.addEventListener('input', () => {
+    covState.pickQuery = search.value;
+    renderCovPickList();
+  });
+
+  renderCovPickList();
+  covUpdateAssignBtn();
+}
+
+function renderCovPickList() {
+  const host = document.getElementById('covPickList');
+  const row  = covSelectedRow();
+  if (!host || !row) return;
+
+  document.querySelectorAll('#covSeg button').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === covState.pickTab);
+  });
+
+  const range = { start: row.coverage_date, end: row.coverage_date };
+  const outId = row.out_employee_id;
+  const kind  = covState.pickTab === 'staff' ? 'staff' : 'sub';
+  const query = covState.pickQuery.trim().toLowerCase();
+
+  const searchEl = document.getElementById('covPickSearch');
+  if (searchEl) {
+    searchEl.placeholder = kind === 'staff' ? 'Search staff…' : 'Search substitutes…';
+  }
+
+  const people = (kind === 'staff'
+    ? covState.staff.filter(e => e.id !== outId)
+    : covState.subs
+  ).filter(p => !query || `${p.first_name} ${p.last_name}`.toLowerCase().includes(query));
+
+  let entries = people.map(person => ({
+    person,
+    stats: covCovererStats(kind, person.id, range, outId)
+  }));
+
+  const byLastName = (a, b) =>
+    `${a.person.last_name} ${a.person.first_name}`
+      .localeCompare(`${b.person.last_name} ${b.person.first_name}`);
+
+  if (covState.pickTab === 'suggested') {
+    // Free that day, ranked by familiarity with this staff member, then by
+    // who has covered most recently, then by overall workload. The six-item
+    // cap is a shortlist for browsing — when searching, show every match.
+    entries = entries
+      .filter(e => !e.stats.booked)
+      .sort((a, b) =>
+        b.stats.forThisStaff - a.stats.forThisStaff ||
+        (b.stats.lastWorked ?? '').localeCompare(a.stats.lastWorked ?? '') ||
+        b.stats.assignments - a.stats.assignments ||
+        byLastName(a, b));
+    if (!query) entries = entries.slice(0, 6);
+  } else {
+    entries.sort((a, b) =>
+      Number(a.stats.booked) - Number(b.stats.booked) || byLastName(a, b));
+  }
+
+  if (!entries.length) {
+    let msg;
+    if (query) {
+      msg = covState.pickTab === 'suggested'
+        ? `No available substitutes match "${covState.pickQuery.trim()}" — check the Available or Staff tab.`
+        : `No ${kind === 'staff' ? 'staff' : 'substitutes'} match "${covState.pickQuery.trim()}".`;
+    } else {
+      msg = covState.pickTab === 'suggested'
+        ? 'Every active substitute is already booked that day — check the Available or Staff tab.'
+        : covState.pickTab === 'available'
+          ? 'No active substitutes. Add one from the Directory.'
+          : 'No other active staff members.';
+    }
+    host.innerHTML = `
+      <div class="cov-pick-empty">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <div>${esc(msg)}</div>
+      </div>
+    `;
+    return;
+  }
+
+  host.innerHTML = '';
+  entries.forEach(({ person, stats }, i) => {
+    // Only the ranked tab gets a "best match" marker, and only when it's a
+    // genuine ranking rather than a search result
+    const isTop = covState.pickTab === 'suggested' && i === 0 && !query;
+    const selected = covState.pickKind === kind && covState.pickId === person.id;
+    const card = covPickCard(kind, person, stats, { isTop, selected, tab: covState.pickTab });
+    card.addEventListener('click', () => {
+      covState.pickKind = kind;
+      covState.pickId   = person.id;
+      covState.pickName = `${person.first_name} ${person.last_name}`;
+      renderCovPickList();
+      covUpdateAssignBtn();
+    });
+    host.appendChild(card);
+  });
+}
+
+/**
+ * Renders one coverer option — shared by the Pending Coverage detail rail
+ * and the Schedule Substitute modal, so a substitute or staff member looks
+ * and reads identically in both places. The caller owns selection state and
+ * wires the click handler; this function is pure rendering.
+ */
+function covPickCard(kind, person, stats, { isTop = false, selected = false, tab = 'suggested', isCurrent = false } = {}) {
+  const name = `${person.first_name} ${person.last_name}`;
+
+  const bits = [];
+  if (kind === 'staff' && person.position) bits.push(person.position);
+  if (stats.forThisStaff) bits.push(`Covered ${stats.forThisStaff}× before`);
+  if (kind === 'sub') {
+    bits.push(`${stats.assignments} assignment${stats.assignments !== 1 ? 's' : ''}`);
+  }
+  if (stats.lastWorked) bits.push(`Last ${covFmtDay(stats.lastWorked)}`);
+  else if (kind === 'sub') bits.push('Not yet scheduled');
+  if (!bits.length) bits.push('No coverage history');
+
+  // Editing an assignment: whoever already has it takes priority over both
+  // "Best match" and Available/Booked — "Booked" would otherwise be literally
+  // true (booked on their own current assignment) and misleading to read.
+  // In Suggested everyone else shown is free that day, so the badge carries
+  // no information there — mark the top pick instead.
+  let tag;
+  if (isCurrent) {
+    tag = '<span class="cov-current">Currently assigned</span>';
+  } else if (tab === 'suggested') {
+    tag = isTop ? '<span class="cov-best">Best match</span>' : '';
+  } else {
+    tag = `<span class="cov-avail${stats.booked ? ' booked' : ''}">${stats.booked ? 'Booked' : 'Available'}</span>`;
+  }
+
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'cov-sub' + (selected ? ' selected' : '');
+  btn.innerHTML = `
+    <span class="staff-avatar" style="background:${getAvatarColor(name)}">${esc(covInitials(person.first_name, person.last_name))}</span>
+    <span class="cov-sub-text">
+      <span class="cov-sub-name">${esc(name)}</span>
+      <span class="cov-sub-meta">${esc(bits.join(' · '))}</span>
+    </span>
+    ${tag}
+  `;
+
+  return btn;
+}
+
+function covUpdateAssignBtn() {
+  const btn = document.getElementById('covAssignBtn');
+  if (!btn) return;
+
+  if (!covState.pickId) {
+    btn.disabled = true;
+    btn.textContent = 'Select a substitute';
+    return;
+  }
+
+  btn.disabled = false;
+  btn.textContent = `Assign ${covState.pickName}`;
+}
+
+async function covAssign() {
+  const row = covSelectedRow();
+  const btn = document.getElementById('covAssignBtn');
+  if (!row || !covState.pickId || !btn) return;
+
+  const kind         = covState.pickKind;
+  const covererId    = covState.pickId;
+  const covererName  = covState.pickName;
+
+  btn.disabled = true;
+  btn.textContent = 'Assigning…';
+
+  const payload = {
+    school_id:           currentProfile.school_id,
+    pto_request_id:      row.pto_request_id,
+    covered_employee_id: null,
+    substitute_id:       kind === 'sub'   ? covererId : null,
+    employee_id:         kind === 'staff' ? covererId : null,
+    start_date:          row.coverage_date,
+    end_date:            row.coverage_date,
+    start_time:          row.start_time || null,
+    end_time:            row.end_time   || null,
+    reason:              `Leave: ${row.out_first_name} ${row.out_last_name}`,
+    status:              'scheduled'
+  };
+
+  const { data, error } = await supabase
+    .from('substitute_assignments')
+    .insert(payload)
+    .select('id')
+    .single();
+
+  if (error) {
+    dbError(error, 'Could not assign coverage');
+    covUpdateAssignBtn();
+    return;
+  }
+
+  showToast(`${covererName} assigned to ${row.out_first_name} ${row.out_last_name} on ${covFmtDay(row.coverage_date)}`);
+
+  // Keep the local caches truthful so availability badges and the remaining
+  // rows stay correct without a round trip
+  covState.history.push({
+    id:                  data?.id,
+    substitute_id:       payload.substitute_id,
+    employee_id:         payload.employee_id,
+    covered_employee_id: null,
+    start_date:          row.coverage_date,
+    end_date:            row.coverage_date,
+    status:              'scheduled',
+    pto:                 { employee_id: row.out_employee_id }
+  });
+
+  const coveredKey = covState.selectedKey;
+  const idx = covState.filtered.findIndex(r => covRowKey(r) === coveredKey);
+  covState.rows = covState.rows.filter(r => covRowKey(r) !== coveredKey);
+
+  // Advance to the next day in the list so a queue can be worked straight down
+  applyCovFilters();
+  const next = covState.filtered[idx] ?? covState.filtered[idx - 1] ?? null;
+  covState.selectedKey = next ? covRowKey(next) : null;
+  covState.pickTab   = 'suggested';
+  covState.pickQuery = '';
+  covState.pickKind  = null;
+  covState.pickId    = null;
+  covState.pickName  = '';
+
+  renderCoverage();
+
+  await loadSubRequestCounts();
+  if (calendar) calendar.refetchEvents();
+}
+
+// ================================================================
+// SCHEDULE SUBSTITUTE MODAL — new/edit assignments opened from the
+// calendar. The coverer picker reuses covPickCard() and the range-aware
+// covCovererStats() from the Pending Coverage panel above, so a substitute
+// or staff member looks and ranks identically in both places. This modal
+// additionally supports multi-day ranges, which the panel does not.
+// ================================================================
+
+const asgState = {
+  mode: 'new',            // 'new' | 'edit'
+  assignmentId: null,
+  ptoRequestId: null,
+  outEmployeeId: null,    // who is out — set for PTO-linked, or once chosen for manual
+  outName: '',
+  outRole: '',
+  startDate: null,
+  endDate: null,
+  coverKind: null,        // 'sub' | 'staff' — the live pick, changes as the admin clicks cards
+  coverId: null,
+  coverName: '',
+  // Who the assignment actually belongs to when the modal opened. Stays put
+  // as the admin experiments with other cards, so "Currently assigned"
+  // tracks the real database row rather than whatever's clicked right now.
+  originalCoverKind: null,
+  originalCoverId: null,
+  pickTab: 'suggested',
+  pickQuery: ''
+};
+
+function asgResetState() {
+  asgState.mode = 'new';
+  asgState.assignmentId = null;
+  asgState.ptoRequestId = null;
+  asgState.outEmployeeId = null;
+  asgState.outName = '';
+  asgState.outRole = '';
+  asgState.startDate = null;
+  asgState.endDate = null;
+  asgState.coverKind = null;
+  asgState.coverId = null;
+  asgState.coverName = '';
+  asgState.originalCoverKind = null;
+  asgState.originalCoverId = null;
+  asgState.pickTab = 'suggested';
+  asgState.pickQuery = '';
+}
+
+function showAsgError(msg) {
+  const el = document.getElementById('asgError');
+  if (!el) return;
+  el.innerHTML = `
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    <span>${esc(msg)}</span>
+  `;
+  el.hidden = false;
+}
+
+function clearAsgError() {
+  const el = document.getElementById('asgError');
+  if (el) el.hidden = true;
+}
+
+/** Looks up an out-person's name/role from the cached active-staff list,
+ *  falling back to a plain display name (e.g. an inactive employee, which
+ *  the cache excludes but a past assignment may still reference). */
+function asgOutPersonInfo(id, fallbackName) {
+  const emp = id ? covState.staff.find(e => e.id === id) : null;
+  if (emp) return { name: `${emp.first_name} ${emp.last_name}`, role: emp.position || '' };
+  return { name: fallbackName || '—', role: '' };
+}
+
+function renderAsgTitle() {
+  const el = document.getElementById('asgTitle');
+  if (!el) return;
+  if (asgState.mode === 'edit') {
+    el.textContent = asgState.coverKind === 'staff' ? 'Edit Internal Coverage' : 'Edit Substitute Assignment';
+  } else {
+    el.textContent = 'New Coverage Assignment';
+  }
+}
+
+function renderAsgOutPerson({ readOnly, selectedId = null } = {}) {
+  const chip = document.getElementById('asgOutChip');
+  const selectWrap = document.getElementById('asgOutSelectWrap');
+  if (!chip || !selectWrap) return;
+
+  if (readOnly) {
+    selectWrap.hidden = true;
+    chip.hidden = false;
+
+    const parts = asgState.outName.trim().split(/\s+/);
+    const avatar = document.getElementById('asgOutAvatar');
+    avatar.textContent = covInitials(parts[0], parts.slice(1).join(' '));
+    avatar.style.background = getAvatarColor(asgState.outName);
+
+    document.getElementById('asgOutName').textContent = asgState.outName;
+    document.getElementById('asgOutRole').textContent = asgState.outRole || 'Staff';
+  } else {
+    chip.hidden = true;
+    selectWrap.hidden = false;
+    populateOutPersonSelect(selectedId);
+  }
+}
+
+function populateOutPersonSelect(selectedId) {
+  const sel = document.getElementById('assignCoveredEmployee');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Select employee…</option>';
+  covState.staff.forEach(e => {
+    const opt = document.createElement('option');
+    opt.value = e.id;
+    opt.textContent = `${e.last_name}, ${e.first_name}`;
+    sel.appendChild(opt);
+  });
+  sel.value = selectedId || '';
+}
+
+function asgSyncTimeRowVisibility() {
+  const checked = document.getElementById('asgPartialDay')?.checked;
+  const row = document.getElementById('asgTimeRow');
+  if (row) row.hidden = !checked;
+  if (!checked) {
+    if (assignStartTimeFp) assignStartTimeFp.clear();
+    if (assignEndTimeFp) assignEndTimeFp.clear();
+  }
+}
+
+/**
+ * Renders the "Who's Covering" picker for the modal — same card, same
+ * ranking rules as the Pending Coverage rail's renderCovPickList(), just
+ * driven by asgState and a real date range instead of a single day.
+ */
+function renderAsgPickList() {
+  const host = document.getElementById('asgPickList');
+  if (!host) return;
+
+  document.querySelectorAll('#asgSeg button').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === asgState.pickTab);
+  });
+
+  const range = { start: asgState.startDate, end: asgState.endDate };
+  const outId = asgState.outEmployeeId;
+  const kind  = asgState.pickTab === 'staff' ? 'staff' : 'sub';
+  const query = asgState.pickQuery.trim().toLowerCase();
+  const isCurrent = person => asgState.originalCoverKind === kind && asgState.originalCoverId === person.id;
+
+  const searchEl = document.getElementById('asgPickSearch');
+  if (searchEl) searchEl.placeholder = kind === 'staff' ? 'Search staff…' : 'Search substitutes…';
+
+  const people = (kind === 'staff'
+    ? covState.staff.filter(e => e.id !== outId)
+    : covState.subs
+  ).filter(p => !query || `${p.first_name} ${p.last_name}`.toLowerCase().includes(query));
+
+  // Excludes the assignment being edited from its own coverer's stats —
+  // otherwise their own current booking makes them look "Booked" against
+  // themselves and they'd wrongly vanish from Suggested.
+  let entries = people.map(person => ({
+    person,
+    stats: covCovererStats(kind, person.id, range, outId, asgState.assignmentId)
+  }));
+
+  const byLastName = (a, b) =>
+    `${a.person.last_name} ${a.person.first_name}`
+      .localeCompare(`${b.person.last_name} ${b.person.first_name}`);
+
+  // Whoever already has this assignment is pinned first, in every tab —
+  // ranking/availability signals never bump them out of view.
+  const byCurrentFirst = (a, b) => {
+    const ca = isCurrent(a.person), cb = isCurrent(b.person);
+    return ca === cb ? 0 : (ca ? -1 : 1);
+  };
+
+  if (asgState.pickTab === 'suggested') {
+    entries = entries
+      .filter(e => !e.stats.booked || isCurrent(e.person))
+      .sort((a, b) => byCurrentFirst(a, b) ||
+        b.stats.forThisStaff - a.stats.forThisStaff ||
+        (b.stats.lastWorked ?? '').localeCompare(a.stats.lastWorked ?? '') ||
+        b.stats.assignments - a.stats.assignments ||
+        byLastName(a, b));
+    if (!query) {
+      // Keep the current coverer visible even past the shortlist cap
+      const current = entries.find(e => isCurrent(e.person));
+      const rest = entries.filter(e => !isCurrent(e.person)).slice(0, current ? 5 : 6);
+      entries = current ? [current, ...rest] : rest;
+    }
+  } else {
+    entries.sort((a, b) => byCurrentFirst(a, b) ||
+      Number(a.stats.booked) - Number(b.stats.booked) || byLastName(a, b));
+  }
+
+  if (!entries.length) {
+    let msg;
+    if (query) {
+      msg = asgState.pickTab === 'suggested'
+        ? `No available substitutes match "${asgState.pickQuery.trim()}" — check the Substitutes or Staff tab.`
+        : `No ${kind === 'staff' ? 'staff' : 'substitutes'} match "${asgState.pickQuery.trim()}".`;
+    } else {
+      msg = asgState.pickTab === 'suggested'
+        ? 'Everyone active is already booked over these dates — check the Substitutes or Staff tab.'
+        : asgState.pickTab === 'available'
+          ? 'No active substitutes. Add one from the Directory.'
+          : 'No other active staff members.';
+    }
+    host.innerHTML = `
+      <div class="cov-pick-empty">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <div>${esc(msg)}</div>
+      </div>
+    `;
+    return;
+  }
+
+  host.innerHTML = '';
+  entries.forEach(({ person, stats }, i) => {
+    const current = isCurrent(person);
+    const isTop = asgState.pickTab === 'suggested' && i === 0 && !query && !current;
+    const selected = asgState.coverKind === kind && asgState.coverId === person.id;
+    const card = covPickCard(kind, person, stats, { isTop, selected, tab: asgState.pickTab, isCurrent: current });
+    card.addEventListener('click', () => asgPick(kind, person));
+    host.appendChild(card);
+  });
+}
+
+function asgPick(kind, person) {
+  asgState.coverKind = kind;
+  asgState.coverId   = person.id;
+  asgState.coverName = `${person.first_name} ${person.last_name}`;
+  clearAsgError();
+  renderAsgTitle();
+  renderAsgPickList();
+}
+
+/**
+ * Single entry point for opening the modal, used by all three callers below
+ * (a pending-coverage calendar event, an existing assignment, or a blank
+ * calendar date). Ensures covState.subs/staff/history are loaded even if
+ * the admin lands on the Calendar tab first, since that data normally
+ * loads lazily when the Pending Coverage tab activates.
+ */
+async function asgOpen({
+  mode,
+  assignmentId = null,
+  ptoRequestId = null,
+  outEmployeeId = null,
+  outNameFallback = '',
+  coveredEmployeeId = null,
+  startDate,
+  endDate,
+  startTime = null,
+  endTime = null,
+  coverKind = null,
+  coverId = null,
+  reason = ''
+}) {
+  await loadCoverageSupport();
+
+  asgResetState();
+  asgState.mode = mode;
+  asgState.assignmentId = assignmentId;
+  asgState.ptoRequestId = ptoRequestId;
+  asgState.coverKind = coverKind;
+  asgState.coverId = coverId;
+  asgState.originalCoverKind = coverKind;
+  asgState.originalCoverId = coverId;
+  if (coverKind && coverId) {
+    const person = (coverKind === 'sub' ? covState.subs : covState.staff).find(p => p.id === coverId);
+    asgState.coverName = person ? `${person.first_name} ${person.last_name}` : '';
+  }
+
+  if (ptoRequestId) {
+    asgState.outEmployeeId = outEmployeeId;
+    const info = asgOutPersonInfo(outEmployeeId, outNameFallback);
+    asgState.outName = info.name;
+    asgState.outRole = info.role;
+  } else {
+    asgState.outEmployeeId = coveredEmployeeId;
+  }
+
+  asgState.startDate = startDate;
+  asgState.endDate = endDate;
+
+  clearAsgError();
+  const pickSearch = document.getElementById('asgPickSearch');
+  if (pickSearch) pickSearch.value = '';
+
+  initAssignDatePickers();
+  assignStartFp.setDate(startDate, true);
+  assignEndFp.setDate(endDate, true);
+
+  const hasTime = !!(startTime || endTime);
+  const partialCb = document.getElementById('asgPartialDay');
+  if (partialCb) partialCb.checked = hasTime;
+  setTimePicker(assignStartTimeFp, startTime);
+  setTimePicker(assignEndTimeFp, endTime);
+  asgSyncTimeRowVisibility();
+
+  assignReason.value = reason;
+
+  if (ptoRequestId) {
+    renderAsgOutPerson({ readOnly: true });
+  } else {
+    renderAsgOutPerson({ readOnly: false, selectedId: coveredEmployeeId });
+  }
+
+  renderAsgTitle();
+  renderAsgPickList();
+
+  const removeBtn = document.getElementById('asgRemoveBtn');
+  if (removeBtn) removeBtn.hidden = mode !== 'edit';
+
+  const saveBtn = document.getElementById('saveAssignBtn');
+  if (saveBtn) saveBtn.textContent = mode === 'edit' ? 'Update Assignment' : 'Save Assignment';
+
+  openModal('assignModal');
 }
 
 async function loadSubRequestCounts() {
@@ -835,43 +2554,21 @@ function updateTabBadge(id, count) {
 }
 
 async function openAssignFromPending(row) {
-  assignmentModalMode = 'new';
-  assignmentDropdownsLoaded = false;
-  initAssignDatePickers();
-  await populateAssignmentDropdowns(row.coverage_date, row.coverage_date);
+  // Reason defaults to the leave type/notes rather than the out person's
+  // name — that name is already shown in the "Who's Out" chip above it
+  const reason = covTypeLabel(row.pto_type) + (row.notes ? ` — ${row.notes}` : '');
 
-  // Clear fields
-  assignSub.value = '';
-  assignEmployee.value = ''; // internal coverage optional
-
-  // One-day assignment
-  assignStartFp.setDate(row.coverage_date, true);
-  assignEndFp.setDate(row.coverage_date, true);
-
-  // If partial-day PTO, carry times into assignment
-  setTimePicker(assignStartTimeFp, row.start_time);
-  setTimePicker(assignEndTimeFp, row.end_time);
-
-  assignReason.value = `Leave: ${row.out_first_name} ${row.out_last_name}`;
-
-  // Store the PTO request id on the save button so we can write it to substitute_assignments
-  const saveBtn = document.getElementById('saveAssignBtn');
-  delete saveBtn.dataset.assignmentId;
-  delete saveBtn.dataset.ptoRequestId;
-  saveBtn.dataset.ptoRequestId = row.pto_request_id;   // ✅ new
-  saveBtn.textContent = 'Save Assignment';
-
-// Show read-only covered employee (from PTO)
-document.getElementById('coveredEmployeeSelectWrap').style.display = 'none';
-document.getElementById('coveredEmployeeReadOnlyWrap').style.display = 'block';
-document.getElementById('assignCoveredEmployeeText').value =
-  `${row.out_first_name} ${row.out_last_name}`;
-
-// For PTO assignments, no manual covered selection needed
-const coveredSelect = document.getElementById('assignCoveredEmployee');
-if (coveredSelect) coveredSelect.value = '';
-
-  openModal('assignModal');
+  await asgOpen({
+    mode: 'new',
+    ptoRequestId: row.pto_request_id,
+    outEmployeeId: row.out_employee_id,
+    outNameFallback: `${row.out_first_name} ${row.out_last_name}`,
+    startDate: row.coverage_date,
+    endDate: row.coverage_date,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    reason
+  });
 }
 
 function renderSubRow(sub) {
@@ -963,7 +2660,7 @@ async function saveEditSub() {
 
   if (error) { alert('Failed to save: ' + error.message); return; }
   window.closeDrawer?.('editSubDrawer');
-  assignmentDropdownsLoaded = false;
+  covState.supportLoaded = false;
   await loadSubstitutes();
 }
 
@@ -984,87 +2681,30 @@ async function executeDeleteSub() {
   if (error) { alert('Failed to delete: ' + error.message); return; }
   window.closeDrawer?.('editSubDrawer');
   editingSubId = null;
-  assignmentDropdownsLoaded = false;
+  covState.supportLoaded = false;
   await loadSubstitutes();
-}
-
-function wireExclusiveCovererSelects() {
-  const subSel = document.getElementById('assignSub');
-  const empSel = document.getElementById('assignEmployee');
-  if (!subSel || !empSel) return;
-
-  let suppress = false;
-
-  subSel.addEventListener('change', () => {
-    if (suppress) return;
-    if (subSel.value) {
-      suppress = true;
-      empSel.value = ''; // clear internal coverage if substitute chosen
-      suppress = false;
-    }
-  });
-
-  empSel.addEventListener('change', () => {
-    if (suppress) return;
-    if (empSel.value) {
-      suppress = true;
-      subSel.value = ''; // clear substitute if internal coverage chosen
-      suppress = false;
-    }
-  });
 }
 
 // -------------------- CALENDAR --------------------
 
 async function openEditAssignmentModal(event) {
-  assignmentModalMode = 'edit';
-  assignmentDropdownsLoaded = false;
-  initAssignDatePickers();
-
   const a = event.extendedProps;
-  await populateAssignmentDropdowns(a.start_date, a.end_date, a.substitute_id, a.employee_id);
 
-  // Set coverer (mutually exclusive)
-  assignSub.value = a.substitute_id ?? '';
-  assignEmployee.value = a.employee_id ?? '';
-
-  // Dates/times
-  assignStartFp.setDate(a.start_date, true);
-  assignEndFp.setDate(a.end_date, true);
-  setTimePicker(assignStartTimeFp, a.start_time);
-  setTimePicker(assignEndTimeFp, a.end_time);
-  assignReason.value = a.reason ?? '';
-
-  // Covered employee UI
-  const roWrap = document.getElementById('coveredEmployeeReadOnlyWrap');
-  const selWrap = document.getElementById('coveredEmployeeSelectWrap');
-  const roText = document.getElementById('assignCoveredEmployeeText');
-  const coveredSel = document.getElementById('assignCoveredEmployee');
-
-  const saveBtn = document.getElementById('saveAssignBtn');
-  saveBtn.dataset.assignmentId = a.id;
-  saveBtn.textContent = 'Update Assignment';
-
-  if (a.pto_request_id) {
-    // PTO-linked: read-only covered/out
-    if (selWrap) selWrap.style.display = 'none';
-    if (roWrap) roWrap.style.display = 'block';
-    if (roText) roText.value = a.out_name ?? 'Leave-linked';
-
-    saveBtn.dataset.ptoRequestId = a.pto_request_id;
-    if (coveredSel) coveredSel.value = '';
-  } else {
-    // Manual: selectable covered employee
-    if (roWrap) roWrap.style.display = 'none';
-    if (selWrap) selWrap.style.display = 'block';
-
-    if (coveredSel) coveredSel.value = a.covered_employee_id ?? '';
-    if (roText) roText.value = '';
-
-    delete saveBtn.dataset.ptoRequestId;
-  }
-
-  openModal('assignModal');
+  await asgOpen({
+    mode: 'edit',
+    assignmentId: a.id,
+    ptoRequestId: a.pto_request_id,
+    outEmployeeId: a.pto_request_id ? a.out_employee_id : null,
+    outNameFallback: a.out_name,
+    coveredEmployeeId: a.covered_employee_id,
+    startDate: a.start_date,
+    endDate: a.end_date,
+    startTime: a.start_time,
+    endTime: a.end_time,
+    coverKind: a.substitute_id ? 'sub' : 'staff',
+    coverId: a.substitute_id || a.employee_id,
+    reason: a.reason ?? ''
+  });
 }
 
 function subsCalToolbar() {
@@ -1136,34 +2776,12 @@ function initCalendar() {
   calendar.render();
 }
 
-let assignmentModalMode = 'new'; // 'new' | 'edit'
-
 async function openAssignmentModalForDate(dateStr) {
-  assignmentModalMode = 'new';
-  assignmentDropdownsLoaded = false;
-
-  initAssignDatePickers();
-  await populateAssignmentDropdowns(dateStr, dateStr);
-
-  assignStartFp.setDate(dateStr, true);
-  assignEndFp.setDate(dateStr, true);
-  if (assignStartTimeFp) assignStartTimeFp.clear();
-  if (assignEndTimeFp) assignEndTimeFp.clear();
-  assignReason.value = '';
-
-// Manual assignment: require selecting covered employee
-document.getElementById('coveredEmployeeReadOnlyWrap').style.display = 'none';
-document.getElementById('coveredEmployeeSelectWrap').style.display = 'block';
-
-const coveredSelect = document.getElementById('assignCoveredEmployee');
-if (coveredSelect) coveredSelect.value = '';
-
-  const saveBtn = document.getElementById('saveAssignBtn');
-  delete saveBtn.dataset.assignmentId;
-  delete saveBtn.dataset.ptoRequestId;
-  saveBtn.textContent = 'Save Assignment';
-
-  openModal('assignModal');
+  await asgOpen({
+    mode: 'new',
+    startDate: dateStr,
+    endDate: dateStr
+  });
 }
 
 async function setActiveView(hash) {
@@ -1200,104 +2818,7 @@ async function setActiveView(hash) {
 
 window.addEventListener('hashchange', () => setActiveView(location.hash));
 
-let assignmentDropdownsLoaded = false;
 loadSubRequestCounts();
-
-async function populateAssignmentDropdowns(startDate = null, endDate = null, currentSubId = null, currentEmployeeId = null) {
-  const dateRange = startDate
-    ? { school_id: currentProfile.school_id, status: 'scheduled', startDate, endDate: endDate || startDate }
-    : null;
-
-  const bookedSubQuery = dateRange
-    ? supabase
-        .from('substitute_assignments')
-        .select('substitute_id')
-        .eq('school_id', dateRange.school_id)
-        .eq('status', 'scheduled')
-        .lte('start_date', dateRange.endDate)
-        .gte('end_date', dateRange.startDate)
-        .not('substitute_id', 'is', null)
-    : Promise.resolve({ data: [] });
-
-  const bookedEmployeeQuery = dateRange
-    ? supabase
-        .from('substitute_assignments')
-        .select('employee_id')
-        .eq('school_id', dateRange.school_id)
-        .eq('status', 'scheduled')
-        .lte('start_date', dateRange.endDate)
-        .gte('end_date', dateRange.startDate)
-        .not('employee_id', 'is', null)
-    : Promise.resolve({ data: [] });
-
-  const [subsResult, employeesResult, bookedSubResult, bookedEmpResult] = await Promise.all([
-    supabase
-      .from('substitutes')
-      .select('id, first_name, last_name')
-      .eq('school_id', currentProfile.school_id)
-      .eq('active', true)
-      .order('last_name'),
-    supabase
-      .from('employees')
-      .select('id, first_name, last_name')
-      .eq('school_id', currentProfile.school_id)
-      .eq('active', true)
-      .order('last_name'),
-    bookedSubQuery,
-    bookedEmployeeQuery
-  ]);
-
-  // Build booked sets, excluding the assignment being edited so it doesn't warn on itself
-  const bookedSubIds = new Set(
-    (bookedSubResult.data || [])
-      .map(b => b.substitute_id)
-      .filter(id => id && id !== currentSubId)
-  );
-
-  const bookedEmployeeIds = new Set(
-    (bookedEmpResult.data || [])
-      .map(b => b.employee_id)
-      .filter(id => id && id !== currentEmployeeId)
-  );
-
-  const subSelect = document.getElementById('assignSub');
-  subSelect.innerHTML = '<option value="">Select substitute…</option>';
-
-  (subsResult.data || []).forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    const booked = bookedSubIds.has(s.id);
-    // Show a warning but do not disable — partial-day assignments on the same date
-    // may not actually conflict in time. The admin can verify and select if needed.
-    opt.textContent = `${s.last_name}, ${s.first_name}${booked ? ' — ⚠ Booked this date' : ''}`;
-    subSelect.appendChild(opt);
-  });
-
-  const employees = employeesResult.data || [];
-
-  const empSelect = document.getElementById('assignEmployee');
-  empSelect.innerHTML = '<option value="">Unassigned / General Coverage</option>';
-  employees.forEach(e => {
-    const opt = document.createElement('option');
-    opt.value = e.id;
-    const booked = bookedEmployeeIds.has(e.id);
-    opt.textContent = `${e.last_name}, ${e.first_name}${booked ? ' — ⚠ Covering this date' : ''}`;
-    empSelect.appendChild(opt);
-  });
-
-  const coveredSelect = document.getElementById('assignCoveredEmployee');
-  if (coveredSelect) {
-    coveredSelect.innerHTML = '<option value="">Select covered employee…</option>';
-    employees.forEach(e => {
-      const opt = document.createElement('option');
-      opt.value = e.id;
-      opt.textContent = `${e.last_name}, ${e.first_name}`;
-      coveredSelect.appendChild(opt);
-    });
-  }
-
-  assignmentDropdownsLoaded = true;
-}
 
 async function fetchSubAssignments(info, success, failure) {
   try {
@@ -1338,6 +2859,7 @@ async function fetchSubAssignments(info, success, failure) {
 
           pto:pto_requests!substitute_assignments_pto_request_id_fkey (
             id,
+            employee_id,
             employees!pto_requests_employee_id_fkey (
               first_name,
               last_name
@@ -1403,6 +2925,7 @@ async function fetchSubAssignments(info, success, failure) {
           substitute_id: a.substitute_id,
           employee_id: a.employee_id,
           covered_employee_id: a.covered_employee_id,
+          out_employee_id: covAssignmentOutId(a),
           out_name: outName,
           start_date: a.start_date,
           end_date: a.end_date,
@@ -1467,33 +2990,27 @@ function clearAssignmentModal() {
   if (assignStartTimeFp) assignStartTimeFp.clear();
   if (assignEndTimeFp) assignEndTimeFp.clear();
 
-  assignSub.value = '';
-  assignEmployee.value = '';
   assignReason.value = '';
+  const partialCb = document.getElementById('asgPartialDay');
+  if (partialCb) partialCb.checked = false;
+  asgSyncTimeRowVisibility();
 
-  const coveredText = document.getElementById('assignCoveredEmployeeText');
-  if (coveredText) coveredText.value = '';
-
-  const coveredSelect = document.getElementById('assignCoveredEmployee');
-  if (coveredSelect) coveredSelect.value = '';
+  const pickSearch = document.getElementById('asgPickSearch');
+  if (pickSearch) pickSearch.value = '';
+  const pickList = document.getElementById('asgPickList');
+  if (pickList) pickList.innerHTML = '';
 
   // Hide both; opener functions decide which to show
-  const roWrap = document.getElementById('coveredEmployeeReadOnlyWrap');
-  const selWrap = document.getElementById('coveredEmployeeSelectWrap');
-  if (roWrap) roWrap.style.display = 'none';
-  if (selWrap) selWrap.style.display = 'none';
+  document.getElementById('asgOutChip').hidden = true;
+  document.getElementById('asgOutSelectWrap').hidden = true;
+  document.getElementById('asgRemoveBtn').hidden = true;
+
+  clearAsgError();
+  asgResetState();
+  renderAsgTitle();
 
   const saveBtn = document.getElementById('saveAssignBtn');
-  delete saveBtn.dataset.assignmentId;
-  delete saveBtn.dataset.ptoRequestId;
   saveBtn.textContent = 'Save Assignment';
-
-  assignmentModalMode = 'new';
-}
-
-function handleAssignmentCancel() {
-  clearAssignmentModal();
-  closeModal('assignModal');
 }
 
 function formatTimeShort(t) {
@@ -1577,9 +3094,12 @@ async function loadPendingCancellations() {
   });
 }
 
+/** Returns true on success — callers (the Cancellations tab, the calendar's
+ *  red pending-cancellation events, and the modal's Remove Assignment
+ *  button) use this to decide whether to also close/refresh their own UI. */
 async function cancelAssignment(assignmentId) {
-  if (!assignmentId) return;
-  if (!confirm('Cancel this substitute assignment?')) return;
+  if (!assignmentId) return false;
+  if (!confirm('Cancel this substitute assignment?')) return false;
 
   const { error } = await supabase
     .from('substitute_assignments')
@@ -1587,19 +3107,20 @@ async function cancelAssignment(assignmentId) {
     .eq('id', assignmentId);
 
   if (error) {
-    console.error(error);
-    alert('Failed to cancel assignment.');
-    return;
+    dbError(error, 'Could not cancel assignment');
+    return false;
   }
 
-  // Refresh views
+  // Refresh views — a cancelled assignment frees that coverer up again
+  covState.supportLoaded = false;
   await loadPendingCancellations();
   await loadSubRequestCounts();
-  
-const ev = calendar?.getEventById(assignmentId);
-if (ev) ev.remove();
+
+  const ev = calendar?.getEventById(assignmentId);
+  if (ev) ev.remove();
 
   if (calendar) calendar.refetchEvents();
+  return true;
 }
 
 // -------------------- MODALS --------------------
@@ -1683,65 +3204,72 @@ document.getElementById('saveSubBtn').addEventListener('click', async () => {
 
   clearSubDrawer();
   closeDrawer('subDrawer');
-  assignmentDropdownsLoaded = false;
+  covState.supportLoaded = false;
   loadSubstitutes();
 });
 
 document.getElementById('saveAssignBtn').addEventListener('click', async () => {
-  const assignmentId = saveAssignBtn.dataset.assignmentId;
-  const ptoRequestId = saveAssignBtn.dataset.ptoRequestId || null;
+  clearAsgError();
 
-  const substituteId = document.getElementById('assignSub').value || null;
-  const internalCoverageId = document.getElementById('assignEmployee').value || null;
-
-  // ✅ Exactly one coverer (mutually exclusive)
-  if ((substituteId && internalCoverageId) || (!substituteId && !internalCoverageId)) {
-    alert('Please choose either a Substitute OR Internal Coverage (not both).');
+  if (!asgState.coverKind || !asgState.coverId) {
+    showAsgError('Choose a substitute or staff member to cover this assignment.');
     return;
   }
 
-  // ✅ Covered employee required only for manual (no PTO link)
+  // Covered employee required only for manual (no PTO link) assignments
   const coveredSelect = document.getElementById('assignCoveredEmployee');
-  const coveredEmployeeId = coveredSelect ? (coveredSelect.value || null) : null;
+  const coveredEmployeeId = asgState.ptoRequestId ? null : (coveredSelect?.value || null);
 
-  if (!ptoRequestId && !coveredEmployeeId) {
-    alert('Please select the Covered Employee for manual assignments.');
+  if (!asgState.ptoRequestId && !coveredEmployeeId) {
+    showAsgError("Select who's being covered.");
     return;
   }
 
-  // ✅ Date validation
+  if (asgState.coverKind === 'staff' && coveredEmployeeId && asgState.coverId === coveredEmployeeId) {
+    showAsgError('A staff member can\'t provide their own coverage.');
+    return;
+  }
+
   const startDateVal = document.getElementById('assignStart').value;
   const endDateVal   = document.getElementById('assignEnd').value;
   if (!startDateVal || !endDateVal) {
-    alert('Please enter both a start date and end date.');
+    showAsgError('Enter both a start date and end date.');
     return;
   }
   if (startDateVal > endDateVal) {
-    alert('End date must be on or after the start date.');
+    showAsgError('End date must be on or after the start date.');
     return;
   }
 
+  const partialDay = document.getElementById('asgPartialDay')?.checked;
+
   const payload = {
-    pto_request_id: ptoRequestId,
-    covered_employee_id: ptoRequestId ? null : coveredEmployeeId,
+    pto_request_id: asgState.ptoRequestId,
+    covered_employee_id: asgState.ptoRequestId ? null : coveredEmployeeId,
 
-    substitute_id: substituteId,
-    employee_id: internalCoverageId,
+    substitute_id: asgState.coverKind === 'sub'   ? asgState.coverId : null,
+    employee_id:   asgState.coverKind === 'staff' ? asgState.coverId : null,
 
-    start_date: assignStart.value,
-    end_date: assignEnd.value,
-    start_time: assignStartTime.value || null,
-    end_time: assignEndTime.value || null,
+    start_date: startDateVal,
+    end_date: endDateVal,
+    start_time: partialDay ? (assignStartTime.value || null) : null,
+    end_time:   partialDay ? (assignEndTime.value || null)   : null,
     reason: assignReason.value || null,
     status: 'scheduled'
   };
 
+  const saveBtn = document.getElementById('saveAssignBtn');
+  const savingLabel = asgState.mode === 'edit' ? 'Updating…' : 'Saving…';
+  const doneLabel = saveBtn.textContent;
+  saveBtn.disabled = true;
+  saveBtn.textContent = savingLabel;
+
   let result;
-  if (assignmentId) {
+  if (asgState.assignmentId) {
     result = await supabase
       .from('substitute_assignments')
       .update(payload)
-      .eq('id', assignmentId);
+      .eq('id', asgState.assignmentId);
   } else {
     result = await supabase
       .from('substitute_assignments')
@@ -1751,23 +3279,34 @@ document.getElementById('saveAssignBtn').addEventListener('click', async () => {
       });
   }
 
+  saveBtn.disabled = false;
+  saveBtn.textContent = doneLabel;
+
   if (result.error) {
-    console.error(result.error);
-    alert('Failed to save assignment.');
+    dbError(result.error, 'Could not save assignment');
     return;
   }
 
-  // clean up
-  delete saveAssignBtn.dataset.assignmentId;
-  delete saveAssignBtn.dataset.ptoRequestId;
-  saveAssignBtn.textContent = 'Save Assignment';
+  showToast(asgState.mode === 'edit' ? 'Assignment updated' : 'Assignment scheduled');
 
   closeModal('assignModal');
   clearAssignmentModal();
 
   if (calendar) calendar.refetchEvents();
+  covState.supportLoaded = false;   // availability changed; refetch on next load
   await loadPendingCoverage();
   await loadSubRequestCounts();
+});
+
+document.getElementById('asgRemoveBtn')?.addEventListener('click', async () => {
+  if (!asgState.assignmentId) return;
+  const ok = await cancelAssignment(asgState.assignmentId);
+  if (ok) {
+    closeModal('assignModal');
+    clearAssignmentModal();
+    covState.supportLoaded = false;
+    await loadPendingCoverage();
+  }
 });
 
 
@@ -1974,11 +3513,6 @@ function exportHistory() {
 }
 
 // -------------------- INIT --------------------
-function debounce(fn, delay = 300) {
-  let t;
-  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
-}
-
 await loadSubstitutes();
 
 let assignStartFp;
@@ -1994,14 +3528,18 @@ function initAssignDatePickers() {
     dateFormat: 'Y-m-d',
     altInput: true,
     altFormat: 'm/d/Y',
-    allowInput: true
+    allowInput: true,
+    // Availability in the picker below is range-aware — keep it live as the
+    // admin adjusts dates instead of only computing it once at open time
+    onChange: (dates, dateStr) => { asgState.startDate = dateStr || null; renderAsgPickList(); }
   });
 
   assignEndFp = flatpickr('#assignEnd', {
     dateFormat: 'Y-m-d',
     altInput: true,
     altFormat: 'm/d/Y',
-    allowInput: true
+    allowInput: true,
+    onChange: (dates, dateStr) => { asgState.endDate = dateStr || null; renderAsgPickList(); }
   });
 
   assignStartTimeFp = flatpickr('#assignStartTime', {
@@ -2052,6 +3590,17 @@ document.getElementById('esubDeleteBtn')?.addEventListener('click', confirmDelet
 document.getElementById('deleteSubCancel')?.addEventListener('click', () => { document.getElementById('deleteSubModal').hidden = true; });
 document.getElementById('deleteSubConfirm')?.addEventListener('click', executeDeleteSub);
 
+// Pending coverage filters — all client-side over the loaded day list
+document.getElementById('covSearch')
+  ?.addEventListener('input', debounce(() => { covState.page = 1; renderCoverage(); }, 200));
+
+['covDateFilter', 'covTypeFilter', 'covSort'].forEach(id => {
+  document.getElementById(id)?.addEventListener('change', () => {
+    covState.page = 1;
+    renderCoverage();
+  });
+});
+
 document.getElementById('historySubFilter')
   ?.addEventListener('change', () => loadHistory());
 document.getElementById('historyStatusFilter')
@@ -2059,10 +3608,26 @@ document.getElementById('historyStatusFilter')
 document.getElementById('exportHistoryBtn')
   ?.addEventListener('click', exportHistory);
 
+// Assignment modal — "Who's Covering" picker and "who's out" select
+document.querySelectorAll('#asgSeg button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    asgState.pickTab = btn.dataset.tab;
+    renderAsgPickList();
+  });
+});
+document.getElementById('asgPickSearch')?.addEventListener('input', (e) => {
+  asgState.pickQuery = e.target.value;
+  renderAsgPickList();
+});
+document.getElementById('asgPartialDay')?.addEventListener('change', asgSyncTimeRowVisibility);
+document.getElementById('assignCoveredEmployee')?.addEventListener('change', (e) => {
+  asgState.outEmployeeId = e.target.value || null;
+  renderAsgPickList();
+});
+
 initCalendar();
 setActiveView(location.hash);
 await loadSubRequestCounts();
-wireExclusiveCovererSelects();
 </script>
 <script src="/app/nav-mobile.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
