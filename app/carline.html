@@ -831,7 +831,12 @@ async function loadBusArrivals() {
   // every board at once -- and under the conditions that cause these failures
   // (a saturated DB, as on 8/19) it fires repeatedly, not once.
   if (error) { console.error('loadBusArrivals failed, keeping last known state', error); return; }
-  busArrivals = data;
+  // `?? []` as well as the error check above: the guard preserves state on a
+  // failed fetch, this prevents a crash on the rarer {data: null, error: null}
+  // (empty 200 body). renderBusArrivalBar() does busArrivals.filter(), and it
+  // also runs from the bus_arrival/bus_recall broadcast handlers -- so a null
+  // here would throw on every later bus update, not just this poll cycle.
+  busArrivals = data ?? [];
   renderBusArrivalBar();
 }
 

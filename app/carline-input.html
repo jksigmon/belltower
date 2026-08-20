@@ -519,7 +519,9 @@ async function loadBusArrivals() {
   // (a saturated DB, as on 8/19) it fires repeatedly, not once.
   if (error) { console.error('loadBusArrivals failed, keeping last known state', error); return; }
   calledBusIds.clear();
-  data.forEach(r => { if (!r.recalled_at) calledBusIds.add(r.bus_group_id); });
+  // `?? []` as well as the error check above -- see the matching note in
+  // carline.html's loadBusArrivals.
+  (data ?? []).forEach(r => { if (!r.recalled_at) calledBusIds.add(r.bus_group_id); });
 }
 
 // A student belongs to the active campus either directly, by having no campus
