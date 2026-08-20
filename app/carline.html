@@ -737,6 +737,23 @@ async function fetchAllRows(build) {
   }
 }
 
+// Same as fetchAllRows, but returns null (rather than whatever partial rows
+// were collected) on error. Callers that destructively clear()-and-rebuild
+// state from the result need to tell "genuinely empty" apart from "the
+// request failed" -- silently treating a failure as zero rows is what wiped
+// the board on 8/19.
+async function fetchAllRowsOrNull(build) {
+  const rows = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await build().range(from, from + ROW_PAGE_SIZE - 1);
+    if (error) { console.error('Paged fetch failed', error); return null; }
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < ROW_PAGE_SIZE) return rows;
+    from += ROW_PAGE_SIZE;
+  }
+}
+
 async function loadStudents() {
   allStudents = await fetchAllRows(() => supabase
     .from('students')
@@ -860,17 +877,37 @@ function renderBusArrivalBar() {
 // campus, so the extra rows can never collide -- and the board renders only the
 // teacher's own class regardless.
 async function loadExistingCalls() {
-  // Paginated: on a two-campus day this table's row count is shared across
-  // both events, and PostgREST silently caps an unpaginated select at 1000
-  // rows with no stable order between polls -- past that cap, whichever
-  // students land outside a given poll's arbitrary cutoff would blink out of
-  // callStatus (and back into Waiting, or out of Called entirely) every 8s.
-  const data = await fetchAllRows(() => supabase
-    .from('carline_calls')
-    .select('student_id, status, called_at, call_type, carline_events!inner(id)')
+  // Two steps rather than one embedded-filter select. PostgREST compiles
+  // .eq('carline_events.event_date', ...) into a LATERAL JOIN evaluated
+  // per-row against carline_calls, filtered only by school_id at the SQL
+  // level -- not by date. Against a school's full call history (every past
+  // dismissal day, not just today) that's expensive enough to blow through
+  // Postgres's statement_timeout outright and return 500s -- confirmed in
+  // prod logs on 8/19 (repeated "canceling statement due to statement
+  // timeout", 907 5xx responses on this exact query during dismissal).
+  // Looking up today's event ids first is a tiny, indexed query; filtering
+  // carline_calls by carline_event_id directly is a plain, cheap match.
+  const { data: events, error: eventsError } = await supabase
+    .from('carline_events')
+    .select('id')
     .eq('school_id', profile.school_id)
-    .eq('carline_events.event_date', localToday())
+    .eq('event_date', localToday());
+  // A failed fetch must never be treated as "zero calls" -- clearing
+  // callStatus on an error wipes every card on the board back to Waiting
+  // until the next successful poll. Leave existing state alone and retry
+  // next cycle instead.
+  if (eventsError) { console.error('loadExistingCalls: events lookup failed, keeping last known state', eventsError); return; }
+
+  const eventIds = (events || []).map(ev => ev.id);
+  if (!eventIds.length) return;
+
+  const data = await fetchAllRowsOrNull(() => supabase
+    .from('carline_calls')
+    .select('student_id, status, called_at, call_type')
+    .in('carline_event_id', eventIds)
     .order('id'));
+  if (data === null) { console.error('loadExistingCalls: calls fetch failed, keeping last known state'); return; }
+
   callStatus.clear();
   calledAt.clear();
   data.forEach(c => {

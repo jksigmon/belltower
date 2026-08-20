@@ -462,13 +462,18 @@ function studentsForTag(tag) {
 }
 
 async function loadExistingCalls() {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('carline_calls')
     .select('student_id, status, call_type')
     .eq('carline_event_id', currentEvent.id);
+  // A failed fetch must never be treated as "zero calls" -- clearing
+  // callStatus on a transient error wipes every group-button count on this
+  // screen back to zero until the next successful poll. Keep the last known
+  // state and just retry next cycle instead.
+  if (error) { console.error('loadExistingCalls failed, keeping last known state', error); return; }
   callStatus.clear();
   callTypeById.clear();
-  (data || []).forEach(c => {
+  data.forEach(c => {
     callStatus.set(c.student_id, c.status);
     callTypeById.set(c.student_id, c.call_type);
   });
