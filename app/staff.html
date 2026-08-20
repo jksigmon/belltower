@@ -4037,6 +4037,9 @@ const err = document.getElementById('subCoverageErr');
 if (msg) msg.style.display = 'none';
 if (err) err.style.display = 'none';
 
+  // Dates and duration are cleared above, so re-render the hours label and the
+  // deduction notice — otherwise they keep showing the submitted request.
+  updateComputedHoursUI();
 
   showToast('✅ Leave request submitted successfully');
   message.textContent = '';
