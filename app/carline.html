@@ -1755,6 +1755,7 @@ function watchForNewEvents() {
         setupRealtime();
         startCallsPoller();
         loadExistingCalls().then(() => renderColumns());
+        playDismissalStartSound();
       }
     })
     .subscribe();
@@ -1792,6 +1793,7 @@ async function onEventStarted(ev) {
   startCallsPoller();
   renderColumns();
   showToast('Dismissal started');
+  playDismissalStartSound();
 }
 
 function startCallsPoller() {
@@ -1938,6 +1940,18 @@ function playBusSound() {
   playTones([
     [330, 0,    0.25, 0.35, 'sine'],
     [440, 0.22, 0.35, 0.35, 'sine'],
+  ]);
+}
+
+// Distinct from every other chime -- a longer rising arpeggio rather than
+// the short call/recall/bus tones, meant to be noticed from across a room
+// rather than glanced at.
+function playDismissalStartSound() {
+  playTones([
+    [392.00, 0,    0.18, 0.30, 'sine'],
+    [523.25, 0.16, 0.18, 0.30, 'sine'],
+    [659.25, 0.32, 0.18, 0.30, 'sine'],
+    [783.99, 0.48, 0.40, 0.32, 'sine'],
   ]);
 }
 
