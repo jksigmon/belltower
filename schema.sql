@@ -2691,7 +2691,8 @@ CREATE TABLE IF NOT EXISTS "public"."request_categories" (
     "resolved_label" "text",
     "allow_denial" boolean DEFAULT false NOT NULL,
     "denied_label" "text",
-    "is_restricted" boolean DEFAULT false NOT NULL
+    "is_restricted" boolean DEFAULT false NOT NULL,
+    "allow_completed" boolean DEFAULT false NOT NULL
 );
 
 
@@ -3194,7 +3195,7 @@ CREATE TABLE IF NOT EXISTS "public"."staff_requests" (
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "assigned_manager_id" "uuid",
-    CONSTRAINT "staff_requests_status_check" CHECK (("status" = ANY (ARRAY['pending'::"text", 'in_review'::"text", 'resolved'::"text", 'denied'::"text"])))
+    CONSTRAINT "staff_requests_status_check" CHECK (("status" = ANY (ARRAY['pending'::"text", 'in_review'::"text", 'resolved'::"text", 'denied'::"text", 'completed'::"text"])))
 );
 
 

@@ -2025,13 +2025,14 @@ async function loadStaffDashboard() {
       in_review: ['#dbeafe', '#1e40af'],
       resolved:  ['#d1fae5', '#065f46'],
       denied:    ['#fee2e2', '#991b1b'],
+      completed: ['#ede9fe', '#5b21b6'],
     };
     const list = document.getElementById('staffDashFormRequestList');
     list.innerHTML = r.formRequests.data.map(function (req) {
       const cat = req.request_categories;
       const label = req.status === 'resolved' ? (cat?.resolved_label || 'Resolved')
         : req.status === 'denied' ? (cat?.denied_label || 'Denied')
-        : ({ pending: 'Pending', in_review: 'In Review' }[req.status] ?? req.status);
+        : ({ pending: 'Pending', in_review: 'In Review', completed: 'Completed' }[req.status] ?? req.status);
       const [bg, color] = FORM_REQ_STATUS[req.status] ?? ['#f1f5f9', '#374151'];
       return '<a href="/app/requests.html" class="staff-dash-request-row">' +
         '<span class="staff-dash-req-type">' + esc(cat?.name ?? '—') + '</span>' +

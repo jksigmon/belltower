@@ -36,7 +36,7 @@ let filterStatus   = '';
 async function loadManagedCategories() {
   const { data } = await supabase
     .from('request_category_managers')
-    .select('category_id, request_categories ( id, name, resolved_label, allow_denial, denied_label )')
+    .select('category_id, request_categories ( id, name, resolved_label, allow_denial, denied_label, allow_completed )')
     .eq('profile_id', currentProfile.id);
 
   managedCatIds = (data ?? []).map(r => r.category_id);
@@ -56,7 +56,7 @@ async function loadSubmissions() {
     .from('staff_requests')
     .select(`
       id, status, created_at, manager_notes,
-      request_categories ( name, resolved_label, allow_denial, denied_label ),
+      request_categories ( name, resolved_label, allow_denial, denied_label, allow_completed ),
       profiles!staff_requests_submitted_by_fkey ( display_name, email ),
       staff_request_responses ( value, request_category_fields ( label, field_type, sort_order ) )
     `)
@@ -194,6 +194,9 @@ async function openDrawer(sub) {
         <option value="pending"   ${sub.status === 'pending'   ? 'selected' : ''}>Pending</option>
         <option value="in_review" ${sub.status === 'in_review' ? 'selected' : ''}>In Review</option>
         <option value="resolved"  ${sub.status === 'resolved'  ? 'selected' : ''}>${esc(sub.request_categories?.resolved_label || 'Resolved')}</option>
+        ${(sub.status === 'completed' || (sub.request_categories?.allow_completed && sub.status === 'resolved'))
+          ? `<option value="completed" ${sub.status === 'completed' ? 'selected' : ''}>Completed</option>`
+          : ''}
         ${(sub.request_categories?.allow_denial || sub.status === 'denied')
           ? `<option value="denied" ${sub.status === 'denied' ? 'selected' : ''}>${esc(sub.request_categories?.denied_label || 'Denied')}</option>`
           : ''}
@@ -289,8 +292,8 @@ function formatVal(val, type) {
 function statusLabel(s, cat) {
   if (s === 'resolved') return cat?.resolved_label || 'Resolved';
   if (s === 'denied')   return cat?.denied_label   || 'Denied';
-  return { pending: 'Pending', in_review: 'In Review' }[s] ?? s;
+  return { pending: 'Pending', in_review: 'In Review', completed: 'Completed' }[s] ?? s;
 }
 function statusBadgeClass(s) {
-  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green', denied: 'badge-red' }[s] ?? '';
+  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green', denied: 'badge-red', completed: 'badge-purple' }[s] ?? '';
 }

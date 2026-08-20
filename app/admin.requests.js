@@ -55,7 +55,7 @@ export async function initRequestsSection(profile) {
 async function loadCategories() {
   const { data, error } = await supabase
     .from('request_categories')
-    .select('id, name, description, is_active, is_restricted, notify_managers, resolved_label, allow_denial, denied_label, created_at, request_category_fields(count), request_category_managers(count), staff_requests(count)')
+    .select('id, name, description, is_active, is_restricted, notify_managers, resolved_label, allow_denial, denied_label, allow_completed, created_at, request_category_fields(count), request_category_managers(count), staff_requests(count)')
     .eq('school_id', currentProfile.school_id)
     .order('name');
   if (error) console.error('loadCategories', error);
@@ -67,7 +67,7 @@ async function loadSubmissions() {
     .from('staff_requests')
     .select(`
       id, status, created_at, manager_notes,
-      request_categories ( name, resolved_label, allow_denial, denied_label ),
+      request_categories ( name, resolved_label, allow_denial, denied_label, allow_completed ),
       profiles!staff_requests_submitted_by_fkey ( display_name, email ),
       staff_request_responses ( value, request_category_fields ( label, field_type, sort_order ) )
     `)
@@ -260,93 +260,111 @@ function renderCatDrawerBody(cat) {
 
   const submissionCount = cat?.staff_requests?.[0]?.count ?? 0;
 
+  const resolvedIsCustom = !!(cat && cat.resolved_label && !['Resolved','Approved','Completed','Closed'].includes(cat.resolved_label));
+  const deniedIsCustom   = !!(cat && cat.denied_label && !['Denied','Rejected','Declined'].includes(cat.denied_label));
+
   bodyEl.innerHTML = `
-    <div class="form-group">
-      <label class="form-label">Form Name *</label>
-      <input id="reqCatName" class="form-control" type="text" value="${cat ? esc(cat.name) : ''}" placeholder="e.g. Facilities Request, IT Support" />
-    </div>
-    <div class="form-group">
-      <label class="form-label">Description</label>
-      <textarea id="reqCatDesc" class="form-control" rows="2" placeholder="Brief description staff will see">${cat ? esc(cat.description ?? '') : ''}</textarea>
-    </div>
-    <div class="form-group form-row" style="align-items:center;gap:10px;">
-      <label class="form-label" style="margin:0;">Active</label>
-      <input id="reqCatActive" type="checkbox" ${(!cat || cat.is_active) ? 'checked' : ''} />
-      <span style="font-size:13px;color:#6b7280;">Staff can see and submit this form</span>
-    </div>
-    <div class="form-group form-row" style="align-items:center;gap:10px;">
-      <label class="form-label" style="margin:0;">Email managers</label>
-      <input id="reqCatNotify" type="checkbox" ${(!cat || cat.notify_managers !== false) ? 'checked' : ''} />
-      <span style="font-size:13px;color:#6b7280;">Email managers when a request is submitted. Submitters always get a confirmation.</span>
-    </div>
-
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
-    <div class="req-drawer-section-header">
-      <strong>Status Wording</strong>
-    </div>
-    <div class="form-group" style="margin-top:10px;">
-      <label class="form-label">Label for completed status</label>
-      <select id="reqCatResolvedLabel" class="form-control" style="width:220px;">
-        ${['Resolved', 'Approved', 'Completed', 'Closed'].map(opt =>
-          `<option value="${esc(opt)}" ${cat && cat.resolved_label === opt ? 'selected' : ''}>${esc(opt)}</option>`
-        ).join('')}
-        <option value="__custom" ${cat && cat.resolved_label && !['Resolved','Approved','Completed','Closed'].includes(cat.resolved_label) ? 'selected' : ''}>Custom…</option>
-      </select>
-      <input id="reqCatResolvedLabelCustom" class="form-control" type="text" style="width:220px;margin-top:6px;
-        ${cat && cat.resolved_label && !['Resolved','Approved','Completed','Closed'].includes(cat.resolved_label) ? '' : 'display:none;'}"
-        placeholder="Custom word" value="${cat && cat.resolved_label && !['Resolved','Approved','Completed','Closed'].includes(cat.resolved_label) ? esc(cat.resolved_label) : ''}" />
-      <p style="font-size:12px;color:#9ca3af;margin-top:4px;">Shown to both managers and staff once a request reaches this status.</p>
-    </div>
-    <div class="form-group form-row" style="align-items:center;gap:10px;">
-      <label class="form-label" style="margin:0;">This form can be denied</label>
-      <input id="reqCatAllowDenial" type="checkbox" ${cat?.allow_denial ? 'checked' : ''} />
-      <span style="font-size:13px;color:#6b7280;">Adds a Deny option alongside the completed status (for approval-style forms).</span>
-    </div>
-    <div class="form-group" id="reqCatDeniedLabelWrap" style="${cat?.allow_denial ? '' : 'display:none;'}">
-      <label class="form-label">Label for denied status</label>
-      <select id="reqCatDeniedLabel" class="form-control" style="width:220px;">
-        ${['Denied', 'Rejected', 'Declined'].map(opt =>
-          `<option value="${esc(opt)}" ${cat && cat.denied_label === opt ? 'selected' : ''}>${esc(opt)}</option>`
-        ).join('')}
-        <option value="__custom" ${cat && cat.denied_label && !['Denied','Rejected','Declined'].includes(cat.denied_label) ? 'selected' : ''}>Custom…</option>
-      </select>
-      <input id="reqCatDeniedLabelCustom" class="form-control" type="text" style="width:220px;margin-top:6px;
-        ${cat && cat.denied_label && !['Denied','Rejected','Declined'].includes(cat.denied_label) ? '' : 'display:none;'}"
-        placeholder="Custom word" value="${cat && cat.denied_label && !['Denied','Rejected','Declined'].includes(cat.denied_label) ? esc(cat.denied_label) : ''}" />
+    <div class="req-drawer-section">
+      <div class="form-group">
+        <label class="form-label">Form Name *</label>
+        <input id="reqCatName" class="form-control" type="text" value="${cat ? esc(cat.name) : ''}" placeholder="e.g. Facilities Request, IT Support" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="reqCatDesc" class="form-control" rows="2" placeholder="Brief description staff will see">${cat ? esc(cat.description ?? '') : ''}</textarea>
+      </div>
+      <div class="req-toggle-row">
+        <input id="reqCatActive" type="checkbox" ${(!cat || cat.is_active) ? 'checked' : ''} />
+        <div class="req-toggle-row-text">
+          <span class="req-toggle-row-title">Active</span>
+          <span class="req-toggle-row-desc">Staff can see and submit this form.</span>
+        </div>
+      </div>
+      <div class="req-toggle-row">
+        <input id="reqCatNotify" type="checkbox" ${(!cat || cat.notify_managers !== false) ? 'checked' : ''} />
+        <div class="req-toggle-row-text">
+          <span class="req-toggle-row-title">Email managers</span>
+          <span class="req-toggle-row-desc">Email managers when a request is submitted. Submitters always get a confirmation.</span>
+        </div>
+      </div>
     </div>
 
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
-    <div class="req-drawer-section-header">
-      <strong>Form Fields</strong>
-      <button class="btn btn-sm btn-secondary" id="reqAddFieldBtn">+ Add Field</button>
+    <div class="req-drawer-section">
+      <div class="req-drawer-section-header"><strong>Status Wording</strong></div>
+      <div class="form-group">
+        <label class="form-label">Label for completed status</label>
+        <select id="reqCatResolvedLabel" class="form-control" style="width:220px;">
+          ${['Resolved', 'Approved', 'Completed', 'Closed'].map(opt =>
+            `<option value="${esc(opt)}" ${cat && cat.resolved_label === opt ? 'selected' : ''}>${esc(opt)}</option>`
+          ).join('')}
+          <option value="__custom" ${resolvedIsCustom ? 'selected' : ''}>Custom…</option>
+        </select>
+        <input id="reqCatResolvedLabelCustom" class="form-control" type="text" style="width:220px;margin-top:6px;${resolvedIsCustom ? '' : 'display:none;'}"
+          placeholder="Custom word" value="${resolvedIsCustom ? esc(cat.resolved_label) : ''}" />
+        <p style="font-size:12px;color:#9ca3af;margin-top:4px;">Shown to both managers and staff once a request reaches this status.</p>
+      </div>
+      <div class="req-toggle-row">
+        <input id="reqCatAllowCompleted" type="checkbox" ${cat?.allow_completed ? 'checked' : ''} />
+        <div class="req-toggle-row-text">
+          <span class="req-toggle-row-title">Track a Completed status</span>
+          <span class="req-toggle-row-desc">Adds a Completed option once a request reaches the status above, for forms that need a follow-up step (e.g. ordered/paid).</span>
+        </div>
+      </div>
+      <div class="req-toggle-row">
+        <input id="reqCatAllowDenial" type="checkbox" ${cat?.allow_denial ? 'checked' : ''} />
+        <div class="req-toggle-row-text">
+          <span class="req-toggle-row-title">This form can be denied</span>
+          <span class="req-toggle-row-desc">Adds a Deny option alongside the completed status (for approval-style forms).</span>
+        </div>
+      </div>
+      <div class="req-drawer-subfield" id="reqCatDeniedLabelWrap" style="${cat?.allow_denial ? '' : 'display:none;'}">
+        <div class="form-group">
+          <label class="form-label">Label for denied status</label>
+          <select id="reqCatDeniedLabel" class="form-control" style="width:220px;">
+            ${['Denied', 'Rejected', 'Declined'].map(opt =>
+              `<option value="${esc(opt)}" ${cat && cat.denied_label === opt ? 'selected' : ''}>${esc(opt)}</option>`
+            ).join('')}
+            <option value="__custom" ${deniedIsCustom ? 'selected' : ''}>Custom…</option>
+          </select>
+          <input id="reqCatDeniedLabelCustom" class="form-control" type="text" style="width:220px;margin-top:6px;${deniedIsCustom ? '' : 'display:none;'}"
+            placeholder="Custom word" value="${deniedIsCustom ? esc(cat.denied_label) : ''}" />
+        </div>
+      </div>
     </div>
-    <div id="reqFieldsList" style="margin-top:12px;"></div>
 
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
-    <div class="req-drawer-section-header">
-      <strong>Managers</strong>
-    </div>
-    <p style="font-size:13px;color:#6b7280;margin:4px 0 10px;">Managers receive notifications and can update submission status.</p>
-    <div id="reqManagerChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
-    <div style="position:relative;">
-      <input id="reqMgrSearch" class="form-control" type="text" placeholder="Search staff by name or email…" autocomplete="off" />
-      <div id="reqMgrDropdown" class="req-mgr-dropdown" style="display:none;"></div>
+    <div class="req-drawer-section">
+      <div class="req-drawer-section-header">
+        <strong>Form Fields</strong>
+        <button class="btn btn-sm btn-secondary" id="reqAddFieldBtn">+ Add Field</button>
+      </div>
+      <div id="reqFieldsList"></div>
     </div>
 
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
-    <div class="req-drawer-section-header">
-      <strong>Visibility</strong>
-    </div>
-    <div class="form-group form-row" style="align-items:center;gap:10px;margin-top:10px;">
-      <label class="form-label" style="margin:0;">Restrict to specific people</label>
-      <input id="reqCatRestricted" type="checkbox" ${cat?.is_restricted ? 'checked' : ''} />
-      <span style="font-size:13px;color:#6b7280;">Only the people picked below (plus managers and admins) can see and submit this form. Off = everyone at the school.</span>
-    </div>
-    <div id="reqVisibilityPicker" style="${cat?.is_restricted ? '' : 'display:none;'}margin-top:10px;">
-      <div id="reqVisibilityChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+    <div class="req-drawer-section">
+      <div class="req-drawer-section-header"><strong>Managers</strong></div>
+      <p style="font-size:13px;color:#6b7280;margin:0 0 10px;">Managers receive notifications and can update submission status.</p>
+      <div id="reqManagerChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
       <div style="position:relative;">
-        <input id="reqVisSearch" class="form-control" type="text" placeholder="Search staff by name or email…" autocomplete="off" />
-        <div id="reqVisDropdown" class="req-mgr-dropdown" style="display:none;"></div>
+        <input id="reqMgrSearch" class="form-control" type="text" placeholder="Search staff by name or email…" autocomplete="off" />
+        <div id="reqMgrDropdown" class="req-mgr-dropdown" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="req-drawer-section">
+      <div class="req-drawer-section-header"><strong>Visibility</strong></div>
+      <div class="req-toggle-row">
+        <input id="reqCatRestricted" type="checkbox" ${cat?.is_restricted ? 'checked' : ''} />
+        <div class="req-toggle-row-text">
+          <span class="req-toggle-row-title">Restrict to specific people</span>
+          <span class="req-toggle-row-desc">Only the people picked below (plus managers and admins) can see and submit this form. Off = everyone at the school.</span>
+        </div>
+      </div>
+      <div id="reqVisibilityPicker" style="${cat?.is_restricted ? '' : 'display:none;'}margin-top:10px;">
+        <div id="reqVisibilityChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+        <div style="position:relative;">
+          <input id="reqVisSearch" class="form-control" type="text" placeholder="Search staff by name or email…" autocomplete="off" />
+          <div id="reqVisDropdown" class="req-mgr-dropdown" style="display:none;"></div>
+        </div>
       </div>
     </div>
 
@@ -727,6 +745,7 @@ async function saveCategoryDrawer() {
     ? document.getElementById('reqCatResolvedLabelCustom')?.value.trim()
     : resolvedSel;
   const allowDenial    = document.getElementById('reqCatAllowDenial')?.checked ?? false;
+  const allowCompleted = document.getElementById('reqCatAllowCompleted')?.checked ?? false;
   const deniedSel      = document.getElementById('reqCatDeniedLabel')?.value;
   const deniedLabel    = deniedSel === '__custom'
     ? document.getElementById('reqCatDeniedLabelCustom')?.value.trim()
@@ -780,6 +799,7 @@ async function saveCategoryDrawer() {
         resolved_label: resolvedLabel || null,
         allow_denial:   allowDenial,
         denied_label:   allowDenial ? (deniedLabel || null) : null,
+        allow_completed: allowCompleted,
       })
       .eq('id', catId);
     if (error) { showToast('Save failed: ' + error.message, 'error'); saveBtn.disabled = false; saveBtn.textContent = 'Save Changes'; return; }
@@ -792,6 +812,7 @@ async function saveCategoryDrawer() {
         resolved_label: resolvedLabel || null,
         allow_denial:   allowDenial,
         denied_label:   allowDenial ? (deniedLabel || null) : null,
+        allow_completed: allowCompleted,
         created_by: currentProfile.id,
       })
       .select('id')
@@ -973,6 +994,7 @@ function renderSubmissionsView() {
         <option value="pending"   ${filterStatus === 'pending'   ? 'selected' : ''}>Pending</option>
         <option value="in_review" ${filterStatus === 'in_review' ? 'selected' : ''}>In Review</option>
         <option value="resolved"  ${filterStatus === 'resolved'  ? 'selected' : ''}>Resolved</option>
+        <option value="completed" ${filterStatus === 'completed' ? 'selected' : ''}>Completed</option>
         <option value="denied"    ${filterStatus === 'denied'    ? 'selected' : ''}>Denied</option>
       </select>
     </div>
@@ -1099,6 +1121,9 @@ async function openSubDrawer(sub) {
         <option value="pending"   ${sub.status === 'pending'   ? 'selected' : ''}>Pending</option>
         <option value="in_review" ${sub.status === 'in_review' ? 'selected' : ''}>In Review</option>
         <option value="resolved"  ${sub.status === 'resolved'  ? 'selected' : ''}>${esc(sub.request_categories?.resolved_label || 'Resolved')}</option>
+        ${(sub.status === 'completed' || (sub.request_categories?.allow_completed && sub.status === 'resolved'))
+          ? `<option value="completed" ${sub.status === 'completed' ? 'selected' : ''}>Completed</option>`
+          : ''}
         ${(sub.request_categories?.allow_denial || sub.status === 'denied')
           ? `<option value="denied" ${sub.status === 'denied' ? 'selected' : ''}>${esc(sub.request_categories?.denied_label || 'Denied')}</option>`
           : ''}
@@ -1183,11 +1208,11 @@ function submissionPreview(sub) {
 function statusLabel(s, cat) {
   if (s === 'resolved') return cat?.resolved_label || 'Resolved';
   if (s === 'denied')   return cat?.denied_label   || 'Denied';
-  return { pending: 'Pending', in_review: 'In Review' }[s] ?? s;
+  return { pending: 'Pending', in_review: 'In Review', completed: 'Completed' }[s] ?? s;
 }
 
 function statusBadgeClass(s) {
-  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green', denied: 'badge-red' }[s] ?? '';
+  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green', denied: 'badge-red', completed: 'badge-purple' }[s] ?? '';
 }
 
 function formatResponseValue(val, type) {

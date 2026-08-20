@@ -64,6 +64,7 @@ serve(async (req) => {
       pending:   "Pending",
       in_review: "In Review",
       resolved:  category.resolved_label || "Resolved",
+      completed: "Completed",
       denied:    category.denied_label   || "Denied",
     } as Record<string, string>)[req_row.status] ?? req_row.status;
 

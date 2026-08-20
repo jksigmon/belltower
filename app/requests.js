@@ -526,8 +526,8 @@ function wireHistoryScrollFade() {
 function statusLabel(s, cat) {
   if (s === 'resolved') return cat?.resolved_label || 'Resolved';
   if (s === 'denied')   return cat?.denied_label   || 'Denied';
-  return { pending: 'Pending', in_review: 'In Review' }[s] ?? s;
+  return { pending: 'Pending', in_review: 'In Review', completed: 'Completed' }[s] ?? s;
 }
 function statusBadgeClass(s) {
-  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green', denied: 'badge-red' }[s] ?? '';
+  return { pending: 'badge-amber', in_review: 'badge-blue', resolved: 'badge-green', denied: 'badge-red', completed: 'badge-purple' }[s] ?? '';
 }
