@@ -1445,6 +1445,18 @@ function emptyStateHTML(key, fallbackMsg) {
     : `<span>${esc(fallbackMsg)}</span>`;
 }
 
+// calledAt/recalledAt mix two different timestamp string formats depending
+// on source: a live broadcast uses new Date().toISOString() ("...T...Z"),
+// while a poll reads the value straight back from Postgres via PostgREST
+// ("...  ...+00", space-separated, no Z). localeCompare() on the raw strings
+// sorted these inconsistently -- a space and a "T" compare differently as
+// characters regardless of the real time they represent. Parsing into an
+// actual timestamp and comparing numerically is immune to source format.
+function tsMs(iso) {
+  const ms = new Date(iso || 0).getTime();
+  return Number.isNaN(ms) ? 0 : ms;
+}
+
 function colEmpty(bodyId, msg) {
   const key  = bodyId === 'bodyWaiting' ? 'waiting' : bodyId === 'bodyCalled' ? 'called' : 'recalled';
   const body = document.getElementById(bodyId);
@@ -1481,12 +1493,12 @@ function renderColumns() {
   });
   const recalled = students.filter(s => callStatus.get(s.id) === 'RECALLED');
 
-  called.sort((a, b) => (calledAt.get(b.id) || '').localeCompare(calledAt.get(a.id) || ''));
+  called.sort((a, b) => tsMs(calledAt.get(b.id)) - tsMs(calledAt.get(a.id)));
   // Sorted by the actual recall time now (recalledAt), not the original call
   // time -- sorting by calledAt looked scrambled (top/middle/bottom, no
   // pattern) because a student's original call position has no relationship
   // to when they were later recalled.
-  recalled.sort((a, b) => (recalledAt.get(b.id) || '').localeCompare(recalledAt.get(a.id) || ''));
+  recalled.sort((a, b) => tsMs(recalledAt.get(b.id)) - tsMs(recalledAt.get(a.id)));
 
   // Progress bar
   const progressFill = document.getElementById('waitingProgressFill');
