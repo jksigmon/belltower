@@ -508,12 +508,18 @@ async function loadExistingCalls() {
 
 async function loadBusArrivals() {
   if (!currentEvent) return;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('carline_bus_arrivals')
     .select('bus_group_id, recalled_at')
     .eq('carline_event_id', currentEvent.id);
+  // Same rule as loadExistingCalls: a failed fetch is not "no buses have
+  // arrived." Without this check a transient error reset every bus button on
+  // this screen to un-called, which invites an operator to re-call a bus that
+  // was already called -- and under the conditions that cause these failures
+  // (a saturated DB, as on 8/19) it fires repeatedly, not once.
+  if (error) { console.error('loadBusArrivals failed, keeping last known state', error); return; }
   calledBusIds.clear();
-  (data || []).forEach(r => { if (!r.recalled_at) calledBusIds.add(r.bus_group_id); });
+  data.forEach(r => { if (!r.recalled_at) calledBusIds.add(r.bus_group_id); });
 }
 
 // A student belongs to the active campus either directly, by having no campus

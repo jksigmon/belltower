@@ -820,13 +820,18 @@ async function loadPickupGroups() {
 
 async function loadBusArrivals() {
   if (!currentEvent) return;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('carline_bus_arrivals')
     .select('bus_group_id, called_at, recalled_at')
     .eq('carline_event_id', currentEvent.id)
     .is('recalled_at', null)
     .order('called_at');
-  busArrivals = data || [];
+  // Same rule as loadExistingCalls: a failed fetch is not "no buses have
+  // arrived." Without this check a transient error cleared the arrival bar on
+  // every board at once -- and under the conditions that cause these failures
+  // (a saturated DB, as on 8/19) it fires repeatedly, not once.
+  if (error) { console.error('loadBusArrivals failed, keeping last known state', error); return; }
+  busArrivals = data;
   renderBusArrivalBar();
 }
 
@@ -1493,26 +1498,28 @@ function renderColumns() {
   });
   const recalled = students.filter(s => callStatus.get(s.id) === 'RECALLED');
 
-  called.sort((a, b) => tsMs(calledAt.get(b.id)) - tsMs(calledAt.get(a.id)));
-  // Sorted by the actual recall time now (recalledAt), not the original call
-  // time -- sorting by calledAt looked scrambled (top/middle/bottom, no
-  // pattern) because a student's original call position has no relationship
-  // to when they were later recalled.
+  // Both columns sort newest-first on their own timestamp -- `called` on when
+  // the student was called, `recalled` on when they were recalled (NOT on
+  // their original call time, which has no relationship to recall order and
+  // made the column look scrambled).
   //
-  // A student can be visibly RECALLED (via callStatus, set instantly by the
-  // broadcast) before recalledAt has actually arrived for them -- e.g. an
-  // operator screen broadcasting before this fix shipped, or just a broadcast
-  // that hasn't landed yet while the 8s poll hasn't caught up. tsMs()'s normal
-  // fallback (epoch 0) sorted that student to the very bottom, which is
-  // backwards: "we don't know when this was recalled" on a card that just
-  // appeared is almost always "just now," not "ancient." Falling back to the
-  // render's own timestamp instead keeps a just-recalled-but-not-yet-timed
-  // student pinned near the top until the real value fills in, rather than
-  // flashing to the bottom and jumping up moments later.
-  const recalledFallback = Date.now();
-  recalled.sort((a, b) =>
-    (recalledAt.has(b.id) ? tsMs(recalledAt.get(b.id)) : recalledFallback) -
-    (recalledAt.has(a.id) ? tsMs(recalledAt.get(a.id)) : recalledFallback));
+  // Both also treat a MISSING timestamp as "just now" rather than epoch 0.
+  // A student can be visibly CALLED/RECALLED (via callStatus, applied
+  // instantly from a broadcast) before their timestamp has arrived: a
+  // broadcast that omits it (undoLast reverting a student to CALLED sends
+  // called_at: null), or one that simply hasn't landed while the 8s poll
+  // hasn't caught up. tsMs()'s epoch-0 fallback sorted those to the very
+  // bottom, which is backwards -- "we don't know when this changed" on a card
+  // that just appeared is almost always "just now," not "ancient." This keeps
+  // it pinned near the top until the real value fills in, instead of flashing
+  // to the bottom and jumping up moments later.
+  const nowMs = Date.now();
+  const byNewest = (map) => (a, b) =>
+    (map.has(b.id) ? tsMs(map.get(b.id)) : nowMs) -
+    (map.has(a.id) ? tsMs(map.get(a.id)) : nowMs);
+
+  called.sort(byNewest(calledAt));
+  recalled.sort(byNewest(recalledAt));
 
   // Progress bar
   const progressFill = document.getElementById('waitingProgressFill');
