@@ -1498,7 +1498,21 @@ function renderColumns() {
   // time -- sorting by calledAt looked scrambled (top/middle/bottom, no
   // pattern) because a student's original call position has no relationship
   // to when they were later recalled.
-  recalled.sort((a, b) => tsMs(recalledAt.get(b.id)) - tsMs(recalledAt.get(a.id)));
+  //
+  // A student can be visibly RECALLED (via callStatus, set instantly by the
+  // broadcast) before recalledAt has actually arrived for them -- e.g. an
+  // operator screen broadcasting before this fix shipped, or just a broadcast
+  // that hasn't landed yet while the 8s poll hasn't caught up. tsMs()'s normal
+  // fallback (epoch 0) sorted that student to the very bottom, which is
+  // backwards: "we don't know when this was recalled" on a card that just
+  // appeared is almost always "just now," not "ancient." Falling back to the
+  // render's own timestamp instead keeps a just-recalled-but-not-yet-timed
+  // student pinned near the top until the real value fills in, rather than
+  // flashing to the bottom and jumping up moments later.
+  const recalledFallback = Date.now();
+  recalled.sort((a, b) =>
+    (recalledAt.has(b.id) ? tsMs(recalledAt.get(b.id)) : recalledFallback) -
+    (recalledAt.has(a.id) ? tsMs(recalledAt.get(a.id)) : recalledFallback));
 
   // Progress bar
   const progressFill = document.getElementById('waitingProgressFill');
