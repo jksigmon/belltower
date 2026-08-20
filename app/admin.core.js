@@ -11,12 +11,16 @@ let effectiveSchoolId = null;
 // PostgREST caps an unranged select at 1000 rows with no error. Same pattern
 // as fetchAllRows in carline.html / fetchAllIds in admin.families.js.
 const ROW_PAGE_SIZE = 1000;
+// Throws rather than returning whatever partial rows were collected so far --
+// callers below need to tell "genuinely empty" apart from "the request
+// failed," or a failed fetch quietly renders as a real zero on the dashboard
+// instead of surfacing through the existing failedKeys error banner.
 async function fetchAllRows(build) {
   const rows = [];
   let from = 0;
   for (;;) {
     const { data, error } = await build().range(from, from + ROW_PAGE_SIZE - 1);
-    if (error) { console.error('Paged fetch failed', error); return rows; }
+    if (error) { console.error('Paged fetch failed', error); throw error; }
     rows.push(...(data ?? []));
     if ((data?.length ?? 0) < ROW_PAGE_SIZE) return rows;
     from += ROW_PAGE_SIZE;
@@ -384,17 +388,24 @@ async function loadDashboardStats() {
     queries.carline = supabase.from('carline_events')
       .select('id, status, closed_at')
       .eq('school_id', schoolId).eq('event_date', today);
-    // Split out rather than embedded (carline_events(...,carline_calls(status)))
-    // so this can be paginated past PostgREST's 1000-row cap the same way
-    // carline.html's board and the kiosk edge function now are -- a busy
-    // dismissal day can put carline_calls well past that on its own.
+    // Split out rather than embedded (carline_events(...,carline_calls(status))).
+    // Two reasons: that embedded form compiles to a LATERAL join PostgREST
+    // evaluates per-row with no usable index, which timed out in production
+    // against a school's accumulated call history (see carline.html's
+    // loadExistingCalls for the full incident writeup); and this can now be
+    // paginated past the 1000-row cap the same way the board and kiosk are.
+    // Resolves to a {data, error} shape (not a bare array) so a failure here
+    // surfaces through the existing failedKeys banner below instead of
+    // silently rendering as a real zero.
     queries.carlineCalls = queries.carline.then(({ data: events }) => {
       const eventIds = (events || []).map(ev => ev.id);
-      if (!eventIds.length) return [];
+      if (!eventIds.length) return { data: [], error: null };
       return fetchAllRows(() => supabase.from('carline_calls')
         .select('status, carline_event_id')
         .in('carline_event_id', eventIds)
-        .order('id'));
+        .order('id'))
+        .then(data => ({ data, error: null }))
+        .catch(error => ({ data: null, error }));
     });
   }
 
@@ -546,7 +557,7 @@ async function loadDashboardStats() {
   if (r.carline !== undefined) {
     const events = r.carline.data || [];
     if (events.length > 0) {
-      const allCalls   = r.carlineCalls || [];
+      const allCalls   = r.carlineCalls?.data || [];
       const dismissed  = allCalls.filter(c => c.status === 'CALLED' || c.status === 'LOADED').length;
       const issues     = allCalls.filter(c => c.status === 'RECALLED').length;
       const isOpen     = events.some(ev => ev.status === 'OPEN');

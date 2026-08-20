@@ -70,6 +70,12 @@ serve(async (req) => {
 // the cap from the kiosk display. Page through instead.
 const ROW_PAGE_SIZE = 1000;
 
+// Throws rather than returning whatever partial rows were collected so far.
+// The outer handler's catch turns that into a 500, and the kiosk's poll()
+// already treats a non-OK response as "keep showing the last good snapshot,
+// try again next cycle" (see carline-kiosk.html) -- silently returning
+// partial/empty data here would instead get applied as if it were the real,
+// complete state, which is exactly what wiped the board on 8/19.
 async function fetchAllRows<T>(
   build: () => { range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }> }
 ): Promise<T[]> {
@@ -79,7 +85,7 @@ async function fetchAllRows<T>(
     const { data, error } = await build().range(from, from + ROW_PAGE_SIZE - 1);
     if (error) {
       console.error("carline_kiosk paged fetch failed:", error);
-      return rows;
+      throw error;
     }
     rows.push(...(data ?? []));
     if ((data?.length ?? 0) < ROW_PAGE_SIZE) return rows;
@@ -130,6 +136,17 @@ async function buildSnapshot(schoolId: string) {
       .eq("school_id", schoolId)
       .eq("active", true),
   ]);
+
+  // Same reasoning as fetchAllRows throwing above: a failed lookup here
+  // silently fell back to an empty list ("?? []"), which the kiosk would
+  // then treat as a genuinely empty roster/campus list/pickup group set
+  // instead of "this request failed, try again." Fail the whole snapshot
+  // loudly instead so poll() keeps the last good one.
+  if (schoolRes.error)       { console.error("carline_kiosk schools lookup failed:", schoolRes.error); throw schoolRes.error; }
+  if (eventsRes.error)       { console.error("carline_kiosk carline_events lookup failed:", eventsRes.error); throw eventsRes.error; }
+  if (employeesRes.error)    { console.error("carline_kiosk employees lookup failed:", employeesRes.error); throw employeesRes.error; }
+  if (campusesRes.error)     { console.error("carline_kiosk campuses lookup failed:", campusesRes.error); throw campusesRes.error; }
+  if (pickupGroupsRes.error) { console.error("carline_kiosk carline_pickup_groups lookup failed:", pickupGroupsRes.error); throw pickupGroupsRes.error; }
 
   const events = eventsRes.data ?? [];
   let calls: unknown[] = [];
