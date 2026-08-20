@@ -155,7 +155,7 @@ async function buildSnapshot(schoolId: string) {
     const eventIds = events.map((e: { id: string }) => e.id);
     calls = await fetchAllRows(() => supabase
       .from("carline_calls")
-      .select("student_id, status, called_at, carline_event_id, call_type")
+      .select("student_id, status, called_at, recalled_at, carline_event_id, call_type")
       .in("carline_event_id", eventIds)
       .order("id"));
   }
