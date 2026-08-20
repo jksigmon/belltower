@@ -896,6 +896,7 @@ async function callStudents(students, tag, callType) {
 
 async function recallStudents(students, tag) {
   const prevStatuses = students.map(s => ({ id: s.id, prev: callStatus.get(s.id) ?? 'WAITING' }));
+  const now = new Date().toISOString();
 
   // Targets the exact students this tag resolved to, not their family_id. A tag
   // carrying individual students has no family to filter on, so the old
@@ -903,7 +904,7 @@ async function recallStudents(students, tag) {
   // update succeeds either way, so nothing surfaced the miss.
   const { error } = await supabase
     .from('carline_calls')
-    .update({ status: 'RECALLED', recalled_at: new Date().toISOString() })
+    .update({ status: 'RECALLED', recalled_at: now })
     .eq('carline_event_id', currentEvent.id)
     .in('student_id', students.map(s => s.id))
     .in('status', ['CALLED', 'WAITING']);
@@ -920,7 +921,7 @@ async function recallStudents(students, tag) {
   pushRecent(tag, names, 'FAMILY', true);
   playRecallSound();
   showToast(`Tag ${tag} recalled`);
-  if (recalled.length) broadcastStudentCalls(recalled.map(s => ({ student_id: s.id, status: 'RECALLED', called_at: null, call_type: 'FAMILY' })));
+  if (recalled.length) broadcastStudentCalls(recalled.map(s => ({ student_id: s.id, status: 'RECALLED', called_at: null, recalled_at: now, call_type: 'FAMILY' })));
 }
 
 async function callBusGroup(busGroupId) {
