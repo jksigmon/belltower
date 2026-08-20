@@ -1452,7 +1452,7 @@ function colEmpty(bodyId, msg) {
 }
 
 function renderColumns() {
-  if (activeTeacherIds.size === 0 && pinnedStudentIds.size === 0) {
+  if (activeTeacherIds.size === 0 && pinnedStudentIds.size === 0 && activePickupGroupIds.size === 0) {
     const pf = document.getElementById('waitingProgressFill');
     if (pf) pf.style.width = '0%';
     colEmpty('bodyWaiting',  '+ Add Class to get started');
