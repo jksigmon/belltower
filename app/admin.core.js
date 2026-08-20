@@ -8,6 +8,21 @@ let currentProfile = null;
 let currentModules = {}; // { pto: true, substitutes: false, ... }
 let effectiveSchoolId = null;
 
+// PostgREST caps an unranged select at 1000 rows with no error. Same pattern
+// as fetchAllRows in carline.html / fetchAllIds in admin.families.js.
+const ROW_PAGE_SIZE = 1000;
+async function fetchAllRows(build) {
+  const rows = [];
+  let from = 0;
+  for (;;) {
+    const { data, error } = await build().range(from, from + ROW_PAGE_SIZE - 1);
+    if (error) { console.error('Paged fetch failed', error); return rows; }
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < ROW_PAGE_SIZE) return rows;
+    from += ROW_PAGE_SIZE;
+  }
+}
+
 /* ===============================
    INIT
 ================================ */
@@ -367,8 +382,20 @@ async function loadDashboardStats() {
 
   if (moduleEnabled('carline') && (p.can_view_carline || p.is_superadmin)) {
     queries.carline = supabase.from('carline_events')
-      .select('id, status, closed_at, carline_calls(status)')
+      .select('id, status, closed_at')
       .eq('school_id', schoolId).eq('event_date', today);
+    // Split out rather than embedded (carline_events(...,carline_calls(status)))
+    // so this can be paginated past PostgREST's 1000-row cap the same way
+    // carline.html's board and the kiosk edge function now are -- a busy
+    // dismissal day can put carline_calls well past that on its own.
+    queries.carlineCalls = queries.carline.then(({ data: events }) => {
+      const eventIds = (events || []).map(ev => ev.id);
+      if (!eventIds.length) return [];
+      return fetchAllRows(() => supabase.from('carline_calls')
+        .select('status, carline_event_id')
+        .in('carline_event_id', eventIds)
+        .order('id'));
+    });
   }
 
   if (p.can_manage_access || p.is_superadmin) {
@@ -519,7 +546,7 @@ async function loadDashboardStats() {
   if (r.carline !== undefined) {
     const events = r.carline.data || [];
     if (events.length > 0) {
-      const allCalls   = events.flatMap(ev => ev.carline_calls ?? []);
+      const allCalls   = r.carlineCalls || [];
       const dismissed  = allCalls.filter(c => c.status === 'CALLED' || c.status === 'LOADED').length;
       const issues     = allCalls.filter(c => c.status === 'RECALLED').length;
       const isOpen     = events.some(ev => ev.status === 'OPEN');
