@@ -5,6 +5,7 @@
 -- ======================================================================
 
 -- ── 1. Audit log ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.placement_audit_log (
   id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   session_id     uuid        NOT NULL REFERENCES public.placement_sessions(id) ON DELETE CASCADE,
   school_id      uuid        NOT NULL REFERENCES public.schools(id),
@@ -21,11 +22,10 @@
 
 ALTER TABLE public.placement_audit_log ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "placement_audit_log_school_isolation" ON public.placement_audit_log;
-CREATE POLICY "placement_audit_log_school_isolation"
-  ON public.placement_audit_log
-  USING (school_id = (SELECT school_id FROM public.profiles WHERE id = auth.uid()))
-  WITH CHECK (school_id = (SELECT school_id FROM public.profiles WHERE id = auth.uid()));
+-- Policies live in supabase/migrations/20260820000001_fix_placement_audit_log_rls.sql.
+-- The policy that used to be defined here matched profiles on the wrong column
+-- (profiles.id instead of profiles.user_id) and denied every read and write.
+-- Run that migration after this script; until then the table is deny-all.
 
 CREATE INDEX IF NOT EXISTS idx_placement_audit_log_session
   ON public.placement_audit_log (session_id, changed_at DESC);
