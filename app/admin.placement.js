@@ -5,6 +5,12 @@ import {
   setShowArchived, setShowDeleted, submitCreateForm, showConfirmModal,
 } from './admin.placement.sessions.js';
 
+/* ── Helpers ── */
+// `profiles` rows carry display_name, not first_name/last_name — see schema.sql.
+function profileName(fallback = '') {
+  return _profile?.display_name || _profile?.email || fallback;
+}
+
 /* ── State ── */
 let _profile = null;
 let _currentSessionId = null;
@@ -854,7 +860,7 @@ function moveStudents(studentIds, teacherId) {
 
 function logMoves(group, toTeacherId) {
   if (!_currentSessionId || !_profile) return;
-  const changedByName = [_profile.first_name, _profile.last_name].filter(Boolean).join(' ') || (_profile.email ?? '');
+  const changedByName = profileName();
   const teacherName = id => {
     if (!id) return null;
     const t = _teachers.find(t => t.id === id);
@@ -1075,8 +1081,7 @@ async function addPlacementNote() {
   const text = input?.value.trim();
   if (!text || !_currentSessionId) return;
 
-  const authorName = [_profile.first_name, _profile.last_name].filter(Boolean).join(' ')
-    || _profile.display_name || _profile.email || 'Unknown';
+  const authorName = profileName('Unknown');
 
   if (btn) { btn.disabled = true; btn.textContent = 'Adding…'; }
   const { error } = await supabase.from('placement_session_notes').insert({
@@ -1303,7 +1308,7 @@ function setupRealtime(sessionId) {
       }
     });
 
-  const fullName = [_profile.first_name, _profile.last_name].filter(Boolean).join(' ') || (_profile.email ?? 'Someone');
+  const fullName = profileName('Someone');
   _presenceChannel = supabase
     .channel(`presence:placement:${sessionId}`, { config: { presence: { key: _profile.id } } })
     .on('presence', { event: 'sync' }, updatePresenceUI)
@@ -1425,7 +1430,7 @@ function broadcastMoves(group, toTeacherId) {
   const realMoves = group.filter(m => m.fromTeacherId !== toTeacherId);
   if (!realMoves.length) return;
 
-  const by = [_profile.first_name, _profile.last_name].filter(Boolean).join(' ') || (_profile.email ?? 'Someone');
+  const by = profileName('Someone');
   const toLast = columnLastName(toTeacherId);
   const students = realMoves
     .map(m => _students.find(s => s.id === m.studentId)?.last_name)
