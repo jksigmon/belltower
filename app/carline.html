@@ -1479,6 +1479,11 @@ function renderColumns() {
   const recalled = students.filter(s => callStatus.get(s.id) === 'RECALLED');
 
   called.sort((a, b) => (calledAt.get(b.id) || '').localeCompare(calledAt.get(a.id) || ''));
+  // recalled_at isn't fetched/tracked client-side, so this sorts by each
+  // student's original call time -- the same fix as `called` above, applied
+  // to the column that was silently missing it and falling back to
+  // allStudents' last-name order.
+  recalled.sort((a, b) => (calledAt.get(b.id) || '').localeCompare(calledAt.get(a.id) || ''));
 
   // Progress bar
   const progressFill = document.getElementById('waitingProgressFill');
