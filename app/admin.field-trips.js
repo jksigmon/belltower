@@ -1310,11 +1310,12 @@ async function searchStaffProfiles(val) {
 
   if (!emps?.length) return { assignable: [], noLogin: [] };
 
+  // Direct profiles reads are RLS-gated to admins/access managers, so a
+  // plain teacher's query here would come back empty for every co-worker.
+  // Use the SECURITY DEFINER lookup instead so non-admin trip creators can
+  // still see which of their matched employees are assignable.
   const { data: profs } = await supabase
-    .from('profiles')
-    .select('id, employee_id, email, can_login')
-    .eq('school_id', profile.school_id)
-    .in('employee_id', emps.map(e => e.id));
+    .rpc('ft_staff_login_status', { target_employee_ids: emps.map(e => e.id) });
 
   const assignable = [];
   const noLogin = [];
