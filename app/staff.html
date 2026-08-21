@@ -4967,6 +4967,19 @@ function initStudentLookup() {
   const results = document.getElementById('slSearchResults');
   if (!input || !results) return;
 
+  // results is position:fixed (see .sl-search-results in admin-ui.css --
+  // the staff portal's scrollable <main> clips a plain position:absolute
+  // dropdown the moment it has more than a row or two, cutting results
+  // off mid-list). Fixed positioning has no CSS anchor to the input the
+  // way absolute did, so its coordinates are computed here from the
+  // input's actual screen position every time it's shown.
+  const positionResults = () => {
+    const rect = input.getBoundingClientRect();
+    results.style.top   = `${rect.bottom + 4}px`;
+    results.style.left  = `${rect.left}px`;
+    results.style.width = `${rect.width}px`;
+  };
+
   const runSearch = debounce(async () => {
     const term = input.value.trim();
     if (term.length < 2) { results.hidden = true; results.innerHTML = ''; return; }
@@ -4984,6 +4997,7 @@ function initStudentLookup() {
 
     if (!data?.length) {
       results.innerHTML = '<div class="sl-search-empty">No students found.</div>';
+      positionResults();
       results.hidden = false;
       return;
     }
@@ -4993,6 +5007,7 @@ function initStudentLookup() {
         <span>${esc(rosterDisplayName(s))}</span>
         <span class="muted" style="font-size:12px;">${s.grade_level ? esc(gradeLabel(s.grade_level)) : ''}</span>
       </button>`).join('');
+    positionResults();
     results.hidden = false;
 
     results.querySelectorAll('.sl-search-result').forEach(btn =>
@@ -5016,7 +5031,15 @@ function initStudentLookup() {
     if (resultEl) resultEl.innerHTML = '';
     runSearch();
   });
-  input.addEventListener('focus', () => { if (results.innerHTML) results.hidden = false; });
+  input.addEventListener('focus', () => {
+    if (results.innerHTML) { positionResults(); results.hidden = false; }
+  });
+  // Scroll can move the input out from under a dropdown positioned by an
+  // earlier rect -- position:fixed doesn't track that on its own the way
+  // position:absolute-in-flow would, so just close it rather than let it
+  // float over the wrong spot.
+  document.querySelector('.wrap > main')?.addEventListener('scroll', () => { results.hidden = true; });
+  window.addEventListener('resize', () => { results.hidden = true; });
   document.addEventListener('click', e => {
     if (!e.target.closest('#slSearchInput') && !e.target.closest('#slSearchResults')) results.hidden = true;
   });

@@ -503,6 +503,7 @@ export function openChangeKindModal(session, onSaved) {
       hint.textContent = isSec
         ? 'Publishing this board shows it to teachers as part of the student’s schedule. It does not change anyone’s homeroom.'
         : 'Committing this board sets each student’s homeroom teacher, which drives dismissal, rosters, and compliance reporting.';
+      hint.className = `placement-kind-hint placement-kind-hint--${isSec ? 'section' : 'homeroom'}`;
     }
     const periodLbl = document.getElementById('changeKindPeriodLabel');
     if (periodLbl) periodLbl.innerHTML = isSec
@@ -962,6 +963,7 @@ function setupBoardKindControls() {
       hint.textContent = isSec
         ? 'Publishing this board shows it to teachers as part of the student’s schedule. It does not change anyone’s homeroom.'
         : 'Committing this board sets each student’s homeroom teacher, which drives dismissal, rosters, and compliance reporting.';
+      hint.className = `placement-kind-hint placement-kind-hint--${isSec ? 'section' : 'homeroom'}`;
     }
     // A period is what makes a section addressable in a schedule, so it is
     // required there. On a homeroom board it stays optional -- it only
