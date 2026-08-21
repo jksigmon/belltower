@@ -1330,10 +1330,44 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
     <!-- ── Class Rosters ──────────────────────────── -->
     <section id="class-rosters" style="display:none;">
 
+      <!-- Your own classes -- hidden entirely if you have none this year -->
+      <div class="panel" id="crMyClassesPanel" hidden>
+        <div class="comp-report-result-header">
+          <div>
+            <h3 style="margin:0 0 3px;" id="crMyClassesTitle">My Homeroom</h3>
+            <p class="muted" style="margin:0;font-size:13px;" id="crMyClassesCount"></p>
+          </div>
+          <div class="comp-filter-actions">
+            <span id="crMyClassesFresh" class="placement-live-chip" hidden></span>
+            <button id="crMyClassesPrint" class="btn comp-report-cta">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Print
+            </button>
+            <button id="crMyClassesPdf" class="btn comp-report-cta">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Save PDF
+            </button>
+            <button id="crMyClassesXlsx" class="btn comp-report-cta">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Export Excel
+            </button>
+          </div>
+        </div>
+
+        <div id="crMyClassesTabs" class="roster-tab-row" hidden></div>
+
+        <div class="table-wrap">
+          <table class="admin-table" id="crMyClassesTable">
+            <thead><tr id="crMyClassesThead"></tr></thead>
+            <tbody id="crMyClassesTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="panel">
         <div class="comp-report-result-header">
           <div>
-            <h3 style="margin:0 0 3px;">Class Rosters</h3>
+            <h3 style="margin:0 0 3px;">Browse Classes</h3>
             <p class="muted" style="margin:0;font-size:13px;">Browse the full roster for any grade's homeroom or Core/Block class.</p>
           </div>
         </div>
@@ -1658,7 +1692,7 @@ import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODat
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { roleCheckboxGridHTML } from '/app/compliance.roles.js?v=2';
-import { printRosters, saveRostersPdf, toRosterStudent, ROSTER_SELECT } from '/app/roster-print.js?v=7';
+import { printRosters, saveRostersPdf, saveRostersXlsx, toRosterStudent, ROSTER_SELECT } from '/app/roster-print.js?v=7';
 
 document.getElementById('bgRoleGrid').innerHTML = roleCheckboxGridHTML('bgRole');
 
@@ -4715,14 +4749,12 @@ let myRosterInitialized = false;
 let myRosterTabs = [];   // [{ session_id, tabLabel, fullLabel, session_kind, period_sort_order, schedule_updated_at, studentIds, students }]
 let myRosterActiveIdx = 0;
 
-async function initMyRoster() {
-  if (myRosterInitialized) return;
-  myRosterInitialized = true;
-
-  const tbody = document.getElementById('myRosterTbody');
-  if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px 0;">Loading…</td></tr>';
-
+/* Shared by My Roster and Class Rosters' "Your Classes" panel -- both show
+   the same thing (every live board this teacher is on this year), just
+   rendered into different DOM. One query, one grouping pass, no duplicated
+   Supabase logic between the two call sites.
+   Returns null on load failure, otherwise the tabs array (possibly empty). */
+async function fetchMyRosterTabs() {
   const { data: schedRows, error } = await supabase
     .from('student_schedule')
     .select('student_id, session_id, section_label, session_kind, period_id, period_label, period_short_label, period_sort_order, schedule_updated_at')
@@ -4732,17 +4764,9 @@ async function initMyRoster() {
 
   if (error) {
     console.error('My Roster load failed', error);
-    tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px 0;">Could not load your roster.</td></tr>';
-    myRosterInitialized = false;
-    return;
+    return null;
   }
-
-  if (!schedRows?.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px 0;">No students are assigned to you this year.</td></tr>';
-    document.getElementById('myRosterCount').textContent = '';
-    document.getElementById('myRosterTabs').hidden = true;
-    return;
-  }
+  if (!schedRows?.length) return [];
 
   // Group into one tab per board, ordered the way a teacher thinks about
   // their day: Homeroom first, then sections by period order.
@@ -4761,7 +4785,7 @@ async function initMyRoster() {
     }
     bySession.get(r.session_id).studentIds.push(r.student_id);
   });
-  myRosterTabs = [...bySession.values()].sort((a, b) =>
+  const tabs = [...bySession.values()].sort((a, b) =>
     a.session_kind === b.session_kind
       ? a.period_sort_order - b.period_sort_order
       : (a.session_kind === 'homeroom' ? -1 : 1)
@@ -4778,12 +4802,39 @@ async function initMyRoster() {
     .order('last_name', { ascending: true })
     .order('first_name', { ascending: true });
 
-  myRosterTabs.forEach(tab => {
+  tabs.forEach(tab => {
     tab.students = (studentRows ?? [])
       .filter(r => tab.studentIds.includes(r.id))
       .map(toRosterStudent);
   });
 
+  return tabs;
+}
+
+async function initMyRoster() {
+  if (myRosterInitialized) return;
+  myRosterInitialized = true;
+
+  const tbody = document.getElementById('myRosterTbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px 0;">Loading…</td></tr>';
+
+  const tabs = await fetchMyRosterTabs();
+
+  if (tabs === null) {
+    tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px 0;">Could not load your roster.</td></tr>';
+    myRosterInitialized = false;
+    return;
+  }
+
+  if (!tabs.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px 0;">No students are assigned to you this year.</td></tr>';
+    document.getElementById('myRosterCount').textContent = '';
+    document.getElementById('myRosterTabs').hidden = true;
+    return;
+  }
+
+  myRosterTabs = tabs;
   myRosterActiveIdx = 0;
   renderRosterTabs();
   renderRosterTab(0);
@@ -4953,7 +5004,18 @@ function initStudentLookup() {
     );
   }, 250);
 
-  input.addEventListener('input', runSearch);
+  input.addEventListener('input', () => {
+    // The dropdown is only as wide as the search box, but the previous
+    // student's schedule table below it is full-width -- if it's left in
+    // place while a new search is typed, the dropdown covers only the
+    // left half of that old table and its rightmost column (teacher name)
+    // is left dangling, disconnected from the row it belongs to. Clearing
+    // it immediately (not debounced, so it disappears the instant typing
+    // starts) means there's never stale content sitting behind the list.
+    const resultEl = document.getElementById('slResult');
+    if (resultEl) resultEl.innerHTML = '';
+    runSearch();
+  });
   input.addEventListener('focus', () => { if (results.innerHTML) results.hidden = false; });
   document.addEventListener('click', e => {
     if (!e.target.closest('#slSearchInput') && !e.target.closest('#slSearchResults')) results.hidden = true;
@@ -5048,6 +5110,134 @@ async function initClassRosters() {
     renderClassRosterBoards();
   });
   periodSel.addEventListener('change', renderClassRosterBoards);
+
+  renderMyClassesPanel();
+}
+
+/* "Your Classes" -- print/PDF/Excel for the teacher's own live boards,
+   surfaced at the top of Class Rosters instead of requiring a separate
+   trip to My Roster. Shares fetchMyRosterTabs() with My Roster but keeps
+   its own tab state and render target, since the two panels can be on
+   screen in different page states and shouldn't fight over which tab is
+   selected. Hidden entirely if the teacher has no live board this year --
+   this section is a convenience for teachers who have one, not a
+   universal fixture. */
+let crMyTabs = [];
+let crMyActiveIdx = 0;
+
+async function renderMyClassesPanel() {
+  const panel = document.getElementById('crMyClassesPanel');
+  if (!panel) return;
+
+  const tabs = await fetchMyRosterTabs();
+  if (!tabs || !tabs.length) { panel.hidden = true; return; }
+
+  crMyTabs = tabs;
+  crMyActiveIdx = 0;
+  panel.hidden = false;
+  renderMyClassesTabs();
+  renderMyClassesTab(0);
+}
+
+function renderMyClassesTabs() {
+  const wrap = document.getElementById('crMyClassesTabs');
+  if (!wrap) return;
+  if (crMyTabs.length <= 1) { wrap.hidden = true; return; }
+
+  wrap.hidden = false;
+  wrap.innerHTML = crMyTabs.map((t, i) =>
+    `<button type="button" class="roster-tab-btn${i === crMyActiveIdx ? ' active' : ''}" data-idx="${i}">${esc(t.tabLabel)}</button>`
+  ).join('');
+  wrap.querySelectorAll('.roster-tab-btn').forEach(btn =>
+    btn.addEventListener('click', () => renderMyClassesTab(parseInt(btn.dataset.idx, 10)))
+  );
+}
+
+function renderMyClassesTab(idx) {
+  const tab = crMyTabs[idx];
+  if (!tab) return;
+  crMyActiveIdx = idx;
+
+  document.querySelectorAll('#crMyClassesTabs .roster-tab-btn').forEach((btn, i) =>
+    btn.classList.toggle('active', i === idx)
+  );
+
+  const titleEl = document.getElementById('crMyClassesTitle');
+  const countEl = document.getElementById('crMyClassesCount');
+  const freshEl = document.getElementById('crMyClassesFresh');
+  const tbody   = document.getElementById('crMyClassesTbody');
+  const thead   = document.getElementById('crMyClassesThead');
+
+  if (titleEl) titleEl.textContent = tab.session_kind === 'homeroom' ? 'My Homeroom' : tab.fullLabel;
+  if (countEl) countEl.textContent = `${tab.students.length} ${tab.students.length === 1 ? 'student' : 'students'}`;
+
+  const isSection = tab.session_kind !== 'homeroom';
+  if (freshEl) {
+    freshEl.hidden = !isSection;
+    if (isSection) {
+      freshEl.textContent = tab.schedule_updated_at
+        ? `Live · updated ${fmtShortDate(tab.schedule_updated_at)}`
+        : 'Live';
+    }
+  }
+
+  if (thead) {
+    thead.innerHTML = `
+      <th style="width:36px;">#</th>
+      <th>Student</th>
+      <th>Grade</th>
+      ${isSection ? '<th>Homeroom</th>' : ''}
+      <th>Carline Tag</th>
+      <th>Bus Group</th>`;
+  }
+
+  const colspan = isSection ? 6 : 5;
+  if (!tab.students.length) {
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="muted" style="text-align:center;padding:24px 0;">No students on this roster.</td></tr>`;
+  } else {
+    tbody.innerHTML = tab.students.map((s, i) => `<tr>
+      <td class="muted">${i + 1}</td>
+      <td style="font-weight:600;">${esc(rosterDisplayName(s))}</td>
+      <td>${s.grade_level ? esc(gradeLabel(s.grade_level)) : '—'}</td>
+      ${isSection ? `<td>${s.teacher ? esc(s.teacher) : '—'}</td>` : ''}
+      <td>${s.carline_tag ? esc(s.carline_tag) : '—'}</td>
+      <td>${s.bus_group ? esc(s.bus_group) : '—'}</td>
+    </tr>`).join('');
+  }
+
+  const rosterPayload = () => ({
+    groups: [{
+      label: currentProfile.display_name ?? 'My Roster',
+      sublabel: tab.session_kind === 'homeroom' ? 'Homeroom' : tab.fullLabel,
+      students: tab.students
+    }],
+    schoolName: currentProfile.schools?.name ?? '',
+    showTeacher: isSection,
+  });
+
+  // .onclick, not addEventListener -- same reasoning as My Roster's own
+  // buttons: this re-runs on every tab switch, and addEventListener here
+  // would stack a handler per switch.
+  const printBtn = document.getElementById('crMyClassesPrint');
+  if (printBtn) printBtn.onclick = () => printRosters(rosterPayload());
+
+  const pdfBtn = document.getElementById('crMyClassesPdf');
+  if (pdfBtn) {
+    pdfBtn.onclick = async () => {
+      pdfBtn.disabled = true;
+      try { await saveRostersPdf(rosterPayload()); }
+      finally { pdfBtn.disabled = false; }
+    };
+  }
+
+  const xlsxBtn = document.getElementById('crMyClassesXlsx');
+  if (xlsxBtn) {
+    xlsxBtn.onclick = async () => {
+      xlsxBtn.disabled = true;
+      try { await saveRostersXlsx(rosterPayload()); }
+      finally { xlsxBtn.disabled = false; }
+    };
+  }
 }
 
 function populateClassRosterPeriods(grade) {
