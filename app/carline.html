@@ -638,6 +638,8 @@ let callStatus    = new Map(); // student_id → status string
 let calledAt      = new Map(); // student_id → ISO string
 let recalledAt    = new Map(); // student_id → ISO string
 let callLog       = [];        // { name, status, time } newest-first
+let localVersion  = 0;         // bumped whenever a broadcast mutates call state
+let pollInFlight  = false;     // true while a calls poll request is in flight
 let activeTeacherIds     = new Set();
 let pinnedStudentIds     = new Set();
 let activePickupGroupIds = new Set(); // pickup group ids selected in class bar
@@ -888,6 +890,17 @@ function renderBusArrivalBar() {
 // campus, so the extra rows can never collide -- and the board renders only the
 // teacher's own class regardless.
 async function loadExistingCalls() {
+  // Captured before either request goes out. A broadcast (an operator's
+  // call/recall/undo) can land on this board while this fetch is still in
+  // flight -- with a busy DB that round trip can take seconds, easily longer
+  // than the 8s poll interval. If that happens, the snapshot below reflects
+  // the DB from *before* the broadcast's write, and applying it would silently
+  // stomp the newer, correct state the broadcast just applied -- a recall
+  // flashing onto the board and then vanishing again. Bailing out here and
+  // letting the next poll (which starts after the broadcast) pick it up is
+  // safer than overwriting with stale data.
+  const versionAtStart = localVersion;
+
   // Two steps rather than one embedded-filter select. PostgREST compiles
   // .eq('carline_events.event_date', ...) into a LATERAL JOIN evaluated
   // per-row against carline_calls, filtered only by school_id at the SQL
@@ -918,6 +931,11 @@ async function loadExistingCalls() {
     .in('carline_event_id', eventIds)
     .order('id'));
   if (data === null) { console.error('loadExistingCalls: calls fetch failed, keeping last known state'); return; }
+
+  // Something changed locally (a broadcast) while this fetch was in flight --
+  // this snapshot predates it. Discard rather than apply; see the comment at
+  // the top of this function.
+  if (localVersion !== versionAtStart) return;
 
   callStatus.clear();
   calledAt.clear();
@@ -1689,6 +1707,7 @@ function setupRealtime() {
     })
     .on('broadcast', { event: 'student_call' }, ({ payload }) => {
       if (!payload?.calls?.length) return;
+      localVersion++; // tells any in-flight poll its snapshot is now stale
       let shouldPlayCall = false, shouldPlayRecall = false;
       payload.calls.forEach(c => {
         const prev = callStatus.get(c.student_id);
@@ -1718,6 +1737,7 @@ function setupRealtime() {
     .on('broadcast', { event: 'reset_day' }, () => {
       // Reset Day deletes every call row for the event. Without this the board
       // kept rendering the pre-reset statuses until someone refreshed.
+      localVersion++; // tells any in-flight poll its snapshot is now stale
       callStatus.clear();
       calledAt.clear();
       recalledAt.clear();
@@ -1852,8 +1872,16 @@ function startCallsPoller() {
       clearInterval(callsPollTimer); callsPollTimer = null;
       return;
     }
+    // A slow response (DB under load) shouldn't pile up overlapping requests
+    // on top of an already-strained DB -- skip this tick rather than queue.
+    if (pollInFlight) return;
+    pollInFlight = true;
     const prev = new Map(callStatus);
-    await loadExistingCalls();
+    try {
+      await loadExistingCalls();
+    } finally {
+      pollInFlight = false;
+    }
     // Only re-render if something actually changed
     let changed = false;
     callStatus.forEach((v, k) => { if (prev.get(k) !== v) changed = true; });

@@ -1199,21 +1199,34 @@ async function callStudents(students, tag, callType) {
 }
 
 async function recallStudents(students, tag) {
+  // Filtered before the write, not after: a WAITING student has no
+  // carline_calls row at all yet (WAITING is just the absence of a row), so
+  // an UPDATE with .in('status', ['CALLED','WAITING']) matched zero rows for
+  // them -- silently, with no error. The board would still show the recall
+  // (it trusts the broadcast below), but it vanished again on the very next
+  // poll once the board re-read the DB and found nothing there. Upserting
+  // instead actually creates the row.
+  const recalled = students.filter(s => ['CALLED', 'WAITING'].includes(callStatus.get(s.id) ?? 'WAITING'));
+  if (!recalled.length) { showToast(`Tag ${tag} — nothing to recall`); return; }
+
   const pid = beginPendingWrite(`Recalling tag ${tag}`);
 
-  const prevStatuses = students.map(s => ({ id: s.id, prev: callStatus.get(s.id) ?? 'WAITING' }));
+  const prevStatuses = recalled.map(s => ({ id: s.id, prev: callStatus.get(s.id) ?? 'WAITING' }));
   const now = new Date().toISOString();
 
-  // Targets the exact students this tag resolved to, not their family_id. A tag
-  // carrying individual students has no family to filter on, so the old
-  // family_id filter matched zero rows and the recall failed silently — the
-  // update succeeds either way, so nothing surfaced the miss.
+  const rows = recalled.map(s => ({
+    school_id: profile.school_id,
+    carline_event_id: currentEvent.id,
+    student_id: s.id,
+    family_id: s.family_id,
+    status: 'RECALLED',
+    recalled_at: now,
+    called_by_profile_id: profile.id,
+  }));
+
   const { error } = await supabase
     .from('carline_calls')
-    .update({ status: 'RECALLED', recalled_at: now })
-    .eq('carline_event_id', currentEvent.id)
-    .in('student_id', students.map(s => s.id))
-    .in('status', ['CALLED', 'WAITING']);
+    .upsert(rows, { onConflict: 'carline_event_id,student_id' });
 
   endPendingWrite(pid);
 
@@ -1224,17 +1237,16 @@ async function recallStudents(students, tag) {
     return;
   }
 
-  const recalled = students.filter(s => ['CALLED', 'WAITING'].includes(callStatus.get(s.id) ?? 'WAITING'));
   recalled.forEach(s => callStatus.set(s.id, 'RECALLED'));
 
-  undoStack.push({ studentIds: students.map(s => s.id), prevStatuses, tag, callType: 'RECALL' });
+  undoStack.push({ studentIds: recalled.map(s => s.id), prevStatuses, tag, callType: 'RECALL' });
   document.getElementById('btnUndoLast').disabled = false;
 
-  const names = students.map(s => `${s.first_name} ${s.last_name}`);
+  const names = recalled.map(s => `${s.first_name} ${s.last_name}`);
   pushRecent(tag, names, 'FAMILY', true);
   playRecallSound();
   showToast(`Tag ${tag} recalled`);
-  if (recalled.length) broadcastStudentCalls(recalled.map(s => ({ student_id: s.id, status: 'RECALLED', called_at: null, recalled_at: now, call_type: 'FAMILY' })));
+  broadcastStudentCalls(recalled.map(s => ({ student_id: s.id, status: 'RECALLED', called_at: null, recalled_at: now, call_type: 'FAMILY' })));
 }
 
 function setBusBusy(busGroupId, busy) {
