@@ -39,6 +39,7 @@ let _profile      = null;
 let _schoolConfig = null;
 let _showArchived = false;
 let _showDeleted  = false;
+let _showAllYears = false;
 let _formEmployees = [];
 let _selectedTeacherIds = new Set();
 let _periods      = [];   // schedule_periods for this school, active only
@@ -118,6 +119,10 @@ export function setShowArchived(val) {
 
 export function setShowDeleted(val) {
   _showDeleted = val;
+}
+
+export function setShowAllYears(val) {
+  _showAllYears = val;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -212,7 +217,10 @@ async function openCurrentYearEditor() {
 
     if (_schoolConfig) _schoolConfig.current_academic_year = value;
     invalidateSchoolConfigCache(_profile.school_id);
-    await renderCurrentYearControl();
+    // The session list defaults to filtering by this value -- without
+    // re-rendering it too, changing the year here would look like it did
+    // nothing until the admin navigated away and back.
+    await Promise.all([renderCurrentYearControl(), renderSessionList()]);
   });
   document.getElementById('cancelCurrentYearBtn')?.addEventListener('click', renderCurrentYearControl);
 }
@@ -245,11 +253,24 @@ export async function renderSessionList() {
     .eq('school_id', _profile.school_id)
     .order('sort_order', { ascending: true });
 
+  // Defaults to the current year so the list matches "I set the year, now
+  // I see this year's boards" rather than an ever-growing all-time list
+  // that only a small chip distinguishes. Falls back to unfiltered when no
+  // current year is set yet -- same principle as everywhere else this
+  // field is read: an unset year should never mean "show nothing."
+  //
+  // Deliberately NOT applied to Trash: recovering an accidentally-deleted
+  // board is rare and deliberate, and year-filtering it risks "Trash is
+  // empty" being a lie when an older board is sitting in there.
+  const currentYear = _schoolConfig?.current_academic_year;
+  const yearFiltered = !_showDeleted && !_showAllYears && !!currentYear;
+
   if (_showDeleted) {
     query = query.not('deleted_at', 'is', null);
   } else {
     query = query.is('deleted_at', null);
     if (!_showArchived) query = query.is('archived_at', null);
+    if (yearFiltered) query = query.eq('academic_year', currentYear);
   }
 
   const { data, error } = await query;
@@ -264,7 +285,9 @@ export async function renderSessionList() {
       <div class="placement-empty">
         ${_showDeleted
           ? '<p style="font-weight:600;margin:0 0 4px;">Trash is empty.</p><p class="muted" style="font-size:13px;margin:0;">Deleted boards appear here and can be restored.</p>'
-          : '<p style="font-weight:600;margin:0 0 4px;">No placement sessions yet.</p><p class="muted" style="font-size:13px;margin:0;">Create a session to start placing students for the upcoming year.</p>'
+          : yearFiltered
+            ? `<p style="font-weight:600;margin:0 0 4px;">No boards for ${esc(currentYear.replace('-','–'))}.</p><p class="muted" style="font-size:13px;margin:0;">Check "Show all years" if you're looking for an older board, or create a new session for this year.</p>`
+            : '<p style="font-weight:600;margin:0 0 4px;">No placement sessions yet.</p><p class="muted" style="font-size:13px;margin:0;">Create a session to start placing students for the upcoming year.</p>'
         }
       </div>`;
     return;

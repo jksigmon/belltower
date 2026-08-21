@@ -2,7 +2,7 @@ import { supabase } from './admin.supabase.js?v=2';
 import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast, getAvatarColor, fmtShortDate } from './admin.shared.js?v=3';
 import {
   initSessions, showSessionList, showCreateForm, renderSessionList,
-  setShowArchived, setShowDeleted, submitCreateForm, showConfirmModal,
+  setShowArchived, setShowDeleted, setShowAllYears, submitCreateForm, showConfirmModal,
   isLive, isSection, periodLabel, openPeriodsModal, addPeriod, showGrid,
 } from './admin.placement.sessions.js';
 
@@ -106,6 +106,8 @@ function wireGlobalEvents() {
     ?.addEventListener('change', e => { setShowArchived(e.target.checked); renderSessionList(); });
   document.getElementById('showDeletedSessionsToggle')
     ?.addEventListener('change', e => { setShowDeleted(e.target.checked); renderSessionList(); });
+  document.getElementById('showAllYearsSessionsToggle')
+    ?.addEventListener('change', e => { setShowAllYears(e.target.checked); renderSessionList(); });
   document.getElementById('backToSessionListBtn')
     ?.addEventListener('click', () => { sessionStorage.removeItem('placement:boardId'); teardownRealtime(); exitFullscreen(); showSessionList(); });
 
