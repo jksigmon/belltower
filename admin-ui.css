@@ -6042,37 +6042,133 @@ a.staff-dash-request-row:hover {
 }
 
 /* ── Class Rosters (staff portal) ───────────────────────────────────── */
-.cr-board-card {
+
+/* Summary stat strip -- Teachers / Students / Per-Class avg / Period,
+   computed from whatever's currently loaded for the selected grade+period. */
+.cr-summary-row {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  margin: 14px 0;
+  background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 14px 16px;
-  margin-bottom: 12px;
 }
-.cr-board-header {
+.cr-stat {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 10px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #f3f4f6;
+  align-items: center;
+  gap: 10px;
+  color: #6b7280;
 }
-.cr-board-teacher {
+.cr-stat-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.2;
+}
+.cr-stat-label {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* Search + export row */
+.cr-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.cr-search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+  max-width: 380px;
+}
+.cr-search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+  pointer-events: none;
+}
+.cr-search-wrap input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px 0 34px;
+  border: 1px solid #dcdfe4;
+  border-radius: 8px;
+  font-size: 13.5px;
+  box-sizing: border-box;
+}
+
+/* One class per card: avatar, teacher, grade/period, count, and a
+   collapsible grid of every student's name. */
+.cr-class-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+.cr-class-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+.cr-class-header:hover { background: #f9fafb; }
+.cr-class-avatar {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.cr-class-heading { flex: 1; min-width: 0; }
+.cr-class-teacher {
   font-weight: 700;
   font-size: 15px;
   color: #111827;
 }
-.cr-board-students {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.cr-student-chip {
+.cr-class-count {
   font-size: 12.5px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  color: #374151;
+  white-space: nowrap;
+}
+.cr-class-chevron {
+  width: 16px;
+  height: 16px;
+  color: #9ca3af;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+.cr-class-card.collapsed .cr-class-chevron { transform: rotate(180deg); }
+.cr-class-card.collapsed .cr-class-body { display: none; }
+.cr-class-body {
+  padding: 4px 16px 16px;
+  border-top: 1px solid #f3f4f6;
+}
+.cr-name-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px 16px;
+  padding-top: 12px;
+}
+.cr-name-cell {
+  font-size: 13px;
+  color: #1f2937;
 }
 
 /* Reusable "read this before you proceed" callout -- same amber treatment

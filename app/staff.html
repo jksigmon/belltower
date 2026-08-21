@@ -1383,6 +1383,29 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
           </div>
         </div>
 
+        <div id="crSummaryRow" class="cr-summary-row" hidden></div>
+
+        <div id="crToolbar" class="cr-toolbar" hidden>
+          <div class="cr-search-wrap">
+            <svg class="cr-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="crSearchInput" placeholder="Search teachers or students…">
+          </div>
+          <div class="comp-filter-actions">
+            <button id="crExportPrint" class="btn comp-report-cta">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Print
+            </button>
+            <button id="crExportPdf" class="btn comp-report-cta">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Save PDF
+            </button>
+            <button id="crExportXlsx" class="btn comp-report-cta">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Export Excel
+            </button>
+          </div>
+        </div>
+
         <div id="crBoardsWrap"></div>
       </div>
 
@@ -1688,7 +1711,7 @@ import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE } from '/app/admin.shared.js?v=3';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE, getAvatarColor } from '/app/admin.shared.js?v=3';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { roleCheckboxGridHTML } from '/app/compliance.roles.js?v=2';
@@ -5134,6 +5157,24 @@ async function initClassRosters() {
   });
   periodSel.addEventListener('change', renderClassRosterBoards);
 
+  // Client-side filter over data already in memory -- no query per
+  // keystroke, so this re-renders directly rather than debouncing.
+  document.getElementById('crSearchInput')?.addEventListener('input', renderClassCards);
+
+  document.getElementById('crExportPrint')?.addEventListener('click', () => printRosters(crExportPayload()));
+  document.getElementById('crExportPdf')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try { await saveRostersPdf(crExportPayload()); }
+    finally { btn.disabled = false; }
+  });
+  document.getElementById('crExportXlsx')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    try { await saveRostersXlsx(crExportPayload()); }
+    finally { btn.disabled = false; }
+  });
+
   renderMyClassesPanel();
 }
 
@@ -5281,14 +5322,32 @@ function populateClassRosterPeriods(grade) {
   periodSel.disabled = false;
 }
 
+let crClasses = [];        // [{ key, boardLabel, teacherLabel, students }] for the current grade/period
+let crGradeText = '';
+let crPeriodText = '';
+
 async function renderClassRosterBoards() {
-  const grade    = document.getElementById('crGradeSelect')?.value;
-  const periodId = document.getElementById('crPeriodSelect')?.value;
-  const wrap     = document.getElementById('crBoardsWrap');
+  const gradeSel  = document.getElementById('crGradeSelect');
+  const periodSel = document.getElementById('crPeriodSelect');
+  const grade     = gradeSel?.value;
+  const periodId  = periodSel?.value;
+  const wrap      = document.getElementById('crBoardsWrap');
+  const summaryRow = document.getElementById('crSummaryRow');
+  const toolbar    = document.getElementById('crToolbar');
+  const searchInput = document.getElementById('crSearchInput');
   if (!wrap) return;
 
-  if (!grade || !periodId) { wrap.innerHTML = ''; return; }
+  if (!grade || !periodId) {
+    wrap.innerHTML = '';
+    if (summaryRow) summaryRow.hidden = true;
+    if (toolbar) toolbar.hidden = true;
+    crClasses = [];
+    return;
+  }
   wrap.innerHTML = '<p class="muted" style="padding:16px 0;">Loading…</p>';
+  if (summaryRow) summaryRow.hidden = true;
+  if (toolbar) toolbar.hidden = true;
+  if (searchInput) searchInput.value = ''; // stale search term from a previous grade/period would silently hide everything
 
   const schoolConfig = await loadSchoolConfig(currentProfile.school_id);
 
@@ -5315,6 +5374,7 @@ async function renderClassRosterBoards() {
   const { data: sessions, error } = await sessQuery;
   if (error) { wrap.innerHTML = '<p class="muted" style="padding:16px 0;">Could not load classes.</p>'; return; }
   if (!sessions?.length) {
+    crClasses = [];
     wrap.innerHTML = '<p class="muted" style="padding:16px 0;">No classes found for this grade and period.</p>';
     return;
   }
@@ -5346,6 +5406,7 @@ async function renderClassRosterBoards() {
     const key = `${r.session_id}::${r.teacher_id ?? r.placeholder_name ?? 'unassigned'}`;
     if (!classes.has(key)) {
       classes.set(key, {
+        key,
         boardLabel: session.label,
         teacherLabel: r.placeholder_name
           ? r.placeholder_name
@@ -5356,24 +5417,103 @@ async function renderClassRosterBoards() {
     classes.get(key).studentIds.push(r.student_id);
   });
 
-  wrap.innerHTML = [...classes.values()].map(c => {
-    const students = c.studentIds.map(id => studentById.get(id)).filter(Boolean);
+  crClasses = [...classes.values()].map(c => ({
+    ...c,
+    students: c.studentIds.map(id => studentById.get(id)).filter(Boolean),
+  }));
+  crGradeText  = gradeLabel(grade);
+  crPeriodText = periodSel.options[periodSel.selectedIndex]?.textContent ?? '';
+
+  if (toolbar) toolbar.hidden = false;
+  renderClassSummary();
+  renderClassCards();
+}
+
+function renderClassSummary() {
+  const row = document.getElementById('crSummaryRow');
+  if (!row) return;
+  if (!crClasses.length) { row.hidden = true; return; }
+
+  const teacherCount = crClasses.length;
+  const studentCount = crClasses.reduce((sum, c) => sum + c.students.length, 0);
+  const avgPerClass  = teacherCount ? Math.round(studentCount / teacherCount) : 0;
+
+  row.hidden = false;
+  row.innerHTML = [
+    ['users',  teacherCount, teacherCount === 1 ? 'Teacher' : 'Teachers'],
+    ['user',   studentCount, 'Students'],
+    ['users',  avgPerClass,  'Per Class (avg.)'],
+    ['clock',  1,            'Period'],
+  ].map(([icon, value, label]) => `
+    <div class="cr-stat">
+      <i data-lucide="${icon}" style="width:16px;height:16px;"></i>
+      <div><div class="cr-stat-value">${value}</div><div class="cr-stat-label">${esc(label)}</div></div>
+    </div>`).join('');
+
+  if (window.lucide) lucide.createIcons({ nodes: [row] });
+}
+
+/* Filters whole classes, not individual students within one -- searching
+   "Ella" jumps you to the class she's in rather than hiding her 27
+   classmates, which matches "find the class" better than "find the row"
+   for a roster this shape. */
+function crFilteredClasses() {
+  const term = (document.getElementById('crSearchInput')?.value ?? '').trim().toLowerCase();
+  if (!term) return crClasses;
+  return crClasses.filter(c =>
+    c.teacherLabel.toLowerCase().includes(term) ||
+    c.students.some(s => rosterDisplayName(s).toLowerCase().includes(term))
+  );
+}
+
+function renderClassCards() {
+  const wrap = document.getElementById('crBoardsWrap');
+  if (!wrap) return;
+
+  const visible = crFilteredClasses();
+  const searching = !!document.getElementById('crSearchInput')?.value.trim();
+
+  if (!visible.length) {
+    wrap.innerHTML = `<p class="muted" style="padding:16px 0;">${searching ? 'No teacher or student matches your search.' : 'No students on this roster.'}</p>`;
+    return;
+  }
+
+  wrap.innerHTML = visible.map(c => {
+    const initials = c.teacherLabel.split(',').map(p => p.trim()[0]).filter(Boolean).slice(0, 2).join('').toUpperCase() || '?';
     return `
-      <div class="cr-board-card">
-        <div class="cr-board-header">
-          <div>
-            <div class="cr-board-teacher">${esc(c.teacherLabel)}</div>
-            <div class="muted" style="font-size:12px;">${esc(c.boardLabel)}</div>
+      <div class="cr-class-card">
+        <button type="button" class="cr-class-header" data-key="${esc(c.key)}">
+          <div class="cr-class-avatar" style="background:${getAvatarColor(c.teacherLabel)};">${esc(initials)}</div>
+          <div class="cr-class-heading">
+            <div class="cr-class-teacher">${esc(c.teacherLabel)}</div>
+            <div class="muted" style="font-size:12px;">${esc(crGradeText)} · ${esc(crPeriodText)}</div>
           </div>
-          <div class="muted" style="font-size:12px;">${students.length} ${students.length === 1 ? 'student' : 'students'}</div>
-        </div>
-        <div class="cr-board-students">
-          ${students.length
-            ? students.map(s => `<span class="cr-student-chip">${esc(rosterDisplayName(s))}</span>`).join('')
+          <div class="muted cr-class-count">${c.students.length} ${c.students.length === 1 ? 'student' : 'students'}</div>
+          <i data-lucide="chevron-up" class="cr-class-chevron"></i>
+        </button>
+        <div class="cr-class-body">
+          ${c.students.length
+            ? `<div class="cr-name-grid">${c.students.map(s => `<div class="cr-name-cell">${esc(rosterDisplayName(s))}</div>`).join('')}</div>`
             : '<p class="muted" style="font-size:12px;margin:0;">No students.</p>'}
         </div>
       </div>`;
   }).join('');
+
+  wrap.querySelectorAll('.cr-class-header').forEach(btn =>
+    btn.addEventListener('click', () => btn.closest('.cr-class-card').classList.toggle('collapsed'))
+  );
+  if (window.lucide) lucide.createIcons({ nodes: [wrap] });
+}
+
+function crExportPayload() {
+  return {
+    groups: crFilteredClasses().map(c => ({
+      label: c.teacherLabel,
+      sublabel: `${crGradeText} · ${crPeriodText}`,
+      students: c.students,
+    })),
+    schoolName: currentProfile.schools?.name ?? '',
+  };
 }
 
 let compReportData = null;
