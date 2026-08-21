@@ -344,6 +344,11 @@ function renderTripHeader(trip) {
   document.getElementById('ftEditBtn').onclick   = () => openTripDrawer(trip);
   document.getElementById('ftCancelBtn').style.display = (!isPast && trip.status === 'active') ? '' : 'none';
   document.getElementById('ftCancelBtn').onclick  = () => cancelTrip(trip.id);
+
+  const canDelete = profile.can_manage_field_trips || profile.is_superadmin;
+  document.getElementById('ftDeleteBtn').style.display = (trip.status === 'cancelled' && canDelete) ? '' : 'none';
+  document.getElementById('ftDeleteBtn').onclick  = () => deleteTrip(trip.id);
+
   document.getElementById('ftBackBtn').onclick    = showListView;
 }
 
@@ -354,6 +359,20 @@ async function cancelTrip(id) {
   const t = tripCache.find(t => t.id === id);
   if (t) t.status = 'cancelled';
   renderTripHeader(currentTrip);
+}
+
+async function deleteTrip(id) {
+  const trip = tripCache.find(t => t.id === id);
+  if (!trip) return;
+  if (!confirm(`Permanently delete "${trip.name}"? This removes all chaperones, students, payments, and vehicle assignments for this trip and cannot be undone.`)) return;
+
+  const { error } = await supabase.from('field_trips').delete().eq('id', id);
+  if (error) { dbError(error, 'Failed to delete trip'); return; }
+
+  tripCache = tripCache.filter(t => t.id !== id);
+  showListView();
+  renderTripList();
+  showToast('Trip deleted.');
 }
 
 // ── Tabs ────────────────────────────────────────────────────────────────
