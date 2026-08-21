@@ -34,9 +34,7 @@
         <span class="cl-campus-label" id="inpCampusLabel" hidden></span>
       </div>
       <div class="inp-header-right">
-        <button class="cl-icon-btn" id="btnDarkMode" title="Toggle dark mode"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
-        <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden><span>✕</span><span>Close</span></button>
-        <button class="cl-signout-btn" id="btnSignOut">
+        <button class="cl-signout-btn" id="btnSignOut" title="Sign out">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
             <polyline points="16 17 21 12 16 7"/>
@@ -44,9 +42,20 @@
           </svg>
           <span class="cl-btn-label">Sign out</span>
         </button>
+        <span class="inp-header-divider" aria-hidden="true"></span>
+        <button class="cl-dismiss-btn close" id="btnCloseDismissal" hidden><span>✕</span><span>Close</span></button>
       </div>
     </div>
   </header>
+
+  <!-- Failed-write banner: full width, present only when something needs
+       attention. Expands into a fixed-position tray (see script) so opening
+       it never reflows the keypad below, no matter how many items are in it. -->
+  <button id="failBanner" class="inp-fail-banner" hidden></button>
+  <div id="failTray" class="inp-fail-tray" hidden>
+    <button id="failRetryAllBtn" class="inp-fail-retry-all">Retry All</button>
+    <ul id="failTrayList" class="inp-fail-tray-list"></ul>
+  </div>
 
   <!-- No active event -->
   <div id="inpNoEvent" class="cl-no-event" hidden>
@@ -65,6 +74,7 @@
       <div class="inp-tag-card">
         <div class="inp-tag-topline">
           <span>Enter Carline Number</span>
+          <span class="inp-tag-pending-chip" id="tagPendingChip" hidden></span>
           <span class="inp-tag-dot" id="tagDot"></span>
         </div>
         <div class="inp-tag-row">
@@ -159,6 +169,18 @@
   </div>
 </div>
 
+<!-- Confirmation modal (Sign out / Close dismissal) -->
+<div id="confirmModal" hidden>
+  <div id="confirmDialog">
+    <h3 id="confirmTitle"></h3>
+    <p id="confirmMsg"></p>
+    <div id="confirmActions">
+      <button id="confirmCancelBtn">Cancel</button>
+      <button id="confirmOkBtn"></button>
+    </div>
+  </div>
+</div>
+
 <style>
   /* Rapid double-taps while entering a carline tag (e.g. "33" then "3")
      otherwise trigger iOS Safari's double-tap-to-zoom. touch-action keeps
@@ -227,6 +249,62 @@
     transition: background 120ms;
   }
   #campusPickerCancel:hover { background: var(--cl-bg); }
+
+  #confirmModal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #confirmModal[hidden] { display: none !important; }
+  #confirmDialog {
+    background: var(--cl-surface);
+    border-radius: 14px;
+    padding: 28px 24px;
+    max-width: 340px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  #confirmDialog h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--cl-text);
+    margin-bottom: 6px;
+  }
+  #confirmDialog p {
+    font-size: 13px;
+    color: var(--cl-text-muted);
+    margin-bottom: 22px;
+    line-height: 1.5;
+  }
+  #confirmActions {
+    display: flex;
+    gap: 8px;
+  }
+  #confirmCancelBtn, #confirmOkBtn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 120ms;
+  }
+  #confirmCancelBtn {
+    background: transparent;
+    border: 1px solid var(--cl-border);
+    color: var(--cl-text-muted);
+  }
+  #confirmCancelBtn:hover { background: var(--cl-bg); }
+  #confirmOkBtn { background: #dc2626; color: #fff; }
+  #confirmOkBtn:hover { background: #b91c1c; }
+  #confirmOkBtn.neutral { background: var(--cl-primary); }
+  #confirmOkBtn.neutral:hover { background: var(--cl-primary-dark); }
 </style>
 
 <div class="cl-toast" id="clToast"></div>
@@ -236,8 +314,6 @@ import { supabase } from '/app/admin.supabase.js?v=2';
 import { playTones, wireAudioPriming } from '/app/carline-audio.js';
 
 // ─── SVG constants ────────────────────────────────────────────────────
-const SVG_MOON = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
-const SVG_SUN  = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
 const SVG_BUS  = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="19" r="2"/><line x1="9" y1="19" x2="15" y2="19"/></svg>`;
 const SVG_FAMILIES = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
 
@@ -274,6 +350,12 @@ let eventPollTimer  = null;
 let callsPollTimer  = null;
 let tagBuffer    = '';
 let toastTimer   = null;
+let pendingWrites   = new Map();  // token -> label, writes currently in flight
+let pendingWriteSeq = 0;
+let failedWrites    = new Map();  // token -> { label, retry }
+let chipShowTimer   = null;
+let busyBusIds      = new Set();  // bus_group_id currently mid-request
+let busyFlagGroups  = new Set();  // flag currently mid-request
 
 // ─── Boot ─────────────────────────────────────────────────────────────
 async function boot() {
@@ -625,7 +707,13 @@ async function startDismissal(campusId = null) {
 
 async function closeDismissal() {
   if (!currentEvent) return;
-  if (!confirm('Close today\'s dismissal?')) return;
+  const ok = await confirmDialog({
+    title: 'Close today’s dismissal?',
+    message: 'This ends dismissal tracking for today. Make sure carline is finished before closing. You can reopen it later if needed.',
+    confirmLabel: 'Close Dismissal',
+    danger: true
+  });
+  if (!ok) return;
   const { error } = await supabase
     .from('carline_events')
     .update({ status: 'CLOSED', closed_at: new Date().toISOString(), closed_by_profile_id: profile.id })
@@ -640,7 +728,13 @@ async function closeDismissal() {
 
 async function reopenDismissal() {
   if (!currentEvent) return;
-  if (!confirm("Reopen today's dismissal?")) return;
+  const ok = await confirmDialog({
+    title: 'Reopen today’s dismissal?',
+    message: 'This resumes live dismissal tracking for today.',
+    confirmLabel: 'Reopen Dismissal',
+    danger: false
+  });
+  if (!ok) return;
   const { error } = await supabase
     .from('carline_events')
     .update({ status: 'OPEN', closed_at: null, closed_by_profile_id: null })
@@ -875,6 +969,167 @@ function broadcastStudentCalls(calls) {
   broadcastToDisplay('student_call', { calls });
 }
 
+// ─── In-flight write tracking ──────────────────────────────────────────
+// The keypad never blocks on a write (see callByTag below). Two separate
+// signals come out of that:
+//  - "sending" is low-stakes and stays tiny, tucked into the tag-card header
+//    chip -- the spot she's always looking at while entering numbers.
+//  - "failed" actually needs her attention, and cars-coming-fast made the
+//    recent-calls list (scroll to find it) too slow to reach, so it gets its
+//    own full-width banner right under the header instead. See failBanner /
+//    failTray below.
+const PENDING_SHOW_DELAY_MS = 200;
+
+function beginPendingWrite(label) {
+  const id = ++pendingWriteSeq;
+  pendingWrites.set(id, label);
+  scheduleChipUpdate();
+  return id;
+}
+
+function endPendingWrite(id) {
+  pendingWrites.delete(id);
+  scheduleChipUpdate();
+}
+
+function scheduleChipUpdate() {
+  clearTimeout(chipShowTimer);
+  chipShowTimer = null;
+  if (pendingWrites.size === 0) { renderPendingChip(); return; }
+  chipShowTimer = setTimeout(renderPendingChip, PENDING_SHOW_DELAY_MS);
+}
+
+// Vibration API has real support on Android Chrome and simply doesn't exist
+// on iOS Safari (Apple has never implemented it) -- navigator.vibrate is
+// undefined there, so this is a silent no-op on that half of the fleet
+// rather than a broken call. Not a substitute for the sound cues, just
+// another channel that happens to work on some devices when sound doesn't.
+function hapticBuzz(pattern) {
+  try { navigator.vibrate?.(pattern); } catch { /* unsupported -- ignore */ }
+}
+
+// Sound and vibration both depend on device settings an operator may not
+// control (ringer switch, volume, Do Not Disturb) -- this flash is the one
+// channel guaranteed to work on every device regardless of audio/haptic
+// settings, so a failure is never silent AND invisible at the same time.
+function flashTagCardAlert() {
+  const card = document.querySelector('.inp-tag-card');
+  if (!card) return;
+  card.classList.remove('alert-flash');
+  void card.offsetWidth; // restart the animation if it's already mid-flash
+  card.classList.add('alert-flash');
+}
+
+let chipWasSending = false;
+
+function renderPendingChip() {
+  const chip = document.getElementById('tagPendingChip');
+  if (!chip) return;
+  const isSending = pendingWrites.size > 0;
+  if (isSending && !chipWasSending) hapticBuzz(35);
+  chipWasSending = isSending;
+
+  if (isSending) {
+    chip.hidden = false;
+    chip.textContent = `Sending ${pendingWrites.size}…`;
+  } else {
+    chip.hidden = true;
+  }
+}
+
+// ─── Failed-write banner + tray ────────────────────────────────────────
+// A full-width strip under the header, only present at all when something
+// has actually failed -- absent otherwise, same "don't shout when nothing's
+// wrong" rule as the sending chip. Tapping it expands a fixed-position tray
+// (not a document-flow list) so opening it never shifts the keypad's
+// on-screen position, no matter how many failures pile up.
+let failTrayOpen  = false;
+let bannerWasFailed = false;
+
+function refreshFailureUI() {
+  const banner = document.getElementById('failBanner');
+  const n = failedWrites.size;
+  if (n > 0) {
+    if (!bannerWasFailed) { hapticBuzz([90, 60, 90]); flashTagCardAlert(); }
+    banner.hidden = false;
+    banner.textContent = `⚠ ${n} failed — tap to review`;
+    if (failTrayOpen) renderFailTrayList();
+  } else {
+    banner.hidden = true;
+    if (failTrayOpen) closeFailTray();
+  }
+  bannerWasFailed = n > 0;
+}
+
+function renderFailTrayList() {
+  const list = document.getElementById('failTrayList');
+  list.innerHTML = '';
+  failedWrites.forEach(({ label }, id) => {
+    const li = document.createElement('li');
+    li.className = 'inp-fail-tray-item';
+    li.innerHTML = `<span>${esc(label)}</span><span class="inp-fail-tray-item-retry">↻ Retry</span>`;
+    li.addEventListener('click', () => retryFailedWrite(id));
+    list.appendChild(li);
+  });
+}
+
+// Tray is position:fixed, so its top has to be measured from the banner's
+// actual on-screen edge (header height varies -- campus label wrapping,
+// safe-area insets) rather than a hardcoded offset.
+function openFailTray() {
+  if (!failedWrites.size) return;
+  const tray   = document.getElementById('failTray');
+  const banner = document.getElementById('failBanner');
+  tray.style.top = banner.getBoundingClientRect().bottom + 'px';
+  renderFailTrayList();
+  tray.hidden = false;
+  failTrayOpen = true;
+  document.addEventListener('pointerdown', onOutsideTrayTap, true);
+}
+
+function closeFailTray() {
+  document.getElementById('failTray').hidden = true;
+  failTrayOpen = false;
+  document.removeEventListener('pointerdown', onOutsideTrayTap, true);
+}
+
+// Capture phase, and never calls preventDefault/stopPropagation -- so a tap
+// on any keypad/bus/flag/undo button while the tray is open both closes the
+// tray AND still registers normally on whatever she actually tapped. She's
+// never blocked by forgetting to dismiss it first.
+function onOutsideTrayTap(e) {
+  const tray   = document.getElementById('failTray');
+  const banner = document.getElementById('failBanner');
+  if (tray.contains(e.target) || banner.contains(e.target)) return;
+  closeFailTray();
+}
+
+// Records a failed write as a persistent, retryable entry -- surfaced in the
+// banner/tray (the primary way to act on it) and logged in the recent-calls
+// list too, so it isn't lost as history once retried. Doesn't assume what
+// failed; retry just re-runs whatever closure the caller captured against
+// the exact students/tag/group involved.
+function markWriteFailed(label, retry) {
+  const id = `f${++pendingWriteSeq}`;
+  failedWrites.set(id, { label, retry });
+  refreshFailureUI();
+  renderRecentList();
+  return id;
+}
+
+async function retryFailedWrite(id) {
+  const entry = failedWrites.get(id);
+  if (!entry) return;
+  failedWrites.delete(id);
+  refreshFailureUI();
+  renderRecentList();
+  await entry.retry();
+}
+
+function retryAllFailed() {
+  [...failedWrites.keys()].forEach(id => retryFailedWrite(id));
+}
+
 async function callByTag(tag, isRecall = false) {
   if (!tag) return;
   if (!currentEvent || currentEvent.status === 'CLOSED') {
@@ -885,16 +1140,25 @@ async function callByTag(tag, isRecall = false) {
   if (students === null) { showToast(`Tag ${tag} not found`); return; }
   if (!students.length) { showToast(`Tag ${tag}: no students at this campus`); return; }
 
+  // Clear the buffer before the write lands, not after -- the next car's tag
+  // can be keyed in immediately instead of waiting on this one's round trip.
+  // This also closes the double-submit race that used to exist here: a
+  // second rapid tap on Call/Recall now reads an empty buffer and does
+  // nothing, rather than firing a second request against the same stale
+  // local state the first tap was still working from.
+  clearTag();
+
   if (isRecall) {
     await recallStudents(students, tag);
   } else {
     await callStudents(students, tag, 'FAMILY');
   }
-
-  clearTag();
 }
 
 async function callStudents(students, tag, callType) {
+  const label = callType === 'FAMILY' ? `Tag ${tag}` : tag;
+  const pid = beginPendingWrite(`Calling ${label}`);
+
   const prevStatuses = students.map(s => ({ id: s.id, prev: callStatus.get(s.id) ?? 'WAITING' }));
   const now = new Date().toISOString();
 
@@ -913,7 +1177,14 @@ async function callStudents(students, tag, callType) {
     .from('carline_calls')
     .upsert(rows, { onConflict: 'carline_event_id,student_id' });
 
-  if (error) { showToast('Call failed'); return; }
+  endPendingWrite(pid);
+
+  if (error) {
+    markWriteFailed(`${label} — call failed`, () => callStudents(students, tag, callType));
+    playFailSound();
+    showToast(`${label} — call failed, tap to retry`);
+    return;
+  }
 
   students.forEach(s => { callStatus.set(s.id, 'CALLED'); callTypeById.set(s.id, callType); });
   undoStack.push({ studentIds: students.map(s => s.id), prevStatuses, tag, callType });
@@ -922,13 +1193,14 @@ async function callStudents(students, tag, callType) {
   const names = students.map(s => `${s.first_name} ${s.last_name}`);
   pushRecent(tag, names, callType, false);
   playCallSound();
-  const label = callType === 'FAMILY' ? `Tag ${tag}` : tag;
   showToast(`${label} — ${students.length} student${students.length !== 1 ? 's' : ''} called`);
   updateGroupButtons();
   broadcastStudentCalls(students.map(s => ({ student_id: s.id, status: 'CALLED', called_at: now, call_type: callType })));
 }
 
 async function recallStudents(students, tag) {
+  const pid = beginPendingWrite(`Recalling tag ${tag}`);
+
   const prevStatuses = students.map(s => ({ id: s.id, prev: callStatus.get(s.id) ?? 'WAITING' }));
   const now = new Date().toISOString();
 
@@ -943,7 +1215,14 @@ async function recallStudents(students, tag) {
     .in('student_id', students.map(s => s.id))
     .in('status', ['CALLED', 'WAITING']);
 
-  if (error) { showToast('Recall failed'); return; }
+  endPendingWrite(pid);
+
+  if (error) {
+    markWriteFailed(`Tag ${tag} — recall failed`, () => recallStudents(students, tag));
+    playFailSound();
+    showToast(`Tag ${tag} — recall failed, tap to retry`);
+    return;
+  }
 
   const recalled = students.filter(s => ['CALLED', 'WAITING'].includes(callStatus.get(s.id) ?? 'WAITING'));
   recalled.forEach(s => callStatus.set(s.id, 'RECALLED'));
@@ -958,6 +1237,11 @@ async function recallStudents(students, tag) {
   if (recalled.length) broadcastStudentCalls(recalled.map(s => ({ student_id: s.id, status: 'RECALLED', called_at: null, recalled_at: now, call_type: 'FAMILY' })));
 }
 
+function setBusBusy(busGroupId, busy) {
+  const btn = document.querySelector(`.inp-bus-btn[data-bus-id="${busGroupId}"]`);
+  if (btn) btn.classList.toggle('is-sending', busy);
+}
+
 async function callBusGroup(busGroupId) {
   if (!currentEvent || currentEvent.status === 'CLOSED') {
     showToast('Dismissal is not open'); return;
@@ -966,10 +1250,15 @@ async function callBusGroup(busGroupId) {
     await recallBusGroup(busGroupId);
     return;
   }
+  if (busyBusIds.has(busGroupId)) return; // already mid-request -- ignore the extra tap
 
   const group    = allBusGroups.find(b => b.id === busGroupId);
   const students = allStudents.filter(s => s.bus_group_id === busGroupId);
   const now      = new Date().toISOString();
+
+  busyBusIds.add(busGroupId);
+  setBusBusy(busGroupId, true);
+  const pid = beginPendingWrite(`Calling ${group?.name ?? 'bus'}`);
 
   const { error } = await supabase
     .from('carline_bus_arrivals')
@@ -981,7 +1270,16 @@ async function callBusGroup(busGroupId) {
       called_by_profile_id: profile.id,
     });
 
-  if (error) { showToast('Bus call failed'); return; }
+  busyBusIds.delete(busGroupId);
+  setBusBusy(busGroupId, false);
+  endPendingWrite(pid);
+
+  if (error) {
+    markWriteFailed(`${group?.name ?? 'Bus'} — call failed`, () => callBusGroup(busGroupId));
+    playFailSound();
+    showToast(`${group?.name ?? 'Bus'} — call failed, tap to retry`);
+    return;
+  }
 
   calledBusIds.add(busGroupId);
 
@@ -1000,8 +1298,13 @@ async function callBusGroup(busGroupId) {
 // tap without deleting the original arrival row (recalled_at marks it
 // undone, keeping the call log intact for the day's record).
 async function recallBusGroup(busGroupId) {
+  if (busyBusIds.has(busGroupId)) return;
   const group = allBusGroups.find(b => b.id === busGroupId);
   const now   = new Date().toISOString();
+
+  busyBusIds.add(busGroupId);
+  setBusBusy(busGroupId, true);
+  const pid = beginPendingWrite(`Undoing ${group?.name ?? 'bus'}`);
 
   const { error } = await supabase
     .from('carline_bus_arrivals')
@@ -1010,7 +1313,16 @@ async function recallBusGroup(busGroupId) {
     .eq('bus_group_id', busGroupId)
     .is('recalled_at', null);
 
-  if (error) { showToast('Recall failed'); return; }
+  busyBusIds.delete(busGroupId);
+  setBusBusy(busGroupId, false);
+  endPendingWrite(pid);
+
+  if (error) {
+    markWriteFailed(`${group?.name ?? 'Bus'} — undo failed`, () => recallBusGroup(busGroupId));
+    playFailSound();
+    showToast(`${group?.name ?? 'Bus'} — undo failed, tap to retry`);
+    return;
+  }
 
   calledBusIds.delete(busGroupId);
   updateBusButtonStates();
@@ -1035,21 +1347,34 @@ function flagGroupIsCalled(group, students) {
   return students.some(s => callStatus.get(s.id) === 'CALLED' && callTypeById.get(s.id) === group.callType);
 }
 
+function setFlagBusy(flag, busy) {
+  const btn = document.querySelector(`.inp-flag-btn[data-flag="${flag}"]`);
+  if (btn) btn.classList.toggle('is-sending', busy);
+}
+
 async function callFlagGroup(flag) {
   if (!currentEvent || currentEvent.status === 'CLOSED') {
     showToast('Dismissal is not open'); return;
   }
+  if (busyFlagGroups.has(flag)) return; // already mid-request -- ignore the extra tap
   const group = FLAG_GROUPS.find(g => g.flag === flag);
   if (!group) return;
 
   const students = flagGroupStudents(group);
-  if (flagGroupIsCalled(group, students)) {
-    await undoFlagGroup(group, students);
-    return;
-  }
-  if (!students.length) { showToast(`No ${group.label} students at this campus`); return; }
 
-  await callStudents(students, group.label, group.callType);
+  busyFlagGroups.add(flag);
+  setFlagBusy(flag, true);
+  try {
+    if (flagGroupIsCalled(group, students)) {
+      await undoFlagGroup(group, students);
+      return;
+    }
+    if (!students.length) { showToast(`No ${group.label} students at this campus`); return; }
+    await callStudents(students, group.label, group.callType);
+  } finally {
+    busyFlagGroups.delete(flag);
+    setFlagBusy(flag, false);
+  }
 }
 
 // Tapping a lit group button undoes an accidental tap: the students drop
@@ -1061,6 +1386,8 @@ async function undoFlagGroup(group, students) {
     .map(s => s.id);
   if (!ids.length) return;
 
+  const pid = beginPendingWrite(`Undoing ${group.label}`);
+
   const { error } = await supabase
     .from('carline_calls')
     .update({ status: 'WAITING', called_at: null })
@@ -1069,7 +1396,14 @@ async function undoFlagGroup(group, students) {
     .eq('status', 'CALLED')
     .in('student_id', ids);
 
-  if (error) { showToast('Undo failed'); return; }
+  endPendingWrite(pid);
+
+  if (error) {
+    markWriteFailed(`${group.label} — undo failed`, () => undoFlagGroup(group, students));
+    playFailSound();
+    showToast(`${group.label} — undo failed, tap to retry`);
+    return;
+  }
 
   ids.forEach(id => callStatus.set(id, 'WAITING'));
 
@@ -1091,7 +1425,19 @@ async function undoFlagGroup(group, students) {
 
 async function undoLast() {
   if (!undoStack.length) return;
+  if (document.getElementById('btnUndoLast').classList.contains('is-sending')) return;
   const op = undoStack.pop();
+  await attemptUndo(op);
+}
+
+// Split from undoLast so a failed attempt can be retried against the exact
+// same op without touching undoStack again -- popping a second time on retry
+// risked undoing whatever the operator had since pushed on top, if she kept
+// working while a failed undo sat unretried.
+async function attemptUndo(op) {
+  const btn = document.getElementById('btnUndoLast');
+  btn.classList.add('is-sending');
+  const pid = beginPendingWrite(`Undo — tag ${op.tag}`);
 
   const { error } = await supabase
     .from('carline_calls')
@@ -1105,7 +1451,16 @@ async function undoLast() {
       { onConflict: 'carline_event_id,student_id' }
     );
 
-  if (error) { showToast('Undo failed'); undoStack.push(op); return; }
+  btn.classList.remove('is-sending');
+  endPendingWrite(pid);
+
+  if (error) {
+    document.getElementById('btnUndoLast').disabled = undoStack.length === 0;
+    markWriteFailed(`Undo tag ${op.tag} — failed`, () => attemptUndo(op));
+    playFailSound();
+    showToast(`Undo tag ${op.tag} — failed, tap to retry`);
+    return;
+  }
 
   op.prevStatuses.forEach(({ id, prev }) => callStatus.set(id, prev));
   document.getElementById('btnUndoLast').disabled = undoStack.length === 0;
@@ -1127,14 +1482,27 @@ async function undoByTag() {
   if (students === null) { showToast(`Tag ${tag} not found`); return; }
   if (!students.length) { showToast(`No students for tag ${tag} at this campus`); return; }
 
-  // Same reasoning as recallStudents: target students, not family_id.
+  await performUndoByTag(trimmed, students);
+}
+
+// Same reasoning as recallStudents: target students, not family_id.
+async function performUndoByTag(tag, students) {
+  const pid = beginPendingWrite(`Undoing tag ${tag}`);
+
   const { error } = await supabase
     .from('carline_calls')
     .update({ status: 'WAITING' })
     .eq('carline_event_id', currentEvent.id)
     .in('student_id', students.map(s => s.id));
 
-  if (error) { showToast('Undo failed'); return; }
+  endPendingWrite(pid);
+
+  if (error) {
+    markWriteFailed(`Tag ${tag} — undo failed`, () => performUndoByTag(tag, students));
+    playFailSound();
+    showToast(`Tag ${tag} — undo failed, tap to retry`);
+    return;
+  }
   students.forEach(s => callStatus.set(s.id, 'WAITING'));
   updateGroupButtons();
   broadcastStudentCalls(students.map(s => ({
@@ -1152,15 +1520,33 @@ async function allCall() {
   );
   if (!waiting.length) { showToast('No waiting students remaining at this campus'); return; }
 
-  if (!confirm(`Send All Call?\n\nAll ${waiting.length} remaining student${waiting.length !== 1 ? 's' : ''} will appear as called on the display. Individual tags still work for actual pickups — students not called by tag won't have a record.`)) return;
+  const ok = await confirmDialog({
+    title: 'Send All Call?',
+    message: `All ${waiting.length} remaining student${waiting.length !== 1 ? 's' : ''} will appear as called on the display. Individual tags still work for actual pickups. Students not called by tag won't have a record.`,
+    confirmLabel: 'Send All Call',
+    danger: true
+  });
+  if (!ok) return;
 
+  await performAllCall();
+}
+
+async function performAllCall() {
+  const pid = beginPendingWrite('Sending All Call');
   const now = new Date().toISOString();
   const { error } = await supabase
     .from('carline_events')
     .update({ all_call_at: now })
     .eq('id', currentEvent.id);
 
-  if (error) { showToast('All Call failed'); return; }
+  endPendingWrite(pid);
+
+  if (error) {
+    markWriteFailed('All Call — failed to send', () => performAllCall());
+    playFailSound();
+    showToast('All Call failed, tap to retry');
+    return;
+  }
 
   undoStack.length = 0;
   document.getElementById('btnUndoLast').disabled = true;
@@ -1172,20 +1558,43 @@ async function allCall() {
 
 async function resetDay() {
   if (!currentEvent) return;
-  if (!confirm('Reset today\'s dismissal? This will clear ALL call records and the All Call banner.')) return;
+  const ok = await confirmDialog({
+    title: 'Reset today’s dismissal?',
+    message: 'This clears all call records and the All Call banner for today. This can’t be undone.',
+    confirmLabel: 'Reset Day',
+    danger: true
+  });
+  if (!ok) return;
+  await performResetDay();
+}
+
+async function performResetDay() {
+  const pid = beginPendingWrite('Resetting day');
 
   const [{ error: delErr }, { error: evErr }] = await Promise.all([
     supabase.from('carline_calls').delete().eq('carline_event_id', currentEvent.id),
     supabase.from('carline_events').update({ all_call_at: null }).eq('id', currentEvent.id),
   ]);
 
-  if (delErr) { showToast('Reset failed'); return; }
+  endPendingWrite(pid);
+
+  if (delErr) {
+    markWriteFailed('Reset Day — failed', () => performResetDay());
+    playFailSound();
+    showToast('Reset failed, tap to retry');
+    return;
+  }
   if (evErr) console.warn('Failed to clear all_call_at:', evErr.message);
 
   callStatus.clear();
   callTypeById.clear();
   undoStack.length = 0;
   recentCalls.length = 0;
+  // Any failed entries queued before the reset would be retrying against
+  // call records that no longer exist -- drop them rather than let a stale
+  // retry resurrect a pre-reset call.
+  failedWrites.clear();
+  refreshFailureUI();
   document.getElementById('btnUndoLast').disabled = true;
   renderRecentList();
   updateGroupButtons();
@@ -1339,7 +1748,20 @@ function pushRecent(tag, names, type, isRecall) {
 function renderRecentList() {
   const ul = document.getElementById('recentList');
   ul.innerHTML = '';
-  if (!recentCalls.length) {
+
+  failedWrites.forEach(({ label }, id) => {
+    const li = document.createElement('li');
+    li.className = 'inp-recent-item failed';
+    li.innerHTML = `
+      <span class="inp-recent-tag">⚠</span>
+      <span class="inp-recent-names">${esc(label)}</span>
+      <span class="inp-recent-type">Tap to retry</span>
+    `;
+    li.addEventListener('click', () => retryFailedWrite(id));
+    ul.appendChild(li);
+  });
+
+  if (!recentCalls.length && !failedWrites.size) {
     ul.innerHTML = '<li style="color:var(--cl-text-muted);font-size:13px;padding:8px 0;">No calls yet today</li>';
     return;
   }
@@ -1386,6 +1808,15 @@ function playRecallSound() {
     [659, 0.30, 0.18, 0.28, 'triangle'],
   ]);
 }
+// Low, short, deliberately unlike the call/recall/all-call tones -- the only
+// sound on this screen that means "something needs your attention," audible
+// over curb noise without her having to be looking at the chip.
+function playFailSound() {
+  playTones([
+    [220,    0,    0.12, 0.24, 'square'],
+    [164.81, 0.11, 0.22, 0.24, 'square'],
+  ]);
+}
 
 // ─── UI helpers ───────────────────────────────────────────────────────
 function showToast(msg) {
@@ -1398,19 +1829,42 @@ function showToast(msg) {
 function esc(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function toggleDarkMode() {
-  const dark = document.documentElement.dataset.theme === 'dark';
-  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
-  document.getElementById('btnDarkMode').innerHTML = dark ? SVG_MOON : SVG_SUN;
-}
+function confirmDialog({ title, message, confirmLabel = 'Confirm', danger = false }) {
+  return new Promise((resolve) => {
+    const modal   = document.getElementById('confirmModal');
+    const okBtn   = document.getElementById('confirmOkBtn');
+    const cancelBtn = document.getElementById('confirmCancelBtn');
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmMsg').textContent = message;
+    okBtn.textContent = confirmLabel;
+    okBtn.classList.toggle('neutral', !danger);
+    modal.hidden = false;
 
+    function cleanup(result) {
+      modal.hidden = true;
+      okBtn.removeEventListener('click', onOk);
+      cancelBtn.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    function onOk() { cleanup(true); }
+    function onCancel() { cleanup(false); }
+    okBtn.addEventListener('click', onOk);
+    cancelBtn.addEventListener('click', onCancel);
+  });
+}
 // ─── Wire events ──────────────────────────────────────────────────────
 function wireEvents() {
   document.getElementById('btnSignOut').addEventListener('click', async () => {
+    const ok = await confirmDialog({
+      title: 'Sign out?',
+      message: 'You’ll need to log back in to keep using carline. Make sure someone else has it covered if dismissal is still running.',
+      confirmLabel: 'Sign Out',
+      danger: false
+    });
+    if (!ok) return;
     await supabase.auth.signOut();
     window.location.href = '/login.html';
   });
-  document.getElementById('btnDarkMode').addEventListener('click', toggleDarkMode);
   document.getElementById('btnStartNoEvent').addEventListener('click', handleStartClick);
   document.getElementById('btnReopenDismissal').addEventListener('click', reopenDismissal);
   document.getElementById('btnCloseDismissal').addEventListener('click', closeDismissal);
@@ -1425,6 +1879,10 @@ function wireEvents() {
     if (tagBuffer) callByTag(tagBuffer, true);
   });
   document.getElementById('btnClearTag').addEventListener('click', clearTag);
+  document.getElementById('failBanner').addEventListener('click', () => {
+    if (failTrayOpen) closeFailTray(); else openFailTray();
+  });
+  document.getElementById('failRetryAllBtn').addEventListener('click', retryAllFailed);
   document.getElementById('btnUndoLast').addEventListener('click', undoLast);
   document.getElementById('btnUndoTag').addEventListener('click', undoByTag);
   document.getElementById('btnAllCall').addEventListener('click', allCall);

@@ -178,8 +178,8 @@ html, body {
   color: rgba(255,255,255,0.85);
   background: rgba(255,255,255,0.12);
   border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 6px;
-  padding: 3px 9px;
+  border-radius: 99px;
+  padding: 3px 10px;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -982,8 +982,11 @@ html, body {
   color: #fff;
   display: flex;
   flex-direction: column;
-  padding: 6px 14px 8px;
+  padding: 8px 14px 10px;
   flex-shrink: 0;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  position: relative;
+  z-index: 1;
 }
 
 .inp-header-top {
@@ -1004,6 +1007,8 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 6px;
   gap: 8px;
 }
 
@@ -1017,9 +1022,18 @@ html, body {
 .inp-header-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-shrink: 0;
 }
+
+.inp-header-divider {
+  width: 1px;
+  height: 22px;
+  background: rgba(255,255,255,0.18);
+  flex-shrink: 0;
+}
+/* Hide the divider when there's no Close button beside it to separate */
+.inp-header-right:has(#btnCloseDismissal[hidden]) .inp-header-divider { display: none; }
 
 #campusSelector {
   font-size: 13px;
@@ -1073,9 +1087,18 @@ html, body {
   pointer-events: none;
 }
 [data-theme="dark"] .inp-tag-card { background: #060f1c; }
+.inp-tag-card.alert-flash {
+  animation: inp-tag-card-alert-flash 900ms ease-in-out 2;
+}
+@keyframes inp-tag-card-alert-flash {
+  0%, 100% { box-shadow: none; }
+  25%, 65% { box-shadow: 0 0 0 4px rgba(220,38,38,0.6); }
+  45%, 85% { box-shadow: 0 0 0 4px rgba(220,38,38,0.1); }
+}
 
 .inp-tag-topline {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: 7px;
@@ -1086,6 +1109,109 @@ html, body {
   color: rgba(255,255,255,0.55);
   position: relative;
   z-index: 1;
+}
+/* Honest, always-in-view status for a write still in flight -- lives here
+   rather than in the recent-calls list further down the page, which isn't
+   visible without scrolling while entering numbers. Absent when nothing's
+   outstanding. Failures are handled separately by the full-width banner
+   below the header (.inp-fail-banner) -- they need more attention than this
+   small chip can give them. */
+.inp-tag-pending-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  background: rgba(245,158,11,0.18);
+  color: #fcd34d;
+}
+.inp-tag-pending-chip::before {
+  content: "";
+  width: 7px; height: 7px;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* Failed-write banner + expandable tray. Banner sits in normal document flow
+   (one small, bounded shift when it first appears -- not a growing one, since
+   its height never changes with the failure count). The tray is
+   position:fixed so it overlays the tag card instead of pushing the keypad
+   down as more failures accumulate; see openFailTray() for how its top
+   offset is measured against the banner's actual on-screen position. */
+.inp-fail-banner {
+  display: none;
+  width: 100%;
+  border: none;
+  background: #dc2626;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 14px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  letter-spacing: 0.01em;
+}
+.inp-fail-banner:not([hidden]) { display: flex; }
+.inp-fail-banner:active { background: #b91c1c; }
+
+.inp-fail-tray {
+  position: fixed;
+  left: 0; right: 0;
+  z-index: 400;
+  background: var(--cl-surface);
+  border-bottom: 1px solid var(--cl-border);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+  padding: 12px 14px 14px;
+  max-height: 56vh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.inp-fail-retry-all {
+  flex-shrink: 0;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--cl-primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.inp-fail-retry-all:hover { background: var(--cl-primary-dark); }
+.inp-fail-tray-list {
+  list-style: none;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.inp-fail-tray-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  background: rgba(220,38,38,0.06);
+  border: 1px solid rgba(220,38,38,0.2);
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--cl-text);
+  cursor: pointer;
+}
+.inp-fail-tray-item:active { background: rgba(220,38,38,0.14); }
+.inp-fail-tray-item-retry {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #dc2626;
+  flex-shrink: 0;
 }
 .inp-tag-dot {
   width: 7px;
@@ -1264,6 +1390,24 @@ html, body {
 .inp-undo-btn:hover { background: var(--cl-bg); }
 .inp-undo-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
+/* Per-button "in flight" state for undo/bus/flag taps -- these have no tag
+   buffer to clear the way the keypad does, so the button itself is the only
+   honest signal that a specific tap is still resolving. Scoped to one
+   button at a time; nothing else on screen locks up while it resolves. */
+.inp-undo-btn.is-sending {
+  position: relative;
+  opacity: 0.6;
+  pointer-events: none;
+}
+.inp-undo-btn.is-sending::after {
+  content: "";
+  width: 12px; height: 12px;
+  border: 2px solid var(--cl-text-muted);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 /* Bus groups section */
 .inp-section {
   padding: 14px;
@@ -1329,6 +1473,21 @@ html, body {
   color: var(--cl-called-text);
   opacity: 0.8;
   line-height: 1;
+}
+.inp-bus-btn.is-sending {
+  opacity: 0.6;
+  pointer-events: none;
+}
+.inp-bus-btn.is-sending::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 13px; height: 13px;
+  border: 2px solid var(--cl-text-muted);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 
 /* Flag-based family group buttons (Special Dismissal) -- same shape as bus
@@ -1422,6 +1581,19 @@ html, body {
 .inp-recent-item.recalled .inp-recent-type {
   background: rgba(217,119,6,0.1);
   color: var(--cl-recalled-hdr);
+}
+.inp-recent-item.failed {
+  border-left-color: #dc2626;
+  background: rgba(220,38,38,0.06);
+  cursor: pointer;
+}
+.inp-recent-item.failed .inp-recent-tag {
+  color: #dc2626;
+  background: rgba(220,38,38,0.14);
+}
+.inp-recent-item.failed .inp-recent-type {
+  background: rgba(220,38,38,0.16);
+  color: #dc2626;
 }
 
 /* No event state */
@@ -1686,6 +1858,10 @@ html, body {
   /* Input Page link: show as icon-only (📱) */
   .cl-input-link-btn { padding: 0; width: 36px; justify-content: center; }
 
+  /* Input header's sign-out button loses its label here too — square it
+     off to match the dark-mode icon button instead of a lopsided box. */
+  #inputHeader .cl-signout-btn { padding: 0; width: 48px; justify-content: center; }
+
   /* Show tab bar (when not [hidden]) */
   #displayTabBar { display: flex; }
 
@@ -1808,7 +1984,7 @@ html, body {
    env() resolves to 0 on devices without insets — harmless elsewhere.
 ================================================ */
 #inputHeader {
-  padding-top: calc(6px + env(safe-area-inset-top, 0px));
+  padding-top: calc(8px + env(safe-area-inset-top, 0px));
   padding-left: calc(14px + env(safe-area-inset-left, 0px));
   padding-right: calc(14px + env(safe-area-inset-right, 0px));
 }
