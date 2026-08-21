@@ -486,7 +486,7 @@ async function renameSession(sessionId, currentLabel) {
    enforces the same rule server-side, so a stale button click after
    someone else committed the board in another tab still fails safely
    with a readable error rather than corrupting anything. */
-function openChangeKindModal(session) {
+export function openChangeKindModal(session, onSaved) {
   const modal    = document.getElementById('changeKindModal');
   const homeroom = document.getElementById('changeKindHomeroom');
   const section  = document.getElementById('changeKindSection');
@@ -548,7 +548,13 @@ function openChangeKindModal(session) {
       return;
     }
     cleanup();
-    await renderSessionList();
+    // From the session list, refresh the list. From an open board (the
+    // board-view toolbar button), the caller passes its own callback to
+    // update the board in place instead -- there's no list on screen to
+    // refresh, and reloading the whole board is unnecessary for a change
+    // that only touched two columns on placement_sessions.
+    if (onSaved) await onSaved(newKind, periodId);
+    else await renderSessionList();
   };
 }
 

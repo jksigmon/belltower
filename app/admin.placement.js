@@ -4,6 +4,7 @@ import {
   initSessions, showSessionList, showCreateForm, renderSessionList,
   setShowArchived, setShowDeleted, setShowAllYears, submitCreateForm, showConfirmModal,
   isLive, isSection, periodLabel, openPeriodsModal, addPeriod, showGrid,
+  openChangeKindModal,
 } from './admin.placement.sessions.js';
 
 /* ── Helpers ── */
@@ -118,6 +119,16 @@ function wireGlobalEvents() {
     ?.addEventListener('click', confirmPublish);
   document.getElementById('unpublishSectionBtn')
     ?.addEventListener('click', confirmUnpublish);
+  document.getElementById('changeBoardKindBtn')
+    ?.addEventListener('click', () => {
+      if (!_session) return;
+      openChangeKindModal(_session, async (newKind, periodId) => {
+        _session.session_kind = newKind;
+        _session.period_id    = periodId;
+        renderBoardMeta();
+        applyBoardControlState();
+      });
+    });
   document.getElementById('undoCommitPlacementBtn')
     ?.addEventListener('click', confirmUndoCommit);
   document.getElementById('commitNewPlacementBtn')
@@ -314,16 +325,7 @@ async function loadBoardData(sessionId) {
   _flags   = flags || [];
   _targetClassSize = session?.target_class_size ?? null;
 
-  const titleEl = document.getElementById('placementBoardTitle');
-  const metaEl  = document.getElementById('placementBoardMeta');
-  if (titleEl && session) titleEl.textContent = session.label;
-  if (metaEl && session) {
-    const bits = [session.academic_year.replace('-', '–'), gradeLabel(session.incoming_grade)];
-    const per  = session.period_id ? periodLabel(session.period_id) : null;
-    if (per) bits.push(per);
-    if (isSection(session)) bits.push('Section');
-    metaEl.textContent = bits.join(' · ');
-  }
+  renderBoardMeta();
   applyBoardControlState();
 
   // Derive IDs from batch 1 results
@@ -414,6 +416,24 @@ async function loadBoardData(sessionId) {
      board was written -- the schedule views read it live -- so moving a
      student simply updates what teachers see, which is exactly what a
      mid-year schedule change is. */
+
+// Factored out of loadBoardData() so a kind/period change made from
+// within an open board (see changeBoardKindBtn) can refresh the title
+// and meta line without re-fetching the whole board.
+function renderBoardMeta() {
+  const titleEl = document.getElementById('placementBoardTitle');
+  const metaEl  = document.getElementById('placementBoardMeta');
+  if (!_session) return;
+  if (titleEl) titleEl.textContent = _session.label;
+  if (metaEl) {
+    const bits = [_session.academic_year.replace('-', '–'), gradeLabel(_session.incoming_grade)];
+    const per  = _session.period_id ? periodLabel(_session.period_id) : null;
+    if (per) bits.push(per);
+    if (isSection(_session)) bits.push('Section');
+    metaEl.textContent = bits.join(' · ');
+  }
+}
+
 function applyBoardControlState() {
   const s          = _session;
   const section    = isSection(s);
@@ -427,6 +447,12 @@ function applyBoardControlState() {
   const autoBtn      = document.getElementById('autoPlacementBtn');
   const addColBtn    = document.getElementById('addPlacementColumnBtn');
   const freshEl      = document.getElementById('placementScheduleFresh');
+  const changeKindBtn = document.getElementById('changeBoardKindBtn');
+
+  // Same rule as the session list's icon: only a still-draft board can
+  // change kind (the DB trigger blocks it otherwise), so hide the control
+  // entirely once live rather than let it fail on click.
+  if (changeKindBtn) changeKindBtn.hidden = live;
 
   if (commitBtn) {
     commitBtn.hidden   = section;
