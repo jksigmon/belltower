@@ -6220,18 +6220,19 @@ a.staff-dash-request-row:hover {
   }
 }
 
-/* Scoped to the grid itself rather than an #placement id -- no element on
-   this page has that id, so this block never matched anything and every
-   label here rendered in unstyled browser defaults. That's what produced
-   the ragged mid-sentence wraps: an inline muted hint with no size/width
-   control wrapping wherever the column happened to run out of room. */
-.placement-form-grid .form-group {
+/* Scoped to the whole page by id rather than an #placement id (no element
+   had that id, so this never matched anything) or just the create-form
+   grid (which left every modal's labels -- Periods, Assign Teacher, and
+   any new one -- unstyled the same way). id="placementPage" is on <body>,
+   so it reaches modals too even though they sit outside .placement-page-body
+   as siblings, not descendants of the create form. */
+#placementPage .form-group {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.placement-form-grid .form-label {
+#placementPage .form-label {
   display: block;
   font-size: 12px;
   font-weight: 600;
@@ -6245,7 +6246,7 @@ a.staff-dash-request-row:hover {
    sometimes takes one line and sometimes two, breaking mid-phrase, is what
    made the row look uneven. This way every label is a clean two-line
    stack: the label, then the hint below it, every time. */
-.placement-form-grid .form-label .muted {
+#placementPage .form-label .muted {
   display: block;
   text-transform: none;
   letter-spacing: 0;

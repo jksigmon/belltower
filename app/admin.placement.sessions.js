@@ -364,6 +364,9 @@ export async function renderSessionList() {
               ${!archived ? `<button class="psc-icon-btn rename-session-btn" data-id="${s.id}" data-label="${esc(s.label)}" title="Rename board">
                 <i data-lucide="pencil" style="width:14px;height:14px;"></i>
               </button>` : ''}
+              ${(!committed && !published && !archived) ? `<button class="psc-icon-btn change-kind-session-btn" data-id="${s.id}" title="Change board type">
+                <i data-lucide="repeat" style="width:14px;height:14px;"></i>
+              </button>` : ''}
               <button class="psc-icon-btn clone-session-btn" data-idx="${data.indexOf(s)}" title="Clone to a new year">
                 <i data-lucide="copy" style="width:14px;height:14px;"></i>
               </button>
@@ -398,6 +401,12 @@ export async function renderSessionList() {
   });
   container.querySelectorAll('.rename-session-btn').forEach(btn => {
     btn.addEventListener('click', () => renameSession(btn.dataset.id, btn.dataset.label));
+  });
+  container.querySelectorAll('.change-kind-session-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const session = data.find(s => s.id === btn.dataset.id);
+      if (session) openChangeKindModal(session);
+    });
   });
   container.querySelectorAll('.restore-session-btn').forEach(btn => {
     btn.addEventListener('click', () => restoreSession(btn.dataset.id, btn.dataset.label));
@@ -468,6 +477,87 @@ async function renameSession(sessionId, currentLabel) {
   }
 
   await renderSessionList();
+}
+
+/* Lets a still-draft board switch between homeroom and section, and set
+   or change its period -- the piece that was missing for converting an
+   EXISTING Core/Block board built before this feature shipped. Only
+   reachable while draft (the button is hidden otherwise); the DB trigger
+   enforces the same rule server-side, so a stale button click after
+   someone else committed the board in another tab still fails safely
+   with a readable error rather than corrupting anything. */
+function openChangeKindModal(session) {
+  const modal    = document.getElementById('changeKindModal');
+  const homeroom = document.getElementById('changeKindHomeroom');
+  const section  = document.getElementById('changeKindSection');
+  if (!modal || !homeroom || !section) return;
+
+  homeroom.checked = session.session_kind !== 'section';
+  section.checked  = session.session_kind === 'section';
+
+  const sync = () => {
+    populateChangeKindPeriods(session.incoming_grade, session.period_id);
+    const isSec = section.checked;
+    const hint = document.getElementById('changeKindHint');
+    if (hint) {
+      hint.textContent = isSec
+        ? 'Publishing this board shows it to teachers as part of the student’s schedule. It does not change anyone’s homeroom.'
+        : 'Committing this board sets each student’s homeroom teacher, which drives dismissal, rosters, and compliance reporting.';
+    }
+    const periodLbl = document.getElementById('changeKindPeriodLabel');
+    if (periodLbl) periodLbl.innerHTML = isSec
+      ? 'Period'
+      : 'Period <span class="muted" style="font-weight:400;">(optional)</span>';
+  };
+  homeroom.onchange = sync;
+  section.onchange  = sync;
+  sync();
+
+  modal.hidden = false;
+
+  const confirmBtn = document.getElementById('changeKindConfirmBtn');
+  const cancelBtn  = document.getElementById('changeKindCancelBtn');
+  const cleanup = () => { modal.hidden = true; };
+
+  // .onclick, not addEventListener: this modal is a single shared instance
+  // reopened per card, and addEventListener here would stack a new handler
+  // on every open -- the second board converted would also re-save the
+  // first one's values.
+  cancelBtn.onclick = cleanup;
+  confirmBtn.onclick = async () => {
+    const newKind  = section.checked ? 'section' : 'homeroom';
+    const periodId = document.getElementById('changeKindPeriod')?.value || null;
+
+    if (newKind === 'section' && !periodId) {
+      alert('Pick a period for this section board. Teachers need it to know where the class sits in the day.');
+      return;
+    }
+
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Saving…';
+    const { error } = await supabase
+      .from('placement_sessions')
+      .update({ session_kind: newKind, period_id: periodId })
+      .eq('id', session.id)
+      .eq('school_id', _profile.school_id);
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Save';
+
+    if (error) {
+      alert(error.message || 'Failed to change the board type.');
+      return;
+    }
+    cleanup();
+    await renderSessionList();
+  };
+}
+
+function populateChangeKindPeriods(grade, selectedPeriodId) {
+  const sel = document.getElementById('changeKindPeriod');
+  if (!sel) return;
+  const list = periodsForGrade(grade);
+  sel.innerHTML = '<option value="">— None —</option>' +
+    list.map(p => `<option value="${esc(p.id)}" ${p.id === selectedPeriodId ? 'selected' : ''}>${esc(p.label)}</option>`).join('');
 }
 
 async function confirmDeleteSession(sessionId, label) {

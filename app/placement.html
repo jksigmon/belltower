@@ -108,7 +108,7 @@
     })();
   </script>
 </head>
-<body class="admin-page">
+<body class="admin-page" id="placementPage">
 
 <header>
   <div class="header-left">
@@ -572,6 +572,26 @@
   </div>
 
   <!-- Manage periods modal -->
+  <!-- Change board type modal -->
+  <div id="changeKindModal" class="confirm-modal-overlay" hidden>
+    <div class="confirm-modal-dialog" style="max-width:480px;width:100%;">
+      <h3 class="confirm-modal-title">Change Board Type</h3>
+      <div class="placement-kind-choice" style="margin:12px 0 4px;">
+        <label><input type="radio" name="changeKind" id="changeKindHomeroom"> Homeroom</label>
+        <label><input type="radio" name="changeKind" id="changeKindSection"> Core / Block</label>
+      </div>
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label" id="changeKindPeriodLabel">Period</label>
+        <select id="changeKindPeriod" class="form-input"></select>
+      </div>
+      <p class="placement-kind-hint" id="changeKindHint"></p>
+      <div class="confirm-modal-actions">
+        <button id="changeKindCancelBtn" class="btn btn-outline">Cancel</button>
+        <button id="changeKindConfirmBtn" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div id="periodsModal" class="confirm-modal-overlay" hidden>
     <div class="confirm-modal-dialog" style="max-width:560px;width:100%;">
       <h3 class="confirm-modal-title">Periods</h3>
