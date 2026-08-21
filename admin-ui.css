@@ -5981,9 +5981,30 @@ a.staff-dash-request-row:hover {
 }
 
 .sl-student-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   padding: 4px 0 14px;
   border-bottom: 1px solid #e5e7eb;
   margin-bottom: 14px;
+}
+.sl-student-avatar {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.sl-student-heading { flex: 1; min-width: 0; }
+.sl-student-name {
+  font-weight: 700;
+  font-size: 16px;
+  color: #111827;
 }
 
 .sl-schedule-row {
@@ -6081,13 +6102,13 @@ a.staff-dash-request-row:hover {
   flex-wrap: wrap;
   margin-bottom: 14px;
 }
-.cr-search-wrap {
+.staff-search-wrap {
   position: relative;
   flex: 1;
   min-width: 220px;
   max-width: 380px;
 }
-.cr-search-icon {
+.staff-search-icon {
   position: absolute;
   left: 11px;
   top: 50%;
@@ -6095,7 +6116,7 @@ a.staff-dash-request-row:hover {
   color: #9ca3af;
   pointer-events: none;
 }
-.cr-search-wrap input {
+.staff-search-wrap input {
   width: 100%;
   height: 36px;
   padding: 0 12px 0 34px;

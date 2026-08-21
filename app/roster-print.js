@@ -146,6 +146,77 @@ ${groups.map(g => `<section class="roster">
   return true;
 }
 
+/**
+ * Prints one student's day -- Homeroom, then each period -- from Student
+ * Lookup. A distinct function rather than routing through printRosters():
+ * that one prints CLASS rosters (a list of students, one row each); this
+ * prints a single student's SCHEDULE (a list of periods, one row each).
+ * Same row shape as the request in Student Lookup itself and no reason to
+ * force one table renderer to serve two different kinds of document.
+ *
+ * @param {object} opts
+ * @param {object} opts.student - { first_name, last_name, preferred_name, grade_level }
+ * @param {Array}  opts.rows    - [{ period, class, teacher }]
+ * @param {string} [opts.schoolName]
+ * @returns {boolean} false if the pop-up was blocked or there's no student
+ */
+export function printStudentSchedule({ student, rows = [], schoolName = '' } = {}) {
+  if (!student) return false;
+
+  const generatedAt = generatedOn();
+  const name = studentName(student);
+  const grade = student.grade_level ? gradeLabel(student.grade_level) : '';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>${esc(name)} — Schedule</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #111827; padding: 32px; }
+  .sched-head { border-bottom: 2px solid #111827; padding-bottom: 8px; margin-bottom: 14px; }
+  .school { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 4px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .meta { font-size: 12px; color: #6b7280; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 8px; font-size: 13px; border-bottom: 1px solid #e5e7eb; }
+  th { color: #6b7280; font-weight: 600; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.04em; }
+  td.period { color: #6b7280; width: 160px; }
+  td.class { font-weight: 600; }
+  .empty { font-size: 13px; color: #6b7280; font-style: italic; }
+  tr { break-inside: avoid; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+  <div class="sched-head">
+    ${schoolName ? `<div class="school">${esc(schoolName)}</div>` : ''}
+    <h1>${esc(name)}</h1>
+    <div class="meta">${[grade, generatedAt].filter(Boolean).join(' · ')}</div>
+  </div>
+  ${rows.length ? `<table>
+    <thead><tr><th>Period</th><th>Class</th><th>Teacher</th></tr></thead>
+    <tbody>${rows.map(r => `<tr>
+      <td class="period">${esc(r.period)}</td>
+      <td class="class">${esc(r.class)}</td>
+      <td>${esc(r.teacher)}</td>
+    </tr>`).join('')}</tbody>
+  </table>` : '<p class="empty">No schedule on file for this student.</p>'}
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) {
+    alert('Please allow pop-ups to print.');
+    return false;
+  }
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  win.print();
+  return true;
+}
+
 /* ===============================
    PDF OUTPUT
 ================================ */

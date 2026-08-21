@@ -1283,10 +1283,19 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Save PDF
             </button>
+            <button id="myRosterXlsx" class="btn comp-report-cta" style="display:none;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Export Excel
+            </button>
           </div>
         </div>
 
         <div id="myRosterTabs" class="roster-tab-row" hidden></div>
+
+        <div class="staff-search-wrap" id="myRosterSearchWrap" style="max-width:320px;margin:0 0 14px;" hidden>
+          <svg class="staff-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" id="myRosterSearchInput" placeholder="Search students…">
+        </div>
 
         <div class="table-wrap">
           <table class="admin-table" id="myRosterTable">
@@ -1317,8 +1326,9 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
           </div>
         </div>
 
-        <div style="position:relative;max-width:420px;margin:14px 0;">
-          <input type="search" id="slSearchInput" class="form-input" placeholder="Search by student name…" autocomplete="off" style="width:100%;box-sizing:border-box;">
+        <div class="staff-search-wrap" style="max-width:420px;margin:14px 0;">
+          <svg class="staff-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="search" id="slSearchInput" placeholder="Search by student name…" autocomplete="off">
           <div id="slSearchResults" class="sl-search-results" hidden></div>
         </div>
 
@@ -1386,8 +1396,8 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <div id="crSummaryRow" class="cr-summary-row" hidden></div>
 
         <div id="crToolbar" class="cr-toolbar" hidden>
-          <div class="cr-search-wrap">
-            <svg class="cr-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <div class="staff-search-wrap">
+            <svg class="staff-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input type="search" id="crSearchInput" placeholder="Search teachers or students…">
           </div>
           <div class="comp-filter-actions">
@@ -1715,7 +1725,7 @@ import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODat
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { roleCheckboxGridHTML } from '/app/compliance.roles.js?v=2';
-import { printRosters, saveRostersPdf, saveRostersXlsx, toRosterStudent, ROSTER_SELECT } from '/app/roster-print.js?v=7';
+import { printRosters, saveRostersPdf, saveRostersXlsx, printStudentSchedule, toRosterStudent, ROSTER_SELECT } from '/app/roster-print.js?v=7';
 
 document.getElementById('bgRoleGrid').innerHTML = roleCheckboxGridHTML('bgRole');
 
@@ -4838,6 +4848,10 @@ async function initMyRoster() {
   if (myRosterInitialized) return;
   myRosterInitialized = true;
 
+  // Wired once, same as the tabs -- filters whatever tab is currently
+  // active without re-fetching, so this only needs binding a single time.
+  document.getElementById('myRosterSearchInput')?.addEventListener('input', renderRosterTable);
+
   const tbody = document.getElementById('myRosterTbody');
   if (!tbody) return;
   tbody.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;padding:24px 0;">Loading…</td></tr>';
@@ -4889,11 +4903,13 @@ function renderRosterTab(idx) {
   const titleEl = document.getElementById('myRosterTitle');
   const countEl = document.getElementById('myRosterCount');
   const freshEl = document.getElementById('myRosterFresh');
-  const tbody   = document.getElementById('myRosterTbody');
-  const thead   = document.querySelector('#myRosterTable thead tr');
+  const searchWrap  = document.getElementById('myRosterSearchWrap');
+  const searchInput = document.getElementById('myRosterSearchInput');
 
   if (titleEl) titleEl.textContent = tab.session_kind === 'homeroom' ? 'My Homeroom' : tab.fullLabel;
   if (countEl) countEl.textContent = `${tab.students.length} ${tab.students.length === 1 ? 'student' : 'students'}`;
+  if (searchWrap) searchWrap.hidden = tab.students.length === 0;
+  if (searchInput) searchInput.value = ''; // stale term from a previous tab shouldn't silently hide this one's roster
 
   // A published section stays editable and is read live, with no second
   // "apply" step -- surface that the same way the admin board does, so a
@@ -4908,32 +4924,12 @@ function renderRosterTab(idx) {
     }
   }
 
-  // A Homeroom column only earns its place on a section tab -- on the
-  // Homeroom tab itself it would just repeat the row's own teacher.
-  if (thead) {
-    thead.innerHTML = `
-      <th style="width:36px;">#</th>
-      <th>Student</th>
-      <th>Grade</th>
-      ${isSection ? '<th>Homeroom</th>' : ''}
-      <th>Carline Tag</th>
-      <th>Bus Group</th>`;
-  }
+  renderRosterTable();
 
-  const colspan = isSection ? 6 : 5;
-  if (!tab.students.length) {
-    tbody.innerHTML = `<tr><td colspan="${colspan}" class="muted" style="text-align:center;padding:24px 0;">No students on this roster.</td></tr>`;
-  } else {
-    tbody.innerHTML = tab.students.map((s, i) => `<tr>
-      <td class="muted">${i + 1}</td>
-      <td style="font-weight:600;">${esc(rosterDisplayName(s))}</td>
-      <td>${s.grade_level ? esc(gradeLabel(s.grade_level)) : '—'}</td>
-      ${isSection ? `<td>${s.teacher ? esc(s.teacher) : '—'}</td>` : ''}
-      <td>${s.carline_tag ? esc(s.carline_tag) : '—'}</td>
-      <td>${s.bus_group ? esc(s.bus_group) : '—'}</td>
-    </tr>`).join('');
-  }
-
+  // Export is always the FULL roster, never the search-narrowed view --
+  // the search box here is a quick find-in-table aid, not a scoping tool
+  // the way it is on Browse Classes (which is browsing across many
+  // classes, where "export what I searched for" makes more sense).
   const rosterPayload = () => ({
     groups: [{
       label: currentProfile.display_name ?? 'My Roster',
@@ -4962,6 +4958,59 @@ function renderRosterTab(idx) {
       finally { pdfBtn.disabled = false; }
     };
   }
+  const xlsxBtn = document.getElementById('myRosterXlsx');
+  if (xlsxBtn) {
+    xlsxBtn.style.display = 'inline-flex';
+    xlsxBtn.onclick = async () => {
+      xlsxBtn.disabled = true;
+      try { await saveRostersXlsx(rosterPayload()); }
+      finally { xlsxBtn.disabled = false; }
+    };
+  }
+}
+
+/* Renders the current tab's table body against whatever's in the search
+   box -- called on tab switch (empty search) and on every keystroke
+   (re-filters in place, no query). Filters rows only; the header, count,
+   and exports above stay keyed off the full tab. */
+function renderRosterTable() {
+  const tab = myRosterTabs[myRosterActiveIdx];
+  if (!tab) return;
+
+  const tbody = document.getElementById('myRosterTbody');
+  const thead = document.querySelector('#myRosterTable thead tr');
+  const term  = (document.getElementById('myRosterSearchInput')?.value ?? '').trim().toLowerCase();
+
+  const isSection = tab.session_kind !== 'homeroom';
+  if (thead) {
+    // A Homeroom column only earns its place on a section tab -- on the
+    // Homeroom tab itself it would just repeat the row's own teacher.
+    thead.innerHTML = `
+      <th style="width:36px;">#</th>
+      <th>Student</th>
+      <th>Grade</th>
+      ${isSection ? '<th>Homeroom</th>' : ''}
+      <th>Carline Tag</th>
+      <th>Bus Group</th>`;
+  }
+
+  const rows = term
+    ? tab.students.filter(s => rosterDisplayName(s).toLowerCase().includes(term))
+    : tab.students;
+
+  const colspan = isSection ? 6 : 5;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="${colspan}" class="muted" style="text-align:center;padding:24px 0;">${term ? 'No student matches your search.' : 'No students on this roster.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((s, i) => `<tr>
+    <td class="muted">${i + 1}</td>
+    <td style="font-weight:600;">${esc(rosterDisplayName(s))}</td>
+    <td>${s.grade_level ? esc(gradeLabel(s.grade_level)) : '—'}</td>
+    ${isSection ? `<td>${s.teacher ? esc(s.teacher) : '—'}</td>` : ''}
+    <td>${s.carline_tag ? esc(s.carline_tag) : '—'}</td>
+    <td>${s.bus_group ? esc(s.bus_group) : '—'}</td>
+  </tr>`).join('');
 }
 
 // Mirrors the name formatting in roster-print.js so the on-screen table
@@ -5091,31 +5140,51 @@ async function loadStudentSchedule(studentId) {
       : (a.session_kind === 'homeroom' ? -1 : 1)
   );
 
+  const scheduleRows = rows.map(r => {
+    // Placeholder columns ("Open Position") show up here too rather than
+    // being filtered out -- the alternative is the student simply
+    // missing that period with no explanation, which reads as a bug, not
+    // as "the school hasn't hired that teacher yet".
+    const teacher = r.placeholder_name
+      ? r.placeholder_name
+      : (r.teacher_last_name ? `${r.teacher_last_name}, ${r.teacher_first_name}` : 'Not yet assigned');
+    const period = r.session_kind === 'homeroom'
+      ? (r.period_label ? `Homeroom · ${r.period_label}` : 'Homeroom')
+      : (r.period_label || r.period_short_label || 'Class');
+    return { period, class: r.section_label, teacher };
+  });
+
+  const name = rosterDisplayName(stu);
+  const initials = [stu.last_name?.[0], stu.first_name?.[0]].filter(Boolean).join('').toUpperCase() || '?';
+
   resultEl.innerHTML = `
     <div class="sl-student-header">
-      <div style="font-weight:700;font-size:16px;">${esc(rosterDisplayName(stu))}</div>
-      <div class="muted" style="font-size:13px;">${stu.grade_level ? esc(gradeLabel(stu.grade_level)) : ''}</div>
+      <div class="sl-student-avatar" style="background:${getAvatarColor(name)};">${esc(initials)}</div>
+      <div class="sl-student-heading">
+        <div class="sl-student-name">${esc(name)}</div>
+        <div class="muted" style="font-size:13px;">${stu.grade_level ? esc(gradeLabel(stu.grade_level)) : ''}</div>
+      </div>
+      <button id="slPrintBtn" class="btn comp-report-cta">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Print
+      </button>
     </div>
     <div class="sl-schedule-list">
-      ${rows.length ? rows.map(r => {
-        // Placeholder columns ("Open Position") show up here too rather
-        // than being filtered out -- the alternative is the student
-        // simply missing that period with no explanation, which reads as
-        // a bug, not as "the school hasn't hired that teacher yet".
-        const teacher = r.placeholder_name
-          ? r.placeholder_name
-          : (r.teacher_last_name ? `${r.teacher_last_name}, ${r.teacher_first_name}` : 'Not yet assigned');
-        const period = r.session_kind === 'homeroom'
-          ? (r.period_label ? `Homeroom · ${r.period_label}` : 'Homeroom')
-          : (r.period_label || r.period_short_label || 'Class');
-        return `
-          <div class="sl-schedule-row">
-            <div class="sl-schedule-period">${esc(period)}</div>
-            <div class="sl-schedule-class">${esc(r.section_label)}</div>
-            <div class="sl-schedule-teacher">${esc(teacher)}</div>
-          </div>`;
-      }).join('') : '<p class="muted" style="padding:12px 0;">No schedule on file for this student yet.</p>'}
+      ${scheduleRows.length ? scheduleRows.map(r => `
+        <div class="sl-schedule-row">
+          <div class="sl-schedule-period">${esc(r.period)}</div>
+          <div class="sl-schedule-class">${esc(r.class)}</div>
+          <div class="sl-schedule-teacher">${esc(r.teacher)}</div>
+        </div>`).join('') : '<p class="muted" style="padding:12px 0;">No schedule on file for this student yet.</p>'}
     </div>`;
+
+  document.getElementById('slPrintBtn')?.addEventListener('click', () => {
+    printStudentSchedule({
+      student: stu,
+      rows: scheduleRows,
+      schoolName: currentProfile.schools?.name ?? '',
+    });
+  });
 }
 
 /* ── Class Rosters ────────────────────────────── */
