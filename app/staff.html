@@ -1609,10 +1609,15 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
           <input id="resBookDate" type="date" class="form-input" />
         </div>
         <div class="drawer-field" style="margin:0;">
-          <label>Time block</label>
-          <select id="resBookBlockSelect" class="form-input"></select>
+          <label>Through <span class="muted" style="font-weight:400;">(optional)</span></label>
+          <input id="resBookDateEnd" type="date" class="form-input" />
         </div>
       </div>
+      <div class="drawer-field" id="resBookBlockChecksField" style="display:none;">
+        <label>Time block(s) <span class="required">*</span></label>
+        <div id="resBookBlockChecklist" style="display:flex;flex-direction:column;gap:2px;max-height:160px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px 12px;"></div>
+      </div>
+      <p id="resBookSeriesHint" class="muted" style="font-size:12px;margin:-8px 0 12px;display:none;"></p>
       <div class="drawer-field">
         <label>Notes</label>
         <textarea id="resBookNotes" class="form-input" rows="2" placeholder="Optional"></textarea>
@@ -1637,8 +1642,10 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       <p style="font-size:13px;margin:0 0 4px;"><strong>Time:</strong> <span id="resDetailTime"></span></p>
       <p style="font-size:13px;margin:0 0 4px;"><strong>Status:</strong> <span id="resDetailStatus"></span></p>
       <p id="resDetailNotesRow" style="font-size:13px;margin:8px 0 0;"></p>
+      <p id="resDetailSeriesNote" class="muted" style="font-size:12px;margin:8px 0 0;display:none;">Part of a multi-day/multi-block booking.</p>
       <div class="modal-actions">
         <button class="btn" id="resDetailCloseBtn">Close</button>
+        <button class="btn" id="resDetailCancelSeriesBtn" style="color:#dc2626;border-color:#fca5a5;display:none;">Cancel Entire Series</button>
         <button class="btn" id="resDetailCancelBtn" style="color:#dc2626;border-color:#fca5a5;display:none;">Cancel Reservation</button>
       </div>
     </div>
@@ -2619,15 +2626,25 @@ function updateBookingFieldsForResource() {
   const useBlocks = !!resource?.use_time_blocks;
   document.getElementById('resBookDatetimeRow').style.display = useBlocks ? 'none' : '';
   document.getElementById('resBookBlockRow').style.display = useBlocks ? '' : 'none';
+  document.getElementById('resBookBlockChecksField').style.display = useBlocks ? '' : 'none';
   if (useBlocks) {
     // Blocks offered are scoped to the *resource's* campus (or campus-wide
     // ones, campus_id null) — not the viewer's — so booking an Upper School
     // cart always shows Upper School's blocks regardless of who's booking.
-    const sel = document.getElementById('resBookBlockSelect');
-    sel.innerHTML = resTimeBlockCatalog
+    // Checkboxes (not a single select) so one booking can cover several
+    // periods in the same request, e.g. Blocks 1-3 every day for a week.
+    const list = document.getElementById('resBookBlockChecklist');
+    list.innerHTML = resTimeBlockCatalog
       .filter(b => !b.campus_id || b.campus_id === resource.campus_id)
-      .map(b => `<option value="${esc(b.id)}">${esc(b.label)} (${fmtBlockTimeShort(b.start_time)}–${fmtBlockTimeShort(b.end_time)})</option>`)
-      .join('');
+      .map(b => `
+        <label class="ar-check-label">
+          <input type="checkbox" class="res-block-cb" value="${esc(b.id)}">
+          ${esc(b.label)} (${fmtBlockTimeShort(b.start_time)}–${fmtBlockTimeShort(b.end_time)})
+        </label>
+      `).join('');
+    updateSeriesHint();
+  } else {
+    document.getElementById('resBookSeriesHint').style.display = 'none';
   }
 
   const policyBlock = document.getElementById('resBookPolicyBlock');
@@ -2664,7 +2681,7 @@ function initResCalendar() {
       try {
         const { data, error } = await supabase
           .from('reservations')
-          .select('id, title, notes, starts_at, ends_at, status, reserved_by_name, reserved_by_profile_id, resource_id, reservable_resources(name, color, group_id)')
+          .select('id, title, notes, starts_at, ends_at, status, reserved_by_name, reserved_by_profile_id, resource_id, series_id, reservable_resources(name, color, group_id)')
           .eq('school_id', currentProfile.school_id)
           .in('status', ['confirmed', 'pending'])
           .lt('starts_at', info.endStr)
@@ -2698,6 +2715,7 @@ function initResCalendar() {
               reservedByName: r.reserved_by_name,
               reservedByProfileId: r.reserved_by_profile_id,
               resourceName: r.reservable_resources?.name ?? '',
+              seriesId: r.series_id,
             },
           };
         }));
@@ -2734,11 +2752,57 @@ function openResBookingModal() {
   const end = new Date(now.getTime() + 60 * 60 * 1000);
   document.getElementById('resBookStart').value = toLocalDatetimeInput(now);
   document.getElementById('resBookEnd').value = toLocalDatetimeInput(end);
-  document.getElementById('resBookDate').value = toLocalDatetimeInput(now).slice(0, 10);
+  const todayStr = toLocalDatetimeInput(now).slice(0, 10);
+  document.getElementById('resBookDate').value = todayStr;
+  document.getElementById('resBookDateEnd').value = todayStr;
+  document.getElementById('resBookSeriesHint').style.display = 'none';
 
   updateBookingFieldsForResource();
   document.getElementById('resBookingModal').style.display = 'flex';
 }
+
+function updateSeriesHint() {
+  const hint = document.getElementById('resBookSeriesHint');
+  const startVal = document.getElementById('resBookDate').value;
+  const endVal = document.getElementById('resBookDateEnd').value || startVal;
+  const blockCount = document.querySelectorAll('#resBookBlockChecklist .res-block-cb:checked').length;
+
+  if (!startVal || !blockCount) {
+    hint.style.display = 'none';
+    return;
+  }
+
+  const dayCount = datesInRange(startVal, endVal).length;
+  if (dayCount <= 1 && blockCount <= 1) {
+    hint.style.display = 'none';
+    return;
+  }
+
+  const total = dayCount * blockCount;
+  hint.textContent = `Creates ${total} reservation${total === 1 ? '' : 's'} — ${blockCount} time block${blockCount === 1 ? '' : 's'} × ${dayCount} day${dayCount === 1 ? '' : 's'}${dayCount > 1 ? ` (${startVal} – ${endVal})` : ''}.`;
+  hint.style.display = 'block';
+}
+
+// Local-date (not UTC) list of YYYY-MM-DD strings from start through end, inclusive.
+function datesInRange(startStr, endStr) {
+  const dates = [];
+  const [sy, sm, sd] = startStr.split('-').map(Number);
+  const [ey, em, ed] = endStr.split('-').map(Number);
+  const cur = new Date(sy, sm - 1, sd);
+  const last = new Date(ey, em - 1, ed);
+  while (cur <= last) {
+    const pad = n => String(n).padStart(2, '0');
+    dates.push(`${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return dates;
+}
+
+document.getElementById('resBookDate')?.addEventListener('change', updateSeriesHint);
+document.getElementById('resBookDateEnd')?.addEventListener('change', updateSeriesHint);
+document.getElementById('resBookBlockChecklist')?.addEventListener('change', e => {
+  if (e.target.classList.contains('res-block-cb')) updateSeriesHint();
+});
 
 function toLocalDatetimeInput(d) {
   const pad = n => String(n).padStart(2, '0');
@@ -2789,18 +2853,30 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
     title = String(n);
   }
 
-  let startsAt, endsAt;
+  // Each window is one day's booking of one time block. Time-block resources
+  // can span a date range and cover several blocks per day (e.g. Blocks 1-3,
+  // every day for a week) -- one reservation row is created per date x block.
+  const windows = [];
   if (resource?.use_time_blocks) {
     const dateVal = document.getElementById('resBookDate').value;
-    const blockId = document.getElementById('resBookBlockSelect').value;
-    const block = resTimeBlockCatalog.find(b => b.id === blockId);
-    if (!dateVal || !block) {
-      errorEl.textContent = 'Date and time block are required.';
+    const dateEndVal = document.getElementById('resBookDateEnd').value || dateVal;
+    const blockIds = Array.from(document.querySelectorAll('#resBookBlockChecklist .res-block-cb:checked')).map(cb => cb.value);
+    const blocks = blockIds.map(id => resTimeBlockCatalog.find(b => b.id === id)).filter(Boolean);
+    if (!dateVal || !blocks.length) {
+      errorEl.textContent = 'Date and at least one time block are required.';
       errorEl.style.display = 'block';
       return;
     }
-    startsAt = new Date(`${dateVal}T${block.start_time}`);
-    endsAt = new Date(`${dateVal}T${block.end_time}`);
+    if (dateEndVal < dateVal) {
+      errorEl.textContent = '"Through" date must be on or after the date.';
+      errorEl.style.display = 'block';
+      return;
+    }
+    for (const d of datesInRange(dateVal, dateEndVal)) {
+      for (const block of blocks) {
+        windows.push({ starts: new Date(`${d}T${block.start_time}`), ends: new Date(`${d}T${block.end_time}`) });
+      }
+    }
   } else {
     const startVal = document.getElementById('resBookStart').value;
     const endVal = document.getElementById('resBookEnd').value;
@@ -2809,11 +2885,10 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
       errorEl.style.display = 'block';
       return;
     }
-    startsAt = new Date(startVal);
-    endsAt = new Date(endVal);
+    windows.push({ starts: new Date(startVal), ends: new Date(endVal) });
   }
 
-  if (!(endsAt > startsAt)) {
+  if (windows.some(w => !(w.ends > w.starts))) {
     errorEl.textContent = 'End time must be after the start time.';
     errorEl.style.display = 'block';
     return;
@@ -2824,16 +2899,20 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
   btn.textContent = 'Reserving…';
 
   // Overlap check: any confirmed/pending reservation on this resource that
-  // intersects the requested window blocks the booking with a clear message
+  // intersects any requested window blocks the booking with a clear message
   // rather than allowing a silent double-booking (see resBookSaveBtn note
   // in project docs — a determined double-click race is still possible).
-  const { data: conflicts, error: conflictErr } = await supabase
+  // One query spans the whole range; conflicts against each day are then
+  // checked locally.
+  const spanStart = new Date(Math.min(...windows.map(w => w.starts.getTime())));
+  const spanEnd = new Date(Math.max(...windows.map(w => w.ends.getTime())));
+  const { data: existing, error: conflictErr } = await supabase
     .from('reservations')
     .select('title, starts_at, ends_at, reserved_by_name')
     .eq('resource_id', resourceId)
     .in('status', ['confirmed', 'pending'])
-    .lt('starts_at', endsAt.toISOString())
-    .gt('ends_at', startsAt.toISOString());
+    .lt('starts_at', spanEnd.toISOString())
+    .gt('ends_at', spanStart.toISOString());
 
   btn.disabled = false;
   btn.textContent = 'Reserve';
@@ -2844,30 +2923,35 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
     return;
   }
 
-  if (conflicts && conflicts.length) {
-    const c = conflicts[0];
-    const timeFmt = d => new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-    errorEl.textContent = `This resource is already booked ${timeFmt(c.starts_at)} – ${timeFmt(c.ends_at)} by ${c.reserved_by_name}.`;
+  const timeFmt = d => new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const conflict = windows
+    .map(w => (existing || []).find(e => new Date(e.starts_at) < w.ends && new Date(e.ends_at) > w.starts))
+    .find(Boolean);
+
+  if (conflict) {
+    errorEl.textContent = `This resource is already booked ${timeFmt(conflict.starts_at)} – ${timeFmt(conflict.ends_at)} by ${conflict.reserved_by_name}.`;
     errorEl.style.display = 'block';
     return;
   }
 
   const reservedByName = currentProfile.display_name || currentProfile.email || 'Unknown';
+  const seriesId = windows.length > 1 ? crypto.randomUUID() : null;
 
   btn.disabled = true;
   btn.textContent = 'Reserving…';
 
-  const { error: insErr } = await supabase.from('reservations').insert({
+  const { error: insErr } = await supabase.from('reservations').insert(windows.map(w => ({
     school_id: currentProfile.school_id,
     resource_id: resourceId,
     reserved_by_profile_id: currentProfile.id,
     reserved_by_name: reservedByName,
     title,
     notes: notes || null,
-    starts_at: startsAt.toISOString(),
-    ends_at: endsAt.toISOString(),
+    starts_at: w.starts.toISOString(),
+    ends_at: w.ends.toISOString(),
     status: resource?.requires_approval ? 'pending' : 'confirmed',
-  });
+    series_id: seriesId,
+  })));
 
   btn.disabled = false;
   btn.textContent = 'Reserve';
@@ -2899,8 +2983,13 @@ function openResDetailModal(event) {
   const notesRow = document.getElementById('resDetailNotesRow');
   notesRow.innerHTML = p.notes ? `<strong>Notes:</strong> ${esc(p.notes)}` : '';
 
+  document.getElementById('resDetailSeriesNote').style.display = p.seriesId ? 'block' : 'none';
+
   const canCancel = p.reservedByProfileId === currentProfile.id || currentProfile.can_manage_reservations || currentProfile.is_superadmin || currentProfile.role === 'admin';
-  document.getElementById('resDetailCancelBtn').style.display = canCancel && p.status !== 'cancelled' ? '' : 'none';
+  const showCancel = canCancel && p.status !== 'cancelled';
+  document.getElementById('resDetailCancelBtn').style.display = showCancel ? '' : 'none';
+  document.getElementById('resDetailCancelBtn').textContent = p.seriesId ? 'Cancel Just This One' : 'Cancel Reservation';
+  document.getElementById('resDetailCancelSeriesBtn').style.display = showCancel && p.seriesId ? '' : 'none';
 
   document.getElementById('resDetailModal').style.display = 'flex';
 }
@@ -2914,12 +3003,30 @@ document.getElementById('resDetailCloseBtn')?.addEventListener('click', closeRes
 
 document.getElementById('resDetailCancelBtn')?.addEventListener('click', async () => {
   if (!resSelectedEvent) return;
-  if (!confirm('Cancel this reservation?')) return;
+  const isSeries = !!resSelectedEvent.extendedProps.seriesId;
+  if (!confirm(isSeries ? 'Cancel just this one booking (this day/block)?' : 'Cancel this reservation?')) return;
 
   const { error } = await supabase
     .from('reservations')
     .update({ status: 'cancelled' })
     .eq('id', resSelectedEvent.id);
+
+  if (error) { alert('Failed to cancel: ' + error.message); return; }
+
+  closeResDetailModal();
+  resCalendar?.refetchEvents();
+});
+
+document.getElementById('resDetailCancelSeriesBtn')?.addEventListener('click', async () => {
+  if (!resSelectedEvent) return;
+  const seriesId = resSelectedEvent.extendedProps.seriesId;
+  if (!seriesId) return;
+  if (!confirm('Cancel every day of this multi-day booking?')) return;
+
+  const { error } = await supabase
+    .from('reservations')
+    .update({ status: 'cancelled' })
+    .eq('series_id', seriesId);
 
   if (error) { alert('Failed to cancel: ' + error.message); return; }
 
