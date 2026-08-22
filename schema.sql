@@ -6919,7 +6919,7 @@ CREATE POLICY "License history: insert" ON "public"."staff_license_history" FOR 
 
 CREATE POLICY "Licenses: admin delete" ON "public"."staff_licenses" FOR DELETE USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
-  WHERE (("p"."user_id" = "auth"."uid"()) AND ("p"."school_id" = "staff_licenses"."school_id") AND ("p"."is_superadmin" OR "p"."can_manage_licensure")))));
+  WHERE ((("p"."user_id" = ( SELECT "auth"."uid"())) AND ("p"."school_id" = "staff_licenses"."school_id") AND ("p"."is_superadmin" OR "p"."can_manage_licensure"))))));
 
 
 --
@@ -6928,7 +6928,7 @@ CREATE POLICY "Licenses: admin delete" ON "public"."staff_licenses" FOR DELETE U
 
 CREATE POLICY "Licenses: admin insert" ON "public"."staff_licenses" FOR INSERT WITH CHECK ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
-  WHERE (("p"."user_id" = "auth"."uid"()) AND ("p"."school_id" = "staff_licenses"."school_id") AND ("p"."is_superadmin" OR "p"."can_manage_licensure")))));
+  WHERE ((("p"."user_id" = ( SELECT "auth"."uid"())) AND ("p"."school_id" = "staff_licenses"."school_id") AND ("p"."is_superadmin" OR "p"."can_manage_licensure"))))));
 
 
 --
@@ -6937,7 +6937,7 @@ CREATE POLICY "Licenses: admin insert" ON "public"."staff_licenses" FOR INSERT W
 
 CREATE POLICY "Licenses: admin select" ON "public"."staff_licenses" FOR SELECT USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
-  WHERE (("p"."user_id" = "auth"."uid"()) AND ("p"."school_id" = "staff_licenses"."school_id") AND ("p"."is_superadmin" OR "p"."can_manage_licensure")))));
+  WHERE ((("p"."user_id" = ( SELECT "auth"."uid"())) AND ("p"."school_id" = "staff_licenses"."school_id") AND ("p"."is_superadmin" OR "p"."can_manage_licensure"))))));
 
 
 --
@@ -6946,7 +6946,7 @@ CREATE POLICY "Licenses: admin select" ON "public"."staff_licenses" FOR SELECT U
 
 CREATE POLICY "Licenses: admin update" ON "public"."staff_licenses" FOR UPDATE USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
-  WHERE (("p"."user_id" = "auth"."uid"()) AND ("p"."school_id" = "staff_licenses"."school_id") AND ("p"."is_superadmin" OR "p"."can_manage_licensure")))));
+  WHERE ((("p"."user_id" = ( SELECT "auth"."uid"())) AND ("p"."school_id" = "staff_licenses"."school_id") AND ("p"."is_superadmin" OR "p"."can_manage_licensure"))))));
 
 
 --
@@ -6955,7 +6955,7 @@ CREATE POLICY "Licenses: admin update" ON "public"."staff_licenses" FOR UPDATE U
 
 CREATE POLICY "Licenses: staff own select" ON "public"."staff_licenses" FOR SELECT USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
-  WHERE (("p"."user_id" = "auth"."uid"()) AND ("p"."employee_id" = "staff_licenses"."employee_id")))));
+  WHERE (("p"."user_id" = ( SELECT "auth"."uid"())) AND ("p"."employee_id" = "staff_licenses"."employee_id")))));
 
 
 --
@@ -7072,7 +7072,7 @@ CREATE POLICY "Sub assignments: update own school" ON "public"."substitute_assig
 
 CREATE POLICY "Substitutes: delete for own school" ON "public"."substitutes" FOR DELETE USING (("school_id" = ( SELECT "profiles"."school_id"
    FROM "public"."profiles"
-  WHERE ("profiles"."user_id" = "auth"."uid"()))));
+  WHERE ("profiles"."user_id" = ( SELECT "auth"."uid"())))));
 
 
 --
@@ -7081,7 +7081,7 @@ CREATE POLICY "Substitutes: delete for own school" ON "public"."substitutes" FOR
 
 CREATE POLICY "Substitutes: insert for own school" ON "public"."substitutes" FOR INSERT WITH CHECK (("school_id" = ( SELECT "profiles"."school_id"
    FROM "public"."profiles"
-  WHERE ("profiles"."user_id" = "auth"."uid"()))));
+  WHERE ("profiles"."user_id" = ( SELECT "auth"."uid"())))));
 
 
 --
@@ -7090,7 +7090,7 @@ CREATE POLICY "Substitutes: insert for own school" ON "public"."substitutes" FOR
 
 CREATE POLICY "Substitutes: read by school" ON "public"."substitutes" FOR SELECT USING (("school_id" = ( SELECT "profiles"."school_id"
    FROM "public"."profiles"
-  WHERE ("profiles"."user_id" = "auth"."uid"()))));
+  WHERE ("profiles"."user_id" = ( SELECT "auth"."uid"())))));
 
 
 --
@@ -7099,7 +7099,7 @@ CREATE POLICY "Substitutes: read by school" ON "public"."substitutes" FOR SELECT
 
 CREATE POLICY "Substitutes: update for own school" ON "public"."substitutes" FOR UPDATE USING (("school_id" = ( SELECT "profiles"."school_id"
    FROM "public"."profiles"
-  WHERE ("profiles"."user_id" = "auth"."uid"()))));
+  WHERE ("profiles"."user_id" = ( SELECT "auth"."uid"())))));
 
 
 --

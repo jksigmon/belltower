@@ -1,0 +1,2 @@
+[functions.pto_decision_handler]
+verify_jwt = false
