@@ -5610,10 +5610,16 @@ async function renderClassRosterBoards() {
     classes.get(key).studentIds.push(r.student_id);
   });
 
-  crClasses = [...classes.values()].map(c => ({
-    ...c,
-    students: c.studentIds.map(id => studentById.get(id)).filter(Boolean),
-  }));
+  crClasses = [...classes.values()].map(c => {
+    const idSet = new Set(c.studentIds);
+    return {
+      ...c,
+      students: (studentRows ?? [])
+        .filter(r => idSet.has(r.id))
+        .map(r => studentById.get(r.id))
+        .filter(Boolean),
+    };
+  });
   crGradeText  = gradeLabel(grade);
   crPeriodText = periodSel.options[periodSel.selectedIndex]?.textContent ?? '';
 
