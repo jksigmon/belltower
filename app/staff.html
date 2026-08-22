@@ -1593,14 +1593,22 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <label><span id="resBookTitleLabelText">Title</span> <span class="required">*</span></label>
         <input id="resBookTitle" class="form-input" placeholder="e.g. Staff meeting" />
       </div>
-      <div class="admin-form-row compact two" style="gap:8px;" id="resBookDatetimeRow">
+      <div class="admin-form-row compact" style="gap:8px;" id="resBookDatetimeRow">
         <div class="drawer-field" style="margin:0;">
-          <label>Starts</label>
-          <input id="resBookStart" type="datetime-local" class="form-input" />
+          <label>Start date</label>
+          <input id="resBookStartDate" type="date" class="form-input" />
         </div>
         <div class="drawer-field" style="margin:0;">
-          <label>Ends</label>
-          <input id="resBookEnd" type="datetime-local" class="form-input" />
+          <label>Start time</label>
+          <input id="resBookStartTime" type="time" class="form-input" />
+        </div>
+        <div class="drawer-field" style="margin:0;">
+          <label>End date</label>
+          <input id="resBookEndDate" type="date" class="form-input" />
+        </div>
+        <div class="drawer-field" style="margin:0;">
+          <label>End time</label>
+          <input id="resBookEndTime" type="time" class="form-input" />
         </div>
       </div>
       <div class="admin-form-row compact two" style="gap:8px;display:none;" id="resBookBlockRow">
@@ -2750,9 +2758,11 @@ function openResBookingModal() {
   const now = new Date();
   now.setMinutes(Math.ceil(now.getMinutes() / 15) * 15, 0, 0);
   const end = new Date(now.getTime() + 60 * 60 * 1000);
-  document.getElementById('resBookStart').value = toLocalDatetimeInput(now);
-  document.getElementById('resBookEnd').value = toLocalDatetimeInput(end);
-  const todayStr = toLocalDatetimeInput(now).slice(0, 10);
+  document.getElementById('resBookStartDate').value = toLocalDateInput(now);
+  document.getElementById('resBookStartTime').value = toLocalTimeInput(now);
+  document.getElementById('resBookEndDate').value = toLocalDateInput(end);
+  document.getElementById('resBookEndTime').value = toLocalTimeInput(end);
+  const todayStr = toLocalDateInput(now);
   document.getElementById('resBookDate').value = todayStr;
   document.getElementById('resBookDateEnd').value = todayStr;
   document.getElementById('resBookSeriesHint').style.display = 'none';
@@ -2804,9 +2814,14 @@ document.getElementById('resBookBlockChecklist')?.addEventListener('change', e =
   if (e.target.classList.contains('res-block-cb')) updateSeriesHint();
 });
 
-function toLocalDatetimeInput(d) {
+function toLocalDateInput(d) {
   const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function toLocalTimeInput(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function closeResBookingModal() {
@@ -2878,14 +2893,16 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
       }
     }
   } else {
-    const startVal = document.getElementById('resBookStart').value;
-    const endVal = document.getElementById('resBookEnd').value;
-    if (!startVal || !endVal) {
-      errorEl.textContent = 'Start and end time are required.';
+    const startDateVal = document.getElementById('resBookStartDate').value;
+    const startTimeVal = document.getElementById('resBookStartTime').value;
+    const endDateVal = document.getElementById('resBookEndDate').value;
+    const endTimeVal = document.getElementById('resBookEndTime').value;
+    if (!startDateVal || !startTimeVal || !endDateVal || !endTimeVal) {
+      errorEl.textContent = 'Start and end date/time are required.';
       errorEl.style.display = 'block';
       return;
     }
-    windows.push({ starts: new Date(startVal), ends: new Date(endVal) });
+    windows.push({ starts: new Date(`${startDateVal}T${startTimeVal}`), ends: new Date(`${endDateVal}T${endTimeVal}`) });
   }
 
   if (windows.some(w => !(w.ends > w.starts))) {
