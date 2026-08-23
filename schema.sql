@@ -1979,12 +1979,14 @@ CREATE TABLE IF NOT EXISTS "public"."field_trip_chaperones" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "school_id" "uuid" NOT NULL,
     "field_trip_id" "uuid" NOT NULL,
-    "guardian_id" "uuid" NOT NULL,
+    "guardian_id" "uuid",
     "is_driver" boolean DEFAULT false NOT NULL,
     "added_by_profile_id" "uuid",
     "added_at" timestamp with time zone DEFAULT "now"() NOT NULL,
     "removed_at" timestamp with time zone,
-    "vehicle_capacity" integer
+    "vehicle_capacity" integer,
+    "employee_id" "uuid",
+    CONSTRAINT "field_trip_chaperones_one_person" CHECK ((("guardian_id" IS NOT NULL) AND ("employee_id" IS NULL)) OR (("guardian_id" IS NULL) AND ("employee_id" IS NOT NULL)))
 );
 
 
@@ -2098,7 +2100,6 @@ CREATE TABLE IF NOT EXISTS "public"."field_trips" (
     "depart_at" time without time zone,
     "return_at" time without time zone,
     "grade_levels" "text"[] DEFAULT '{}'::"text"[] NOT NULL,
-    "homeroom_teacher_ids" "uuid"[] DEFAULT '{}'::"uuid"[] NOT NULL,
     "drivers_needed" boolean DEFAULT false NOT NULL,
     "max_chaperones" integer,
     "notes" "text",
@@ -4347,6 +4348,13 @@ CREATE UNIQUE INDEX "field_trip_chaperones_active_unique" ON "public"."field_tri
 
 
 --
+-- Name: field_trip_chaperones_employee_active_unique; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE UNIQUE INDEX "field_trip_chaperones_employee_active_unique" ON "public"."field_trip_chaperones" USING "btree" ("field_trip_id", "employee_id") WHERE ("removed_at" IS NULL);
+
+
+--
 -- Name: field_trip_students_unique; Type: INDEX; Schema: public; Owner: postgres
 --
 
@@ -5560,6 +5568,14 @@ ALTER TABLE ONLY "public"."field_trip_chaperones"
 
 ALTER TABLE ONLY "public"."field_trip_chaperones"
     ADD CONSTRAINT "field_trip_chaperones_guardian_id_fkey" FOREIGN KEY ("guardian_id") REFERENCES "public"."guardians"("id") ON DELETE CASCADE;
+
+
+--
+-- Name: field_trip_chaperones field_trip_chaperones_employee_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY "public"."field_trip_chaperones"
+    ADD CONSTRAINT "field_trip_chaperones_employee_id_fkey" FOREIGN KEY ("employee_id") REFERENCES "public"."employees"("id") ON DELETE CASCADE;
 
 
 --

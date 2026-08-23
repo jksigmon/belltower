@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
-import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, todayISO, dbError, showToast } from './admin.shared.js?v=3';
+import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, todayISO, dbError, showToast, getAvatarColor } from './admin.shared.js?v=3';
 
 let profile = null;
 let schoolConfig = null;
@@ -73,6 +73,7 @@ async function init() {
   wireChapDrawer();
   wireTabs();
   wireFilters();
+  wireDayOfSheet();
 
   document.getElementById('signOut')?.addEventListener('click', async () => {
     await supabase.auth.signOut();
@@ -187,8 +188,10 @@ function renderTripList() {
     return true;
   });
 
+  document.getElementById('ftListTableWrap').style.display = filtered.length ? '' : 'none';
+  document.getElementById('ftListEmpty').hidden = filtered.length > 0;
   if (!filtered.length) {
-    tbody.innerHTML = `<tr><td colspan="8" class="muted" style="text-align:center;padding:32px 0;">No trips found.</td></tr>`;
+    document.getElementById('ftListStats').style.display = 'none';
     return;
   }
 
@@ -216,6 +219,7 @@ function renderTripList() {
       <td>${grades || '<span class="muted">—</span>'}</td>
       <td id="chapCount-${esc(t.id)}"><span class="muted">—</span></td>
       <td id="studCount-${esc(t.id)}"><span class="muted">—</span></td>
+      <td id="payCell-${esc(t.id)}"><span class="muted">—</span></td>
       <td>${badge}</td>
       <td><button class="btn btn-sm" data-id="${esc(t.id)}">Open</button></td>
     `;
@@ -229,7 +233,10 @@ function renderTripList() {
 
   loadChaperoneCounts(filtered.map(t => t.id));
   loadStudentCounts(filtered);
+  loadPaymentStatus(filtered);
 }
+
+const listChapCountMap = new Map(); // trip_id -> chaperone count, for the list-view stat strip
 
 async function loadChaperoneCounts(ids) {
   if (!ids.length) return;
@@ -243,9 +250,12 @@ async function loadChaperoneCounts(ids) {
   const counts = {};
   data.forEach(r => { counts[r.field_trip_id] = (counts[r.field_trip_id] ?? 0) + 1; });
   ids.forEach(id => {
+    const count = counts[id] ?? 0;
+    listChapCountMap.set(id, count);
     const el = document.getElementById(`chapCount-${id}`);
-    if (el) el.textContent = counts[id] ?? '0';
+    if (el) el.textContent = count;
   });
+  renderListStats();
 }
 
 async function loadStudentCounts(trips) {
@@ -271,6 +281,63 @@ async function loadStudentCounts(trips) {
       : students.length;
     el.textContent = count;
   });
+}
+
+const listOverdueMap = new Map(); // trip_id -> count of unpaid/partial payments past due date
+
+async function loadPaymentStatus(trips) {
+  const today = todayISO();
+  const payTrips = trips.filter(t => t.payment_required && t.status !== 'cancelled');
+
+  payTrips.forEach(t => { if (!t.payment_due_date || t.payment_due_date >= today) listOverdueMap.set(t.id, 0); });
+  const overdueTripIds = payTrips.filter(t => t.payment_due_date && t.payment_due_date < today).map(t => t.id);
+
+  if (overdueTripIds.length) {
+    const { data } = await supabase
+      .from('field_trip_payments')
+      .select('field_trip_id')
+      .in('field_trip_id', overdueTripIds)
+      .in('status', ['unpaid', 'partial']);
+    overdueTripIds.forEach(id => listOverdueMap.set(id, 0));
+    (data ?? []).forEach(r => listOverdueMap.set(r.field_trip_id, (listOverdueMap.get(r.field_trip_id) ?? 0) + 1));
+  }
+
+  trips.forEach(t => {
+    const cell = document.getElementById(`payCell-${t.id}`);
+    if (!cell) return;
+    if (!t.payment_required) { cell.innerHTML = '<span class="muted">—</span>'; return; }
+    const overdue = listOverdueMap.get(t.id) ?? 0;
+    cell.innerHTML = overdue
+      ? `<span class="comp-chip comp-blocked">${overdue} overdue</span>`
+      : `<span class="comp-chip comp-cleared">On track</span>`;
+  });
+
+  renderListStats();
+}
+
+function renderListStats() {
+  const wrap = document.getElementById('ftListStats');
+  if (!wrap) return;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  const upcoming = tripCache.filter(t => t.status !== 'cancelled' && new Date(t.start_date + 'T12:00:00') >= today);
+  if (!upcoming.length) { wrap.style.display = 'none'; return; }
+
+  const noChaperones = upcoming.filter(t => (listChapCountMap.get(t.id) ?? null) === 0).length;
+  const overdue = upcoming.filter(t => (listOverdueMap.get(t.id) ?? 0) > 0).length;
+  const needsAttention = upcoming.filter(t =>
+    (listChapCountMap.get(t.id) ?? null) === 0 || (listOverdueMap.get(t.id) ?? 0) > 0
+  ).length;
+
+  document.getElementById('ftListStatTotal').textContent   = upcoming.length;
+  document.getElementById('ftListStatNoChap').textContent  = noChaperones;
+  document.getElementById('ftListStatOverdue').textContent = overdue;
+  document.getElementById('ftListStatNoChapCard').style.display   = noChaperones ? '' : 'none';
+  document.getElementById('ftListStatOverdueCard').style.display  = overdue ? '' : 'none';
+  wrap.style.display = '';
+
+  const navBadge = document.getElementById('navTripsAttentionCount');
+  if (navBadge) navBadge.textContent = needsAttention || '';
 }
 
 function wireFilters() {
@@ -342,6 +409,8 @@ function renderTripHeader(trip) {
   `;
 
   document.getElementById('ftEditBtn').onclick   = () => openTripDrawer(trip);
+  document.getElementById('ftDuplicateBtn').onclick = () => duplicateTrip(trip);
+  document.getElementById('ftDayOfBtn').onclick  = () => openDayOfSheet(trip);
   document.getElementById('ftCancelBtn').style.display = (!isPast && trip.status === 'active') ? '' : 'none';
   document.getElementById('ftCancelBtn').onclick  = () => cancelTrip(trip.id);
 
@@ -401,12 +470,13 @@ async function loadChaperones() {
   const { data, error } = await supabase
     .from('field_trip_chaperones')
     .select(`
-      id, guardian_id, is_driver, added_at,
-      guardian:guardians(id, first_name, last_name, email,
+      id, guardian_id, employee_id, is_driver, added_at,
+      guardian:guardians(id, first_name, last_name, email, phone,
         family:families(family_name,
           students(id, first_name, last_name, grade_level)
         )
-      )
+      ),
+      employee:employees(id, first_name, last_name, email)
     `)
     .eq('field_trip_id', currentTrip.id)
     .is('removed_at', null)
@@ -427,6 +497,13 @@ async function loadChaperones() {
 
   renderChaperoneTable();
   renderComplianceStats();
+
+  const addBtn = document.getElementById('ftAddChaperoneBtn');
+  if (addBtn) {
+    const atCap = currentTrip.max_chaperones && chaperoneList.length >= currentTrip.max_chaperones;
+    addBtn.disabled = !!atCap;
+    addBtn.title = atCap ? `At the ${currentTrip.max_chaperones}-chaperone cap for this trip` : '';
+  }
 
   const hasDrivers = chaperoneList.some(c => c.is_driver);
   const planBtn = document.getElementById('ftPlanVehiclesBtn');
@@ -617,26 +694,31 @@ function renderChaperoneTable() {
   document.getElementById('thMvr').style.display   = (driversNeeded && requireMvrGlobal) ? '' : 'none';
   document.getElementById('thForms').style.display  = formsRequired ? '' : 'none';
 
-  const colCount = 4 + (driversNeeded && requireMvrGlobal ? 1 : 0) + (formsRequired ? 1 : 0) + 1 + 1;
+  document.getElementById('ftChapTableWrap').style.display = chaperoneList.length ? '' : 'none';
+  document.getElementById('ftChapEmpty').hidden = chaperoneList.length > 0;
   if (!chaperoneList.length) {
-    tbody.innerHTML = `<tr><td colspan="${colCount}" class="muted" style="text-align:center;padding:32px 0;">No chaperones added yet.</td></tr>`;
+    tbody.innerHTML = '';
     return;
   }
 
   tbody.innerHTML = '';
   chaperoneList.forEach(chap => {
-    const g      = chap.guardian ?? {};
-    const volunteer          = getVolunteer(g);
-    const { status, detail } = computeComplianceStatus(g, volunteer, tripDate, chap.is_driver);
+    const isStaff = !!chap.employee_id;
+    const g       = chap.guardian ?? {};
+    const person  = isStaff ? (chap.employee ?? {}) : g;
+    const volunteer          = isStaff ? null : getVolunteer(g);
+    const { status, detail } = isStaff ? { status: 'staff', detail: '' } : computeComplianceStatus(g, volunteer, tripDate, chap.is_driver);
 
-    const students = (g.family?.students ?? [])
-      .map(s => esc(s.first_name))
-      .join(', ') || '<span class="muted">—</span>';
+    const students = isStaff
+      ? '<span class="muted">—</span>'
+      : (g.family?.students ?? []).map(s => esc(s.first_name)).join(', ') || '<span class="muted">—</span>';
 
     let mvrCell = '';
     const requireMvr = schoolConfig?.require_mvr_for_drivers !== false;
     if (driversNeeded && requireMvr) {
-      if (!chap.is_driver) {
+      if (isStaff) {
+        mvrCell = `<td><span class="muted" style="font-size:12px;" title="MVR clearance isn't tracked for staff in Belltower — verify separately.">Not tracked</span></td>`;
+      } else if (!chap.is_driver) {
         mvrCell = `<td><span class="muted" style="font-size:12px;">N/A</span></td>`;
       } else {
         const tripEnd  = new Date(tripDate + 'T12:00:00');
@@ -652,18 +734,28 @@ function renderChaperoneTable() {
     }
 
     const formsCell = formsRequired
-      ? `<td>${renderFormsChip(g)}</td>`
+      ? `<td>${isStaff ? '<span class="muted" style="font-size:12px;">N/A</span>' : renderFormsChip(g)}</td>`
       : '';
+
+    const bgCell = isStaff
+      ? `<span class="chap-staff-badge" title="Staff members aren't tracked through volunteer compliance — background checks are handled through employment records.">Staff</span>`
+      : renderBgChip(status, volunteer, tripDate, chap.is_driver, detail);
+
+    const fullName = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
+    const initials = `${person.first_name?.[0] ?? ''}${person.last_name?.[0] ?? ''}`.toUpperCase();
 
     const tr = document.createElement('tr');
     tr.className = 'chap-row';
     tr.innerHTML = `
-      <td class="chap-name">
-        <strong>${esc(g.first_name ?? '')} ${esc(g.last_name ?? '')}</strong>
-        <span>${esc(g.email ?? '')}</span>
+      <td class="chap-name" style="display:flex;align-items:center;gap:10px;">
+        <span class="staff-avatar" style="background:${getAvatarColor(fullName)}">${esc(initials)}</span>
+        <div>
+          <strong>${esc(person.first_name ?? '')} ${esc(person.last_name ?? '')}</strong>
+          <span>${esc(person.email ?? '')}</span>
+        </div>
       </td>
       <td class="chap-students">${students}</td>
-      <td>${renderBgChip(status, volunteer, tripDate, chap.is_driver, detail)}</td>
+      <td>${bgCell}</td>
       ${mvrCell}
       ${formsCell}
       <td>${chap.is_driver ? '<span class="comp-chip comp-action">Driver</span>' : '<span class="muted" style="font-size:12px;">No</span>'}</td>
@@ -680,6 +772,7 @@ function renderComplianceStats() {
 
   let cleared = 0, action = 0, blocked = 0;
   chaperoneList.forEach(chap => {
+    if (chap.employee_id) { cleared++; return; } // staff aren't compliance-tracked; don't flag them as blocked
     const g  = chap.guardian ?? {};
     const volunteer = getVolunteer(g);
     const { status: s } = computeComplianceStatus(g, volunteer, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
@@ -809,8 +902,10 @@ async function loadStudents() {
 
 function renderStudentTable() {
   const tbody = document.getElementById('ftStudTableBody');
+  document.getElementById('ftStudTableWrap').style.display = studentList.length ? '' : 'none';
+  document.getElementById('ftStudEmpty').hidden = studentList.length > 0;
   if (!studentList.length) {
-    tbody.innerHTML = `<tr><td colspan="4" class="muted" style="text-align:center;padding:32px 0;">No students found for the selected grade levels.</td></tr>`;
+    tbody.innerHTML = '';
     return;
   }
 
@@ -842,6 +937,25 @@ function renderStudentTable() {
 async function toggleAttendance(studentId, attending, tr) {
   const s = studentList.find(s => s.id === studentId);
   if (!s) return;
+
+  // A payment already on file for this student is money that actually
+  // changed hands -- un-attending must never silently delete that record.
+  // Block the toggle and send the teacher to Payments to waive/refund first.
+  if (!attending && currentTrip.payment_required) {
+    const { data: existing } = await supabase
+      .from('field_trip_payments')
+      .select('amount_paid')
+      .eq('field_trip_id', currentTrip.id)
+      .eq('student_id', studentId)
+      .maybeSingle();
+    if (existing && parseFloat(existing.amount_paid) > 0) {
+      showToast('This student has a payment on file — waive or refund it in the Payments tab before marking them not attending.', 'warn');
+      const cb = tr.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = true;
+      return;
+    }
+  }
+
   s.attending = attending;
 
   const { error } = await supabase.from('field_trip_students').upsert({
@@ -877,6 +991,8 @@ async function toggleAttendance(studentId, attending, tr) {
 }
 
 // ── Add Chaperone drawer ─────────────────────────────────────────────────
+let chapType = 'guardian'; // 'guardian' | 'staff' -- which typeahead the search box searches
+
 function wireChapDrawer() {
   document.getElementById('ftAddChaperoneBtn')?.addEventListener('click', openChapDrawer);
   document.getElementById('ftChapDrawerClose')?.addEventListener('click', closeChapDrawer);
@@ -885,9 +1001,20 @@ function wireChapDrawer() {
   document.getElementById('ftChapClearBtn')?.addEventListener('click', clearChapSelection);
   document.getElementById('ftSaveChapBtn')?.addEventListener('click', saveChaperone);
 
+  document.getElementById('ftChapTypeToggle')?.addEventListener('click', e => {
+    const btn = e.target.closest('[data-chap-type]');
+    if (!btn) return;
+    chapType = btn.dataset.chapType;
+    document.querySelectorAll('#ftChapTypeToggle .ft-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.getElementById('ftChapSearchLabel').textContent = chapType === 'staff' ? 'Search staff' : 'Search guardians';
+    clearChapSelection();
+    document.getElementById('ftChapSearch').value = '';
+    document.getElementById('ftChapResults').style.display = 'none';
+  });
+
   const search = document.getElementById('ftChapSearch');
   if (search) {
-    search.addEventListener('input', debounce(searchGuardians, 250));
+    search.addEventListener('input', debounce(searchChaperoneCandidates, 250));
     search.addEventListener('keydown', e => { if (e.key === 'Escape') document.getElementById('ftChapResults').style.display = 'none'; });
   }
 
@@ -903,6 +1030,13 @@ function wireChapDrawer() {
 }
 
 function openChapDrawer() {
+  if (currentTrip?.max_chaperones && chaperoneList.length >= currentTrip.max_chaperones) {
+    showToast(`This trip is capped at ${currentTrip.max_chaperones} chaperones. Raise the limit on the trip to add more.`, 'warn');
+    return;
+  }
+  chapType = 'guardian';
+  document.querySelectorAll('#ftChapTypeToggle .ft-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.chapType === 'guardian'));
+  document.getElementById('ftChapSearchLabel').textContent = 'Search guardians';
   clearChapSelection();
   document.getElementById('ftChapSearch').value = '';
   document.getElementById('ftChapResults').style.display = 'none';
@@ -924,6 +1058,11 @@ function clearChapSelection() {
   selectedGuardian = null;
   document.getElementById('ftChapSelected').style.display = 'none';
   document.getElementById('ftSaveChapBtn').disabled = true;
+}
+
+async function searchChaperoneCandidates() {
+  if (chapType === 'staff') return searchStaffCandidates();
+  return searchGuardians();
 }
 
 async function searchGuardians() {
@@ -966,6 +1105,45 @@ async function searchGuardians() {
   });
 }
 
+async function searchStaffCandidates() {
+  const val = document.getElementById('ftChapSearch').value.trim();
+  const results = document.getElementById('ftChapResults');
+  if (val.length < 2) { results.style.display = 'none'; return; }
+
+  results.innerHTML = `<div class="ft-typeahead-empty">Searching...</div>`;
+  results.style.display = '';
+
+  const { data } = await supabase
+    .from('employees')
+    .select('id, first_name, last_name, email')
+    .eq('school_id', profile.school_id)
+    .eq('active', true)
+    .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,email.ilike.%${val}%`)
+    .limit(8);
+
+  if (!data?.length) {
+    results.innerHTML = `<div class="ft-typeahead-empty">No staff found.</div>`;
+    return;
+  }
+
+  const existingIds = new Set(chaperoneList.map(c => c.employee_id));
+  const filtered = data.filter(p => !existingIds.has(p.id));
+
+  if (!filtered.length) {
+    results.innerHTML = `<div class="ft-typeahead-empty">All matching staff are already added.</div>`;
+    return;
+  }
+
+  results.innerHTML = '';
+  filtered.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'ft-typeahead-item';
+    item.innerHTML = `<strong>${esc(p.first_name)} ${esc(p.last_name)}</strong><span>${esc(p.email ?? '')}</span>`;
+    item.addEventListener('mousedown', e => { e.preventDefault(); selectGuardian(p); });
+    results.appendChild(item);
+  });
+}
+
 function selectGuardian(g) {
   selectedGuardian = g;
   document.getElementById('ftChapResults').style.display = 'none';
@@ -978,23 +1156,32 @@ function selectGuardian(g) {
 
 async function saveChaperone() {
   if (!selectedGuardian || !currentTrip) return;
+
+  if (currentTrip.max_chaperones && chaperoneList.length >= currentTrip.max_chaperones) {
+    showToast(`This trip is capped at ${currentTrip.max_chaperones} chaperones.`, 'warn');
+    return;
+  }
+
   const btn = document.getElementById('ftSaveChapBtn');
   btn.disabled = true;
 
   const isDriver   = document.getElementById('ftChapIsDriver').checked;
   const capInput   = document.getElementById('ftChapCapacity').value;
   const vehicleCap = isDriver && capInput ? (parseInt(capInput, 10) || null) : null;
-  const { error } = await supabase.from('field_trip_chaperones').insert({
+  const payload = {
     school_id:           profile.school_id,
     field_trip_id:       currentTrip.id,
-    guardian_id:         selectedGuardian.id,
     is_driver:           isDriver,
     vehicle_capacity:    vehicleCap,
     added_by_profile_id: profile.id,
-  });
+  };
+  if (chapType === 'staff') payload.employee_id = selectedGuardian.id;
+  else                      payload.guardian_id = selectedGuardian.id;
+
+  const { error } = await supabase.from('field_trip_chaperones').insert(payload);
 
   if (error) {
-    showToast(error.code === '23505' ? 'This guardian is already added.' : 'Failed to add chaperone.', 'error');
+    showToast(error.code === '23505' ? 'This person is already added.' : 'Failed to add chaperone.', 'error');
     btn.disabled = false;
     return;
   }
@@ -1020,7 +1207,28 @@ function exportChaperoneCSV() {
   headers.push('Overall compliance');
 
   const rows = chaperoneList.map(chap => {
-    const g     = chap.guardian ?? {};
+    const isStaff = !!chap.employee_id;
+    const g       = chap.guardian ?? {};
+    const person  = isStaff ? (chap.employee ?? {}) : g;
+
+    if (isStaff) {
+      const row = [
+        `${person.last_name ?? ''}, ${person.first_name ?? ''}`,
+        person.email ?? '',
+        chap.is_driver ? 'Yes' : 'No',
+        '',
+        'Staff (not tracked)',
+        '',
+      ];
+      if (driversNeeded) row.push('', '', '', '', '');
+      if (requiredFormTemplates.length) {
+        requiredFormTemplates.forEach(() => row.push('N/A'));
+        row.push('N/A');
+      }
+      row.push('Staff');
+      return row;
+    }
+
     const volunteer = getVolunteer(g);
     const { status: s } = computeComplianceStatus(g, volunteer, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
     const kids  = (g.family?.students ?? []).map(k => `${k.first_name} ${k.last_name}`).join('; ');
@@ -1095,6 +1303,9 @@ function wireTripDrawer() {
     drawerInstallments.push({ label: '', amount: 0, due_date: '' });
     renderDrawerInstallments();
   });
+
+  document.getElementById('ftDrawerDate')?.addEventListener('input', checkTripConflicts);
+  document.getElementById('ftDrawerEndDate')?.addEventListener('input', checkTripConflicts);
 }
 
 function buildGradeCheckboxes() {
@@ -1104,14 +1315,49 @@ function buildGradeCheckboxes() {
     const label = document.createElement('label');
     label.style.cssText = 'display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;';
     label.innerHTML = `<input type="checkbox" value="${esc(g)}" style="width:14px;height:14px;"> ${esc(g)}`;
+    label.querySelector('input').addEventListener('change', checkTripConflicts);
     wrap.appendChild(label);
   });
+}
+
+// Non-blocking heads-up when another active trip shares dates and a grade
+// level -- reads from tripCache (already scoped to what this user can see)
+// rather than a fresh query, since it just needs to catch double-booking,
+// not enforce it.
+function checkTripConflicts() {
+  const warnEl = document.getElementById('ftDrawerConflictWarning');
+  if (!warnEl) return;
+
+  const startVal = document.getElementById('ftDrawerDate')?.value;
+  if (!startVal) { warnEl.style.display = 'none'; return; }
+  const endVal  = document.getElementById('ftDrawerEndDate')?.value || startVal;
+  const editId  = document.getElementById('ftDrawerTripId')?.value;
+  const grades  = [...document.querySelectorAll('#ftDrawerGrades input:checked')].map(cb => cb.value);
+
+  const start = new Date(startVal + 'T12:00:00');
+  const end   = new Date(endVal + 'T12:00:00');
+
+  const conflicts = tripCache.filter(t => {
+    if (t.status === 'cancelled') return false;
+    if (editId && t.id === editId) return false;
+    const tStart = new Date(t.start_date + 'T12:00:00');
+    const tEnd   = new Date((t.end_date ?? t.start_date) + 'T12:00:00');
+    if (!(start <= tEnd && end >= tStart)) return false;
+    const tGrades = t.grade_levels ?? [];
+    return !grades.length || !tGrades.length || grades.some(g => tGrades.includes(g));
+  });
+
+  if (!conflicts.length) { warnEl.style.display = 'none'; return; }
+
+  const names = conflicts.slice(0, 3).map(t => esc(t.name)).join(', ');
+  warnEl.innerHTML = `⚠ Overlaps with ${conflicts.length === 1 ? 'another trip' : conflicts.length + ' other trips'} on grade/dates: ${names}${conflicts.length > 3 ? ', …' : ''}`;
+  warnEl.style.display = '';
 }
 
 function openTripDrawer(trip) {
   drawerManagers = trip ? currentManagers.map(m => ({ ...m })) : [];
   renderDrawerManagerChips();
-  document.getElementById('ftDrawerTitle').textContent = trip ? 'Edit Trip' : 'New Trip';
+  document.getElementById('ftDrawerTitle').textContent = trip?.id ? 'Edit Trip' : 'New Trip';
   document.getElementById('ftDrawerTripId').value  = trip?.id ?? '';
   document.getElementById('ftDrawerName').value    = trip?.name ?? '';
   document.getElementById('ftDrawerDest').value    = trip?.destination ?? '';
@@ -1147,11 +1393,28 @@ function openTripDrawer(trip) {
   document.getElementById('ftTripDrawer').classList.add('open');
   document.getElementById('ftTripDrawerOverlay').classList.add('open');
   document.getElementById('ftDrawerName').focus();
+  checkTripConflicts();
 }
 
 function closeTripDrawer() {
   document.getElementById('ftTripDrawer').classList.remove('open');
   document.getElementById('ftTripDrawerOverlay').classList.remove('open');
+}
+
+// Opens the New Trip drawer pre-filled from an existing trip -- everything
+// except id, dates, and payment_due_date carries over (chaperones, students,
+// and payments are real-world records for one specific trip and never copy).
+// Managing teachers carry over since the same staff usually run the repeat.
+function duplicateTrip(trip) {
+  openTripDrawer({
+    ...trip,
+    id: undefined,
+    name: `${trip.name} (Copy)`,
+    start_date: '',
+    end_date: '',
+    payment_due_date: null,
+  });
+  showToast('Set new dates before saving.', 'info');
 }
 
 async function saveTrip() {
@@ -1748,6 +2011,140 @@ function computePaymentStatus(paid, due) {
   if (d === 0 || p >= d) return 'paid';
   if (p > 0)             return 'partial';
   return 'unpaid';
+}
+
+// ── Day-of sheet ──────────────────────────────────────────────────────────
+// A printable roster + emergency-contact sheet built entirely from data
+// Belltower already has (no medical/allergy fields exist in the schema).
+// Grouped by vehicle assignment when one exists, otherwise by grade.
+function wireDayOfSheet() {
+  document.getElementById('ftDayOfCloseBtn')?.addEventListener('click', closeDayOfSheet);
+  document.getElementById('ftDayOfOverlay')?.addEventListener('click', e => {
+    if (e.target.id === 'ftDayOfOverlay') closeDayOfSheet();
+  });
+  document.getElementById('ftDayOfPrintBtn')?.addEventListener('click', () => {
+    document.body.classList.add('dayof-print-open');
+    window.print();
+  });
+  window.addEventListener('afterprint', () => document.body.classList.remove('dayof-print-open'));
+}
+
+function closeDayOfSheet() {
+  document.getElementById('ftDayOfOverlay')?.classList.remove('open');
+}
+
+async function openDayOfSheet(trip) {
+  const overlay = document.getElementById('ftDayOfOverlay');
+  const body    = document.getElementById('ftDayOfBody');
+  if (!overlay || !body) return;
+  body.innerHTML = '<p class="muted" style="padding:40px;text-align:center;">Loading…</p>';
+  overlay.classList.add('open');
+
+  const grades = trip.grade_levels ?? [];
+  const studentQuery = () => {
+    let q = supabase
+      .from('students')
+      .select('id, first_name, last_name, grade_level, family_id')
+      .eq('school_id', profile.school_id)
+      .eq('active', true)
+      .order('last_name', { ascending: true });
+    return grades.length ? q.in('grade_level', grades) : q;
+  };
+
+  const [{ data: students }, { data: ftStudents }, { data: assignments }] = await Promise.all([
+    fetchAllRows(studentQuery),
+    fetchAllRows(() => supabase.from('field_trip_students').select('student_id, attending').eq('field_trip_id', trip.id)),
+    fetchAllRows(() => supabase.from('field_trip_vehicle_assignments').select('student_id, chaperone_id').eq('field_trip_id', trip.id)),
+  ]);
+
+  const overrides = new Map((ftStudents ?? []).map(r => [r.student_id, r.attending]));
+  const attending = (students ?? []).filter(s => (overrides.has(s.id) ? overrides.get(s.id) : true));
+
+  const familyIds = [...new Set(attending.map(s => s.family_id).filter(Boolean))];
+  const { data: guardians } = familyIds.length
+    ? await supabase.from('guardians').select('family_id, first_name, last_name, phone, is_primary_contact')
+        .eq('school_id', profile.school_id).in('family_id', familyIds).eq('active', true)
+    : { data: [] };
+
+  const contactByFamily = new Map();
+  (guardians ?? []).forEach(g => {
+    if (!g.phone) return;
+    const existing = contactByFamily.get(g.family_id);
+    if (!existing || (g.is_primary_contact && !existing.is_primary_contact)) contactByFamily.set(g.family_id, g);
+  });
+
+  const assignMap = new Map((assignments ?? []).map(a => [a.student_id, a.chaperone_id]));
+
+  body.innerHTML = buildDayOfHtml(trip, attending, contactByFamily, assignMap);
+}
+
+function buildDayOfHtml(trip, students, contactByFamily, assignMap) {
+  const dateStr = trip.start_date
+    ? new Date(trip.start_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+    : '';
+  let timeStr = '';
+  if (trip.depart_at) timeStr += `Departs ${fmtTime(trip.depart_at)}`;
+  if (trip.return_at) timeStr += (timeStr ? ' · ' : '') + `Returns ${fmtTime(trip.return_at)}`;
+
+  const studentRow = s => {
+    const contact = contactByFamily.get(s.family_id);
+    const meta = contact
+      ? `${esc(contact.first_name)} ${esc(contact.last_name)} — ${esc(contact.phone)}`
+      : '<span style="color:#dc2626;">No contact on file</span>';
+    return `<div class="dayof-row"><span class="name">${esc(s.last_name)}, ${esc(s.first_name)}${s.grade_level ? ` <span style="color:#9ca3af;font-weight:400;">(${esc(s.grade_level)})</span>` : ''}</span><span class="meta">${meta}</span></div>`;
+  };
+
+  let rosterHtml = '';
+  const hasAssignments = assignMap.size > 0 && chaperoneList.some(c => c.is_driver);
+  if (hasAssignments) {
+    const drivers = chaperoneList.filter(c => c.is_driver);
+    drivers.forEach(d => {
+      const person = d.guardian ?? d.employee ?? {};
+      const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim() || 'Driver';
+      const studs = students.filter(s => assignMap.get(s.id) === d.id).sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
+      rosterHtml += `<div class="dayof-group-title">${esc(name)} (${studs.length})</div>`;
+      rosterHtml += studs.length ? studs.map(studentRow).join('') : '<div class="muted" style="font-size:12px;padding:4px 0;">No students assigned</div>';
+    });
+    const unassigned = students.filter(s => !assignMap.get(s.id)).sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
+    if (unassigned.length) {
+      rosterHtml += `<div class="dayof-group-title" style="color:#dc2626;">Unassigned (${unassigned.length})</div>`;
+      rosterHtml += unassigned.map(studentRow).join('');
+    }
+  } else {
+    const byGrade = new Map();
+    students.forEach(s => {
+      const key = s.grade_level ?? 'Ungraded';
+      if (!byGrade.has(key)) byGrade.set(key, []);
+      byGrade.get(key).push(s);
+    });
+    [...byGrade.entries()].forEach(([grade, studs]) => {
+      studs.sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
+      rosterHtml += `<div class="dayof-group-title">${esc(grade)} (${studs.length})</div>`;
+      rosterHtml += studs.map(studentRow).join('');
+    });
+  }
+
+  const chapHtml = chaperoneList.length
+    ? chaperoneList.map(c => {
+        const isStaff = !!c.employee_id;
+        const person  = isStaff ? (c.employee ?? {}) : (c.guardian ?? {});
+        const name    = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
+        const contact = isStaff ? (person.email ?? '') : (c.guardian?.phone ?? c.guardian?.email ?? '');
+        return `<div class="dayof-row"><span class="name">${esc(name)}${c.is_driver ? ' <span style="color:#d97706;font-weight:700;font-size:11px;">DRIVER</span>' : ''}</span><span class="meta">${esc(contact) || '<span class="muted">No contact on file</span>'}</span></div>`;
+      }).join('')
+    : '<p class="muted" style="font-size:13px;">No chaperones added.</p>';
+
+  return `
+    <div class="dayof-hdr">
+      <h2>${esc(trip.name)}</h2>
+      <div>${dateStr}${trip.destination ? ' — ' + esc(trip.destination) : ''}</div>
+      ${timeStr ? `<div>${timeStr}</div>` : ''}
+    </div>
+    <div class="dayof-section-title">Chaperones (${chaperoneList.length})</div>
+    ${chapHtml}
+    <div class="dayof-section-title">Student Roster (${students.length})</div>
+    ${rosterHtml || '<p class="muted" style="font-size:13px;">No attending students found — set grade levels on this trip.</p>'}
+  `;
 }
 
 // ── Boot ─────────────────────────────────────────────────────────────────

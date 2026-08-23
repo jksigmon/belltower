@@ -180,6 +180,76 @@
       margin: 1px;
     }
 
+    /* ── Chaperone type toggle ── */
+    .ft-chap-type-toggle {
+      display: inline-flex;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .ft-toggle-btn {
+      background: #fff;
+      border: none;
+      padding: 7px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #6b7280;
+      cursor: pointer;
+    }
+    .ft-toggle-btn + .ft-toggle-btn { border-left: 1px solid #d1d5db; }
+    .ft-toggle-btn.active { background: #0b2d4f; color: #fff; }
+
+    /* ── Trip conflict warning ── */
+    .ft-conflict-warning {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: #92400e;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      line-height: 1.4;
+      margin: -8px 0 16px;
+    }
+
+    /* ── Day-of sheet ── */
+    .dayof-hdr { margin-bottom: 16px; }
+    .dayof-hdr h2 { font-size: 18px; font-weight: 800; color: #0b2d4f; margin: 0 0 2px; }
+    .dayof-hdr div { font-size: 13px; color: #6b7280; }
+    .dayof-section-title {
+      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+      color: #374151; margin: 18px 0 8px;
+    }
+    .dayof-group-title { font-size: 13px; font-weight: 700; color: #0b2d4f; margin: 12px 0 4px; }
+    .dayof-row {
+      display: flex; justify-content: space-between; gap: 12px;
+      font-size: 13px; padding: 5px 0; border-bottom: 1px solid #f1f5f9;
+    }
+    .dayof-row .name { font-weight: 600; color: #0f172a; }
+    .dayof-row .meta { color: #6b7280; font-size: 12px; text-align: right; }
+    /* Scoped to body.dayof-print-open (set only while printing the sheet)
+       so a normal Cmd+P elsewhere on the page is untouched -- same pattern
+       as the resource-viewer print isolation in staff.html. */
+    @media print {
+      body.dayof-print-open * { visibility: hidden; }
+      body.dayof-print-open #ftDayOfOverlay,
+      body.dayof-print-open #ftDayOfOverlay * { visibility: visible; }
+      body.dayof-print-open #ftDayOfOverlay { position: absolute; top: 0; left: 0; width: 100%; background: #fff; }
+      body.dayof-print-open #ftDayOfOverlay .ft-modal-card { box-shadow: none; max-height: none; width: 100%; max-width: 100%; }
+      body.dayof-print-open #ftDayOfPrintBtn,
+      body.dayof-print-open #ftDayOfCloseBtn { display: none !important; }
+    }
+
+    /* ── Staff chaperone badge ── */
+    .chap-staff-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #f5f3ff;
+      color: #6d28d9;
+    }
+
     /* ── Export bar ── */
     .ft-export-bar {
       display: flex;
@@ -230,7 +300,7 @@
 <div id="navOverlay" class="nav-overlay"></div>
 <div class="wrap">
   <nav id="sideNav" class="nav hidden">
-    <a href="#trips" id="navTrips"><i data-lucide="map"></i> Trips</a>
+    <a href="#trips" id="navTrips"><i data-lucide="map"></i> Trips <span class="badge-count" id="navTripsAttentionCount"></span></a>
   </nav>
 
   <main>
@@ -240,6 +310,20 @@
 
       <!-- List view -->
       <div id="ftListView">
+        <div class="ft-stat-row" id="ftListStats" style="display:none;">
+          <div class="ft-stat-card">
+            <div class="ft-stat-val" id="ftListStatTotal">0</div>
+            <div class="ft-stat-label">Upcoming trips</div>
+          </div>
+          <div class="ft-stat-card ft-stat-warn" id="ftListStatNoChapCard">
+            <div class="ft-stat-val" id="ftListStatNoChap">0</div>
+            <div class="ft-stat-label">No chaperones yet</div>
+          </div>
+          <div class="ft-stat-card ft-stat-alert" id="ftListStatOverdueCard">
+            <div class="ft-stat-val" id="ftListStatOverdue">0</div>
+            <div class="ft-stat-label">Payments overdue</div>
+          </div>
+        </div>
         <div class="panel">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
             <h3 style="margin:0;">Field Trips</h3>
@@ -254,7 +338,7 @@
               <button class="btn btn-primary" id="newTripBtn" style="height:34px;font-size:13px;white-space:nowrap;">+ New Trip</button>
             </div>
           </div>
-          <div class="table-wrap">
+          <div class="table-wrap" id="ftListTableWrap">
             <table class="admin-table">
               <thead>
                 <tr>
@@ -264,14 +348,19 @@
                   <th>Grades</th>
                   <th>Chaperones</th>
                   <th>Students</th>
+                  <th>Payments</th>
                   <th>Status</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody id="ftTableBody">
-                <tr><td colspan="7" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>
+                <tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>
               </tbody>
             </table>
+          </div>
+          <div id="ftListEmpty" class="empty-state" hidden>
+            <div class="empty-title">No trips found</div>
+            <div class="empty-text">Try a different search or status filter, or create a new trip to get started.</div>
           </div>
         </div>
       </div>
@@ -296,6 +385,8 @@
           <div class="trip-hdr-actions">
             <span id="ftDetailBadge"></span>
             <button class="btn btn-sm" id="ftPlanVehiclesBtn" style="display:none;">Plan Vehicles</button>
+            <button class="btn btn-sm" id="ftDayOfBtn">Day-of Sheet</button>
+            <button class="btn btn-sm" id="ftDuplicateBtn">Duplicate</button>
             <button class="btn btn-sm" id="ftEditBtn">Edit Trip</button>
             <button class="btn btn-sm btn-danger" id="ftCancelBtn" style="display:none;">Cancel Trip</button>
             <button class="btn btn-sm btn-danger" id="ftDeleteBtn" style="display:none;">Delete Trip</button>
@@ -344,7 +435,7 @@
             <button class="btn btn-sm" id="ftAddChaperoneBtn">+ Add Chaperone</button>
             <button class="btn btn-sm" id="ftExportCsvBtn">Export CSV</button>
           </div>
-          <div class="panel" style="padding:0;overflow:hidden;">
+          <div class="panel" style="padding:0;overflow:hidden;" id="ftChapTableWrap">
             <table class="admin-table">
               <thead>
                 <tr>
@@ -358,15 +449,19 @@
                 </tr>
               </thead>
               <tbody id="ftChapTableBody">
-                <tr><td colspan="6" class="muted" style="text-align:center;padding:32px 0;">No chaperones added yet.</td></tr>
+                <tr><td colspan="6" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>
               </tbody>
             </table>
+          </div>
+          <div id="ftChapEmpty" class="empty-state" hidden>
+            <div class="empty-title">No chaperones yet</div>
+            <div class="empty-text">Add a parent/guardian or staff member to get started.</div>
           </div>
         </div>
 
         <!-- Students tab -->
         <div id="ftTabStudents" style="display:none;">
-          <div class="panel" style="padding:0;overflow:hidden;">
+          <div class="panel" style="padding:0;overflow:hidden;" id="ftStudTableWrap">
             <table class="admin-table">
               <thead>
                 <tr>
@@ -380,6 +475,10 @@
                 <tr><td colspan="4" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>
               </tbody>
             </table>
+          </div>
+          <div id="ftStudEmpty" class="empty-state" hidden>
+            <div class="empty-title">No students found</div>
+            <div class="empty-text">Set grade levels on this trip to see the matching student roster.</div>
           </div>
         </div>
 
@@ -412,6 +511,20 @@
       <button class="btn" id="ftPaymentModalCancel">Cancel</button>
       <button class="btn btn-primary" id="ftPaymentModalSave">Save</button>
     </div>
+  </div>
+</div>
+
+<!-- ══ DAY-OF SHEET MODAL ═══════════════════════════════════════════ -->
+<div id="ftDayOfOverlay" class="ft-modal-overlay" style="z-index:600;">
+  <div class="ft-modal-card" style="width:640px;max-width:calc(100vw - 32px);max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="margin:0;font-size:16px;font-weight:800;color:#0b2d4f;">Day-of Sheet</h3>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" id="ftDayOfPrintBtn">Print</button>
+        <button class="btn btn-sm" id="ftDayOfCloseBtn">Close</button>
+      </div>
+    </div>
+    <div id="ftDayOfBody"></div>
   </div>
 </div>
 
@@ -462,6 +575,8 @@
       <label class="drawer-label">Grade levels</label>
       <div id="ftDrawerGrades" style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;"></div>
     </div>
+
+    <div id="ftDrawerConflictWarning" class="ft-conflict-warning" style="display:none;"></div>
 
     <div class="drawer-field">
       <label class="drawer-label" for="ftDrawerMaxChap">Max chaperones</label>
@@ -551,7 +666,15 @@
   </div>
   <div class="drawer-body">
     <div class="drawer-field">
-      <label class="drawer-label" for="ftChapSearch">Search guardians</label>
+      <label class="drawer-label">Chaperone type</label>
+      <div class="ft-chap-type-toggle" id="ftChapTypeToggle">
+        <button type="button" class="ft-toggle-btn active" data-chap-type="guardian">Parent/Guardian</button>
+        <button type="button" class="ft-toggle-btn" data-chap-type="staff">Staff</button>
+      </div>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftChapSearch" id="ftChapSearchLabel">Search guardians</label>
       <div class="ft-typeahead-wrap">
         <input type="text" id="ftChapSearch" class="admin-input" placeholder="Name or email..." style="width:100%;">
         <div id="ftChapResults" class="ft-typeahead-results" style="display:none;"></div>

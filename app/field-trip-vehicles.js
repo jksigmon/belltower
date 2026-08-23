@@ -50,7 +50,7 @@ async function init() {
 
   const [driversRes, studList, assignRes] = await Promise.all([
     supabase.from('field_trip_chaperones')
-      .select('id, vehicle_capacity, guardian:guardians(first_name, last_name)')
+      .select('id, vehicle_capacity, guardian:guardians(first_name, last_name), employee:employees(first_name, last_name)')
       .eq('field_trip_id', tripId)
       .eq('is_driver', true)
       .is('removed_at', null)
@@ -137,7 +137,8 @@ function buildBoard() {
 }
 
 function driverName(driver) {
-  return `${driver.guardian?.first_name ?? ''} ${driver.guardian?.last_name ?? ''}`.trim() || 'Driver';
+  const person = driver.guardian ?? driver.employee;
+  return `${person?.first_name ?? ''} ${person?.last_name ?? ''}`.trim() || 'Driver';
 }
 
 function buildColumn(driver, name, studs) {
