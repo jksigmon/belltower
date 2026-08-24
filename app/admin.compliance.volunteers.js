@@ -6,6 +6,7 @@ import {
   createBulkSelection, applyVolunteerStatusFilters, PAGE_SIZE,
 } from './admin.compliance.utils.js';
 import { VOLUNTEER_ROLES, roleCheckboxGridHTML, credentialStatus } from './compliance.roles.js?v=2';
+import { openLinkGuardianDrawerForVolunteer } from './admin.compliance.forms.js';
 
 let _profile        = null;
 let volPage          = 1;
@@ -249,6 +250,10 @@ function renderVolunteerDrawer(row, prefill) {
       <label for="bgDrawerEmail">Email</label>
       <input type="email" id="bgDrawerEmail" value="${esc(v.email ?? '')}">
     </div>
+    <div class="drawer-field" id="bgDrawerGuardianWrap" style="display:none;">
+      <label style="text-transform:none;font-size:0.85rem;">Guardian record</label>
+      <div id="bgDrawerGuardianInfo"></div>
+    </div>
     <div class="drawer-field">
       <label style="text-transform:none;font-size:0.85rem;">Volunteer role(s)</label>
       <div class="bg-role-grid">${roleCheckboxGridHTML('bgDrawerRole')}</div>
@@ -300,6 +305,7 @@ function renderVolunteerDrawer(row, prefill) {
   `;
 
   document.querySelectorAll('input[name="bgDrawerRole"]').forEach(cb => { cb.checked = selectedRoles.has(cb.value); });
+  renderGuardianSection(row);
 
   const archiveBtn = document.getElementById('bgDrawerArchive');
   if (archiveBtn) {
@@ -312,6 +318,46 @@ function renderVolunteerDrawer(row, prefill) {
       archiveBtn.style.display = 'none';
     }
   }
+}
+
+// New (unsaved) volunteers have no id yet to link a guardian against,
+// so the section stays hidden until the record has been saved once.
+async function renderGuardianSection(row) {
+  const wrap = document.getElementById('bgDrawerGuardianWrap');
+  if (!wrap) return;
+  if (!row?.id) { wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+
+  const info = document.getElementById('bgDrawerGuardianInfo');
+  info.innerHTML = '<span class="muted" style="font-size:13px;">Loading…</span>';
+
+  let guardian = null;
+  if (row.guardian_id) {
+    const { data } = await supabase.from('guardians').select('id, first_name, last_name, email').eq('id', row.guardian_id).maybeSingle();
+    guardian = data;
+  }
+
+  // The drawer may have been closed and reopened for a different row
+  // while this fetch was in flight -- don't clobber that row's section.
+  if (activeVolunteer?.id !== row.id) return;
+
+  info.innerHTML = guardian
+    ? `<div class="req-roster-card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+         <span style="font-size:13px;">Linked to <strong>${esc(guardian.first_name)} ${esc(guardian.last_name)}</strong>${guardian.email ? ` &mdash; ${esc(guardian.email)}` : ''}</span>
+         <button class="btn btn-sm" type="button" id="bgDrawerLinkGuardianBtn">Change</button>
+       </div>`
+    : `<div class="req-roster-card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+         <span class="muted" style="font-size:13px;">Not linked to a guardian record.</span>
+         <button class="btn btn-sm" type="button" id="bgDrawerLinkGuardianBtn">Link guardian</button>
+       </div>`;
+
+  document.getElementById('bgDrawerLinkGuardianBtn')?.addEventListener('click', () => {
+    openLinkGuardianDrawerForVolunteer(row, async guardianRow => {
+      row.guardian_id = guardianRow.id;
+      if (activeVolunteer) activeVolunteer.guardian_id = guardianRow.id;
+      await renderGuardianSection(row);
+    }, _profile);
+  });
 }
 
 function wireExpireAutoFill(clearedId, expiresId) {

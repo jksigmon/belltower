@@ -10,6 +10,7 @@ let reqPageRows      = new Map(); // id -> row, current page only
 let volunteerIndex   = null;      // matchKey -> { id, first_name, last_name } for the whole school
 let activeRequest    = null;      // request row currently open in the resolve drawer
 let resolvedVolunteer = null;     // the volunteer the resolve drawer will link to
+let resolvedGuardian  = null;     // the guardian record to stamp onto that volunteer, if any
 
 // ═══════════════════════════════════════════════════════════════════════
 // REQUESTS INBOX
@@ -37,7 +38,7 @@ async function loadVolunteerIndex() {
   if (volunteerIndex) return volunteerIndex;
   const { data } = await supabase
     .from('compliance_volunteers')
-    .select('id, first_name, last_name')
+    .select('id, first_name, last_name, guardian_id')
     .eq('school_id', _profile.school_id)
     .is('archived_at', null);
   volunteerIndex = new Map();
@@ -259,15 +260,24 @@ async function openResolveDrawer(id) {
   document.getElementById('resolveDrawerMsg').textContent = '';
   document.getElementById('resolveVolunteerSearch').value = '';
   document.getElementById('resolveVolunteerResults').style.display = 'none';
+  document.getElementById('resolveGuardianSearch').value = '';
+  document.getElementById('resolveGuardianResults').style.display = 'none';
 
   let suggested = null;
   if (row.volunteer_id) {
-    const { data } = await supabase.from('compliance_volunteers').select('id, first_name, last_name').eq('id', row.volunteer_id).maybeSingle();
+    const { data } = await supabase.from('compliance_volunteers').select('id, first_name, last_name, guardian_id').eq('id', row.volunteer_id).maybeSingle();
     suggested = data;
   } else {
     suggested = (await loadVolunteerIndex()).get(matchKey(row.subject_first_name, row.subject_last_name)) ?? null;
   }
   setResolvedVolunteer(suggested, suggested ? (row.volunteer_id ? 'Already linked.' : 'Suggested match — change it below if this is wrong.') : 'No roster match found — a new volunteer record will be created.');
+
+  let existingGuardian = null;
+  if (suggested?.guardian_id) {
+    const { data } = await supabase.from('guardians').select('id, first_name, last_name, email').eq('id', suggested.guardian_id).maybeSingle();
+    existingGuardian = data;
+  }
+  setResolvedGuardian(existingGuardian, existingGuardian ? 'Already linked.' : 'No guardian linked — search below to link one.');
 
   openDrawer('resolve');
 }
@@ -315,6 +325,55 @@ async function searchResolveVolunteers() {
       e.preventDefault();
       setResolvedVolunteer(v, 'Manually selected.');
       document.getElementById('resolveVolunteerSearch').value = '';
+      resultsEl.style.display = 'none';
+    });
+    resultsEl.appendChild(item);
+  });
+}
+
+function setResolvedGuardian(guardian, hint) {
+  resolvedGuardian = guardian;
+  const chip = document.getElementById('resolveGuardianChip');
+  chip.innerHTML = guardian
+    ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:2px 10px;font-size:12px;color:#15803d;">${esc(guardian.first_name)} ${esc(guardian.last_name)}</span>`
+    : '<span class="muted" style="font-size:12px;">No guardian linked.</span>';
+  document.getElementById('resolveGuardianHint').textContent = hint ?? '';
+}
+
+let resolveGuardianSearchTimer = null;
+export function onResolveGuardianSearchInput() {
+  clearTimeout(resolveGuardianSearchTimer);
+  resolveGuardianSearchTimer = setTimeout(searchResolveGuardians, 280);
+}
+
+async function searchResolveGuardians() {
+  const term = document.getElementById('resolveGuardianSearch')?.value.trim();
+  const resultsEl = document.getElementById('resolveGuardianResults');
+  if (!term || term.length < 2) { resultsEl.style.display = 'none'; return; }
+
+  resultsEl.innerHTML = '<div class="ft-typeahead-empty">Searching…</div>';
+  resultsEl.style.display = '';
+
+  const { data, error } = await supabase
+    .from('guardians')
+    .select('id, first_name, last_name, email')
+    .eq('school_id', _profile.school_id)
+    .eq('active', true)
+    .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`)
+    .limit(10);
+
+  if (error) { resultsEl.innerHTML = `<div class="ft-typeahead-empty">Search failed: ${esc(error.message)}</div>`; return; }
+  if (!data?.length) { resultsEl.innerHTML = '<div class="ft-typeahead-empty">No guardians found.</div>'; return; }
+
+  resultsEl.innerHTML = '';
+  data.forEach(g => {
+    const item = document.createElement('div');
+    item.className = 'ft-typeahead-item';
+    item.innerHTML = `<strong>${esc(g.first_name)} ${esc(g.last_name)}</strong>${g.email ? `<span>${esc(g.email)}</span>` : ''}`;
+    item.addEventListener('mousedown', e => {
+      e.preventDefault();
+      setResolvedGuardian(g, 'Manually selected.');
+      document.getElementById('resolveGuardianSearch').value = '';
       resultsEl.style.display = 'none';
     });
     resultsEl.appendChild(item);
@@ -401,6 +460,7 @@ export async function saveResolve() {
 
   const volUpdate = { bg_cleared_at: clearedAt, bg_expires_at: expiresAt, volunteer_roles: mergedRoles };
   if (mvrClearedAt) { volUpdate.mvr_cleared_at = mvrClearedAt; volUpdate.mvr_expires_at = mvrExpiresAt; }
+  if (resolvedGuardian) volUpdate.guardian_id = resolvedGuardian.id;
 
   const { error: volErr } = await supabase
     .from('compliance_volunteers')
@@ -431,6 +491,7 @@ export async function saveResolve() {
   closeDrawer('resolve');
   showToast('Request resolved');
   activeRequest = null;
+  resolvedGuardian = null;
   volunteerIndex = null; // the roster just changed
   await loadRequests();
 }

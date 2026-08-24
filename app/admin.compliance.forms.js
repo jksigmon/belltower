@@ -19,7 +19,10 @@ let lastAgreementTemplateFilter  = null;
 let lastAgreementLinkFilter      = null;
 
 // ── Guardian link state ──
-let activeLinkAgreementId  = null;
+// activeLinkTarget.type distinguishes what saveLinkGuardian() writes to:
+// 'agreement' (compliance_agreements, sets link_status) or 'volunteer'
+// (compliance_volunteers, called from the Volunteers Add/Edit drawer).
+let activeLinkTarget        = null;
 let selectedGuardianForLink = null;
 let guardianSearchTimer    = null;
 
@@ -501,7 +504,7 @@ export function wireFormFilters() {
 export function openLinkGuardianDrawer(agreementId) {
   const row = agreementCache.find(r => r.id === agreementId);
   if (!row) return;
-  activeLinkAgreementId   = agreementId;
+  activeLinkTarget        = { type: 'agreement', id: agreementId };
   selectedGuardianForLink = null;
 
   document.getElementById('linkGuardianAgreementInfo').innerHTML = `
@@ -523,6 +526,33 @@ export function openLinkGuardianDrawer(agreementId) {
   } else {
     hintsEl.style.display = 'none';
   }
+
+  document.getElementById('linkGuardianSearch').value = '';
+  document.getElementById('linkGuardianResults').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px;">Type a name or email to search guardians.</div>';
+  document.getElementById('linkGuardianMsg').textContent = '';
+  document.getElementById('linkGuardianSave').disabled = true;
+
+  openDrawer('linkGuardian');
+}
+
+// Reuses the same drawer/search UI to link a compliance_volunteers
+// record to a guardian -- called from the Volunteers Add/Edit drawer,
+// which already exists (unlike a request being resolved, where the
+// volunteer row may not exist yet -- that flow uses its own inline
+// search instead of this drawer; see admin.compliance.requests.js).
+// `profile` mirrors the optional-profile pattern used elsewhere for
+// cross-module calls (e.g. openVolunteerDrawerForRow) since this
+// module's _profile is only set once Templates or Agreements has been
+// visited in the session.
+export function openLinkGuardianDrawerForVolunteer(volunteer, onLinked, profile) {
+  if (profile) _profile = profile;
+  activeLinkTarget        = { type: 'volunteer', id: volunteer.id, onLinked };
+  selectedGuardianForLink = null;
+
+  document.getElementById('linkGuardianAgreementInfo').innerHTML = `
+    <strong>${esc(volunteer.first_name)} ${esc(volunteer.last_name)}</strong>${volunteer.email ? ` &mdash; ${esc(volunteer.email)}` : ''}
+  `;
+  document.getElementById('linkGuardianHints').style.display = 'none';
 
   document.getElementById('linkGuardianSearch').value = '';
   document.getElementById('linkGuardianResults').innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px;">Type a name or email to search guardians.</div>';
@@ -583,7 +613,7 @@ async function searchGuardians() {
 }
 
 function selectGuardianForLink(g) {
-  selectedGuardianForLink = g.id;
+  selectedGuardianForLink = g;
 
   resultsEl_selectHighlight(g.id);
 
@@ -603,15 +633,20 @@ function resultsEl_selectHighlight(guardianId) {
 }
 
 export async function saveLinkGuardian() {
-  if (!activeLinkAgreementId || !selectedGuardianForLink) return;
+  if (!activeLinkTarget || !selectedGuardianForLink) return;
 
   const saveBtn = document.getElementById('linkGuardianSave');
   saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
 
+  const isVolunteer = activeLinkTarget.type === 'volunteer';
+  const payload = isVolunteer
+    ? { guardian_id: selectedGuardianForLink.id }
+    : { guardian_id: selectedGuardianForLink.id, link_status: 'manual_linked' };
+
   const { error } = await supabase
-    .from('compliance_agreements')
-    .update({ guardian_id: selectedGuardianForLink, link_status: 'manual_linked' })
-    .eq('id', activeLinkAgreementId)
+    .from(isVolunteer ? 'compliance_volunteers' : 'compliance_agreements')
+    .update(payload)
+    .eq('id', activeLinkTarget.id)
     .eq('school_id', _profile.school_id);
 
   saveBtn.disabled = false; saveBtn.textContent = 'Link Guardian';
@@ -624,8 +659,14 @@ export async function saveLinkGuardian() {
 
   closeDrawer('linkGuardian');
   showToast('Guardian linked');
-  resetAgreementCache();
-  await loadAgreements();
+
+  if (isVolunteer) {
+    await activeLinkTarget.onLinked?.(selectedGuardianForLink);
+  } else {
+    resetAgreementCache();
+    await loadAgreements();
+  }
+  activeLinkTarget = null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
