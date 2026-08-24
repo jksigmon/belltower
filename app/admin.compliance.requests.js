@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, fmtShortDate, dbError, debounce } from './admin.shared.js?v=3';
+import { esc, fmtShortDate, dbError, debounce, getAvatarColor } from './admin.shared.js?v=3';
 import { openDrawer, closeDrawer, showToast, renderPagination, PAGE_SIZE } from './admin.compliance.utils.js';
 import { VOLUNTEER_ROLES, roleCheckboxGridHTML } from './compliance.roles.js?v=2';
 
@@ -49,6 +49,7 @@ function reqFilters() {
   return {
     search: document.getElementById('reqSearch')?.value.trim() || '',
     status: document.getElementById('reqStatusFilter')?.value || '',
+    sort: document.getElementById('reqSortSelect')?.value || 'newest',
   };
 }
 
@@ -73,7 +74,7 @@ export async function loadRequests(profile) {
     query = query.or(`subject_first_name.ilike.${term},subject_last_name.ilike.${term},subject_email.ilike.${term}`);
   }
 
-  query = query.order('requested_at', { ascending: false })
+  query = query.order('requested_at', { ascending: filters.sort === 'oldest' })
     .range((reqPage - 1) * PAGE_SIZE, reqPage * PAGE_SIZE - 1);
 
   const { data, count, error } = await query;
@@ -96,8 +97,15 @@ export async function loadRequests(profile) {
   rows.forEach(row => {
     const tr = document.createElement('tr');
     const match = row.volunteer_id ? null : volunteerIndex.get(matchKey(row.subject_first_name, row.subject_last_name));
+    const name = `${row.subject_first_name} ${row.subject_last_name}`;
+    const initials = ((row.subject_first_name?.[0] ?? '') + (row.subject_last_name?.[0] ?? '')).toUpperCase();
     tr.innerHTML = `
-      <td><strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>${row.subject_email ? `<br><span class="muted" style="font-size:12px;">${esc(row.subject_email)}</span>` : ''}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="admin-table-avatar" style="background:${getAvatarColor(name)};">${esc(initials)}</div>
+          <div><strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>${row.subject_email ? `<br><span class="muted" style="font-size:12px;">${esc(row.subject_email)}</span>` : ''}</div>
+        </div>
+      </td>
       <td>${esc(row.requestor?.display_name ?? row.requestor?.email ?? '—')}</td>
       <td style="max-width:160px;white-space:normal;">${(row.volunteer_roles ?? []).map(r => `<span style="background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:10px;font-weight:700;padding:2px 7px;display:inline-block;margin:1px;">${esc(VOLUNTEER_ROLES[r]?.label ?? r)}</span>`).join('') || '<span class="muted">—</span>'}</td>
       <td style="max-width:160px;white-space:normal;">${row.reason ? esc(row.reason) : '<span class="muted">—</span>'}</td>
@@ -123,6 +131,7 @@ export function wireRequestFilters() {
   const reset = debounce(() => { reqPage = 1; loadRequests(); }, 250);
   document.getElementById('reqSearch')?.addEventListener('input', reset);
   document.getElementById('reqStatusFilter')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
+  document.getElementById('reqSortSelect')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
   document.getElementById('reqAddRecordBtn')?.addEventListener('click', openAddRequestDrawer);
 
   // The resolve drawer's date inputs are static markup (unlike the
@@ -208,10 +217,39 @@ async function openResolveDrawer(id) {
   activeRequest = row;
   resolvedVolunteer = null;
 
+  const name = `${row.subject_first_name} ${row.subject_last_name}`;
+  const initials = ((row.subject_first_name?.[0] ?? '') + (row.subject_last_name?.[0] ?? '')).toUpperCase();
+  const requestedBy = row.requestor?.display_name ?? row.requestor?.email ?? '—';
+
   document.getElementById('resolveRequestInfo').innerHTML = `
-    <strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>${row.subject_email ? ` &mdash; ${esc(row.subject_email)}` : ''}<br>
-    <span class="muted">Requested by ${esc(row.requestor?.display_name ?? row.requestor?.email ?? '—')} · ${fmtShortDate(row.requested_at)}</span>
-    ${row.reason ? `<br><span class="muted">${esc(row.reason)}</span>` : ''}
+    <div class="req-detail-header">
+      <div class="admin-table-avatar" style="width:40px;height:40px;font-size:14px;background:${getAvatarColor(name)};">${esc(initials)}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="req-detail-name">${esc(name)}</div>
+        ${row.subject_email ? `<div class="req-detail-email">${esc(row.subject_email)}</div>` : ''}
+      </div>
+      <span class="bg-status-pill bg-status-${esc(row.status)}">${esc(row.status)}</span>
+    </div>
+    <div class="req-detail-grid">
+      <div class="bg-detail-field" style="margin-bottom:0;">
+        <span class="bg-detail-label">Requested by</span>
+        <span class="bg-detail-value">${esc(requestedBy)}</span>
+      </div>
+      <div class="bg-detail-field" style="margin-bottom:0;">
+        <span class="bg-detail-label">Requested on</span>
+        <span class="bg-detail-value">${fmtShortDate(row.requested_at)}</span>
+      </div>
+    </div>
+    ${row.volunteer_roles?.length ? `
+    <div class="bg-detail-field">
+      <span class="bg-detail-label">Requested roles</span>
+      <div>${row.volunteer_roles.map(r => `<span style="background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:11px;font-weight:700;padding:2px 8px;margin-right:4px;display:inline-block;">${esc(VOLUNTEER_ROLES[r]?.label ?? r)}</span>`).join('')}</div>
+    </div>` : ''}
+    ${row.reason ? `
+    <div class="bg-detail-field">
+      <span class="bg-detail-label">Additional information</span>
+      <span class="bg-detail-value">${esc(row.reason)}</span>
+    </div>` : ''}
   `;
 
   document.getElementById('resolveClearedAt').value = '';
