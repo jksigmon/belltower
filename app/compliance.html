@@ -711,7 +711,10 @@
     <div class="drawer-field" style="margin-bottom:8px;">
       <label for="resolveGuardianSearch">Guardian record</label>
       <div class="req-roster-card">
-        <div id="resolveGuardianChip" style="margin-bottom:8px;"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+          <div id="resolveGuardianChip" style="flex:1;"></div>
+          <button class="btn btn-sm" type="button" id="resolveGuardianSaveBtn" style="display:none;flex-shrink:0;">Save Link</button>
+        </div>
         <div class="ft-typeahead-wrap" id="resolveGuardianSearchWrap">
           <input type="text" id="resolveGuardianSearch" class="admin-input" placeholder="Search guardians by name or email…" style="width:100%;" autocomplete="off">
           <div id="resolveGuardianResults" class="ft-typeahead-results" style="display:none;"></div>

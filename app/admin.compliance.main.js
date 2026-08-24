@@ -10,6 +10,7 @@ import {
 import {
   loadRequests, resetRequestsView, wireRequestFilters, saveAddRequest,
   saveResolve, onResolveVolunteerSearchInput, onResolveGuardianSearchInput,
+  saveResolveGuardianLink,
 } from './admin.compliance.requests.js';
 
 import {
@@ -107,6 +108,7 @@ function wireDrawers() {
   document.getElementById('resolveDrawerSave')?.addEventListener('click', saveResolve);
   document.getElementById('resolveVolunteerSearch')?.addEventListener('input', onResolveVolunteerSearchInput);
   document.getElementById('resolveGuardianSearch')?.addEventListener('input', onResolveGuardianSearchInput);
+  document.getElementById('resolveGuardianSaveBtn')?.addEventListener('click', saveResolveGuardianLink);
   document.getElementById('attRenewSave')?.addEventListener('click', saveRenew);
 
   document.getElementById('tplDrawerSave')?.addEventListener('click',     saveTemplate);

@@ -271,15 +271,23 @@ async function openResolveDrawer(id) {
     suggested = (await loadVolunteerIndex()).get(matchKey(row.subject_first_name, row.subject_last_name)) ?? null;
   }
   setResolvedVolunteer(suggested, suggested ? (row.volunteer_id ? 'Already linked.' : 'Suggested match — change it below if this is wrong.') : 'No roster match found — a new volunteer record will be created.');
-
-  let existingGuardian = null;
-  if (suggested?.guardian_id) {
-    const { data } = await supabase.from('guardians').select('id, first_name, last_name, email').eq('id', suggested.guardian_id).maybeSingle();
-    existingGuardian = data;
-  }
-  setResolvedGuardian(existingGuardian, existingGuardian ? 'Already linked.' : 'No guardian linked — search below to link one.');
+  await refreshGuardianForVolunteer(suggested);
 
   openDrawer('resolve');
+}
+
+// Re-fetches and displays whichever guardian is actually linked to
+// `volunteer` right now -- called on drawer open, and again if the
+// admin manually swaps the matched volunteer in the Roster Match box,
+// so the Guardian record card never shows a stale link left over from
+// a previous match.
+async function refreshGuardianForVolunteer(volunteer) {
+  let guardian = null;
+  if (volunteer?.guardian_id) {
+    const { data } = await supabase.from('guardians').select('id, first_name, last_name, email').eq('id', volunteer.guardian_id).maybeSingle();
+    guardian = data;
+  }
+  setResolvedGuardian(guardian, guardian ? 'Already linked.' : 'No guardian linked — search below to link one.');
 }
 
 function setResolvedVolunteer(volunteer, hint) {
@@ -289,6 +297,7 @@ function setResolvedVolunteer(volunteer, hint) {
     ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:2px 10px;font-size:12px;color:#15803d;">${esc(volunteer.first_name)} ${esc(volunteer.last_name)}</span>`
     : '<span class="muted" style="font-size:12px;">No volunteer selected — one will be created on save.</span>';
   document.getElementById('resolveVolunteerHint').textContent = hint ?? '';
+  updateResolveGuardianSaveBtn();
 }
 
 let resolveSearchTimer = null;
@@ -307,7 +316,7 @@ async function searchResolveVolunteers() {
 
   const { data, error } = await supabase
     .from('compliance_volunteers')
-    .select('id, first_name, last_name, email')
+    .select('id, first_name, last_name, email, guardian_id')
     .eq('school_id', _profile.school_id)
     .is('archived_at', null)
     .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`)
@@ -324,6 +333,7 @@ async function searchResolveVolunteers() {
     item.addEventListener('mousedown', e => {
       e.preventDefault();
       setResolvedVolunteer(v, 'Manually selected.');
+      refreshGuardianForVolunteer(v);
       document.getElementById('resolveVolunteerSearch').value = '';
       resultsEl.style.display = 'none';
     });
@@ -338,6 +348,48 @@ function setResolvedGuardian(guardian, hint) {
     ? `<span style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:999px;padding:2px 10px;font-size:12px;color:#15803d;">${esc(guardian.first_name)} ${esc(guardian.last_name)}</span>`
     : '<span class="muted" style="font-size:12px;">No guardian linked.</span>';
   document.getElementById('resolveGuardianHint').textContent = hint ?? '';
+  updateResolveGuardianSaveBtn();
+}
+
+// The Guardian record card can be saved on its own, ahead of Mark
+// Cleared -- an admin working through a batch of requests may want to
+// confirm/link guardians as they go without also having BG dates in
+// hand yet. Only possible once a volunteer row actually exists to
+// attach guardian_id to (an unmatched request creates one at Mark
+// Cleared time, and that flow already carries resolvedGuardian along).
+function updateResolveGuardianSaveBtn() {
+  const btn = document.getElementById('resolveGuardianSaveBtn');
+  if (!btn) return;
+  if (!resolvedVolunteer?.id) { btn.style.display = 'none'; return; }
+  btn.style.display = '';
+  btn.disabled = !resolvedGuardian || resolvedGuardian.id === resolvedVolunteer.guardian_id;
+}
+
+export async function saveResolveGuardianLink() {
+  if (!resolvedVolunteer?.id || !resolvedGuardian) return;
+
+  const btn = document.getElementById('resolveGuardianSaveBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+
+  const { error } = await supabase
+    .from('compliance_volunteers')
+    .update({ guardian_id: resolvedGuardian.id })
+    .eq('id', resolvedVolunteer.id)
+    .eq('school_id', _profile.school_id);
+
+  btn.textContent = 'Save Link';
+
+  if (error) {
+    document.getElementById('resolveGuardianHint').textContent = `Failed to save: ${error.message}`;
+    btn.disabled = false;
+    return;
+  }
+
+  resolvedVolunteer.guardian_id = resolvedGuardian.id;
+  document.getElementById('resolveGuardianHint').textContent = 'Already linked.';
+  showToast('Guardian linked');
+  updateResolveGuardianSaveBtn();
+  volunteerIndex = null; // this volunteer's guardian_id just changed
 }
 
 let resolveGuardianSearchTimer = null;
