@@ -1157,9 +1157,20 @@ async function buildPlan() {
 
   const deactivatePlans: { id: string; label: string }[] = [];
   const deactivateCandidatesToStage: Record<string, unknown>[] = [];
+  // Pending "deactivate" candidates left over from a run before the student went
+  // inactive some other way (manual edit, an approved run that already applied,
+  // etc.) — nothing left to review, so auto-resolve rather than staging/keeping
+  // them stuck in the queue forever.
+  const staleDeactivateCandidateIds: string[] = [];
   for (const s of missingFromPull) {
     const label = `${s.first_name} ${s.last_name}`;
     const cand = candidateByKey.get(`student:${s.ic_sourced_id}`);
+    if (s.active === false) {
+      if (cand && cand.match_reason === "deactivate" && cand.status === "pending") {
+        staleDeactivateCandidateIds.push(cand.id);
+      }
+      continue;
+    }
     if (cand && cand.match_reason === "deactivate") {
       // Once actually applied, the student is already inactive — re-adding it here
       // every subsequent run (it stays "missing from pull" forever) would otherwise
@@ -1208,10 +1219,15 @@ async function buildPlan() {
     guardianCandidatesToStage,
     familyCandidatesToStage,
     deactivateCandidatesToStage,
+    staleDeactivateCandidateIds,
     candidateUpgrades,
     dataGapChecks,
     fieldDiffChecks,
-    totalPendingStudents: totalPendingStudents + studentCandidatesToStage.length + deactivateCandidatesToStage.length,
+    totalPendingStudents:
+      totalPendingStudents +
+      studentCandidatesToStage.length +
+      deactivateCandidatesToStage.length -
+      staleDeactivateCandidateIds.length,
     totalPendingGuardians: totalPendingGuardians + guardianCandidatesToStage.length,
     totalPendingFamilies: totalPendingFamilies + familyCandidatesToStage.length,
     fetchCounts: { students: icStudents.length, users: icAllUsers.length, demographics: icDemographics.length },
@@ -1275,6 +1291,7 @@ async function executePlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
     guardianCandidatesToStage,
     familyCandidatesToStage,
     deactivateCandidatesToStage,
+    staleDeactivateCandidateIds,
     candidateUpgrades,
     dataGapChecks,
     fieldDiffChecks,
@@ -1305,6 +1322,17 @@ async function executePlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
       if (upgradeErr) console.error(`Failed to upgrade candidate ${u.id}:`, upgradeErr);
     })
   );
+
+  // Auto-resolve stale "deactivate" candidates whose student is already inactive —
+  // nothing left for a human to approve/reject, so don't leave them sitting in the
+  // review queue forever.
+  if (staleDeactivateCandidateIds.length) {
+    const { error: staleErr } = await supabase
+      .from("ic_reconciliation_candidates")
+      .update({ status: "rejected", reviewed_at: new Date().toISOString() })
+      .in("id", staleDeactivateCandidateIds);
+    if (staleErr) console.error("Failed to auto-resolve stale deactivate candidates:", staleErr);
+  }
 
   // Open/refresh data-gap audit rows, and close ones IC has since filled in. Also
   // independent of the main sync outcome below — this is just bookkeeping.
