@@ -354,27 +354,37 @@ function setResolvedGuardian(guardian, hint) {
 // The Guardian record card can be saved on its own, ahead of Mark
 // Cleared -- an admin working through a batch of requests may want to
 // confirm/link guardians as they go without also having BG dates in
-// hand yet. Only possible once a volunteer row actually exists to
-// attach guardian_id to (an unmatched request creates one at Mark
-// Cleared time, and that flow already carries resolvedGuardian along).
+// hand yet. Shown whenever a guardian has been picked; disabled only
+// when there's nothing new to save (already linked to that guardian).
 function updateResolveGuardianSaveBtn() {
   const btn = document.getElementById('resolveGuardianSaveBtn');
   if (!btn) return;
-  if (!resolvedVolunteer?.id) { btn.style.display = 'none'; return; }
-  btn.style.display = '';
-  btn.disabled = !resolvedGuardian || resolvedGuardian.id === resolvedVolunteer.guardian_id;
+  btn.style.display = resolvedGuardian ? '' : 'none';
+  btn.disabled = !resolvedGuardian || (!!resolvedVolunteer && resolvedGuardian.id === resolvedVolunteer.guardian_id);
 }
 
 export async function saveResolveGuardianLink() {
-  if (!resolvedVolunteer?.id || !resolvedGuardian) return;
+  if (!resolvedGuardian) return;
 
   const btn = document.getElementById('resolveGuardianSaveBtn');
   btn.disabled = true; btn.textContent = 'Saving…';
 
+  let volunteerId;
+  try {
+    // No roster match yet means no compliance_volunteers row exists at
+    // all -- create one now rather than making the admin wait until
+    // Mark Cleared just to record which guardian this subject is.
+    volunteerId = await ensureResolvedVolunteerId();
+  } catch (err) {
+    document.getElementById('resolveGuardianHint').textContent = `Failed to save: ${err.message}`;
+    btn.disabled = false; btn.textContent = 'Save Link';
+    return;
+  }
+
   const { error } = await supabase
     .from('compliance_volunteers')
     .update({ guardian_id: resolvedGuardian.id })
-    .eq('id', resolvedVolunteer.id)
+    .eq('id', volunteerId)
     .eq('school_id', _profile.school_id);
 
   btn.textContent = 'Save Link';
@@ -445,6 +455,57 @@ function wireExpireAutoFill(clearedId, expiresId) {
   });
 }
 
+// Creates a compliance_volunteers row for the current request's subject
+// if one isn't already matched/linked, so callers always end up with a
+// real id to attach dates/guardian_id to. Shared by saveResolve() (the
+// full Mark Cleared flow) and saveResolveGuardianLink() (linking a
+// guardian ahead of clearing, before any volunteer row may exist yet).
+async function ensureResolvedVolunteerId() {
+  if (resolvedVolunteer?.id) return resolvedVolunteer.id;
+
+  const { data, error } = await supabase
+    .from('compliance_volunteers')
+    .insert({
+      school_id: _profile.school_id,
+      first_name: activeRequest.subject_first_name,
+      last_name: activeRequest.subject_last_name,
+      email: activeRequest.subject_email,
+      volunteer_roles: activeRequest.volunteer_roles ?? [],
+    })
+    .select('id, first_name, last_name, guardian_id')
+    .single();
+
+  let created = data;
+  if (error && error.code === '23505') {
+    // Someone else created a matching volunteer between the drawer
+    // opening and now -- fall back to linking that one instead of
+    // failing the save outright.
+    const existing = await supabase
+      .from('compliance_volunteers')
+      .select('id, first_name, last_name, guardian_id')
+      .eq('school_id', _profile.school_id)
+      .ilike('first_name', activeRequest.subject_first_name)
+      .ilike('last_name', activeRequest.subject_last_name)
+      .is('archived_at', null)
+      .maybeSingle();
+    created = existing.data ?? null;
+  } else if (error) {
+    throw error;
+  }
+
+  if (!created) throw new Error('Could not resolve a volunteer record.');
+
+  volunteerIndex = null; // the roster just changed
+  await supabase
+    .from('compliance_bg_check_requests')
+    .update({ volunteer_id: created.id })
+    .eq('id', activeRequest.id)
+    .eq('school_id', _profile.school_id);
+
+  setResolvedVolunteer(created, 'Already linked.');
+  return created.id;
+}
+
 export async function saveResolve() {
   const msgEl = document.getElementById('resolveDrawerMsg');
   const clearedAt = document.getElementById('resolveClearedAt')?.value || null;
@@ -457,46 +518,12 @@ export async function saveResolve() {
   const saveBtn = document.getElementById('resolveDrawerSave');
   saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
 
-  let volunteerId = resolvedVolunteer?.id ?? null;
-
-  if (!volunteerId) {
-    const { data, error } = await supabase
-      .from('compliance_volunteers')
-      .insert({
-        school_id: _profile.school_id,
-        first_name: activeRequest.subject_first_name,
-        last_name: activeRequest.subject_last_name,
-        email: activeRequest.subject_email,
-        volunteer_roles: activeRequest.volunteer_roles ?? [],
-      })
-      .select('id')
-      .single();
-
-    if (error && error.code === '23505') {
-      // Someone else created a matching volunteer between the drawer
-      // opening and now -- fall back to linking that one instead of
-      // failing the save outright.
-      const existing = await supabase
-        .from('compliance_volunteers')
-        .select('id')
-        .eq('school_id', _profile.school_id)
-        .ilike('first_name', activeRequest.subject_first_name)
-        .ilike('last_name', activeRequest.subject_last_name)
-        .is('archived_at', null)
-        .maybeSingle();
-      volunteerId = existing.data?.id ?? null;
-    } else if (error) {
-      saveBtn.disabled = false; saveBtn.textContent = 'Mark Cleared';
-      msgEl.textContent = `Failed to create volunteer: ${esc(error.message)}`;
-      return;
-    } else {
-      volunteerId = data.id;
-    }
-  }
-
-  if (!volunteerId) {
+  let volunteerId;
+  try {
+    volunteerId = await ensureResolvedVolunteerId();
+  } catch (err) {
     saveBtn.disabled = false; saveBtn.textContent = 'Mark Cleared';
-    msgEl.textContent = 'Could not resolve a volunteer record.';
+    msgEl.textContent = `Failed to create volunteer: ${esc(err.message)}`;
     return;
   }
 
