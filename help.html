@@ -1731,7 +1731,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <p><strong>Staff chaperones</strong> show a purple <strong>Staff</strong> chip instead — they aren't tracked through the volunteer compliance system (background checks for employees are handled through employment records, not Compliance), and MVR is not tracked for staff drivers in Belltower, so verify a staff driver's license separately if needed.</p>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          The compliance summary strip at the top of the Chaperones tab gives you a quick count of cleared, action-needed, and blocked chaperones. If a trip has a <strong>Max chaperones</strong> limit set, the Add Chaperone button disables once you hit it — raise the limit on the trip (Edit Trip) to add more.
+          The compliance summary strip at the top of the Chaperones tab gives you a quick count of cleared, action-needed, and blocked chaperones, plus a <strong>chaperone ratio</strong> card (e.g. 1:9) once you have both chaperones and an attending student count. If a trip has a <strong>Max chaperones</strong> limit set, the Add Chaperone button disables once you hit it — raise the limit on the trip (Edit Trip) to add more.
         </div>
       </div>
     </div>
@@ -1771,11 +1771,49 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <p>Open the trip and go to the <strong>Students</strong> tab. All active students in the grade levels assigned to the trip are listed automatically. Toggle the checkbox next to any student to mark them as attending or not attending.</p>
-        <p>The summary row at the bottom shows how many students are confirmed attending out of the total eligible.</p>
+        <p>Above the roster, a row of chips shows attending counts broken out by grade (e.g. <em>3rd: 45/50</em>), plus a <strong>chaperone ratio</strong> chip once you have both students and chaperones added. The summary row at the bottom of the table reflects whatever filters are currently applied.</p>
+        <p>Use the <strong>search box</strong>, and the <strong>attendance</strong>, <strong>homeroom</strong>, and <strong>permission slip</strong> filters above the table to narrow the roster — handy for pulling up just the students who aren't going, so the front office can plan alternate supervision for them.</p>
+        <p>Once you've filtered down to the group you want, <strong>Mark filtered attending</strong> / <strong>Mark filtered not attending</strong> apply to everyone currently shown — e.g. filter to one homeroom and mark that whole group in one click, instead of toggling each student individually. <strong>Export CSV</strong> exports whatever's currently filtered too.</p>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          If a student already has a payment recorded and payment tracking is on, you can't mark them not attending until that payment is waived or refunded on the Payments tab — this protects the payment record from being deleted by accident.
+          If a student already has a payment recorded and payment tracking is on, you can't mark them not attending until that payment is waived or refunded on the Payments tab — this protects the payment record from being deleted by accident. A bulk "mark not attending" action skips those students automatically and tells you how many were skipped.
         </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        A student's name has a yellow warning triangle next to it — what does that mean?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>That student is also attending another active trip whose dates overlap this one. Hover the icon to see which trip. This is a heads-up, not a block — some overlap is legitimate (e.g. a student pulled for a smaller group activity during a larger trip) — but it's worth double-checking that both trips actually expect that student.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do permission slips work?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Each student on the Students tab has a <strong>Permission Slip</strong> chip: <strong>Pending</strong>, <strong>Signed</strong>, or <strong>Declined</strong>. Click the chip to cycle through the three states as paper (or otherwise collected) slips come in.</p>
+        <p>To check off a whole batch at once, filter the roster (e.g. to <em>Slip pending</em>) and click <strong>Mark filtered slips signed</strong>.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          This is manual tracking, not an online signing form — Belltower doesn't email parents a slip to sign electronically for field trips (unlike chaperone compliance forms, which do have that flow). Use it to track paper slips as they're turned in, and it'll flag missing ones with a <strong>NO SLIP</strong> tag on the Day-of Sheet.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I email parents the trip details?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Click <strong>Copy Parent Email</strong> in the trip header. This opens a preview with a plain-text draft (subject line, dates, times, cost if payment is enabled, and your <strong>Parent-facing notes</strong> from the trip settings) in an editable text box — change any wording you want, then click <strong>Copy to Clipboard</strong> and paste it into whatever email tool you already use to reach parents.</p>
+        <p>Parent-facing notes are separate from the internal <strong>Notes</strong> field on the trip (Edit Trip) — internal notes are never included in this draft, so it's safe to keep staff-only context there. Editing the draft in the preview only affects that one copy; it doesn't save back to the trip.</p>
       </div>
     </div>
 
@@ -1824,7 +1862,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <p>Click <strong>Day-of Sheet</strong> in the trip header for a printable roster and contact list to bring on the trip. It shows:</p>
         <ul>
           <li>Every chaperone with their phone (guardians) or email (staff), and a DRIVER tag for anyone driving.</li>
-          <li>The attending student roster — grouped by vehicle/driver if you've assigned students in <strong>Plan Vehicles</strong>, otherwise grouped by grade — each with their primary guardian's phone number for a quick emergency contact.</li>
+          <li>The attending student roster — grouped by vehicle/driver if you've assigned students in <strong>Plan Vehicles</strong>, otherwise grouped by grade — each with their primary guardian's phone number for a quick emergency contact, and a <strong>NO SLIP</strong> tag for anyone whose permission slip isn't marked Signed yet.</li>
         </ul>
         <p>Click <strong>Print</strong> to print just the sheet. Belltower doesn't currently track student medical or allergy information, so the sheet is limited to roster and contact data — bring your usual medical/allergy paperwork separately.</p>
       </div>
@@ -1869,7 +1907,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
           <li>Click <strong>Record</strong> to log a payment received — enter the amount, date, and optional notes. Partial payments accumulate and the status updates automatically.</li>
           <li>Click <strong>Waive</strong> to mark a student as exempt from payment. You can enter a reason, which is saved for your records.</li>
         </ul>
-        <p>Payment statuses: <strong>Unpaid</strong>, <strong>Partial</strong> (some amount received), <strong>Paid</strong> (full amount on file), and <strong>Waived</strong>. The summary cards at the top give you a count across all four states.</p>
+        <p>Payment statuses: <strong>Unpaid</strong>, <strong>Partial</strong> (some amount received), <strong>Paid</strong> (full amount on file), and <strong>Waived</strong>. The summary cards at the top give you a count across all four states, plus a dollar total ("$X of $Y collected") for the trip as a whole.</p>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           Students marked as <strong>not attending</strong> on the Students tab are automatically excluded from the Payments tab.

@@ -2054,6 +2054,25 @@ CREATE TABLE IF NOT EXISTS "public"."field_trip_payments" (
 ALTER TABLE "public"."field_trip_payments" OWNER TO "postgres";
 
 --
+-- Name: field_trip_permission_slips; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE IF NOT EXISTS "public"."field_trip_permission_slips" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "school_id" "uuid" NOT NULL,
+    "field_trip_id" "uuid" NOT NULL,
+    "student_id" "uuid" NOT NULL,
+    "status" "text" DEFAULT 'pending'::"text" NOT NULL,
+    "note" "text",
+    "updated_by" "uuid",
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "field_trip_permission_slips_status_check" CHECK (("status" = ANY (ARRAY['pending'::"text", 'signed'::"text", 'declined'::"text"])))
+);
+
+
+ALTER TABLE "public"."field_trip_permission_slips" OWNER TO "postgres";
+
+--
 -- Name: field_trip_students; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -2114,6 +2133,7 @@ CREATE TABLE IF NOT EXISTS "public"."field_trips" (
     "allow_installments" boolean DEFAULT false NOT NULL,
     "installment_schedule" "jsonb",
     "payment_due_date" "date",
+    "parent_notes" "text",
     CONSTRAINT "field_trips_status_check" CHECK (("status" = ANY (ARRAY['active'::"text", 'cancelled'::"text"])))
 );
 
@@ -3678,6 +3698,22 @@ ALTER TABLE ONLY "public"."field_trip_payments"
 
 ALTER TABLE ONLY "public"."field_trip_payments"
     ADD CONSTRAINT "field_trip_payments_student_unique" UNIQUE ("field_trip_id", "student_id");
+
+
+--
+-- Name: field_trip_permission_slips field_trip_permission_slips_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY "public"."field_trip_permission_slips"
+    ADD CONSTRAINT "field_trip_permission_slips_pkey" PRIMARY KEY ("id");
+
+
+--
+-- Name: field_trip_permission_slips field_trip_permission_slips_unique; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY "public"."field_trip_permission_slips"
+    ADD CONSTRAINT "field_trip_permission_slips_unique" UNIQUE ("field_trip_id", "student_id");
 
 
 --
@@ -5664,6 +5700,38 @@ ALTER TABLE ONLY "public"."field_trip_payments"
 
 ALTER TABLE ONLY "public"."field_trip_payments"
     ADD CONSTRAINT "field_trip_payments_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "public"."profiles"("id");
+
+
+--
+-- Name: field_trip_permission_slips field_trip_permission_slips_field_trip_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY "public"."field_trip_permission_slips"
+    ADD CONSTRAINT "field_trip_permission_slips_field_trip_id_fkey" FOREIGN KEY ("field_trip_id") REFERENCES "public"."field_trips"("id") ON DELETE CASCADE;
+
+
+--
+-- Name: field_trip_permission_slips field_trip_permission_slips_school_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY "public"."field_trip_permission_slips"
+    ADD CONSTRAINT "field_trip_permission_slips_school_id_fkey" FOREIGN KEY ("school_id") REFERENCES "public"."schools"("id") ON DELETE CASCADE;
+
+
+--
+-- Name: field_trip_permission_slips field_trip_permission_slips_student_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY "public"."field_trip_permission_slips"
+    ADD CONSTRAINT "field_trip_permission_slips_student_id_fkey" FOREIGN KEY ("student_id") REFERENCES "public"."students"("id") ON DELETE CASCADE;
+
+
+--
+-- Name: field_trip_permission_slips field_trip_permission_slips_updated_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY "public"."field_trip_permission_slips"
+    ADD CONSTRAINT "field_trip_permission_slips_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "public"."profiles"("id");
 
 
 --
@@ -7864,6 +7932,12 @@ ALTER TABLE "public"."field_trip_payment_log" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."field_trip_payments" ENABLE ROW LEVEL SECURITY;
 
 --
+-- Name: field_trip_permission_slips; Type: ROW SECURITY; Schema: public; Owner: postgres
+--
+
+ALTER TABLE "public"."field_trip_permission_slips" ENABLE ROW LEVEL SECURITY;
+
+--
 -- Name: field_trip_students; Type: ROW SECURITY; Schema: public; Owner: postgres
 --
 
@@ -8023,6 +8097,13 @@ CREATE POLICY "ftpl_select" ON "public"."field_trip_payment_log" FOR SELECT USIN
 --
 -- Name: field_trip_students fts_all; Type: POLICY; Schema: public; Owner: postgres
 --
+
+CREATE POLICY "ftps_all" ON "public"."field_trip_permission_slips" USING ((EXISTS ( SELECT 1
+   FROM "public"."profiles" "p"
+  WHERE (("p"."user_id" = ( SELECT "auth"."uid"() AS "uid")) AND ("p"."school_id" = "field_trip_permission_slips"."school_id") AND (("p"."can_manage_field_trips" = true) OR ("p"."is_superadmin" = true) OR (EXISTS ( SELECT 1
+           FROM "public"."field_trip_managers" "m"
+          WHERE (("m"."field_trip_id" = "field_trip_permission_slips"."field_trip_id") AND ("m"."profile_id" = "p"."id")))))))));
+
 
 CREATE POLICY "fts_all" ON "public"."field_trip_students" USING ((EXISTS ( SELECT 1
    FROM "public"."profiles" "p"
@@ -10170,6 +10251,15 @@ GRANT ALL ON TABLE "public"."field_trip_payment_log" TO "service_role";
 GRANT ALL ON TABLE "public"."field_trip_payments" TO "anon";
 GRANT ALL ON TABLE "public"."field_trip_payments" TO "authenticated";
 GRANT ALL ON TABLE "public"."field_trip_payments" TO "service_role";
+
+
+--
+-- Name: TABLE "field_trip_permission_slips"; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT ALL ON TABLE "public"."field_trip_permission_slips" TO "anon";
+GRANT ALL ON TABLE "public"."field_trip_permission_slips" TO "authenticated";
+GRANT ALL ON TABLE "public"."field_trip_permission_slips" TO "service_role";
 
 
 --

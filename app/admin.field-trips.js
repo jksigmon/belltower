@@ -43,6 +43,9 @@ let paymentStudentMap    = new Map();
 let paymentChaperoneMap  = new Map();
 let pendingPaymentId     = null; // payment row targeted by the record-payment modal
 let paymentsLoaded       = false;
+let permissionSlipMap    = new Map(); // student_id -> { id, status, note }
+let doubleBookingMap     = new Map(); // student_id -> [conflicting trip names]
+let attendingCount       = null;      // attending-student count for the current trip; null until loaded
 
 // Populated from school config on init — not a hardcoded constant
 let GRADE_LEVELS = GRADE_ORDER;
@@ -74,6 +77,8 @@ async function init() {
   wireTabs();
   wireFilters();
   wireDayOfSheet();
+  wireStudentToolbar();
+  wireParentEmailModal();
 
   document.getElementById('signOut')?.addEventListener('click', async () => {
     await supabase.auth.signOut();
@@ -154,7 +159,7 @@ async function loadTrips() {
 
   let query = supabase
     .from('field_trips')
-    .select('id, name, destination, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, notes, status, created_at, payment_required, student_cost, chaperone_payment_required, chaperone_cost, allow_installments, installment_schedule, payment_due_date')
+    .select('id, name, destination, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, notes, parent_notes, status, created_at, payment_required, student_cost, chaperone_payment_required, chaperone_cost, allow_installments, installment_schedule, payment_due_date')
     .eq('school_id', profile.school_id)
     .order('start_date', { ascending: false });
   if (tripIds) query = query.in('id', tripIds);
@@ -358,13 +363,33 @@ async function openTrip(id) {
   showDetailView();
   const _sub2 = document.getElementById('pageSubtitle'); if (_sub2) _sub2.textContent = trip.name;
 
-  paymentsLoaded = false;
-  paymentCache   = [];
+  paymentsLoaded  = false;
+  paymentCache    = [];
+  studentList     = [];
+  attendingCount  = null;
   document.getElementById('ftPaymentsTab').style.display = trip.payment_required ? '' : 'none';
 
   renderTripHeader(trip);
   switchTab('chaperones');
-  await Promise.all([loadChaperones(), renderComplianceFormLinks(), loadManagers(trip.id)]);
+  await Promise.all([loadChaperones(), renderComplianceFormLinks(), loadManagers(trip.id), loadAttendingCount()]);
+}
+
+// Cheap count-only query so the chaperone-to-student ratio can render on the
+// Chaperones tab without waiting on the full Students roster (which only
+// loads lazily when that tab is opened).
+async function loadAttendingCount() {
+  const grades = currentTrip.grade_levels ?? [];
+  if (!grades.length) { attendingCount = 0; renderComplianceStats(); return; }
+
+  const [{ count: totalCount }, { data: notAttending }] = await Promise.all([
+    supabase.from('students').select('id', { count: 'exact', head: true })
+      .eq('school_id', profile.school_id).eq('active', true).in('grade_level', grades),
+    fetchAllRows(() => supabase.from('field_trip_students').select('student_id')
+      .eq('field_trip_id', currentTrip.id).eq('attending', false)),
+  ]);
+
+  attendingCount = (totalCount ?? 0) - (notAttending ?? []).length;
+  renderComplianceStats();
 }
 
 function renderTripHeader(trip) {
@@ -411,6 +436,7 @@ function renderTripHeader(trip) {
   document.getElementById('ftEditBtn').onclick   = () => openTripDrawer(trip);
   document.getElementById('ftDuplicateBtn').onclick = () => duplicateTrip(trip);
   document.getElementById('ftDayOfBtn').onclick  = () => openDayOfSheet(trip);
+  document.getElementById('ftCopyEmailBtn').onclick = () => openParentEmailPreview(trip);
   document.getElementById('ftCancelBtn').style.display = (!isPast && trip.status === 'active') ? '' : 'none';
   document.getElementById('ftCancelBtn').onclick  = () => cancelTrip(trip.id);
 
@@ -787,6 +813,14 @@ function renderComplianceStats() {
   document.getElementById('ftStatBlocked').textContent = blocked;
   document.getElementById('ftStatActionCard').style.display  = action  ? '' : 'none';
   document.getElementById('ftStatBlockedCard').style.display = blocked ? '' : 'none';
+
+  const ratioCard = document.getElementById('ftStatRatioCard');
+  if (ratioCard) {
+    const showRatio = attendingCount != null && chaperoneList.length > 0;
+    ratioCard.style.display = showRatio ? '' : 'none';
+    if (showRatio) document.getElementById('ftStatRatio').textContent = `1:${Math.round(attendingCount / chaperoneList.length)}`;
+  }
+
   statsWrap.style.display = '';
 }
 
@@ -865,16 +899,17 @@ async function removeChaperone(chapId) {
 // ── Students ─────────────────────────────────────────────────────────────
 async function loadStudents() {
   const tbody = document.getElementById('ftStudTableBody');
-  tbody.innerHTML = `<tr><td colspan="4" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>`;
 
   const grades = currentTrip.grade_levels ?? [];
 
   if (!grades.length) {
-    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:32px 0;color:#b45309;">No grade levels set on this trip — edit the trip to specify grades before viewing students.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px 0;color:#b45309;">No grade levels set on this trip — edit the trip to specify grades before viewing students.</td></tr>`;
+    document.getElementById('ftStudGradeBreakdown').innerHTML = '';
     return;
   }
 
-  const [{ data: students, error: sErr }, { data: ftStudents }] = await Promise.all([
+  const [{ data: students, error: sErr }, { data: ftStudents }, { data: slips }] = await Promise.all([
     fetchAllRows(() => supabase
       .from('students')
       .select('id, first_name, last_name, grade_level, homeroom_teacher_id, employees!left(first_name, last_name)')
@@ -883,10 +918,11 @@ async function loadStudents() {
       .in('grade_level', grades)
       .order('last_name', { ascending: true })),
     fetchAllRows(() => supabase.from('field_trip_students').select('student_id, attending').eq('field_trip_id', currentTrip.id)),
+    fetchAllRows(() => supabase.from('field_trip_permission_slips').select('id, student_id, status').eq('field_trip_id', currentTrip.id)),
   ]);
 
   if (sErr) {
-    tbody.innerHTML = `<tr><td colspan="4" class="muted" style="text-align:center;padding:32px 0;">Failed to load.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center;padding:32px 0;">Failed to load.</td></tr>`;
     return;
   }
 
@@ -897,8 +933,95 @@ async function loadStudents() {
     attending: overrides.has(s.id) ? overrides.get(s.id) : true,
   }));
 
+  permissionSlipMap.clear();
+  (slips ?? []).forEach(r => permissionSlipMap.set(r.student_id, { id: r.id, status: r.status }));
+
+  attendingCount = studentList.filter(s => s.attending).length;
+
+  populateHomeroomFilter();
   renderStudentTable();
+  renderComplianceStats();
+
+  // Cross-trip conflict check is a few extra queries -- don't block the
+  // initial paint on it, just patch the icons in once it resolves.
+  doubleBookingMap.clear();
+  checkStudentDoubleBookings().then(() => renderStudentTable());
 }
+
+function populateHomeroomFilter() {
+  const sel = document.getElementById('ftStudHomeroomFilter');
+  if (!sel) return;
+  const current = sel.value;
+  const homerooms = [...new Set(studentList
+    .map(s => s.employees ? `${s.employees.first_name} ${s.employees.last_name}` : null)
+    .filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All homerooms</option>' +
+    homerooms.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
+  if (homerooms.includes(current)) sel.value = current;
+}
+
+// Flags a student as double-booked when they're attending-by-default (or
+// explicitly attending) on another active trip whose dates overlap this
+// one and whose grade levels could include them. Only checks trips already
+// narrowed to a shared grade -- a student can't appear on a trip for a
+// grade they aren't in, so anything else can't possibly be a real conflict.
+async function checkStudentDoubleBookings() {
+  if (!studentList.length || !currentTrip) return;
+
+  const myGrades = new Set(currentTrip.grade_levels ?? []);
+  const startA = new Date(currentTrip.start_date + 'T12:00:00');
+  const endA   = new Date((currentTrip.end_date ?? currentTrip.start_date) + 'T12:00:00');
+
+  const candidates = tripCache.filter(t => {
+    if (t.id === currentTrip.id || t.status === 'cancelled') return false;
+    const tGrades = t.grade_levels ?? [];
+    if (myGrades.size && tGrades.length && !tGrades.some(g => myGrades.has(g))) return false;
+    const tStart = new Date(t.start_date + 'T12:00:00');
+    const tEnd   = new Date((t.end_date ?? t.start_date) + 'T12:00:00');
+    return startA <= tEnd && endA >= tStart;
+  });
+  if (!candidates.length) return;
+
+  const results = await Promise.all(candidates.map(t =>
+    fetchAllRows(() => supabase.from('field_trip_students').select('student_id, attending').eq('field_trip_id', t.id))
+  ));
+
+  const attendingStudents = studentList.filter(s => s.attending);
+
+  candidates.forEach((t, i) => {
+    const overrides = new Map((results[i].data ?? []).map(r => [r.student_id, r.attending]));
+    const tGrades = new Set(t.grade_levels ?? []);
+    attendingStudents.forEach(s => {
+      if (tGrades.size && !tGrades.has(s.grade_level)) return;
+      const stillAttendingOther = overrides.has(s.id) ? overrides.get(s.id) : true;
+      if (!stillAttendingOther) return;
+      if (!doubleBookingMap.has(s.id)) doubleBookingMap.set(s.id, []);
+      doubleBookingMap.get(s.id).push(t.name);
+    });
+  });
+}
+
+function getFilteredStudents() {
+  const search     = document.getElementById('ftStudSearch')?.value.trim().toLowerCase() ?? '';
+  const attendVal  = document.getElementById('ftStudAttendFilter')?.value ?? '';
+  const homeroomVal = document.getElementById('ftStudHomeroomFilter')?.value ?? '';
+  const slipVal    = document.getElementById('ftStudSlipFilter')?.value ?? '';
+
+  return studentList.filter(s => {
+    if (search && !`${s.first_name} ${s.last_name}`.toLowerCase().includes(search)) return false;
+    if (attendVal === 'attending'     && !s.attending) return false;
+    if (attendVal === 'not_attending' && s.attending)  return false;
+    if (homeroomVal) {
+      const hr = s.employees ? `${s.employees.first_name} ${s.employees.last_name}` : '';
+      if (hr !== homeroomVal) return false;
+    }
+    if (slipVal && (permissionSlipMap.get(s.id)?.status ?? 'pending') !== slipVal) return false;
+    return true;
+  });
+}
+
+const SLIP_LABELS = { pending: 'Pending', signed: 'Signed', declined: 'Declined' };
+const SLIP_CLASSES = { pending: 'comp-action', signed: 'comp-cleared', declined: 'comp-blocked' };
 
 function renderStudentTable() {
   const tbody = document.getElementById('ftStudTableBody');
@@ -906,32 +1029,209 @@ function renderStudentTable() {
   document.getElementById('ftStudEmpty').hidden = studentList.length > 0;
   if (!studentList.length) {
     tbody.innerHTML = '';
+    renderGradeBreakdown();
     return;
   }
 
-  const attending = studentList.filter(s => s.attending).length;
+  const filtered = getFilteredStudents();
   tbody.innerHTML = '';
+
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center;padding:24px 0;">No students match the current filters.</td></tr>`;
+  } else {
+    filtered.forEach(s => {
+      const tr = document.createElement('tr');
+      const conflicts = doubleBookingMap.get(s.id);
+      const conflictIcon = conflicts?.length
+        ? ` <span class="ft-conflict-icon" title="Also attending: ${esc(conflicts.join(', '))}">⚠</span>`
+        : '';
+      const slipStatus = permissionSlipMap.get(s.id)?.status ?? 'pending';
+
+      tr.innerHTML = `
+        <td><strong>${esc(s.last_name)}, ${esc(s.first_name)}</strong>${conflictIcon}</td>
+        <td>${s.grade_level ? esc(s.grade_level) : '<span class="muted">—</span>'}</td>
+        <td>${s.employees ? esc(`${s.employees.first_name} ${s.employees.last_name}`) : '<span class="muted">—</span>'}</td>
+        <td>
+          <label class="student-attending-toggle">
+            <input type="checkbox" data-student-id="${esc(s.id)}" ${s.attending ? 'checked' : ''}>
+            ${s.attending ? 'Attending' : '<span style="color:#9ca3af;">Not attending</span>'}
+          </label>
+        </td>
+        <td><span class="comp-chip ft-slip-chip ${SLIP_CLASSES[slipStatus]}" title="Click to change">${SLIP_LABELS[slipStatus]}</span></td>
+      `;
+      const cb = tr.querySelector('input[type="checkbox"]');
+      cb.addEventListener('change', () => toggleAttendance(s.id, cb.checked, tr));
+      tr.querySelector('.ft-slip-chip').addEventListener('click', () => cycleSlipStatus(s.id, tr));
+      tbody.appendChild(tr);
+    });
+  }
+
+  const attending = studentList.filter(s => s.attending).length;
+  const shownNote = filtered.length !== studentList.length ? ` — showing ${filtered.length} of ${studentList.length}` : '';
+  const summary = document.createElement('tr');
+  summary.innerHTML = `<td colspan="5" style="font-size:12px;color:var(--text-muted,#6b7280);padding:10px 16px;">${attending} of ${studentList.length} attending${shownNote}</td>`;
+  tbody.appendChild(summary);
+
+  renderGradeBreakdown();
+}
+
+function renderGradeBreakdown() {
+  const wrap = document.getElementById('ftStudGradeBreakdown');
+  if (!wrap) return;
+  if (!studentList.length) { wrap.innerHTML = ''; return; }
+
+  const byGrade = new Map();
   studentList.forEach(s => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><strong>${esc(s.last_name)}, ${esc(s.first_name)}</strong></td>
-      <td>${s.grade_level ? esc(s.grade_level) : '<span class="muted">—</span>'}</td>
-      <td>${s.employees ? esc(`${s.employees.first_name} ${s.employees.last_name}`) : '<span class="muted">—</span>'}</td>
-      <td>
-        <label class="student-attending-toggle">
-          <input type="checkbox" data-student-id="${esc(s.id)}" ${s.attending ? 'checked' : ''}>
-          ${s.attending ? 'Attending' : '<span style="color:#9ca3af;">Not attending</span>'}
-        </label>
-      </td>
-    `;
-    const cb = tr.querySelector('input[type="checkbox"]');
-    cb.addEventListener('change', () => toggleAttendance(s.id, cb.checked, tr));
-    tbody.appendChild(tr);
+    const key = s.grade_level ?? 'Ungraded';
+    if (!byGrade.has(key)) byGrade.set(key, { total: 0, attending: 0 });
+    const g = byGrade.get(key);
+    g.total++;
+    if (s.attending) g.attending++;
   });
 
-  const summary = document.createElement('tr');
-  summary.innerHTML = `<td colspan="4" style="font-size:12px;color:var(--text-muted,#6b7280);padding:10px 16px;">${attending} of ${studentList.length} attending</td>`;
-  tbody.appendChild(summary);
+  let html = [...byGrade.entries()].map(([grade, c]) =>
+    `<span class="ft-grade-chip">${esc(grade)}: <strong>${c.attending}/${c.total}</strong></span>`
+  ).join('');
+
+  if (chaperoneList.length) {
+    const attending = studentList.filter(s => s.attending).length;
+    html += `<span class="ft-ratio-chip">Ratio 1:${Math.round(attending / chaperoneList.length)}</span>`;
+  }
+
+  wrap.innerHTML = html;
+}
+
+function wireStudentToolbar() {
+  const handler = debounce(() => renderStudentTable(), 200);
+  document.getElementById('ftStudSearch')?.addEventListener('input', handler);
+  document.getElementById('ftStudAttendFilter')?.addEventListener('change', () => renderStudentTable());
+  document.getElementById('ftStudHomeroomFilter')?.addEventListener('change', () => renderStudentTable());
+  document.getElementById('ftStudSlipFilter')?.addEventListener('change', () => renderStudentTable());
+  document.getElementById('ftStudMarkAttendingBtn')?.addEventListener('click', () => bulkSetAttendance(true));
+  document.getElementById('ftStudMarkNotAttendingBtn')?.addEventListener('click', () => bulkSetAttendance(false));
+  document.getElementById('ftStudMarkSignedBtn')?.addEventListener('click', bulkMarkSlipsSigned);
+  document.getElementById('ftStudExportCsvBtn')?.addEventListener('click', exportStudentCSV);
+}
+
+async function cycleSlipStatus(studentId, tr) {
+  const chip = tr.querySelector('.ft-slip-chip');
+  if (!chip) return;
+  const current = permissionSlipMap.get(studentId)?.status ?? 'pending';
+  const next = { pending: 'signed', signed: 'declined', declined: 'pending' }[current];
+
+  const { data, error } = await supabase.from('field_trip_permission_slips').upsert({
+    school_id:     profile.school_id,
+    field_trip_id: currentTrip.id,
+    student_id:    studentId,
+    status:        next,
+    updated_by:    profile.id,
+    updated_at:    new Date().toISOString(),
+  }, { onConflict: 'field_trip_id,student_id' }).select('id, status').single();
+
+  if (error) { showToast('Failed to update permission slip.', 'error'); return; }
+
+  permissionSlipMap.set(studentId, { id: data.id, status: data.status });
+  chip.className   = `comp-chip ft-slip-chip ${SLIP_CLASSES[next]}`;
+  chip.textContent = SLIP_LABELS[next];
+}
+
+async function bulkSetAttendance(attending) {
+  const toChange = getFilteredStudents().filter(s => s.attending !== attending);
+  if (!toChange.length) { showToast('No matching students to update.', 'info'); return; }
+
+  let ids = toChange.map(s => s.id);
+  let skipped = 0;
+
+  // Same payment-loss guard as the single-row toggle -- never silently
+  // drop a payment record via a bulk action either.
+  if (!attending && currentTrip.payment_required) {
+    const { data: paid } = await supabase
+      .from('field_trip_payments')
+      .select('student_id')
+      .eq('field_trip_id', currentTrip.id)
+      .in('student_id', ids)
+      .gt('amount_paid', 0);
+    const paidIds = new Set((paid ?? []).map(p => p.student_id));
+    if (paidIds.size) {
+      skipped = paidIds.size;
+      ids = ids.filter(id => !paidIds.has(id));
+    }
+  }
+
+  if (!ids.length) {
+    showToast(`All ${skipped} matching students have payments on file — waive or refund first.`, 'warn');
+    return;
+  }
+
+  const verb = attending ? 'attending' : 'not attending';
+  if (!confirm(`Mark ${ids.length} student${ids.length !== 1 ? 's' : ''} as ${verb}?${skipped ? ` (${skipped} skipped — payment on file)` : ''}`)) return;
+
+  const { error } = await supabase.from('field_trip_students').upsert(
+    ids.map(id => ({ school_id: profile.school_id, field_trip_id: currentTrip.id, student_id: id, attending })),
+    { onConflict: 'field_trip_id,student_id' }
+  );
+  if (error) { dbError(error, 'Failed to update attendance'); return; }
+
+  const idSet = new Set(ids);
+  studentList.forEach(s => { if (idSet.has(s.id)) s.attending = attending; });
+
+  if (currentTrip.payment_required) {
+    if (!attending) {
+      await supabase.from('field_trip_payments').delete().eq('field_trip_id', currentTrip.id).in('student_id', ids);
+    } else {
+      _debouncedEnsurePaymentRows();
+    }
+    paymentsLoaded = false;
+  }
+
+  attendingCount = studentList.filter(s => s.attending).length;
+  renderStudentTable();
+  renderComplianceStats();
+  showToast(`Updated ${ids.length} student${ids.length !== 1 ? 's' : ''}.${skipped ? ` ${skipped} skipped (payment on file).` : ''}`, 'success');
+}
+
+async function bulkMarkSlipsSigned() {
+  const toChange = getFilteredStudents().filter(s => (permissionSlipMap.get(s.id)?.status ?? 'pending') !== 'signed');
+  if (!toChange.length) { showToast('No matching students to update.', 'info'); return; }
+  if (!confirm(`Mark ${toChange.length} permission slip${toChange.length !== 1 ? 's' : ''} as signed?`)) return;
+
+  const { data, error } = await supabase.from('field_trip_permission_slips').upsert(
+    toChange.map(s => ({
+      school_id: profile.school_id, field_trip_id: currentTrip.id, student_id: s.id,
+      status: 'signed', updated_by: profile.id, updated_at: new Date().toISOString(),
+    })),
+    { onConflict: 'field_trip_id,student_id' }
+  ).select('student_id, id, status');
+
+  if (error) { dbError(error, 'Failed to update permission slips'); return; }
+
+  (data ?? []).forEach(row => permissionSlipMap.set(row.student_id, { id: row.id, status: row.status }));
+  renderStudentTable();
+  showToast(`Marked ${toChange.length} permission slip${toChange.length !== 1 ? 's' : ''} as signed.`, 'success');
+}
+
+function exportStudentCSV() {
+  const filtered = getFilteredStudents();
+  if (!filtered.length) { showToast('No students to export.', 'warn'); return; }
+
+  const headers = ['Last name', 'First name', 'Grade', 'Homeroom', 'Attending', 'Permission slip'];
+  const rows = filtered.map(s => [
+    s.last_name ?? '',
+    s.first_name ?? '',
+    s.grade_level ?? '',
+    s.employees ? `${s.employees.first_name} ${s.employees.last_name}` : '',
+    s.attending ? 'Yes' : 'No',
+    SLIP_LABELS[permissionSlipMap.get(s.id)?.status ?? 'pending'],
+  ]);
+
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `${currentTrip.name.replace(/[^a-z0-9]/gi, '_')}_students.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 async function toggleAttendance(studentId, attending, tr) {
@@ -988,6 +1288,10 @@ async function toggleAttendance(studentId, attending, tr) {
     }
     paymentsLoaded = false;
   }
+
+  attendingCount = studentList.filter(s => s.attending).length;
+  renderGradeBreakdown();
+  renderComplianceStats();
 }
 
 // ── Add Chaperone drawer ─────────────────────────────────────────────────
@@ -1368,6 +1672,7 @@ function openTripDrawer(trip) {
   document.getElementById('ftDrawerMaxChap').value = trip?.max_chaperones ?? '';
   document.getElementById('ftDrawerDrivers').checked = trip?.drivers_needed ?? false;
   document.getElementById('ftDrawerNotes').value   = trip?.notes ?? '';
+  document.getElementById('ftDrawerParentNotes').value = trip?.parent_notes ?? '';
 
   const selected = new Set(trip?.grade_levels ?? []);
   document.querySelectorAll('#ftDrawerGrades input[type="checkbox"]').forEach(cb => {
@@ -1417,6 +1722,70 @@ function duplicateTrip(trip) {
   showToast('Set new dates before saving.', 'info');
 }
 
+// Builds a plain-text email draft from trip details + the parent-facing
+// notes field. Opens it in an editable preview rather than copying blind --
+// there's no public trip page today, so this is the low-effort way to get
+// trip info in front of parents, and it needs to be editable since the
+// generated wording won't always be exactly what a teacher wants to send.
+function buildParentEmailDraft(trip) {
+  const startDate = new Date(trip.start_date + 'T12:00:00');
+  const endDate   = trip.end_date ? new Date(trip.end_date + 'T12:00:00') : null;
+  const fmt = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+  const dateStr = endDate && endDate.getTime() !== startDate.getTime()
+    ? `${startDate.toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} – ${endDate.toLocaleDateString('en-US', fmt)}`
+    : startDate.toLocaleDateString('en-US', fmt);
+
+  const lines = [`Subject: ${trip.name}`, ''];
+  lines.push(`We're excited to take your student on ${trip.name}${trip.destination ? ` to ${trip.destination}` : ''}!`, '');
+  lines.push(`Date: ${dateStr}`);
+
+  const times = [];
+  if (trip.depart_at) times.push(`Departs ${fmtTime(trip.depart_at)}`);
+  if (trip.return_at) times.push(`Returns ${fmtTime(trip.return_at)}`);
+  if (times.length) lines.push(times.join(' · '));
+
+  if (trip.payment_required && trip.student_cost) {
+    const due = trip.payment_due_date
+      ? ` (due ${new Date(trip.payment_due_date + 'T12:00:00').toLocaleDateString('en-US', fmt)})`
+      : '';
+    lines.push(`Cost: $${parseFloat(trip.student_cost).toFixed(2)}${due}`);
+  }
+
+  if (trip.parent_notes) lines.push('', trip.parent_notes);
+
+  lines.push('', 'Please let us know if you have any questions.');
+
+  return lines.join('\n');
+}
+
+function openParentEmailPreview(trip) {
+  const overlay = document.getElementById('ftParentEmailOverlay');
+  const textarea = document.getElementById('ftParentEmailText');
+  if (!overlay || !textarea) return;
+  textarea.value = buildParentEmailDraft(trip);
+  overlay.classList.add('open');
+  textarea.focus();
+}
+
+function closeParentEmailPreview() {
+  document.getElementById('ftParentEmailOverlay')?.classList.remove('open');
+}
+
+function wireParentEmailModal() {
+  document.getElementById('ftParentEmailCloseBtn')?.addEventListener('click', closeParentEmailPreview);
+  document.getElementById('ftParentEmailOverlay')?.addEventListener('click', e => {
+    if (e.target.id === 'ftParentEmailOverlay') closeParentEmailPreview();
+  });
+  document.getElementById('ftParentEmailCopyBtn')?.addEventListener('click', () => {
+    const textarea = document.getElementById('ftParentEmailText');
+    if (!textarea) return;
+    navigator.clipboard.writeText(textarea.value).then(
+      () => showToast('Copied — paste into your email.', 'success'),
+      () => showToast('Could not copy to clipboard — select the text and copy manually.', 'error')
+    );
+  });
+}
+
 async function saveTrip() {
   const id        = document.getElementById('ftDrawerTripId').value;
   const name      = document.getElementById('ftDrawerName').value.trim();
@@ -1454,6 +1823,7 @@ async function saveTrip() {
     drivers_needed:             document.getElementById('ftDrawerDrivers').checked,
     max_chaperones:             document.getElementById('ftDrawerMaxChap').value ? parseInt(document.getElementById('ftDrawerMaxChap').value, 10) : null,
     notes:                      document.getElementById('ftDrawerNotes').value.trim() || null,
+    parent_notes:               document.getElementById('ftDrawerParentNotes').value.trim() || null,
     payment_required:           paymentRequired,
     student_cost:               studentCost,
     chaperone_payment_required: document.getElementById('ftDrawerChaperonePayment').checked,
@@ -1835,7 +2205,15 @@ function renderPaymentTab(wrap) {
   }
 
   // Summary strip
+  const totalDue  = paymentCache.reduce((sum, p) => sum + (parseFloat(p.amount_due)  || 0), 0);
+  const totalPaid = paymentCache.reduce((sum, p) => sum + (parseFloat(p.amount_paid) || 0), 0);
+  const collectionPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
+
   html += `<div class="pay-summary-strip">
+    <div class="pay-summary-card" style="min-width:150px;">
+      <div class="val">$${totalPaid.toFixed(2)}<span style="font-size:13px;font-weight:600;color:#9ca3af;"> / $${totalDue.toFixed(2)}</span></div>
+      <div class="lbl">Collected (${collectionPct}%)</div>
+    </div>
     <div class="pay-summary-card"><div class="val">${paid}</div><div class="lbl">Paid</div></div>
     <div class="pay-summary-card${partial ? ' warn' : ''}"><div class="val">${partial}</div><div class="lbl">Partial</div></div>
     <div class="pay-summary-card${unpaid ? ' alert' : ''}"><div class="val">${unpaid}</div><div class="lbl">Unpaid</div></div>
@@ -2051,14 +2429,16 @@ async function openDayOfSheet(trip) {
     return grades.length ? q.in('grade_level', grades) : q;
   };
 
-  const [{ data: students }, { data: ftStudents }, { data: assignments }] = await Promise.all([
+  const [{ data: students }, { data: ftStudents }, { data: assignments }, { data: slips }] = await Promise.all([
     fetchAllRows(studentQuery),
     fetchAllRows(() => supabase.from('field_trip_students').select('student_id, attending').eq('field_trip_id', trip.id)),
     fetchAllRows(() => supabase.from('field_trip_vehicle_assignments').select('student_id, chaperone_id').eq('field_trip_id', trip.id)),
+    fetchAllRows(() => supabase.from('field_trip_permission_slips').select('student_id, status').eq('field_trip_id', trip.id)),
   ]);
 
   const overrides = new Map((ftStudents ?? []).map(r => [r.student_id, r.attending]));
   const attending = (students ?? []).filter(s => (overrides.has(s.id) ? overrides.get(s.id) : true));
+  const slipMap = new Map((slips ?? []).map(r => [r.student_id, r.status]));
 
   const familyIds = [...new Set(attending.map(s => s.family_id).filter(Boolean))];
   const { data: guardians } = familyIds.length
@@ -2075,10 +2455,10 @@ async function openDayOfSheet(trip) {
 
   const assignMap = new Map((assignments ?? []).map(a => [a.student_id, a.chaperone_id]));
 
-  body.innerHTML = buildDayOfHtml(trip, attending, contactByFamily, assignMap);
+  body.innerHTML = buildDayOfHtml(trip, attending, contactByFamily, assignMap, slipMap);
 }
 
-function buildDayOfHtml(trip, students, contactByFamily, assignMap) {
+function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap) {
   const dateStr = trip.start_date
     ? new Date(trip.start_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     : '';
@@ -2091,7 +2471,11 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap) {
     const meta = contact
       ? `${esc(contact.first_name)} ${esc(contact.last_name)} — ${esc(contact.phone)}`
       : '<span style="color:#dc2626;">No contact on file</span>';
-    return `<div class="dayof-row"><span class="name">${esc(s.last_name)}, ${esc(s.first_name)}${s.grade_level ? ` <span style="color:#9ca3af;font-weight:400;">(${esc(s.grade_level)})</span>` : ''}</span><span class="meta">${meta}</span></div>`;
+    const slipStatus = slipMap.get(s.id) ?? 'pending';
+    const slipFlag = slipStatus !== 'signed'
+      ? ` <span style="color:#dc2626;font-size:11px;font-weight:700;" title="Permission slip not marked signed">NO SLIP</span>`
+      : '';
+    return `<div class="dayof-row"><span class="name">${esc(s.last_name)}, ${esc(s.first_name)}${s.grade_level ? ` <span style="color:#9ca3af;font-weight:400;">(${esc(s.grade_level)})</span>` : ''}${slipFlag}</span><span class="meta">${meta}</span></div>`;
   };
 
   let rosterHtml = '';

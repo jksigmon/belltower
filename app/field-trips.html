@@ -239,6 +239,30 @@
       body.dayof-print-open #ftDayOfCloseBtn { display: none !important; }
     }
 
+    /* ── Students tab toolbar + grade breakdown ── */
+    .ft-stud-toolbar {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+      margin-bottom: 12px;
+    }
+    .ft-grade-breakdown {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
+    }
+    .ft-grade-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: #fff; border: 1px solid #e5e7eb; border-radius: 999px;
+      padding: 4px 12px; font-size: 12px; font-weight: 600; color: #374151;
+    }
+    .ft-grade-chip strong { color: #0b2d4f; }
+    .ft-ratio-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 999px;
+      padding: 4px 12px; font-size: 12px; font-weight: 700; color: #1d4ed8;
+    }
+    .ft-conflict-icon {
+      color: #d97706; cursor: help; margin-left: 4px; font-size: 12px;
+    }
+    .ft-slip-chip { cursor: pointer; user-select: none; }
+
     /* ── Staff chaperone badge ── */
     .chap-staff-badge {
       display: inline-block;
@@ -386,6 +410,7 @@
             <span id="ftDetailBadge"></span>
             <button class="btn btn-sm" id="ftPlanVehiclesBtn" style="display:none;">Plan Vehicles</button>
             <button class="btn btn-sm" id="ftDayOfBtn">Day-of Sheet</button>
+            <button class="btn btn-sm" id="ftCopyEmailBtn">Copy Parent Email</button>
             <button class="btn btn-sm" id="ftDuplicateBtn">Duplicate</button>
             <button class="btn btn-sm" id="ftEditBtn">Edit Trip</button>
             <button class="btn btn-sm btn-danger" id="ftCancelBtn" style="display:none;">Cancel Trip</button>
@@ -414,6 +439,10 @@
           <div class="ft-stat-card ft-stat-alert" id="ftStatBlockedCard">
             <div class="ft-stat-val" id="ftStatBlocked">0</div>
             <div class="ft-stat-label">Blocked</div>
+          </div>
+          <div class="ft-stat-card" id="ftStatRatioCard" style="display:none;">
+            <div class="ft-stat-val" id="ftStatRatio">—</div>
+            <div class="ft-stat-label">Chaperone ratio</div>
           </div>
         </div>
 
@@ -461,6 +490,33 @@
 
         <!-- Students tab -->
         <div id="ftTabStudents" style="display:none;">
+          <div id="ftStudGradeBreakdown" class="ft-grade-breakdown"></div>
+
+          <div class="ft-stud-toolbar">
+            <input type="text" id="ftStudSearch" class="admin-input" placeholder="Search students..." style="width:160px;">
+            <select id="ftStudAttendFilter" class="admin-input" style="width:150px;">
+              <option value="">All students</option>
+              <option value="attending">Attending</option>
+              <option value="not_attending">Not attending</option>
+            </select>
+            <select id="ftStudHomeroomFilter" class="admin-input" style="width:170px;">
+              <option value="">All homerooms</option>
+            </select>
+            <select id="ftStudSlipFilter" class="admin-input" style="width:170px;">
+              <option value="">All permission slips</option>
+              <option value="pending">Slip pending</option>
+              <option value="signed">Slip signed</option>
+              <option value="declined">Slip declined</option>
+            </select>
+          </div>
+
+          <div class="ft-export-bar" style="justify-content:flex-start;flex-wrap:wrap;">
+            <button class="btn btn-sm" id="ftStudMarkAttendingBtn">Mark filtered attending</button>
+            <button class="btn btn-sm" id="ftStudMarkNotAttendingBtn">Mark filtered not attending</button>
+            <button class="btn btn-sm" id="ftStudMarkSignedBtn">Mark filtered slips signed</button>
+            <button class="btn btn-sm" id="ftStudExportCsvBtn" style="margin-left:auto;">Export CSV</button>
+          </div>
+
           <div class="panel" style="padding:0;overflow:hidden;" id="ftStudTableWrap">
             <table class="admin-table">
               <thead>
@@ -469,10 +525,11 @@
                   <th>Grade</th>
                   <th>Homeroom</th>
                   <th>Attending</th>
+                  <th>Permission Slip</th>
                 </tr>
               </thead>
               <tbody id="ftStudTableBody">
-                <tr><td colspan="4" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>
+                <tr><td colspan="5" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>
               </tbody>
             </table>
           </div>
@@ -525,6 +582,19 @@
       </div>
     </div>
     <div id="ftDayOfBody"></div>
+  </div>
+</div>
+
+<!-- ══ PARENT EMAIL PREVIEW MODAL ═══════════════════════════════════ -->
+<div id="ftParentEmailOverlay" class="ft-modal-overlay" style="z-index:600;">
+  <div class="ft-modal-card" style="width:560px;max-width:calc(100vw - 32px);">
+    <h3 style="margin:0 0 6px 0;font-size:16px;font-weight:800;color:#0b2d4f;">Parent Email Preview</h3>
+    <p style="margin:0 0 14px 0;font-size:12px;color:#6b7280;">Edit as needed, then copy and paste into your email tool.</p>
+    <textarea id="ftParentEmailText" rows="14" style="width:100%;font-family:inherit;font-size:13px;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;resize:vertical;"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+      <button class="btn" id="ftParentEmailCloseBtn">Close</button>
+      <button class="btn btn-primary" id="ftParentEmailCopyBtn">Copy to Clipboard</button>
+    </div>
   </div>
 </div>
 
@@ -591,8 +661,14 @@
     </div>
 
     <div class="drawer-field">
-      <label class="drawer-label" for="ftDrawerNotes">Notes</label>
-      <textarea id="ftDrawerNotes" rows="3" placeholder="Optional internal notes..."></textarea>
+      <label class="drawer-label" for="ftDrawerNotes">Internal notes</label>
+      <textarea id="ftDrawerNotes" rows="3" placeholder="Optional internal notes — not shared with parents..."></textarea>
+    </div>
+
+    <div class="drawer-field">
+      <label class="drawer-label" for="ftDrawerParentNotes">Parent-facing notes</label>
+      <textarea id="ftDrawerParentNotes" rows="3" placeholder="What to bring, what to expect, meeting time..."></textarea>
+      <small style="font-size:11px;color:#9ca3af;">Included in the "Copy Parent Email" text on the trip page — not shown to parents anywhere automatically.</small>
     </div>
 
     <!-- Payment settings -->
