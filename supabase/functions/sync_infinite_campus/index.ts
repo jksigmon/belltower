@@ -416,7 +416,15 @@ async function buildPlan() {
     fetchAllRows<any>("guardians", (q) =>
       q.select("id, ic_sourced_id, family_id, first_name, last_name, email, phone").eq("school_id", IC_SCHOOL_ID)
     ),
-    fetchAllRows<any>("ic_reconciliation_candidates", (q) => q.select("*").eq("school_id", IC_SCHOOL_ID)),
+    // Ordered so that when a sourced_id has more than one historical candidate row
+    // (e.g. an old resolved name_match from initial linking, plus a newer deactivate
+    // candidate), candidateByKey below — which collapses same-key rows to whichever
+    // is last in this array — deterministically keeps the most recent one. Without
+    // this, Postgres/PostgREST return no guaranteed order, so the lookup could
+    // silently resolve to a stale, already-resolved row instead of the live one.
+    fetchAllRows<any>("ic_reconciliation_candidates", (q) =>
+      q.select("*").eq("school_id", IC_SCHOOL_ID).order("created_at", { ascending: true })
+    ),
     // So a "resolved" check only fires a DB call when a gap could actually be open —
     // without this, every already-fine field on every already-linked student would
     // trigger a no-op resolve call every single run (thousands of wasted round-trips).
