@@ -1149,6 +1149,22 @@ async function callByTag(tag, isRecall = false) {
   clearTag();
 
   if (isRecall) {
+    // Recalling a tag that was never called is almost always a mis-tap
+    // (wrong button, or a reflexive second tap after Call) rather than an
+    // intentional action -- confirm before silently creating a RECALLED
+    // row with no preceding call. See recallStudents() for why that upsert
+    // is otherwise allowed to happen with no called_at at all.
+    const neverCalled = students.filter(s => (callStatus.get(s.id) ?? 'WAITING') === 'WAITING');
+    if (neverCalled.length) {
+      const names = neverCalled.map(s => `${s.first_name} ${s.last_name}`).join(', ');
+      const ok = await confirmDialog({
+        title: `Recall tag ${tag}?`,
+        message: `${names} ${neverCalled.length === 1 ? "hasn't" : "haven't"} been called yet. Recalling now marks ${neverCalled.length === 1 ? 'them' : 'them'} recalled without ever being called.`,
+        confirmLabel: 'Recall Anyway',
+        danger: true,
+      });
+      if (!ok) { showToast(`Tag ${tag} — recall cancelled`); return; }
+    }
     await recallStudents(students, tag);
   } else {
     await callStudents(students, tag, 'FAMILY');
