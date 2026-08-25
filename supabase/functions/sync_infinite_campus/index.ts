@@ -225,61 +225,106 @@ const FIELD_LABELS: Record<string, string> = {
   family: "Family",
 };
 
+const MATCH_REASON_LABELS: Record<string, string> = {
+  name_match: "Matched by name — needs confirmation",
+  email_match: "Matched by email — needs confirmation",
+  family_name_match: "Matched by household surname — needs confirmation",
+};
+
+// Plain-language stand-in for dumping a raw students/guardians row — this CSV goes
+// to Polaris (or whoever manages IC), not another developer, so internal columns
+// like id/family_id have no meaning to them and just add noise.
+function summarizeRecord(entityType: string, data: Record<string, unknown> | null | undefined): string {
+  if (!data || Object.keys(data).length === 0) return "(does not exist)";
+  const parts: string[] = [];
+  if (entityType === "student") {
+    if (data.grade_level !== null && data.grade_level !== undefined && data.grade_level !== "") {
+      parts.push(`Grade ${data.grade_level}`);
+    }
+    if (data.birthdate) parts.push(`DOB ${data.birthdate}`);
+    if (data.student_number) parts.push(`Student # ${data.student_number}`);
+  } else if (entityType === "guardian") {
+    if (data.email) parts.push(String(data.email));
+    if (data.phone) parts.push(String(data.phone));
+  }
+  return parts.length ? parts.join(" · ") : "(no additional details)";
+}
+
+// Category rank purely for grouping rows in the export — keeps every "recommend
+// deactivate" together, every "possible match" together, etc. instead of whatever
+// order the DB happens to return, which is what made the report hard to scan.
+const CATEGORY_ORDER = [
+  "Field difference",
+  "Recommend deactivate",
+  "Awaiting review — new record",
+  "Awaiting review — recommend deactivate",
+  "Awaiting review — possible household match",
+  "Awaiting review — possible match",
+];
+
 // One flat CSV covering everything different between Belltower and Infinite Campus —
 // intended to be emailed as-is to whoever manages data in IC (e.g. Polaris), since IC
 // changes require a support request rather than a direct edit.
 function buildDiffCsv(plan: Awaited<ReturnType<typeof buildPlan>>, pendingCandidates: any[]): string {
-  let csv = csvRow(["Category", "Type", "Name", "Field", "Belltower Value", "Infinite Campus Value", "Notes"]);
+  const rows: string[][] = [];
 
   for (const d of plan.fieldDiffChecks.filter((d) => d.hasDiff)) {
-    csv += csvRow([
-      "Field difference",
-      d.entityType,
-      d.label,
-      FIELD_LABELS[d.field] ?? d.field,
-      d.belltowerValue,
-      d.icValue,
-      "",
-    ]);
+    rows.push(["Field difference", d.entityType, d.label, FIELD_LABELS[d.field] ?? d.field, String(d.belltowerValue ?? ""), String(d.icValue ?? ""), ""]);
   }
 
   for (const d of plan.deactivatePlans) {
-    csv += csvRow(["Recommend deactivate", "student", d.label, "Active", "Active", "Not in IC roster", ""]);
+    rows.push(["Recommend deactivate", "student", d.label, "Active status", "Active", "Not in IC roster", ""]);
   }
 
   for (const c of pendingCandidates) {
     const existing = c.existing_data ?? {};
     const proposed = c.proposed_data ?? {};
+    const matchNote = MATCH_REASON_LABELS[c.match_reason] ?? c.match_reason;
     if (c.match_reason === "new_record") {
       const name = `${proposed.first_name ?? ""} ${proposed.last_name ?? ""}`.trim();
-      csv += csvRow(["Awaiting review — new record", c.entity_type, name, "", "(does not exist)", JSON.stringify(proposed), c.match_reason]);
+      rows.push([
+        "Awaiting review — new record",
+        c.entity_type,
+        name,
+        "",
+        "(does not exist)",
+        summarizeRecord(c.entity_type, proposed),
+        "New in Infinite Campus — needs confirmation",
+      ]);
     } else if (c.match_reason === "deactivate") {
       const name = `${existing.first_name ?? ""} ${existing.last_name ?? ""}`.trim();
-      csv += csvRow(["Awaiting review — recommend deactivate", "student", name, "Active", "Active", "Not in IC roster", ""]);
+      rows.push(["Awaiting review — recommend deactivate", "student", name, "Active status", "Active", "Not in IC roster", ""]);
     } else if (c.entity_type === "family") {
-      csv += csvRow([
+      rows.push([
         "Awaiting review — possible household match",
         "family",
         existing.family_name ?? "(unnamed)",
         "",
         `#${existing.carline_tag_number ?? "—"} (${existing.student_count ?? 0} students, ${existing.guardian_count ?? 0} guardians)`,
         `New household for: ${(proposed.students ?? []).join(", ")}`,
-        c.match_reason,
+        matchNote,
       ]);
     } else {
       const name = `${existing.first_name ?? ""} ${existing.last_name ?? ""}`.trim();
-      csv += csvRow([
+      rows.push([
         "Awaiting review — possible match",
         c.entity_type,
         name,
         "",
-        JSON.stringify(existing),
-        JSON.stringify(proposed),
-        c.match_reason,
+        summarizeRecord(c.entity_type, existing),
+        summarizeRecord(c.entity_type, proposed),
+        matchNote,
       ]);
     }
   }
 
+  rows.sort((a, b) => {
+    const catDiff = CATEGORY_ORDER.indexOf(a[0]) - CATEGORY_ORDER.indexOf(b[0]);
+    return catDiff !== 0 ? catDiff : a[2].localeCompare(b[2]);
+  });
+
+  let csv = csvRow(["Category", "Type", "Name", "Field", "Belltower Value", "Infinite Campus Value", "Notes"]);
+  for (const row of rows) csv += csvRow(row);
   return csv;
 }
 
