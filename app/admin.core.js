@@ -434,7 +434,7 @@ async function loadDashboardStats() {
 
   const canSeeHealth = p.is_superadmin || p.can_access_admin || p.can_manage_access;
   if (canSeeHealth) {
-    queries.noFamily     = supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).is('family_id', null);
+    queries.noFamily     = supabase.from('students').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', true).is('family_id', null);
     queries.noSupervisor = supabase.from('employees').select('id', { count: 'exact', head: true }).eq('school_id', schoolId).eq('active', true).is('supervisor_id', null);
   }
 
