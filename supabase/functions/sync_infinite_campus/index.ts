@@ -225,10 +225,13 @@ const FIELD_LABELS: Record<string, string> = {
   family: "Family",
 };
 
+// Plain hyphens, not em dashes — Excel opening a CSV with no BOM guesses the
+// legacy Windows-1252 codepage, which mangles anything outside ASCII (the "-"
+// itself, but also a real accented student name, hence the BOM added below too).
 const MATCH_REASON_LABELS: Record<string, string> = {
-  name_match: "Matched by name — needs confirmation",
-  email_match: "Matched by email — needs confirmation",
-  family_name_match: "Matched by household surname — needs confirmation",
+  name_match: "Matched by name - needs confirmation",
+  email_match: "Matched by email - needs confirmation",
+  family_name_match: "Matched by household surname - needs confirmation",
 };
 
 // Plain-language stand-in for dumping a raw students/guardians row — this CSV goes
@@ -247,7 +250,7 @@ function summarizeRecord(entityType: string, data: Record<string, unknown> | nul
     if (data.email) parts.push(String(data.email));
     if (data.phone) parts.push(String(data.phone));
   }
-  return parts.length ? parts.join(" · ") : "(no additional details)";
+  return parts.length ? parts.join(" | ") : "(no additional details)";
 }
 
 // Category rank purely for grouping rows in the export — keeps every "recommend
@@ -256,10 +259,10 @@ function summarizeRecord(entityType: string, data: Record<string, unknown> | nul
 const CATEGORY_ORDER = [
   "Field difference",
   "Recommend deactivate",
-  "Awaiting review — new record",
-  "Awaiting review — recommend deactivate",
-  "Awaiting review — possible household match",
-  "Awaiting review — possible match",
+  "Awaiting review - new record",
+  "Awaiting review - recommend deactivate",
+  "Awaiting review - possible household match",
+  "Awaiting review - possible match",
 ];
 
 // One flat CSV covering everything different between Belltower and Infinite Campus —
@@ -283,37 +286,44 @@ function buildDiffCsv(plan: Awaited<ReturnType<typeof buildPlan>>, pendingCandid
     if (c.match_reason === "new_record") {
       const name = `${proposed.first_name ?? ""} ${proposed.last_name ?? ""}`.trim();
       rows.push([
-        "Awaiting review — new record",
+        "Awaiting review - new record",
         c.entity_type,
         name,
         "",
         "(does not exist)",
         summarizeRecord(c.entity_type, proposed),
-        "New in Infinite Campus — needs confirmation",
+        "New in Infinite Campus - needs confirmation",
       ]);
     } else if (c.match_reason === "deactivate") {
       const name = `${existing.first_name ?? ""} ${existing.last_name ?? ""}`.trim();
-      rows.push(["Awaiting review — recommend deactivate", "student", name, "Active status", "Active", "Not in IC roster", ""]);
+      rows.push(["Awaiting review - recommend deactivate", "student", name, "Active status", "Active", "Not in IC roster", ""]);
     } else if (c.entity_type === "family") {
       rows.push([
-        "Awaiting review — possible household match",
+        "Awaiting review - possible household match",
         "family",
         existing.family_name ?? "(unnamed)",
         "",
-        `#${existing.carline_tag_number ?? "—"} (${existing.student_count ?? 0} students, ${existing.guardian_count ?? 0} guardians)`,
+        `#${existing.carline_tag_number ?? "-"} (${existing.student_count ?? 0} students, ${existing.guardian_count ?? 0} guardians)`,
         `New household for: ${(proposed.students ?? []).join(", ")}`,
         matchNote,
       ]);
     } else {
       const name = `${existing.first_name ?? ""} ${existing.last_name ?? ""}`.trim();
+      const existingSummary = summarizeRecord(c.entity_type, existing);
+      const proposedSummary = summarizeRecord(c.entity_type, proposed);
+      // Belltower and IC frequently already agree on every field here — this row
+      // isn't reporting a value mismatch, it's an unlinked record IC's name-matcher
+      // thinks is the same person. Make that explicit instead of showing identical
+      // values with no explanation, which reads as if the report is broken.
+      const note = existingSummary === proposedSummary ? `${matchNote} (all fields already agree)` : matchNote;
       rows.push([
-        "Awaiting review — possible match",
+        "Awaiting review - possible match",
         c.entity_type,
         name,
         "",
-        summarizeRecord(c.entity_type, existing),
-        summarizeRecord(c.entity_type, proposed),
-        matchNote,
+        existingSummary,
+        proposedSummary,
+        note,
       ]);
     }
   }
@@ -1611,7 +1621,11 @@ serve(async (req) => {
         .eq("status", "pending");
       if (candErr) throw candErr;
 
-      const csv = buildDiffCsv(plan, pendingCandidates ?? []);
+      // Leading BOM: Excel opening a CSV with no encoding marker guesses the legacy
+      // Windows-1252 codepage rather than UTF-8, mangling any accented character
+      // (a real student/guardian name, not just the punctuation above).
+      const BOM = String.fromCharCode(0xfeff);
+      const csv = BOM + buildDiffCsv(plan, pendingCandidates ?? []);
       return new Response(csv, {
         status: 200,
         headers: {
