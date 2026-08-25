@@ -739,7 +739,13 @@ async function buildPlan() {
     familyCandidatesToStage.push({
       school_id: IC_SCHOOL_ID,
       entity_type: "family",
-      ic_sourced_id: `family:${m.stableGroupKey}`,
+      // Bare group key, no "family:" prefix — candidateByKey (below) already
+      // prefixes with entity_type ("family"), so baking it in here too made the
+      // stored lookup key "family:family:<key>" while every read used the correct
+      // single-prefixed "family:<key>", so an existing candidate could never be
+      // found: every sync re-staged a fresh pending row regardless of a prior
+      // approve/reject.
+      ic_sourced_id: m.stableGroupKey,
       existing_record_id: m.targetFamily.id,
       match_reason: "family_name_match",
       existing_data: {
