@@ -5142,45 +5142,65 @@ function wireSubCoverageUI() {
 
 let bgDedupTimer = null;
 
-document.getElementById('bgEmail')?.addEventListener('input', () => {
+function scheduleBgDedupCheck() {
   clearTimeout(bgDedupTimer);
-  const email = document.getElementById('bgEmail').value.trim();
-  const warningEl = document.getElementById('bgDedupWarning');
-  if (!email) { warningEl.style.display = 'none'; return; }
-  bgDedupTimer = setTimeout(() => checkBgDedup(email), 600);
-});
+  bgDedupTimer = setTimeout(runBgDedupCheck, 500);
+}
 
-async function checkBgDedup(email) {
+document.getElementById('bgFirstName')?.addEventListener('input', scheduleBgDedupCheck);
+document.getElementById('bgLastName')?.addEventListener('input', scheduleBgDedupCheck);
+document.getElementById('bgEmail')?.addEventListener('input', scheduleBgDedupCheck);
+
+function fmtBgLookupDate(d) {
+  return d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null;
+}
+
+// Calls compliance_bg_check_lookup() -- a SECURITY DEFINER db function --
+// because a plain teacher has no RLS read access to compliance_volunteers
+// or to other staff's rows in compliance_bg_check_requests, but still
+// needs to know if the subject is already cleared or already has an
+// in-flight request before submitting a duplicate. Matches by email
+// first, falling back to first+last name, so this still catches
+// duplicates when the teacher doesn't know the parent's email.
+async function runBgDedupCheck() {
   const warningEl = document.getElementById('bgDedupWarning');
+  const firstName = document.getElementById('bgFirstName')?.value.trim();
   const lastName  = document.getElementById('bgLastName')?.value.trim();
-  if (!email || !currentProfile) return;
+  const email     = document.getElementById('bgEmail')?.value.trim();
 
-  const { data } = await supabase
-    .from('compliance_bg_check_requests')
-    .select('id, subject_first_name, subject_last_name, status, cleared_at, expires_at')
-    .eq('school_id', currentProfile.school_id)
-    .eq('subject_email', email.toLowerCase())
-    .in('status', ['cleared', 'submitted', 'pending'])
-    .limit(1);
+  if (!firstName || !lastName || !currentProfile) { warningEl.style.display = 'none'; return; }
 
-  if (!data?.length) { warningEl.style.display = 'none'; return; }
+  const { data, error } = await supabase.rpc('compliance_bg_check_lookup', {
+    p_first_name: firstName,
+    p_last_name:  lastName,
+    p_email:      email || null,
+  });
 
-  const existing = data[0];
-  const name = `${existing.subject_first_name} ${existing.subject_last_name}`;
-  const today = new Date().toISOString().slice(0, 10);
-  const isCleared = existing.status === 'cleared' && (!existing.expires_at || existing.expires_at >= today);
+  if (error || !data?.length) { warningEl.style.display = 'none'; return; }
 
-  if (isCleared) {
-    warningEl.textContent = `⚠ A cleared background check already exists for ${name} at this email address.`;
+  const match = data[0];
+  const name = `${match.subject_first_name} ${match.subject_last_name}`;
+
+  if (match.match_source === 'volunteer') {
+    const parts = [];
+    if (match.bg_status === 'cleared') {
+      parts.push(`already cleared for background check${match.bg_expires_at ? ` (expires ${fmtBgLookupDate(match.bg_expires_at)})` : ''}`);
+    } else if (match.bg_status === 'expired') {
+      parts.push(`background check expired ${fmtBgLookupDate(match.bg_expires_at)}`);
+    }
+    if (match.mvr_status === 'cleared') {
+      parts.push(`cleared for MVR${match.mvr_expires_at ? ` (expires ${fmtBgLookupDate(match.mvr_expires_at)})` : ''}`);
+    } else if (match.mvr_status === 'expired') {
+      parts.push(`MVR expired ${fmtBgLookupDate(match.mvr_expires_at)}`);
+    }
+    if (!parts.length) parts.push('already in the volunteer roster, but not yet cleared');
+    warningEl.textContent = `⚠ ${name} is ${parts.join(' and ')}. Check with your compliance manager before submitting a new request.`;
   } else {
-    warningEl.textContent = `⚠ An existing request for ${name} at this email is already ${existing.status}.`;
+    const submitted = match.requested_at ? ` (submitted ${fmtBgLookupDate(match.requested_at.slice(0, 10))})` : '';
+    warningEl.textContent = `⚠ A ${match.bg_status} background check request for ${name} already exists${submitted}.`;
   }
-  warningEl.style.display = 'block';
 
-  // Soft name mismatch warning
-  if (lastName && existing.subject_last_name.toLowerCase() !== lastName.toLowerCase()) {
-    warningEl.textContent += ' (Note: last name differs from existing record — this may be a different person.)';
-  }
+  warningEl.style.display = 'block';
 }
 
 async function loadMyBgRequests() {

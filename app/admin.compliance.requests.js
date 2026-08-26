@@ -3,6 +3,7 @@ import { supabase } from './admin.supabase.js?v=2';
 import { esc, fmtShortDate, dbError, debounce, getAvatarColor } from './admin.shared.js?v=3';
 import { openDrawer, closeDrawer, showToast, renderPagination, PAGE_SIZE } from './admin.compliance.utils.js';
 import { VOLUNTEER_ROLES, roleCheckboxGridHTML } from './compliance.roles.js?v=2';
+import { downloadCSV } from './admin.compliance.volunteers.js';
 
 let _profile        = null;
 let reqPage          = 1;
@@ -134,6 +135,8 @@ export function wireRequestFilters() {
   document.getElementById('reqStatusFilter')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
   document.getElementById('reqSortSelect')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
   document.getElementById('reqAddRecordBtn')?.addEventListener('click', openAddRequestDrawer);
+  document.getElementById('reqAutoMatchBtn')?.addEventListener('click', autoMatchGuardians);
+  document.getElementById('reqExportBtn')?.addEventListener('click', exportRequestsCSV);
 
   // The resolve drawer's date inputs are static markup (unlike the
   // volunteer drawer's, which are rebuilt on every open), so this only
@@ -141,6 +144,128 @@ export function wireRequestFilters() {
   // stack a duplicate 'change' listener on every open.
   wireExpireAutoFill('resolveClearedAt', 'resolveExpiresAt');
   wireExpireAutoFill('resolveMvrClearedAt', 'resolveMvrExpiresAt');
+}
+
+// Exports the currently filtered requests as a CSV of first/last name,
+// email, and phone. Phone (and email, as a fallback) only comes through
+// when a request is linked to a guardian record -- either directly via
+// guardian_id (set by a bulk import or Auto-Match) or indirectly through
+// a resolved compliance_volunteers row. Requests with neither link have
+// no phone number anywhere in Belltower to export.
+async function exportRequestsCSV() {
+  const filters = reqFilters();
+  let query = supabase
+    .from('compliance_bg_check_requests')
+    .select('subject_first_name, subject_last_name, subject_email, volunteer_id, guardian_id')
+    .eq('school_id', _profile.school_id)
+    .is('archived_at', null)
+    .order('requested_at', { ascending: false })
+    .limit(5000);
+
+  query = filters.status ? query.eq('status', filters.status) : query.in('status', ['pending', 'submitted']);
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    query = query.or(`subject_first_name.ilike.${term},subject_last_name.ilike.${term},subject_email.ilike.${term}`);
+  }
+
+  const { data, error } = await query;
+  if (error) { dbError(error, 'Export failed'); return; }
+  const rows = data ?? [];
+
+  const volunteerIds = [...new Set(rows.filter(r => !r.guardian_id && r.volunteer_id).map(r => r.volunteer_id))];
+  const volunteerGuardianMap = new Map();
+  if (volunteerIds.length) {
+    const { data: vols } = await supabase
+      .from('compliance_volunteers')
+      .select('id, guardian_id')
+      .in('id', volunteerIds);
+    (vols ?? []).forEach(v => { if (v.guardian_id) volunteerGuardianMap.set(v.id, v.guardian_id); });
+  }
+
+  const guardianIds = [...new Set(rows.map(r => r.guardian_id || volunteerGuardianMap.get(r.volunteer_id)).filter(Boolean))];
+  const guardianMap = new Map();
+  if (guardianIds.length) {
+    const { data: guardians } = await supabase.from('guardians').select('id, email, phone').in('id', guardianIds);
+    (guardians ?? []).forEach(g => guardianMap.set(g.id, g));
+  }
+
+  const header = ['First name', 'Last name', 'Email', 'Phone'];
+  const csvRows = rows.map(r => {
+    const guardian = guardianMap.get(r.guardian_id || volunteerGuardianMap.get(r.volunteer_id));
+    return [r.subject_first_name, r.subject_last_name, r.subject_email || guardian?.email || '', guardian?.phone || ''];
+  });
+  downloadCSV('bg-check-requests.csv', header, csvRows);
+}
+
+// Bulk-links requests to existing guardian records by exact email match
+// (preferred) or exact first+last name match, so their phone numbers
+// become available for export without an admin resolving each one by
+// hand. Only ever fills in guardian_id where it's currently blank, and
+// skips any request whose email or name matches more than one guardian
+// rather than guessing.
+async function autoMatchGuardians() {
+  const btn = document.getElementById('reqAutoMatchBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Matching…'; }
+
+  try {
+    const { data: requests, error: reqErr } = await supabase
+      .from('compliance_bg_check_requests')
+      .select('id, subject_first_name, subject_last_name, subject_email')
+      .eq('school_id', _profile.school_id)
+      .is('archived_at', null)
+      .is('guardian_id', null);
+    if (reqErr) { dbError(reqErr, 'Auto-match failed'); return; }
+    if (!requests?.length) { showToast('No unlinked requests to match'); return; }
+
+    const { data: guardians, error: gErr } = await supabase
+      .from('guardians')
+      .select('id, first_name, last_name, email')
+      .eq('school_id', _profile.school_id)
+      .eq('active', true);
+    if (gErr) { dbError(gErr, 'Auto-match failed'); return; }
+
+    const norm = s => (s ?? '').trim().toLowerCase();
+    const byEmail = new Map();
+    const byName = new Map();
+    (guardians ?? []).forEach(g => {
+      if (g.email) {
+        const key = norm(g.email);
+        byEmail.set(key, byEmail.has(key) ? null : g); // null marks an ambiguous duplicate
+      }
+      const nameKey = `${norm(g.last_name)}|${norm(g.first_name)}`;
+      byName.set(nameKey, byName.has(nameKey) ? null : g);
+    });
+
+    const requestIdsByGuardian = new Map();
+    let matched = 0, ambiguous = 0;
+    requests.forEach(r => {
+      let g = r.subject_email ? byEmail.get(norm(r.subject_email)) : undefined;
+      if (g === undefined) g = byName.get(`${norm(r.subject_last_name)}|${norm(r.subject_first_name)}`);
+      if (g === null) { ambiguous++; return; }
+      if (!g) return;
+      matched++;
+      if (!requestIdsByGuardian.has(g.id)) requestIdsByGuardian.set(g.id, []);
+      requestIdsByGuardian.get(g.id).push(r.id);
+    });
+
+    if (!matched) {
+      showToast(ambiguous ? `No confident matches (${ambiguous} skipped — ambiguous)` : 'No matches found');
+      return;
+    }
+
+    for (const [guardianId, ids] of requestIdsByGuardian) {
+      await supabase
+        .from('compliance_bg_check_requests')
+        .update({ guardian_id: guardianId })
+        .in('id', ids)
+        .eq('school_id', _profile.school_id);
+    }
+
+    showToast(`Linked ${matched} request${matched === 1 ? '' : 's'} to guardians${ambiguous ? ` (${ambiguous} skipped — ambiguous)` : ''}`);
+    await loadRequests();
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Auto-Match Guardians'; }
+  }
 }
 
 async function markSent(id) {
