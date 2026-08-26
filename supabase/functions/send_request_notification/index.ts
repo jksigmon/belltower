@@ -81,8 +81,10 @@ serve(async (req) => {
       const label = r.request_category_fields?.label ?? "Field";
       const val   = r.value ?? "(no response)";
       return `<tr>
-        <td style="padding:6px 12px 6px 0;font-weight:600;white-space:nowrap;vertical-align:top;color:#374151;">${label}</td>
-        <td style="padding:6px 0;color:#111827;">${val}</td>
+        <td style="padding:6px 0 2px 0;font-weight:600;color:#374151;">${label}</td>
+      </tr>
+      <tr>
+        <td style="padding:0 0 10px 0;color:#111827;word-break:break-word;">${val}</td>
       </tr>`;
     }).join("");
 
