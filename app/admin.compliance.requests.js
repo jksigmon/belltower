@@ -154,6 +154,8 @@ export function wireRequestFilters() {
 // no phone number anywhere in Belltower to export.
 async function exportRequestsCSV() {
   const filters = reqFilters();
+  const { data: school } = await supabase.from('schools').select('name').eq('id', _profile.school_id).single();
+
   let query = supabase
     .from('compliance_bg_check_requests')
     .select('subject_first_name, subject_last_name, subject_email, volunteer_id, guardian_id')
@@ -194,7 +196,8 @@ async function exportRequestsCSV() {
     const guardian = guardianMap.get(r.guardian_id || volunteerGuardianMap.get(r.volunteer_id));
     return [r.subject_first_name, r.subject_last_name, r.subject_email || guardian?.email || '', guardian?.phone || ''];
   });
-  downloadCSV('bg-check-requests.csv', header, csvRows);
+  const filenamePrefix = school?.name ? `${school.name} ` : '';
+  downloadCSV(`${filenamePrefix}Background Check Requests.csv`, header, csvRows);
 }
 
 // Bulk-links requests to existing guardian records by exact email match
