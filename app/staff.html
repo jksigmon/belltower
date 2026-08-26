@@ -1815,17 +1815,20 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   </div>
 
   <!-- ── Add CEU Entry modal (My Licenses) ── -->
-  <div id="staffCeuModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:2000;align-items:center;justify-content:center;">
-    <div class="panel" style="width:440px;max-width:94vw;max-height:88vh;overflow-y:auto;padding:24px 28px;">
-      <h3 style="margin:0 0 4px;font-size:16px;font-weight:700;">Add CEU Entry</h3>
-      <p id="staffCeuLicenseLabel" class="muted" style="font-size:12.5px;margin:0 0 16px;"></p>
+  <div id="staffCeuModal" class="modal modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add CEU Entry</h3>
+        <span class="modal-close" id="staffCeuModalClose">&times;</span>
+      </div>
+      <p id="staffCeuLicenseLabel" class="muted"></p>
 
       <div class="drawer-field">
         <label>Title <span class="required">*</span></label>
         <input id="staffCeuTitle" class="form-input" placeholder="e.g. Reading Foundations Workshop" />
       </div>
-      <div class="admin-form-row compact two" style="gap:8px;">
-        <div class="drawer-field" style="margin:0;">
+      <div class="drawer-row-2">
+        <div class="drawer-field">
           <label>Category <span class="required">*</span></label>
           <select id="staffCeuCategory" class="form-input">
             <option value="literacy">Literacy</option>
@@ -1836,7 +1839,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
             <option value="general_other">General / Other</option>
           </select>
         </div>
-        <div class="drawer-field" style="margin:0;">
+        <div class="drawer-field">
           <label>Source <span class="required">*</span></label>
           <select id="staffCeuSourceType" class="form-input">
             <option value="lea_inservice">LEA In-Service</option>
@@ -1845,12 +1848,12 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
           </select>
         </div>
       </div>
-      <div class="admin-form-row compact two" style="gap:8px;">
-        <div class="drawer-field" style="margin:0;">
+      <div class="drawer-row-2">
+        <div class="drawer-field">
           <label><span id="staffCeuHoursLabel">Clock Hours</span> <span class="required">*</span></label>
           <input id="staffCeuHours" type="number" min="0" step="0.5" class="form-input" />
         </div>
-        <div class="drawer-field" style="margin:0;">
+        <div class="drawer-field">
           <label>Completed Date <span class="required">*</span></label>
           <input id="staffCeuCompletedDate" type="date" class="form-input" />
         </div>
@@ -1862,7 +1865,11 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       </div>
       <div class="drawer-field">
         <label>Attachment <span class="muted" style="font-weight:400;">(optional)</span></label>
-        <input id="staffCeuFileInput" type="file" accept=".pdf,.jpg,.jpeg,.png" class="form-input" />
+        <div class="lic-file-choose-row">
+          <input type="file" id="staffCeuFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+          <button type="button" class="btn btn-sm" id="staffCeuFileChooseBtn">Choose File</button>
+          <span id="staffCeuFileNameLabel" class="muted" style="font-size:0.82rem;">No file chosen</span>
+        </div>
       </div>
       <div class="drawer-field">
         <label>Notes <span class="muted" style="font-weight:400;">(optional)</span></label>
@@ -3902,10 +3909,12 @@ function openStaffCeuModal(license) {
   document.getElementById('staffCeuCompletedDate').value = toLocalISODate(new Date());
   document.getElementById('staffCeuNotes').value       = '';
   document.getElementById('staffCeuFileInput').value   = '';
+  document.getElementById('staffCeuFileNameLabel').textContent = 'No file chosen';
   document.getElementById('staffCeuError').style.display = 'none';
   updateStaffCeuHoursLabel();
 
-  document.getElementById('staffCeuModal').style.display = 'flex';
+  document.getElementById('staffCeuModal').classList.add('open');
+  document.body.classList.add('modal-open');
 }
 
 function suggestedStaffCeuCategory(lic) {
@@ -3914,10 +3923,21 @@ function suggestedStaffCeuCategory(lic) {
 }
 
 function closeStaffCeuModal() {
-  document.getElementById('staffCeuModal').style.display = 'none';
+  document.getElementById('staffCeuModal').classList.remove('open');
+  document.body.classList.remove('modal-open');
 }
 
 document.getElementById('staffCeuCancelBtn')?.addEventListener('click', closeStaffCeuModal);
+document.getElementById('staffCeuModalClose')?.addEventListener('click', closeStaffCeuModal);
+
+document.getElementById('staffCeuFileChooseBtn')?.addEventListener('click', () => {
+  document.getElementById('staffCeuFileInput')?.click();
+});
+document.getElementById('staffCeuFileInput')?.addEventListener('change', e => {
+  const file = e.target.files?.[0];
+  const label = document.getElementById('staffCeuFileNameLabel');
+  if (label) label.textContent = file ? file.name : 'No file chosen';
+});
 
 document.getElementById('staffCeuSaveBtn')?.addEventListener('click', async () => {
   const errorEl = document.getElementById('staffCeuError');

@@ -1970,6 +1970,16 @@ select {
   margin-top: 16px;
 }
 
+/* File-attach row: hidden native input + styled trigger button, so a
+   native "Choose File" control never sits next to our styled inputs.
+   Shared here since licensure.html's own <style> block (its original
+   home) and staff.html's CEU modal both use it. */
+.lic-file-choose-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* Modal size variants */
 .modal-sm .modal-content {
   max-width: 420px;
