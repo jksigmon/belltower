@@ -301,6 +301,31 @@ body.admin-page {
   display: block;
 }
 
+/* ── Portal badge (header): tells the user Admin Panel vs Staff Portal ── */
+.portal-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.portal-badge-admin {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.portal-badge-staff {
+  background: rgba(56, 189, 248, 0.16);
+  color: #7dd3fc;
+  border: 1px solid rgba(125, 211, 252, 0.4);
+}
+
 
 
 /* Side-nav layout */
@@ -4345,6 +4370,14 @@ a.staff-dash-request-row:hover {
     gap: 8px;
   }
 
+  /* Badge text competes with hamburger/logo/back-to-admin for space on
+     narrow phones — drop to icon-free compact form, then hide entirely
+     below ~380px where the header row is already at capacity. */
+  .portal-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+
   /* --- Welcome banner: auto-height and compact on mobile --- */
   .dash-banner {
     height: auto;
@@ -4526,6 +4559,15 @@ a.staff-dash-request-row:hover {
     padding: 12px 14px;
     font-size: 13px;
     margin-bottom: 16px;
+  }
+}
+
+/* Header row is at capacity on narrow phones (hamburger + back-to-admin +
+   logo + badge on the left, weather + avatar on the right) — drop the
+   badge rather than let anything wrap or get clipped. */
+@media (max-width: 400px) {
+  .portal-badge {
+    display: none;
   }
 }
 
