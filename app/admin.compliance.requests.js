@@ -162,7 +162,8 @@ async function exportRequestsCSV() {
     .select('subject_first_name, subject_last_name, subject_email, volunteer_id, guardian_id')
     .eq('school_id', _profile.school_id)
     .is('archived_at', null)
-    .order('requested_at', { ascending: false })
+    .order('subject_last_name', { ascending: true })
+    .order('subject_first_name', { ascending: true })
     .limit(5000);
 
   query = filters.status ? query.eq('status', filters.status) : query.in('status', ['pending', 'submitted']);
@@ -669,6 +670,7 @@ export async function saveResolveGuardianLink() {
   showToast('Guardian linked');
   updateResolveGuardianSaveBtn();
   volunteerIndex = null; // this volunteer's guardian_id just changed
+  await loadRequests(); // refresh the Roster match badge behind the drawer without waiting for a page reload
 }
 
 let resolveGuardianSearchTimer = null;
