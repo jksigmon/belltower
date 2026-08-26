@@ -66,7 +66,7 @@ export async function loadRequests(profile) {
   const filters = reqFilters();
   let query = supabase
     .from('compliance_bg_check_requests')
-    .select('id, subject_first_name, subject_last_name, subject_email, reason, status, requested_at, volunteer_roles, volunteer_id, guardian_id, requestor:profiles!requestor_id(display_name, email)', { count: 'exact' })
+    .select('id, subject_first_name, subject_last_name, subject_email, reason, status, requested_at, volunteer_roles, volunteer_id, requestor:profiles!requestor_id(display_name, email)', { count: 'exact' })
     .eq('school_id', _profile.school_id)
     .is('archived_at', null);
 
@@ -95,29 +95,17 @@ export async function loadRequests(profile) {
     return;
   }
 
-  // A row's guardian may live directly on the request (guardian_id) or,
-  // once resolved to a volunteer, on that volunteer instead -- fetch the
-  // latter for this page's rows so the "Guardian linked" indicator below
-  // reflects both paths, not just the one Auto-Match writes to directly.
-  const pageVolunteerIds = [...new Set(rows.filter(r => !r.guardian_id && r.volunteer_id).map(r => r.volunteer_id))];
-  let pageVolunteerGuardians = new Map();
-  if (pageVolunteerIds.length) {
-    const { data: vols } = await supabase.from('compliance_volunteers').select('id, guardian_id').in('id', pageVolunteerIds);
-    pageVolunteerGuardians = new Map((vols ?? []).map(v => [v.id, v.guardian_id]));
-  }
-
   tbody.innerHTML = '';
   rows.forEach(row => {
     const tr = document.createElement('tr');
     const match = row.volunteer_id ? null : volunteerIndex.get(matchKey(row.subject_first_name, row.subject_last_name));
-    const hasGuardian = !!row.guardian_id || !!pageVolunteerGuardians.get(row.volunteer_id);
     const name = `${row.subject_first_name} ${row.subject_last_name}`;
     const initials = ((row.subject_first_name?.[0] ?? '') + (row.subject_last_name?.[0] ?? '')).toUpperCase();
     tr.innerHTML = `
       <td>
         <div style="display:flex;align-items:center;gap:8px;">
           <div class="admin-table-avatar" style="background:${getAvatarColor(name)};">${esc(initials)}</div>
-          <div><strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>${row.subject_email ? `<br><span class="muted" style="font-size:12px;">${esc(row.subject_email)}</span>` : ''}${hasGuardian ? '<br><span class="bg-status-pill bg-status-cleared" style="font-size:10px;">Guardian linked</span>' : ''}</div>
+          <div><strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>${row.subject_email ? `<br><span class="muted" style="font-size:12px;">${esc(row.subject_email)}</span>` : ''}</div>
         </div>
       </td>
       <td>${esc(row.requestor?.display_name ?? row.requestor?.email ?? '—')}</td>
@@ -160,10 +148,11 @@ export function wireRequestFilters() {
 
 // Exports the currently filtered requests as a CSV of first/last name,
 // email, and phone. Phone (and email, as a fallback) only comes through
-// when a request is linked to a guardian record -- either directly via
-// guardian_id (set by a bulk import or Auto-Match) or indirectly through
-// a resolved compliance_volunteers row. Requests with neither link have
-// no phone number anywhere in Belltower to export.
+// when a request is linked to a guardian record -- normally indirectly,
+// through a resolved compliance_volunteers row (what Auto-Match Guardians
+// and the manual Resolve drawer both produce), but a direct guardian_id
+// on the request itself (e.g. a bulk historical import) is honored too.
+// Requests with neither link have no phone number anywhere to export.
 async function exportRequestsCSV() {
   const filters = reqFilters();
   const { data: school } = await supabase.from('schools').select('name').eq('id', _profile.school_id).single();
@@ -245,16 +234,18 @@ async function openGuardianMatchReview() {
 async function computeGuardianMatchCandidates() {
   const { data: requests, error: reqErr } = await supabase
     .from('compliance_bg_check_requests')
-    .select('id, subject_first_name, subject_last_name, subject_email, volunteer_id')
+    .select('id, subject_first_name, subject_last_name, subject_email, volunteer_id, volunteer_roles')
     .eq('school_id', _profile.school_id)
-    .is('archived_at', null)
-    .is('guardian_id', null);
+    .is('archived_at', null);
   if (reqErr) { dbError(reqErr, 'Auto-match failed'); return null; }
   if (!requests?.length) return { matches: [], ambiguous: 0 };
 
-  // A request already linked to a volunteer that itself already has a
-  // guardian doesn't need anything -- its phone number is already
-  // resolvable through that volunteer.
+  // "Already resolved" means linked to a volunteer that itself already
+  // has a guardian -- the same state Save Link leaves behind manually.
+  // A stray guardian_id set directly on the request (e.g. from a bulk
+  // historical import, or an older build of this feature) doesn't count
+  // -- those still get offered so they can be upgraded to a real roster
+  // link instead of just a CSV-only guardian pointer.
   const volunteerIds = [...new Set(requests.filter(r => r.volunteer_id).map(r => r.volunteer_id))];
   let volunteerGuardians = new Map();
   if (volunteerIds.length) {
@@ -292,13 +283,16 @@ async function computeGuardianMatchCandidates() {
     if (g === null) { ambiguous++; return; }
     if (!g) return;
     matches.push({
-      requestId:    r.id,
-      volunteerId:  r.volunteer_id || null,
-      requestName:  `${r.subject_first_name} ${r.subject_last_name}`,
-      requestEmail: r.subject_email,
-      guardianId:   g.id,
-      guardianName: `${g.first_name} ${g.last_name}`,
-      guardianEmail: g.email,
+      requestId:       r.id,
+      volunteerId:     r.volunteer_id || null,
+      subjectFirstName: r.subject_first_name,
+      subjectLastName:  r.subject_last_name,
+      volunteerRoles:  r.volunteer_roles ?? [],
+      requestName:     `${r.subject_first_name} ${r.subject_last_name}`,
+      requestEmail:    r.subject_email,
+      guardianId:      g.id,
+      guardianName:    `${g.first_name} ${g.last_name}`,
+      guardianEmail:   g.email,
       basis,
     });
   });
@@ -332,6 +326,50 @@ function renderGuardianMatchReview(matches, ambiguous) {
   };
 }
 
+// Creates a compliance_volunteers row for a matched request's subject if
+// one isn't already linked, mirroring ensureResolvedVolunteerId() below
+// (that one operates on the single request open in the Resolve drawer;
+// this operates on an arbitrary match from the bulk review list).
+async function ensureVolunteerForMatch(m) {
+  if (m.volunteerId) return m.volunteerId;
+
+  const { data, error } = await supabase
+    .from('compliance_volunteers')
+    .insert({
+      school_id: _profile.school_id,
+      first_name: m.subjectFirstName,
+      last_name: m.subjectLastName,
+      email: m.requestEmail,
+      volunteer_roles: m.volunteerRoles,
+    })
+    .select('id')
+    .single();
+
+  if (!error) {
+    await supabase.from('compliance_bg_check_requests').update({ volunteer_id: data.id }).eq('id', m.requestId).eq('school_id', _profile.school_id);
+    return data.id;
+  }
+
+  if (error.code === '23505') {
+    // Another match in this same batch (or someone else) already created
+    // a matching volunteer -- link to that one instead of failing.
+    const { data: existing } = await supabase
+      .from('compliance_volunteers')
+      .select('id')
+      .eq('school_id', _profile.school_id)
+      .ilike('first_name', m.subjectFirstName)
+      .ilike('last_name', m.subjectLastName)
+      .is('archived_at', null)
+      .maybeSingle();
+    if (existing) {
+      await supabase.from('compliance_bg_check_requests').update({ volunteer_id: existing.id }).eq('id', m.requestId).eq('school_id', _profile.school_id);
+      return existing.id;
+    }
+  }
+
+  throw error;
+}
+
 export async function confirmGuardianMatches() {
   const listEl = document.getElementById('guardianMatchList');
   const selected = [...listEl.querySelectorAll('.guardian-match-check:checked')]
@@ -345,28 +383,32 @@ export async function confirmGuardianMatches() {
   const btn = document.getElementById('guardianMatchConfirm');
   btn.disabled = true; btn.textContent = 'Linking…';
 
-  // A request already tied to a volunteer gets the guardian attached to
-  // that volunteer, consistent with the manual Resolve flow; a request
-  // with no volunteer yet gets guardian_id set directly on the request.
-  const requestIdsByGuardian = new Map();
+  // Fully resolves each match the same way the manual Resolve drawer's
+  // guardian Save Link does -- ensure a volunteer roster record exists
+  // for the subject, then attach the guardian to that volunteer. Not
+  // just a CSV-only pointer on the request.
+  let failures = 0;
   for (const m of selected) {
-    if (m.volunteerId) {
-      await supabase.from('compliance_volunteers').update({ guardian_id: m.guardianId }).eq('id', m.volunteerId).eq('school_id', _profile.school_id);
-    } else {
-      if (!requestIdsByGuardian.has(m.guardianId)) requestIdsByGuardian.set(m.guardianId, []);
-      requestIdsByGuardian.get(m.guardianId).push(m.requestId);
+    try {
+      const volunteerId = await ensureVolunteerForMatch(m);
+      const { error } = await supabase
+        .from('compliance_volunteers')
+        .update({ guardian_id: m.guardianId })
+        .eq('id', volunteerId)
+        .eq('school_id', _profile.school_id);
+      if (error) throw error;
+    } catch {
+      failures++;
     }
-  }
-  for (const [guardianId, ids] of requestIdsByGuardian) {
-    await supabase.from('compliance_bg_check_requests').update({ guardian_id: guardianId }).in('id', ids).eq('school_id', _profile.school_id);
   }
 
   btn.disabled = false; btn.textContent = 'Link Selected';
 
   closeDrawer('guardianMatch');
-  showToast(`Linked ${selected.length} guardian${selected.length === 1 ? '' : 's'}`);
+  const linked = selected.length - failures;
+  showToast(`Linked ${linked} guardian${linked === 1 ? '' : 's'}${failures ? ` (${failures} failed — try again)` : ''}`);
   guardianMatchCandidates = [];
-  volunteerIndex = null; // a volunteer's guardian_id may have changed
+  volunteerIndex = null; // the roster and/or a volunteer's guardian_id changed
   await loadRequests();
 }
 
