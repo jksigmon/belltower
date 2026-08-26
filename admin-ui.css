@@ -1023,6 +1023,18 @@ main {
   min-width: 0;
 }
 
+/* Flex `gap` above already spaces .dash-banner from #dashGrid — without
+   this, their own margin-bottom/margin-top stack on top of it too (flex
+   items never collapse margins the way block siblings do), roughly
+   doubling the gap versus the staff dashboard, which isn't in a flex
+   .admin-section and relies on those same margins collapsing normally. */
+.admin-section.active > .dash-banner {
+  margin-bottom: 0;
+}
+.admin-section.active > #dashGrid {
+  margin-top: 0;
+}
+
 
 .admin-frame {
   background: var(--app-bg, #f5f7fb);
@@ -2197,11 +2209,6 @@ select {
   #dashGrid > .dash-section,
   #staffDashGrid > .dash-section {
     padding: 16px 16px 18px;
-  }
-  /* Wider tracks on phones — the desktop min would give 3 cramped
-     columns where 2 readable ones fit */
-  .dash-actions-row {
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 }
 
@@ -3745,65 +3752,128 @@ a.stat, a.dash-stat-link {
   letter-spacing: 0;
 }
 
-/* Quick action tiles — even grid of icon + label cards */
-/* Narrow tracks so a full set of actions (9 today) lands on one row at
-   desktop widths; it still wraps naturally as the viewport narrows */
-.dash-actions-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
-  gap: 9px;
+/* ── Quick Actions bar — icon + always-visible label pills ──
+   Heading sits inline to the left of the icons rather than stacked above,
+   so the whole card reads as one dense toolbar row (68-76px tall). */
+#dashGrid > #dashQuickActions,
+#staffDashGrid > #staffDashActions {
+  padding: 9px 18px;
 }
 
-.dash-action-btn {
+.qa-bar {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 9px 12px;
-  min-height: 42px;
-  border-radius: 11px;
-  border: 1px solid #e6eaf1;
-  background: #ffffff;
-  color: #1e293b;
-  font-size: 0.83rem;
-  font-weight: 650;
-  line-height: 1.25;
-  text-decoration: none;
-  cursor: pointer;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.12s, background 0.15s;
+  gap: 18px;
+  min-width: 0;
 }
 
-.dash-action-btn:hover {
-  border-color: #bfd3f5;
-  background: #fbfdff;
-  box-shadow: 0 8px 20px -12px rgba(11, 45, 79, 0.45);
+.qa-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #94a3b8;
+}
+.qa-heading svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2;
+}
+
+/* Flex row that scrolls horizontally rather than wrapping once the full
+   set of labeled pills is wider than the card. `overflow-x: auto` forces
+   overflow-y to compute as auto too (can't leave one axis "visible"), so
+   without this vertical padding the hover lift/shadow gets clipped flush
+   against the row's own box — it has zero headroom otherwise since the
+   row's height exactly matches the 44px buttons. Card padding above was
+   trimmed by the same amount so total card height is unchanged. */
+.dash-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 5px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Scroll-shadow trick (no JS): two opaque white gradients scroll WITH
+     the content ("local") and mask the edge shadows ("scroll", fixed to
+     the scrollport) wherever there's nothing left to scroll toward — so
+     the hint only shows on whichever side actually has more pills. */
+  background:
+    linear-gradient(to right, #ffffff 30%, rgba(255, 255, 255, 0)) 0 0,
+    linear-gradient(to left, #ffffff 30%, rgba(255, 255, 255, 0)) 100% 0,
+    radial-gradient(farthest-side at 0% 50%, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0)) 0 0,
+    radial-gradient(farthest-side at 100% 50%, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0)) 100% 0;
+  background-repeat: no-repeat;
+  background-size: 32px 100%, 32px 100%, 12px 100%, 12px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+.dash-actions-row::-webkit-scrollbar { display: none; }
+
+.qa-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.06);
+  border: 1px solid rgba(37, 99, 235, 0.10);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 200ms ease, border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+}
+
+.qa-btn:hover,
+.qa-btn:focus-visible {
+  background: rgba(37, 99, 235, 0.10);
+  border-color: rgba(37, 99, 235, 0.22);
+  box-shadow: 0 6px 16px -10px rgba(11, 45, 79, 0.35);
   transform: translateY(-1px);
+  outline: none;
+}
+.qa-btn:focus-visible {
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #2563eb;
+}
+
+.qa-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: #2563eb;
+  transition: transform 200ms ease;
+}
+.qa-btn:hover .qa-icon,
+.qa-btn:focus-visible .qa-icon {
+  transform: scale(1.04);
+}
+.qa-icon svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 1.7;
+}
+
+.qa-label {
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 600;
   color: #0b2d4f;
 }
 
-.dash-action-btn svg {
-  width: 17px;
-  height: 17px;
-  flex-shrink: 0;
-  stroke-width: 1.9;
-  color: #2563eb;
+@media (prefers-reduced-motion: reduce) {
+  .qa-btn, .qa-btn .qa-icon {
+    transition-duration: 1ms;
+  }
 }
-
-/* The Quick Actions card is a dense strip — trim its padding too */
-#dashGrid > #dashQuickActions,
-#staffDashGrid > #staffDashActions {
-  padding: 15px 18px 16px;
-}
-#dashGrid > #dashQuickActions .dash-section-head,
-#staffDashGrid > #staffDashActions .dash-section-head {
-  margin-bottom: 11px;
-}
-
-/* Variants tint the icon rather than the whole tile, so the row of
-   actions reads as one set (see mockup) while keeping emphasis cues. */
-.dash-action-btn--primary svg { color: #0b2d4f; }
-.dash-action-btn--amber   svg { color: #ea580c; }
-.dash-action-btn--amber:hover { border-color: #fcd9a8; }
 
 .stat-grid {
   display: grid;

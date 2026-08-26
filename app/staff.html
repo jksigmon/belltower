@@ -934,8 +934,10 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
     <div id="staffDashGrid">
 
       <div class="dash-section dash-section--full" id="staffDashActions" style="display:none;">
-        <div class="dash-section-head"><i data-lucide="zap"></i><span class="dash-section-eyebrow">Quick Actions</span><span class="dash-section-rule"></span></div>
-        <div class="dash-actions-row" id="staffDashActionsRow"></div>
+        <div class="qa-bar">
+          <div class="qa-heading"><i data-lucide="zap"></i><span>Quick Actions</span></div>
+          <div class="dash-actions-row" id="staffDashActionsRow"></div>
+        </div>
       </div>
 
       <div class="dash-section" id="staffDashBalances" style="display:none;">
@@ -1750,7 +1752,7 @@ import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE, getAvatarColor } from '/app/admin.shared.js?v=3';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE, getAvatarColor, renderQuickActions, QA_ICONS } from '/app/admin.shared.js?v=3';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { roleCheckboxGridHTML } from '/app/compliance.roles.js?v=2';
@@ -2104,19 +2106,11 @@ async function loadStaffDashboard() {
   if (window.staffModules['inventory'] === true)
     actions.push({ label: 'Inventory', icon: 'package', href: '#inventory' });
   if (currentProfile?.can_manage_placement || currentProfile?.is_superadmin)
-    actions.push({ label: 'Class Placement', icon: 'layout-grid', href: '/app/placement.html' });
+    actions.push({ label: 'Class Placement', iconSvg: QA_ICONS.classPlacement, href: '/app/placement.html' });
   if (window.staffModules['requests'] !== false)
     actions.push({ label: 'Feedback / Report a Bug', icon: 'message-circle', href: '/app/requests.html?cat=feedback' });
   if (actionsRow && actions.length) {
-    actionsRow.innerHTML = '';
-    actions.forEach(function ({ label, icon, href }) {
-      const a = document.createElement('a');
-      a.className = 'dash-action-btn dash-action-btn--secondary';
-      a.innerHTML = '<i data-lucide="' + icon + '"></i>' + label;
-      a.href = href;
-      actionsRow.appendChild(a);
-    });
-    if (window.lucide) lucide.createIcons({ el: actionsRow });
+    renderQuickActions(actionsRow, actions);
     document.getElementById('staffDashActions').style.display = '';
   }
 

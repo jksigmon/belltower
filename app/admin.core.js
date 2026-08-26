@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initUserMenu } from './user-menu.js?v=2';
-import { esc, initDashClamps, BDAY_VISIBLE } from './admin.shared.js?v=3';
+import { esc, initDashClamps, BDAY_VISIBLE, renderQuickActions } from './admin.shared.js?v=3';
 import { loadWeather } from './weather.js';
 import { initCalendarStrip } from './calendar-strip.js';
 
@@ -480,25 +480,13 @@ async function loadDashboardStats() {
   const isAdmin = p.is_superadmin || p.can_access_admin || p.can_manage_access;
   const row = document.getElementById('dashActionsRow');
   const actions = [];
-  if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: 'Carline', icon: 'car', href: '/app/carline.html?from=admin', variant: 'primary' });
-  if (isAdmin) actions.push({ label: 'Add Student', icon: 'graduation-cap', href: '#students', variant: 'secondary' });
-  if (isAdmin) actions.push({ label: 'Add Staff',   icon: 'user-plus', href: '#staff',    variant: 'secondary' });
-  if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: 'Review Leave', icon: 'calendar-check', href: '/app/pto.html', variant: 'secondary' });
-  if (moduleEnabled('substitutes') && p.can_manage_substitutes) actions.push({ label: 'Substitutes', icon: 'repeat-2', href: '/app/substitutes.html', variant: 'secondary' });
+  if (moduleEnabled('carline') && p.can_view_carline) actions.push({ label: 'Carline', icon: 'car', href: '/app/carline.html?from=admin', external: true });
+  if (isAdmin) actions.push({ label: 'Add Student', icon: 'graduation-cap', href: '#students' });
+  if (isAdmin) actions.push({ label: 'Add Staff',   icon: 'user-plus', href: '#staff' });
+  if (moduleEnabled('pto') && (p.can_approve_pto || p.can_view_pto_calendar)) actions.push({ label: 'Review Leave', icon: 'calendar-check', href: '/app/pto.html', external: true });
+  if (moduleEnabled('substitutes') && p.can_manage_substitutes) actions.push({ label: 'Substitutes', icon: 'repeat-2', href: '/app/substitutes.html', external: true });
   if (row && actions.length) {
-    row.innerHTML = '';
-    actions.forEach(({ label, icon, href, variant }) => {
-      const a = document.createElement('a');
-      a.className = `dash-action-btn dash-action-btn--${variant}`;
-      a.href = href;
-      if (!href.startsWith('#')) a.target = '_blank';
-      const iconEl = document.createElement('i');
-      iconEl.dataset.lucide = icon;
-      a.appendChild(iconEl);
-      a.appendChild(document.createTextNode(label));
-      row.appendChild(a);
-    });
-    if (window.lucide) lucide.createIcons({ el: row });
+    renderQuickActions(row, actions);
     show('dashQuickActions');
   }
 

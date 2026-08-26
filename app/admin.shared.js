@@ -578,3 +578,61 @@ export function showToast(message, type = 'success', duration = 4500) {
     closeBtn.addEventListener('click', () => clearTimeout(timer), { once: true });
   }
 }
+
+// Custom icon for Class Placement — a generic 4-tile grid icon reads as
+// "app launcher", not "assigning students to classes", so this marks one
+// cell as occupied instead. Lucide covers every other quick-action icon.
+const QA_CLASS_PLACEMENT_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.8"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.8"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.8"/><circle cx="17.25" cy="17.25" r="1.6" fill="currentColor" stroke="none"/></svg>`;
+
+export const QA_ICONS = { classPlacement: QA_CLASS_PLACEMENT_ICON };
+
+/**
+ * Renders the Quick Actions icon bar: icon + label pills. `actions` items
+ * take { label, icon, href, external, iconSvg }, where `icon` is a lucide
+ * name and `iconSvg` (optional) is raw SVG markup for a custom icon instead.
+ */
+export function renderQuickActions(container, actions) {
+  if (!container || !actions.length) return;
+  container.innerHTML = '';
+  actions.forEach(({ label, icon, iconSvg, href, external }) => {
+    const a = document.createElement('a');
+    a.className = 'qa-btn';
+    a.href = href;
+    if (external) a.target = '_blank';
+
+    const iconWrap = document.createElement('span');
+    iconWrap.className = 'qa-icon';
+    iconWrap.setAttribute('aria-hidden', 'true');
+    if (iconSvg) {
+      iconWrap.innerHTML = iconSvg;
+    } else {
+      const i = document.createElement('i');
+      i.dataset.lucide = icon;
+      iconWrap.appendChild(i);
+    }
+    a.appendChild(iconWrap);
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'qa-label';
+    labelEl.textContent = label;
+    a.appendChild(labelEl);
+
+    container.appendChild(a);
+  });
+  if (window.lucide) lucide.createIcons({ el: container });
+
+  // Scrollbar is hidden (see .dash-actions-row) so a plain vertical wheel
+  // scroll is the only affordance most mouse users have — Chrome doesn't
+  // auto-redirect it to the horizontal axis the way some browsers do.
+  // Only hijack the event when scrolling is actually vertical-dominant, so
+  // a genuine trackpad horizontal swipe still passes through natively.
+  if (!container.dataset.wheelBound) {
+    container.dataset.wheelBound = 'true';
+    container.addEventListener('wheel', (e) => {
+      if (container.scrollWidth <= container.clientWidth) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      container.scrollLeft += e.deltaY;
+    }, { passive: false });
+  }
+}
