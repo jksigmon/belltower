@@ -66,7 +66,7 @@ export async function loadRequests(profile) {
   const filters = reqFilters();
   let query = supabase
     .from('compliance_bg_check_requests')
-    .select('id, subject_first_name, subject_last_name, subject_email, reason, status, requested_at, volunteer_roles, volunteer_id, requestor:profiles!requestor_id(display_name, email)', { count: 'exact' })
+    .select('id, subject_first_name, subject_last_name, subject_email, reason, status, requested_at, volunteer_roles, volunteer_id, guardian_id, requestor:profiles!requestor_id(display_name, email)', { count: 'exact' })
     .eq('school_id', _profile.school_id)
     .is('archived_at', null);
 
@@ -95,17 +95,29 @@ export async function loadRequests(profile) {
     return;
   }
 
+  // A row's guardian may live directly on the request (guardian_id) or,
+  // once resolved to a volunteer, on that volunteer instead -- fetch the
+  // latter for this page's rows so the "Guardian linked" indicator below
+  // reflects both paths, not just the one Auto-Match writes to directly.
+  const pageVolunteerIds = [...new Set(rows.filter(r => !r.guardian_id && r.volunteer_id).map(r => r.volunteer_id))];
+  let pageVolunteerGuardians = new Map();
+  if (pageVolunteerIds.length) {
+    const { data: vols } = await supabase.from('compliance_volunteers').select('id, guardian_id').in('id', pageVolunteerIds);
+    pageVolunteerGuardians = new Map((vols ?? []).map(v => [v.id, v.guardian_id]));
+  }
+
   tbody.innerHTML = '';
   rows.forEach(row => {
     const tr = document.createElement('tr');
     const match = row.volunteer_id ? null : volunteerIndex.get(matchKey(row.subject_first_name, row.subject_last_name));
+    const hasGuardian = !!row.guardian_id || !!pageVolunteerGuardians.get(row.volunteer_id);
     const name = `${row.subject_first_name} ${row.subject_last_name}`;
     const initials = ((row.subject_first_name?.[0] ?? '') + (row.subject_last_name?.[0] ?? '')).toUpperCase();
     tr.innerHTML = `
       <td>
         <div style="display:flex;align-items:center;gap:8px;">
           <div class="admin-table-avatar" style="background:${getAvatarColor(name)};">${esc(initials)}</div>
-          <div><strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>${row.subject_email ? `<br><span class="muted" style="font-size:12px;">${esc(row.subject_email)}</span>` : ''}</div>
+          <div><strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>${row.subject_email ? `<br><span class="muted" style="font-size:12px;">${esc(row.subject_email)}</span>` : ''}${hasGuardian ? '<br><span class="bg-status-pill bg-status-cleared" style="font-size:10px;">Guardian linked</span>' : ''}</div>
         </div>
       </td>
       <td>${esc(row.requestor?.display_name ?? row.requestor?.email ?? '—')}</td>
@@ -135,7 +147,7 @@ export function wireRequestFilters() {
   document.getElementById('reqStatusFilter')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
   document.getElementById('reqSortSelect')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
   document.getElementById('reqAddRecordBtn')?.addEventListener('click', openAddRequestDrawer);
-  document.getElementById('reqAutoMatchBtn')?.addEventListener('click', autoMatchGuardians);
+  document.getElementById('reqAutoMatchBtn')?.addEventListener('click', openGuardianMatchReview);
   document.getElementById('reqExportBtn')?.addEventListener('click', exportRequestsCSV);
 
   // The resolve drawer's date inputs are static markup (unlike the
@@ -200,75 +212,162 @@ async function exportRequestsCSV() {
   downloadCSV(`${filenamePrefix}Background Check Requests.csv`, header, csvRows);
 }
 
-// Bulk-links requests to existing guardian records by exact email match
-// (preferred) or exact first+last name match, so their phone numbers
-// become available for export without an admin resolving each one by
-// hand. Only ever fills in guardian_id where it's currently blank, and
-// skips any request whose email or name matches more than one guardian
-// rather than guessing.
-async function autoMatchGuardians() {
+// ── Guardian Auto-Match (preview & review before writing) ───────────────
+// Finds candidate guardian matches by exact email (preferred) or exact
+// first+last name, but never writes anything until the admin reviews and
+// confirms individual matches in a drawer -- auto-linking contact records
+// silently is easy to get wrong on a common name, so this mirrors the
+// review-before-apply pattern already used for guardian intake data
+// elsewhere in this module (see admin.compliance.forms.js).
+let guardianMatchCandidates = [];
+
+async function openGuardianMatchReview() {
   const btn = document.getElementById('reqAutoMatchBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Matching…'; }
 
   try {
-    const { data: requests, error: reqErr } = await supabase
-      .from('compliance_bg_check_requests')
-      .select('id, subject_first_name, subject_last_name, subject_email')
-      .eq('school_id', _profile.school_id)
-      .is('archived_at', null)
-      .is('guardian_id', null);
-    if (reqErr) { dbError(reqErr, 'Auto-match failed'); return; }
-    if (!requests?.length) { showToast('No unlinked requests to match'); return; }
+    const result = await computeGuardianMatchCandidates();
+    if (!result) return; // error already surfaced via dbError
 
-    const { data: guardians, error: gErr } = await supabase
-      .from('guardians')
-      .select('id, first_name, last_name, email')
-      .eq('school_id', _profile.school_id)
-      .eq('active', true);
-    if (gErr) { dbError(gErr, 'Auto-match failed'); return; }
-
-    const norm = s => (s ?? '').trim().toLowerCase();
-    const byEmail = new Map();
-    const byName = new Map();
-    (guardians ?? []).forEach(g => {
-      if (g.email) {
-        const key = norm(g.email);
-        byEmail.set(key, byEmail.has(key) ? null : g); // null marks an ambiguous duplicate
-      }
-      const nameKey = `${norm(g.last_name)}|${norm(g.first_name)}`;
-      byName.set(nameKey, byName.has(nameKey) ? null : g);
-    });
-
-    const requestIdsByGuardian = new Map();
-    let matched = 0, ambiguous = 0;
-    requests.forEach(r => {
-      let g = r.subject_email ? byEmail.get(norm(r.subject_email)) : undefined;
-      if (g === undefined) g = byName.get(`${norm(r.subject_last_name)}|${norm(r.subject_first_name)}`);
-      if (g === null) { ambiguous++; return; }
-      if (!g) return;
-      matched++;
-      if (!requestIdsByGuardian.has(g.id)) requestIdsByGuardian.set(g.id, []);
-      requestIdsByGuardian.get(g.id).push(r.id);
-    });
-
-    if (!matched) {
-      showToast(ambiguous ? `No confident matches (${ambiguous} skipped — ambiguous)` : 'No matches found');
+    if (!result.matches.length) {
+      showToast(result.ambiguous ? `No confident matches found (${result.ambiguous} skipped — ambiguous)` : 'No matches found');
       return;
     }
 
-    for (const [guardianId, ids] of requestIdsByGuardian) {
-      await supabase
-        .from('compliance_bg_check_requests')
-        .update({ guardian_id: guardianId })
-        .in('id', ids)
-        .eq('school_id', _profile.school_id);
-    }
-
-    showToast(`Linked ${matched} request${matched === 1 ? '' : 's'} to guardians${ambiguous ? ` (${ambiguous} skipped — ambiguous)` : ''}`);
-    await loadRequests();
+    guardianMatchCandidates = result.matches;
+    renderGuardianMatchReview(result.matches, result.ambiguous);
+    openDrawer('guardianMatch');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Auto-Match Guardians'; }
   }
+}
+
+async function computeGuardianMatchCandidates() {
+  const { data: requests, error: reqErr } = await supabase
+    .from('compliance_bg_check_requests')
+    .select('id, subject_first_name, subject_last_name, subject_email, volunteer_id')
+    .eq('school_id', _profile.school_id)
+    .is('archived_at', null)
+    .is('guardian_id', null);
+  if (reqErr) { dbError(reqErr, 'Auto-match failed'); return null; }
+  if (!requests?.length) return { matches: [], ambiguous: 0 };
+
+  // A request already linked to a volunteer that itself already has a
+  // guardian doesn't need anything -- its phone number is already
+  // resolvable through that volunteer.
+  const volunteerIds = [...new Set(requests.filter(r => r.volunteer_id).map(r => r.volunteer_id))];
+  let volunteerGuardians = new Map();
+  if (volunteerIds.length) {
+    const { data: vols } = await supabase.from('compliance_volunteers').select('id, guardian_id').in('id', volunteerIds);
+    volunteerGuardians = new Map((vols ?? []).map(v => [v.id, v.guardian_id]));
+  }
+  const candidates = requests.filter(r => !(r.volunteer_id && volunteerGuardians.get(r.volunteer_id)));
+  if (!candidates.length) return { matches: [], ambiguous: 0 };
+
+  const { data: guardians, error: gErr } = await supabase
+    .from('guardians')
+    .select('id, first_name, last_name, email')
+    .eq('school_id', _profile.school_id)
+    .eq('active', true);
+  if (gErr) { dbError(gErr, 'Auto-match failed'); return null; }
+
+  const norm = s => (s ?? '').trim().toLowerCase();
+  const byEmail = new Map();
+  const byName = new Map();
+  (guardians ?? []).forEach(g => {
+    if (g.email) {
+      const key = norm(g.email);
+      byEmail.set(key, byEmail.has(key) ? null : g); // null marks an ambiguous duplicate
+    }
+    const nameKey = `${norm(g.last_name)}|${norm(g.first_name)}`;
+    byName.set(nameKey, byName.has(nameKey) ? null : g);
+  });
+
+  const matches = [];
+  let ambiguous = 0;
+  candidates.forEach(r => {
+    let basis = 'email';
+    let g = r.subject_email ? byEmail.get(norm(r.subject_email)) : undefined;
+    if (g === undefined) { basis = 'name'; g = byName.get(`${norm(r.subject_last_name)}|${norm(r.subject_first_name)}`); }
+    if (g === null) { ambiguous++; return; }
+    if (!g) return;
+    matches.push({
+      requestId:    r.id,
+      volunteerId:  r.volunteer_id || null,
+      requestName:  `${r.subject_first_name} ${r.subject_last_name}`,
+      requestEmail: r.subject_email,
+      guardianId:   g.id,
+      guardianName: `${g.first_name} ${g.last_name}`,
+      guardianEmail: g.email,
+      basis,
+    });
+  });
+
+  return { matches, ambiguous };
+}
+
+function renderGuardianMatchReview(matches, ambiguous) {
+  document.getElementById('guardianMatchSummary').textContent =
+    `${matches.length} match${matches.length === 1 ? '' : 'es'} found` + (ambiguous ? ` — ${ambiguous} skipped (ambiguous match)` : '');
+  document.getElementById('guardianMatchMsg').textContent = '';
+
+  const listEl = document.getElementById('guardianMatchList');
+  listEl.innerHTML = matches.map((m, i) => `
+    <div class="req-roster-card" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+      <input type="checkbox" class="guardian-match-check" data-idx="${i}" checked style="margin-top:3px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;"><strong>${esc(m.requestName)}</strong>${m.requestEmail ? ` <span class="muted">${esc(m.requestEmail)}</span>` : ''}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
+          → matched to <strong>${esc(m.guardianName)}</strong>${m.guardianEmail ? ` <span class="muted">${esc(m.guardianEmail)}</span>` : ''}
+          <span class="bg-status-pill bg-status-pending" style="margin-left:6px;">${m.basis === 'email' ? 'Email match' : 'Name match'}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  const selectAll = document.getElementById('guardianMatchSelectAll');
+  selectAll.checked = true;
+  selectAll.onchange = () => {
+    listEl.querySelectorAll('.guardian-match-check').forEach(cb => { cb.checked = selectAll.checked; });
+  };
+}
+
+export async function confirmGuardianMatches() {
+  const listEl = document.getElementById('guardianMatchList');
+  const selected = [...listEl.querySelectorAll('.guardian-match-check:checked')]
+    .map(cb => guardianMatchCandidates[Number(cb.dataset.idx)]);
+
+  if (!selected.length) {
+    document.getElementById('guardianMatchMsg').textContent = 'Select at least one match to link, or Cancel.';
+    return;
+  }
+
+  const btn = document.getElementById('guardianMatchConfirm');
+  btn.disabled = true; btn.textContent = 'Linking…';
+
+  // A request already tied to a volunteer gets the guardian attached to
+  // that volunteer, consistent with the manual Resolve flow; a request
+  // with no volunteer yet gets guardian_id set directly on the request.
+  const requestIdsByGuardian = new Map();
+  for (const m of selected) {
+    if (m.volunteerId) {
+      await supabase.from('compliance_volunteers').update({ guardian_id: m.guardianId }).eq('id', m.volunteerId).eq('school_id', _profile.school_id);
+    } else {
+      if (!requestIdsByGuardian.has(m.guardianId)) requestIdsByGuardian.set(m.guardianId, []);
+      requestIdsByGuardian.get(m.guardianId).push(m.requestId);
+    }
+  }
+  for (const [guardianId, ids] of requestIdsByGuardian) {
+    await supabase.from('compliance_bg_check_requests').update({ guardian_id: guardianId }).in('id', ids).eq('school_id', _profile.school_id);
+  }
+
+  btn.disabled = false; btn.textContent = 'Link Selected';
+
+  closeDrawer('guardianMatch');
+  showToast(`Linked ${selected.length} guardian${selected.length === 1 ? '' : 's'}`);
+  guardianMatchCandidates = [];
+  volunteerIndex = null; // a volunteer's guardian_id may have changed
+  await loadRequests();
 }
 
 async function markSent(id) {

@@ -420,7 +420,7 @@
                 <th>Requested by</th>
                 <th>Roles</th>
                 <th>Reason</th>
-                <th>Roster match</th>
+                <th title="Whether this subject matches someone already on the BG-cleared volunteer roster — separate from a guardian/contact record match, shown under the subject's name once linked.">Roster match</th>
                 <th>Status</th>
                 <th>Requested</th>
                 <th></th>
@@ -752,6 +752,31 @@
   <div class="drawer-footer">
     <button class="btn" id="resolveDrawerCancel">Cancel</button>
     <button class="btn btn-primary" id="resolveDrawerSave">Mark Cleared</button>
+  </div>
+</aside>
+
+<!-- ══ GUARDIAN AUTO-MATCH REVIEW DRAWER ═══════════════════════════════ -->
+<div id="guardianMatchOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="guardianMatchDrawer" class="drawer drawer-wide" role="dialog" aria-modal="true" aria-labelledby="guardianMatchTitle" style="display:none;">
+  <div class="drawer-header">
+    <h2 class="drawer-title" id="guardianMatchTitle">Review Guardian Matches</h2>
+    <button class="drawer-close" id="guardianMatchClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+      These requests were matched to an existing guardian record by exact email or name. Uncheck any that look wrong, then link the rest. Nothing is saved until you confirm.
+    </p>
+    <div id="guardianMatchSummary" style="font-size:13px;margin-bottom:12px;"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <input type="checkbox" id="guardianMatchSelectAll">
+      <label for="guardianMatchSelectAll" style="font-size:13px;font-weight:600;">Select all</label>
+    </div>
+    <div id="guardianMatchList"></div>
+    <div id="guardianMatchMsg" style="font-size:13px;color:var(--danger);min-height:18px;margin-top:8px;"></div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="guardianMatchCancel">Cancel</button>
+    <button class="btn btn-primary" id="guardianMatchConfirm">Link Selected</button>
   </div>
 </aside>
 

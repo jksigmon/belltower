@@ -11,6 +11,7 @@ export const DRAWERS = {
   resolve:      { overlay: 'resolveDrawerOverlay', drawer: 'resolveDrawer',     save: 'resolveDrawerSave', close: ['resolveDrawerClose', 'resolveDrawerCancel'] },
   attRenew:     { overlay: 'attRenewOverlay',      drawer: 'attRenewDrawer',    save: 'attRenewSave',      close: ['attRenewClose', 'attRenewCancel'] },
   reqAdd:       { overlay: 'reqAddDrawerOverlay',  drawer: 'reqAddDrawer',      save: 'reqAddDrawerSave',  close: ['reqAddDrawerClose', 'reqAddDrawerCancel'] },
+  guardianMatch: { overlay: 'guardianMatchOverlay', drawer: 'guardianMatchDrawer', save: 'guardianMatchConfirm', close: ['guardianMatchClose', 'guardianMatchCancel'] },
   reviewData:   { overlay: 'reviewDataOverlay',   drawer: 'reviewDataDrawer',   save: null,               close: ['reviewDataClose'] },
 };
 
