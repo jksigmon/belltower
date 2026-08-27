@@ -412,6 +412,10 @@
             <button class="btn btn-sm" id="reqExportBtn">Export CSV</button>
           </div>
         </div>
+        <div id="reqBulkBar" style="display:none;align-items:center;gap:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;">
+          <span id="reqBulkCount" style="font-size:13px;font-weight:600;color:#1e40af;"></span>
+          <button class="btn btn-sm" id="reqBulkMarkSentBtn" style="margin-left:auto;">Mark Selected as Sent</button>
+        </div>
         <div class="table-wrap">
           <table class="admin-table">
             <thead>
@@ -424,10 +428,11 @@
                 <th>Status</th>
                 <th>Requested</th>
                 <th></th>
+                <th><input type="checkbox" id="reqSelectAllCheckbox" title="Select all pending requests on this page"></th>
               </tr>
             </thead>
             <tbody id="reqTableBody">
-              <tr><td colspan="8" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>
+              <tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>
             </tbody>
           </table>
         </div>

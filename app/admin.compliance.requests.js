@@ -1,9 +1,11 @@
 
 import { supabase } from './admin.supabase.js?v=2';
 import { esc, fmtShortDate, dbError, debounce, getAvatarColor } from './admin.shared.js?v=3';
-import { openDrawer, closeDrawer, showToast, renderPagination, PAGE_SIZE } from './admin.compliance.utils.js';
+import { openDrawer, closeDrawer, showToast, renderPagination, createBulkSelection, PAGE_SIZE } from './admin.compliance.utils.js';
 import { VOLUNTEER_ROLES, roleCheckboxGridHTML } from './compliance.roles.js?v=2';
 import { downloadCSV } from './admin.compliance.volunteers.js';
+
+const reqSelection = createBulkSelection({ barId: 'reqBulkBar', countId: 'reqBulkCount', label: 'selected' });
 
 let _profile        = null;
 let reqPage          = 1;
@@ -20,6 +22,7 @@ let resolvedGuardian  = null;     // the guardian record to stamp onto that volu
 export function resetRequestsView() {
   reqPage = 1;
   volunteerIndex = null;
+  reqSelection.clear();
 }
 
 // Mirrors public.compliance_volunteer_match_key() closely enough for a
@@ -59,7 +62,7 @@ export async function loadRequests(profile) {
   if (profile) _profile = profile;
   const tbody = document.getElementById('reqTableBody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>';
 
   await loadVolunteerIndex();
 
@@ -82,16 +85,18 @@ export async function loadRequests(profile) {
   const { data, count, error } = await query;
 
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="8" class="status-danger" style="text-align:center;padding:32px 0;">Failed to load: ${esc(error.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="status-danger" style="text-align:center;padding:32px 0;">Failed to load: ${esc(error.message)}</td></tr>`;
     return;
   }
 
   const rows = data ?? [];
   reqPageRows = new Map(rows.map(r => [r.id, r]));
+  reqSelection.prune(new Set(rows.map(r => r.id)));
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="muted" style="text-align:center;padding:32px 0;">No requests match the current filters.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">No requests match the current filters.</td></tr>';
     document.getElementById('reqPagination').style.display = 'none';
+    reqSelection.updateBar();
     return;
   }
 
@@ -119,14 +124,23 @@ export async function loadRequests(profile) {
         ${row.status === 'pending' ? `<button class="btn btn-sm" data-sent="${esc(row.id)}">Mark Sent</button>` : ''}
         ${['pending', 'submitted'].includes(row.status) ? `<button class="btn btn-sm" data-decline="${esc(row.id)}" style="color:var(--danger);">Decline</button>` : ''}
       </td>
+      <td>${row.status === 'pending' ? `<input type="checkbox" class="req-row-check" data-id="${esc(row.id)}" ${reqSelection.has(row.id) ? 'checked' : ''}>` : ''}</td>
     `;
     tr.querySelector('[data-resolve]')?.addEventListener('click', () => openResolveDrawer(row.id));
     tr.querySelector('[data-sent]')?.addEventListener('click', () => markSent(row.id));
     tr.querySelector('[data-decline]')?.addEventListener('click', () => declineRequest(row.id));
+    const checkbox = tr.querySelector('.req-row-check');
+    if (checkbox) checkbox.addEventListener('change', () => reqSelection.set(row.id, checkbox.checked));
     tbody.appendChild(tr);
   });
 
   renderPagination('reqPagination', reqPage, count ?? rows.length, p => { reqPage = p; loadRequests(); });
+  reqSelection.updateBar();
+  reqSelection.wireSelectAll(
+    'reqSelectAllCheckbox',
+    rows.filter(r => r.status === 'pending').map(r => r.id),
+    () => loadRequests(),
+  );
 }
 
 export function wireRequestFilters() {
@@ -137,6 +151,7 @@ export function wireRequestFilters() {
   document.getElementById('reqAddRecordBtn')?.addEventListener('click', openAddRequestDrawer);
   document.getElementById('reqAutoMatchBtn')?.addEventListener('click', openGuardianMatchReview);
   document.getElementById('reqExportBtn')?.addEventListener('click', exportRequestsCSV);
+  document.getElementById('reqBulkMarkSentBtn')?.addEventListener('click', bulkMarkSent);
 
   // The resolve drawer's date inputs are static markup (unlike the
   // volunteer drawer's, which are rebuilt on every open), so this only
@@ -421,6 +436,29 @@ async function markSent(id) {
     .eq('school_id', _profile.school_id);
   if (error) { dbError(error, 'Failed'); return; }
   showToast('Marked as sent');
+  await loadRequests();
+}
+
+// Bulk version of markSent() for the CSV-export-then-notify-Praesidium
+// workflow -- exporting a batch shouldn't require clicking Mark Sent on
+// each row individually afterward. The status guard means a row that
+// someone else already moved off "pending" between page load and this
+// click just doesn't get touched, rather than erroring the whole batch.
+async function bulkMarkSent() {
+  const ids = reqSelection.ids();
+  if (!ids.length) return;
+  if (!confirm(`Mark ${ids.length} request${ids.length === 1 ? '' : 's'} as sent?`)) return;
+
+  const { error } = await supabase
+    .from('compliance_bg_check_requests')
+    .update({ status: 'submitted', submitted_at: new Date().toISOString() })
+    .in('id', ids)
+    .eq('school_id', _profile.school_id)
+    .eq('status', 'pending');
+
+  if (error) { dbError(error, 'Failed'); return; }
+  showToast(`${ids.length} request${ids.length === 1 ? '' : 's'} marked as sent`);
+  reqSelection.clear();
   await loadRequests();
 }
 
