@@ -674,9 +674,8 @@ async function loadFieldDiffs() {
     return;
   }
 
-  countEl.textContent = count ? `(${count})` : '';
-
   if (!diffs?.length) {
+    countEl.textContent = '';
     wrap.innerHTML = `<p class="muted" style="font-size:13px;">No known differences right now.</p>`;
     return;
   }
@@ -698,11 +697,19 @@ async function loadFieldDiffs() {
     ...(guardians ?? []).map((g) => [g.id, `${g.first_name} ${g.last_name}`]),
   ]);
 
+  // Split into "you can act on this here" vs. "informational only" — mixing them in
+  // one table buried the handful of real to-dos under dozens of name/active/family
+  // rows with no button, which is unusable for a non-technical admin.
+  const actionable = diffs.filter((d) => !NON_PULLABLE_DIFF_FIELDS.has(d.field));
+  const reference = diffs.filter((d) => NON_PULLABLE_DIFF_FIELDS.has(d.field));
+
+  countEl.textContent = actionable.length ? `(${actionable.length})` : '';
+
   // Selections don't survive a field no longer being open (record disappeared, or
   // was resolved by someone else) — drop anything stale before rendering.
-  const pullableIds = new Set(diffs.filter((d) => !NON_PULLABLE_DIFF_FIELDS.has(d.field)).map((d) => d.id));
+  const actionableIds = new Set(actionable.map((d) => d.id));
   for (const id of [...selectedDiffIds]) {
-    if (!pullableIds.has(id)) selectedDiffIds.delete(id);
+    if (!actionableIds.has(id)) selectedDiffIds.delete(id);
   }
 
   const bulkBar = `
@@ -712,26 +719,57 @@ async function loadFieldDiffs() {
     </div>
   `;
 
+  const actionableTable = actionable.length
+    ? `
+      ${bulkBar}
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th style="width:32px;"><input type="checkbox" id="icDiffSelectAllCheckbox"></th>
+            <th>Type</th>
+            <th>Name</th>
+            <th>Field</th>
+            <th>Belltower value</th>
+            <th>Infinite Campus value</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${actionable.map(diffRowHtml(nameById)).join('')}
+        </tbody>
+      </table>
+      ${bulkBar}
+    `
+    : `<p class="muted" style="font-size:13px;">Nothing needs your input right now.</p>`;
+
+  const referenceSection = reference.length
+    ? `
+      <details style="margin-top:16px;">
+        <summary style="cursor:pointer;font-size:13px;color:var(--text-muted,#6b7280);">
+          ${reference.length} more — name, active status, and family differences (informational only, not directly fixable here; included in the exported CSV)
+        </summary>
+        <table class="admin-table" style="margin-top:8px;">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Name</th>
+              <th>Field</th>
+              <th>Belltower value</th>
+              <th>Infinite Campus value</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${reference.map(referenceRowHtml(nameById)).join('')}
+          </tbody>
+        </table>
+      </details>
+    `
+    : '';
+
   wrap.innerHTML = `
-    ${bulkBar}
-    <table class="admin-table">
-      <thead>
-        <tr>
-          <th style="width:32px;"><input type="checkbox" id="icDiffSelectAllCheckbox"></th>
-          <th>Type</th>
-          <th>Name</th>
-          <th>Field</th>
-          <th>Belltower value</th>
-          <th>Infinite Campus value</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        ${diffs.map(diffRowHtml(nameById)).join('')}
-      </tbody>
-    </table>
+    ${actionableTable}
     ${count > 100 ? `<p class="muted" style="font-size:12px;margin-top:8px;">Showing 100 of ${count}.</p>` : ''}
-    ${bulkBar}
+    ${referenceSection}
   `;
 
   wrap.querySelectorAll('[data-pull-diff]').forEach((btn) =>
@@ -778,19 +816,30 @@ async function loadFieldDiffs() {
 function diffRowHtml(nameById) {
   return (d) => {
     const name = nameById.get(d.entity_id) ?? '(unknown)';
-    // Identity/status/relationship differences are informational only — surfaced here
-    // for visibility, but there's no direct pull action for them; handle in the Admin
-    // Panel or the review queue instead.
-    const pullable = !NON_PULLABLE_DIFF_FIELDS.has(d.field);
     return `
       <tr>
-        <td>${pullable ? `<input type="checkbox" data-select-diff="${d.id}">` : ''}</td>
+        <td><input type="checkbox" data-select-diff="${d.id}"></td>
         <td style="text-transform:capitalize;">${esc(d.entity_type)}</td>
         <td>${esc(name)}</td>
         <td>${esc(FIELD_LABELS[d.field] ?? d.field)}</td>
         <td>${esc(d.belltower_value ?? '—')}</td>
         <td>${esc(d.ic_value ?? '—')}</td>
-        <td>${pullable ? `<button class="btn-secondary" style="font-size:12px;padding:4px 10px;" data-pull-diff="${d.id}">Pull in IC's value</button>` : ''}</td>
+        <td><button class="btn-secondary" style="font-size:12px;padding:4px 10px;" data-pull-diff="${d.id}">Pull in IC's value</button></td>
+      </tr>
+    `;
+  };
+}
+
+function referenceRowHtml(nameById) {
+  return (d) => {
+    const name = nameById.get(d.entity_id) ?? '(unknown)';
+    return `
+      <tr>
+        <td style="text-transform:capitalize;">${esc(d.entity_type)}</td>
+        <td>${esc(name)}</td>
+        <td>${esc(FIELD_LABELS[d.field] ?? d.field)}</td>
+        <td>${esc(d.belltower_value ?? '—')}</td>
+        <td>${esc(d.ic_value ?? '—')}</td>
       </tr>
     `;
   };
