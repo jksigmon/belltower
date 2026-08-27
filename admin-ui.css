@@ -3272,6 +3272,10 @@ nav a[data-cap-group] {
 }
 
 /* ── Header weather widget ───────────────────────────────────── */
+.dash-header-weather-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
 .dash-header-weather {
   display: flex;
   align-items: center;
@@ -3280,11 +3284,13 @@ nav a[data-cap-group] {
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.15);
   border-radius: 11px;
-  text-decoration: none;
+  font: inherit;
+  cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
   white-space: nowrap;
 }
-.dash-header-weather:hover {
+.dash-header-weather:hover,
+.dash-header-weather[aria-expanded="true"] {
   background: rgba(255,255,255,0.15);
   border-color: rgba(255,255,255,0.28);
 }
@@ -3299,12 +3305,117 @@ nav a[data-cap-group] {
   font-weight: 700;
   color: #fff;
   line-height: 1;
+  text-align: left;
 }
 .dash-header-wx-range {
   display: block;
   font-size: 0.68rem;
   color: rgba(255,255,255,0.6);
   margin-top: 2px;
+}
+
+.dash-header-wx-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: var(--z-overlay-top);
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.13), 0 2px 6px rgba(0,0,0,0.06);
+  padding: 14px 14px 10px;
+  animation: wxPanelIn 0.13s ease;
+}
+.dash-header-wx-panel[hidden] { display: none; }
+
+@keyframes wxPanelIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.dash-header-wx-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.dash-header-wx-location {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-header-wx-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  flex-shrink: 0;
+  background: transparent;
+  border-radius: 7px;
+  color: #6b7280;
+  font-size: 20px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.dash-header-wx-refresh:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+.dash-header-wx-refresh.is-loading {
+  animation: wxRefreshSpin 0.7s linear infinite;
+  pointer-events: none;
+}
+@keyframes wxRefreshSpin {
+  to { transform: rotate(360deg); }
+}
+
+.dash-header-wx-hourly {
+  display: flex;
+  gap: 4px;
+}
+.dash-header-wx-hour {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.dash-header-wx-hour:hover {
+  background: #f3f4f6;
+}
+.dash-header-wx-hour-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+.dash-header-wx-hour-icon {
+  font-size: 20px;
+  line-height: 1.4;
+}
+.dash-header-wx-hour-temp {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #111827;
+}
+.dash-header-wx-attribution {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f1f3;
+  font-size: 0.65rem;
+  color: #9ca3af;
+  text-align: right;
 }
 
 /* ── Section head with eyebrow + rule ────────────────────────── */
@@ -4439,6 +4550,16 @@ a.staff-dash-request-row:hover {
   /* Weather: hide H/L range, keep icon + current temp */
   .dash-header-wx-range {
     display: none;
+  }
+
+  /* Weather: keep expanded hourly panel on-screen on narrow viewports */
+  .dash-header-wx-panel {
+    right: -12px;
+  }
+  .dash-header-wx-hourly {
+    max-width: 92vw;
+    overflow-x: auto;
+    padding-bottom: 4px;
   }
 
   .admin-logo {
