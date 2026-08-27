@@ -1221,9 +1221,16 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
     <section id="requests" class="panel" style="display:none;"></section>
 
-    <!-- ── My Licenses (read-only) ────────────────────── -->
+    <!-- ── My Licenses ────────────────────── -->
     <section id="licensure" style="display:none;">
-      <h2 style="margin-bottom:18px;">My Licenses &amp; Certifications</h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
+        <h2 style="margin:0;">My Licenses &amp; Certifications</h2>
+        <button type="button" class="btn btn-sm btn-primary" id="staffAddLicenseBtn">+ Add License</button>
+      </div>
+      <p class="muted" style="font-size:0.85rem;margin:0 0 18px;">
+        Add a license yourself and an administrator will verify it. You don't have to wait for
+        verification to start logging CEUs against it.
+      </p>
 
       <div id="staffLicenseList">
         <p style="color:#9ca3af;text-align:center;padding:32px 0;">Loading…</p>
@@ -1810,6 +1817,108 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
       <div class="modal-actions">
         <button class="btn" id="invRosterCloseBtn">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Add License modal (My Licenses, self-serve, pending admin verification) ── -->
+  <div id="staffLicenseModal" class="modal modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Add License</h3>
+        <span class="modal-close" id="staffLicenseModalClose">&times;</span>
+      </div>
+      <p class="muted" style="font-size:0.82rem;margin:0 0 14px;">
+        This will be saved as <strong>pending verification</strong> until an administrator confirms it.
+        You can log CEUs against it right away.
+      </p>
+
+      <div class="drawer-row-2">
+        <div class="drawer-field">
+          <label>License Type <span class="required">*</span></label>
+          <select id="staffLicType" class="form-input">
+            <option value="">Select type…</option>
+            <optgroup label="Teaching">
+              <option value="IPL">IPL — Initial Professional</option>
+              <option value="CPL">CPL — Continuing Professional</option>
+              <option value="Residency">Residency License</option>
+              <option value="Emergency">Emergency License</option>
+              <option value="Permit">Permit to Teach</option>
+              <option value="CTE_Provisional">CTE Provisional</option>
+            </optgroup>
+            <optgroup label="Administration">
+              <option value="Admin">Admin (Principal/AP/Supt)</option>
+            </optgroup>
+            <optgroup label="Student Services">
+              <option value="Student_Services">Student Services</option>
+            </optgroup>
+          </select>
+        </div>
+        <div class="drawer-field">
+          <label>Category <span class="required">*</span></label>
+          <select id="staffLicCategory" class="form-input">
+            <option value="teaching">Teaching</option>
+            <option value="admin">Administration</option>
+            <option value="support">Student Support</option>
+            <option value="substitute">Substitute</option>
+          </select>
+        </div>
+      </div>
+      <div class="drawer-row-2">
+        <div class="drawer-field">
+          <label>Grade Authorization</label>
+          <select id="staffLicGrade" class="form-input">
+            <option value="">N/A</option>
+            <option value="K-6">K-6</option>
+            <option value="6-9">6-9</option>
+            <option value="9-12">9-12</option>
+            <option value="K-12">K-12</option>
+          </select>
+        </div>
+        <div class="drawer-field">
+          <label>State</label>
+          <select id="staffLicState" class="form-input">
+            <option value="NC">North Carolina</option>
+            <option value="SC">South Carolina</option>
+            <option value="VA">Virginia</option>
+            <option value="GA">Georgia</option>
+            <option value="TN">Tennessee</option>
+            <option value="OTHER">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="drawer-row-2">
+        <div class="drawer-field">
+          <label>License Number <span class="muted" style="font-weight:400;">(optional)</span></label>
+          <input id="staffLicNumber" class="form-input" placeholder="e.g. 123456" />
+        </div>
+        <div class="drawer-field">
+          <label>License Area / Subject <span class="muted" style="font-weight:400;">(optional)</span></label>
+          <input id="staffLicArea" class="form-input" placeholder="e.g. Elementary Education" />
+        </div>
+      </div>
+      <div class="drawer-row-2">
+        <div class="drawer-field">
+          <label>Issue Date <span class="muted" style="font-weight:400;">(optional)</span></label>
+          <input id="staffLicIssueDate" type="date" class="form-input" />
+        </div>
+        <div class="drawer-field">
+          <label>Expiration Date <span class="required">*</span></label>
+          <input id="staffLicExpDate" type="date" class="form-input" />
+        </div>
+      </div>
+      <div class="drawer-field">
+        <label>Attachment <span class="muted" style="font-weight:400;">(optional)</span></label>
+        <div class="lic-file-choose-row">
+          <input type="file" id="staffLicFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+          <button type="button" class="btn btn-sm" id="staffLicFileChooseBtn">Choose File</button>
+          <span id="staffLicFileNameLabel" class="muted" style="font-size:0.82rem;">No file chosen</span>
+        </div>
+      </div>
+      <p id="staffLicError" style="color:#dc2626;font-size:13px;display:none;margin:0 0 10px;"></p>
+      <div class="modal-actions">
+        <button class="btn" id="staffLicCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="staffLicSaveBtn">Save License</button>
       </div>
     </div>
   </div>
@@ -3822,11 +3931,17 @@ function renderMyCeuProgress(licenses, ceusByLicense) {
     const total   = inCycle.reduce((sum, c) => sum + Number(c.ceu_amount), 0);
 
     const label = lic.license_type + (lic.license_area ? ' – ' + lic.license_area : '');
+    const verifiedBadge = lic.verified
+      ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">✓ Verified</span>'
+      : '<span style="background:#fef9c3;color:#a16207;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;" title="An administrator hasn\'t confirmed this license yet — you can still log CEUs against it.">Pending Verification</span>';
 
     let html = `<div class="ceu-license-card">
-      <div class="ceu-license-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
-        <span>${esc(label)} <span>CEU Progress (this cycle)</span></span>
-        <button type="button" class="btn btn-sm staffAddCeuBtn" data-license-id="${esc(lic.id)}">+ Add CEU</button>
+      <div class="ceu-license-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${esc(label)} ${verifiedBadge} <span>CEU Progress (this cycle)</span></span>
+        <span style="display:flex;gap:6px;">
+          <button type="button" class="btn btn-sm staffAddCeuBtn" data-license-id="${esc(lic.id)}">+ Add CEU</button>
+          ${lic.verified ? '' : `<button type="button" class="btn btn-sm staffDeleteLicBtn" data-id="${esc(lic.id)}" style="color:#dc2626;border-color:#fca5a5;" title="Delete (pending verification)">Delete License</button>`}
+        </span>
       </div>
       <div class="ceu-progress-total">Total <span>${total.toFixed(1)} / ${profile ? CEU_TOTAL_TARGET : '—'}</span></div>`;
 
@@ -3872,9 +3987,133 @@ function renderMyCeuProgress(licenses, ceusByLicense) {
       if (lic) openStaffCeuModal(lic);
     });
   });
+  container.querySelectorAll('.staffDeleteLicBtn').forEach(btn => {
+    btn.addEventListener('click', () => deleteMyLicense(btn.dataset.id));
+  });
   container.querySelectorAll('.staffDeleteCeuBtn').forEach(btn => {
     btn.addEventListener('click', () => deleteMyCeuEntry(btn.dataset.id, btn.dataset.file || null));
   });
+}
+
+/* ─────────────────────────────────────────────────────
+   My Licenses — Add License (self-serve, pending admin verification)
+───────────────────────────────────────────────────── */
+function openStaffLicenseModal() {
+  document.getElementById('staffLicType').value       = '';
+  document.getElementById('staffLicCategory').value   = 'teaching';
+  document.getElementById('staffLicGrade').value      = '';
+  document.getElementById('staffLicState').value      = 'NC';
+  document.getElementById('staffLicNumber').value     = '';
+  document.getElementById('staffLicArea').value       = '';
+  document.getElementById('staffLicIssueDate').value  = '';
+  document.getElementById('staffLicExpDate').value    = '';
+  document.getElementById('staffLicFileInput').value  = '';
+  document.getElementById('staffLicFileNameLabel').textContent = 'No file chosen';
+  document.getElementById('staffLicError').style.display = 'none';
+
+  document.getElementById('staffLicenseModal').classList.add('open');
+  document.body.classList.add('modal-open');
+}
+
+function closeStaffLicenseModal() {
+  document.getElementById('staffLicenseModal').classList.remove('open');
+  document.body.classList.remove('modal-open');
+}
+
+document.getElementById('staffAddLicenseBtn')?.addEventListener('click', openStaffLicenseModal);
+document.getElementById('staffLicCancelBtn')?.addEventListener('click', closeStaffLicenseModal);
+document.getElementById('staffLicenseModalClose')?.addEventListener('click', closeStaffLicenseModal);
+
+document.getElementById('staffLicFileChooseBtn')?.addEventListener('click', () => {
+  document.getElementById('staffLicFileInput')?.click();
+});
+document.getElementById('staffLicFileInput')?.addEventListener('change', e => {
+  const file = e.target.files?.[0];
+  const label = document.getElementById('staffLicFileNameLabel');
+  if (label) label.textContent = file ? file.name : 'No file chosen';
+});
+
+document.getElementById('staffLicSaveBtn')?.addEventListener('click', async () => {
+  const errorEl = document.getElementById('staffLicError');
+  errorEl.style.display = 'none';
+
+  const licType = document.getElementById('staffLicType').value;
+  if (!licType) { errorEl.textContent = 'License type is required.'; errorEl.style.display = 'block'; return; }
+
+  const expDate = document.getElementById('staffLicExpDate').value;
+  if (!expDate) { errorEl.textContent = 'Expiration date is required.'; errorEl.style.display = 'block'; return; }
+
+  const saveBtn = document.getElementById('staffLicSaveBtn');
+  saveBtn.disabled = true;
+
+  const payload = {
+    school_id:           currentProfile.school_id,
+    employee_id:         currentProfile.employee_id,
+    license_number:      document.getElementById('staffLicNumber').value.trim() || null,
+    state:                document.getElementById('staffLicState').value,
+    license_type:         licType,
+    category:             document.getElementById('staffLicCategory').value,
+    license_area:         document.getElementById('staffLicArea').value.trim() || null,
+    grade_authorization:  document.getElementById('staffLicGrade').value || null,
+    issue_date:           document.getElementById('staffLicIssueDate').value || null,
+    expiration_date:      expDate,
+    status:               'active',
+    renewal_status:       'not_started',
+    role_applicability:   [],
+    verified:             false,
+    created_by:           currentProfile.user_id,
+  };
+
+  const { data, error } = await supabase.from('staff_licenses').insert(payload).select().single();
+  if (error) {
+    console.error(error);
+    errorEl.textContent = 'Failed to save license. Please try again.';
+    errorEl.style.display = 'block';
+    saveBtn.disabled = false;
+    return;
+  }
+
+  const fileInput = document.getElementById('staffLicFileInput');
+  if (fileInput?.files?.length) {
+    const file    = fileInput.files[0];
+    const ts      = Date.now();
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path    = `${currentProfile.school_id}/${data.id}/${ts}-${safeName}`;
+
+    const { error: uploadError } = await supabase.storage.from('license-files').upload(path, file, { upsert: false });
+    if (uploadError) {
+      console.error('License file upload failed', uploadError);
+      showToast('License saved, but the file upload failed: ' + uploadError.message);
+    } else {
+      await supabase.from('staff_license_files').insert({
+        license_id:  data.id,
+        school_id:   currentProfile.school_id,
+        file_path:   path,
+        file_name:   file.name,
+        uploaded_by: currentProfile.user_id,
+        is_current:  true,
+      });
+    }
+  }
+
+  saveBtn.disabled = false;
+  closeStaffLicenseModal();
+  showToast('License saved — pending admin verification. You can log CEUs against it now.');
+  await loadMyLicenses();
+});
+
+async function deleteMyLicense(id) {
+  if (!confirm('Delete this license? Any CEU entries logged against it will be deleted too.')) return;
+
+  const { error } = await supabase.from('staff_licenses').delete().eq('id', id);
+  if (error) {
+    console.error(error);
+    showToast('Failed to delete license.');
+    return;
+  }
+
+  showToast('License deleted');
+  await loadMyLicenses();
 }
 
 /* ─────────────────────────────────────────────────────
@@ -4033,7 +4272,7 @@ async function loadMyLicenses() {
     .order('expiration_date', { ascending: true });
 
   if (error || !data?.length) {
-    container.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:32px 0;">No license records on file. Contact an administrator.</p>';
+    container.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:32px 0;">No license records on file yet. Click "+ Add License" above to add your own — an administrator will verify it, and you can start logging CEUs against it right away.</p>';
     if (ceuContainer) ceuContainer.innerHTML = '';
     return;
   }
@@ -4093,6 +4332,9 @@ async function loadMyLicenses() {
       <td>${lic.license_number ? esc(lic.license_number) : '—'}</td>
       <td>${lic.expiration_date ? lic.expiration_date.split('-').slice(1).concat(lic.expiration_date.split('-')[0]).join('/') : '—'}<br>${expiryNote}</td>
       <td><span style="background:${bg};color:${color};padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;text-transform:uppercase;">${esc(lic.status.replace('_',' '))}</span></td>
+      <td>${lic.verified
+        ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">✓ Verified</span>'
+        : '<span style="background:#fef9c3;color:#a16207;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;" title="An administrator hasn\'t confirmed this license yet.">Pending</span>'}</td>
       <td>${lic.is_provisional ? '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">Provisional</span>' : '—'}</td>
       <td>${fileByLicense[lic.id]
         ? `<button type="button" class="btn btn-sm btn-secondary staffLicViewBtn" data-id="${esc(lic.id)}" title="Open ${esc(fileByLicense[lic.id].file_name)}">View PDF</button>`
@@ -4111,6 +4353,7 @@ async function loadMyLicenses() {
             <th>License #</th>
             <th>Expiration</th>
             <th>Status</th>
+            <th>Verification</th>
             <th>Provisional</th>
             <th>Attachment</th>
           </tr>
