@@ -237,6 +237,14 @@
     .req-empty strong { color: #374151; font-size: 14px; }
     .req-empty span   { font-size: 13px; margin-top: 3px; }
 
+    /* Submitted request details, shown in the detail drawer */
+    .req-responses { display: flex; flex-direction: column; gap: 12px; }
+    .req-response-row { display: flex; flex-direction: column; gap: 2px; }
+    .req-response-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; }
+    .req-response-value { font-size: 14px; color: #111827; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+    .form-label { font-size: 0.78rem; font-weight: 600; color: #374151; text-transform: uppercase; letter-spacing: 0.05em; margin: 0; }
+
     @media (prefers-reduced-motion: reduce) {
       .req-form-wrap, .req-success { animation: none; }
       .req-cat-card { transition: none; }
@@ -343,6 +351,15 @@
     <div id="reqCategoriesWrap"></div>
     <div id="reqFormWrap"></div>
   </div>
+
+  <div id="reqDetailDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Request Detail">
+    <div class="drawer-header">
+      <span id="reqDetailDrawerTitle" style="font-size:1.05rem;font-weight:700;">Request Detail</span>
+      <button class="drawer-close" id="reqDetailDrawerClose">✕</button>
+    </div>
+    <div class="drawer-body" id="reqDetailDrawerBody"></div>
+  </div>
+  <div id="reqDetailOverlay" class="drawer-overlay"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
   <script type="module" src="/app/requests.js"></script>

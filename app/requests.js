@@ -6,6 +6,7 @@ let currentProfile = null;
 let categories     = [];
 let selectedCat    = null;
 let catFields      = [];
+let myRequests     = [];
 
 (async () => {
   currentProfile = await initPage({});
@@ -15,6 +16,9 @@ let catFields      = [];
   renderCategories();
   renderHistory();
   await preselectCategoryFromUrl();
+
+  document.getElementById('reqDetailDrawerClose')?.addEventListener('click', closeDetailDrawer);
+  document.getElementById('reqDetailOverlay')?.addEventListener('click', closeDetailDrawer);
 })();
 
 // Lets nav links / dropdown shortcuts (e.g. "Feedback") jump straight to a
@@ -42,7 +46,11 @@ async function loadCategories() {
 async function loadMyRequests() {
   const { data } = await supabase
     .from('staff_requests')
-    .select('id, status, created_at, manager_notes, request_categories ( name, resolved_label, denied_label )')
+    .select(`
+      id, status, created_at, manager_notes,
+      request_categories ( name, resolved_label, denied_label ),
+      staff_request_responses ( value, request_category_fields ( label, field_type, sort_order ) )
+    `)
     .eq('submitted_by', currentProfile.id)
     .order('updated_at', { ascending: false })
     .limit(20);
@@ -454,6 +462,7 @@ async function renderHistory(data) {
   if (!wrap) return;
 
   const rows = data ?? await loadMyRequests();
+  myRequests = rows;
 
   if (!rows.length) {
     wrap.innerHTML = `
@@ -489,7 +498,7 @@ async function renderHistory(data) {
             </thead>
             <tbody>
               ${rows.map(r => `
-                <tr>
+                <tr class="req-history-row" data-id="${esc(r.id)}" style="cursor:pointer;">
                   <td>${esc(r.request_categories?.name ?? '—')}</td>
                   <td>${fmtShortDate(r.created_at)}</td>
                   <td><span class="req-status-badge ${statusBadgeClass(r.status)}">${statusLabel(r.status, r.request_categories)}</span></td>
@@ -503,6 +512,83 @@ async function renderHistory(data) {
     </div>`;
 
   wireHistoryScrollFade();
+
+  wrap.querySelectorAll('.req-history-row').forEach(row => {
+    row.addEventListener('click', () => {
+      const r = myRequests.find(x => x.id === row.dataset.id);
+      if (r) openDetailDrawer(r);
+    });
+  });
+}
+
+function openDetailDrawer(r) {
+  const titleEl = document.getElementById('reqDetailDrawerTitle');
+  const bodyEl  = document.getElementById('reqDetailDrawerBody');
+  if (!titleEl || !bodyEl) return;
+
+  titleEl.textContent = r.request_categories?.name ?? 'Request';
+
+  const responses = (r.staff_request_responses ?? [])
+    .slice()
+    .sort((a, b) => (a.request_category_fields?.sort_order ?? 0) - (b.request_category_fields?.sort_order ?? 0));
+
+  bodyEl.innerHTML = `
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px;color:#6b7280;">Submitted on ${fmtShortDate(r.created_at)}</div>
+    </div>
+
+    <div class="req-responses">
+      ${responses.map(resp => {
+        const label = resp.request_category_fields?.label ?? 'Field';
+        const val   = formatResponseValue(resp.value, resp.request_category_fields?.field_type);
+        return `
+          <div class="req-response-row">
+            <div class="req-response-label">${esc(label)}</div>
+            <div class="req-response-value">${val}</div>
+          </div>`;
+      }).join('') || '<p style="color:#9ca3af;">No details recorded.</p>'}
+    </div>
+
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;" />
+    <div class="form-group">
+      <label class="form-label">Status</label>
+      <div><span class="req-status-badge ${statusBadgeClass(r.status)}">${statusLabel(r.status, r.request_categories)}</span></div>
+    </div>
+    ${r.manager_notes ? `
+      <div class="form-group" style="margin-top:14px;">
+        <label class="form-label">Manager Notes</label>
+        <div style="font-size:14px;color:#111827;">${esc(r.manager_notes)}</div>
+      </div>` : ''}
+  `;
+
+  document.getElementById('reqDetailDrawer').classList.add('open');
+  document.getElementById('reqDetailOverlay').classList.add('open');
+}
+
+function closeDetailDrawer() {
+  document.getElementById('reqDetailDrawer').classList.remove('open');
+  document.getElementById('reqDetailOverlay').classList.remove('open');
+}
+
+function formatResponseValue(val, type) {
+  if (!val) return '—';
+  if (type === 'boolean') return val === 'true' ? 'Yes' : 'No';
+  if (type === 'url') {
+    // type="url" validity only requires a well-formed absolute URL, not a
+    // safe scheme (javascript:... passes) -- only link http(s), otherwise
+    // fall back to plain text so a crafted value can't become a clickable
+    // javascript: href.
+    return /^https?:\/\//i.test(val)
+      ? `<a href="${esc(val)}" target="_blank" rel="noopener noreferrer">${esc(val)}</a>`
+      : esc(val);
+  }
+  if (type === 'file') {
+    const url = esc(val);
+    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(val);
+    if (isImage) return `<img src="${url}" alt="Attachment" style="max-width:220px;max-height:180px;border-radius:6px;display:block;margin-top:4px;" />`;
+    return `<a href="${url}" target="_blank" rel="noopener noreferrer">View Attachment</a>`;
+  }
+  return esc(val);
 }
 
 // Shows a bottom fade over the history table whenever there's more to
