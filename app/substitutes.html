@@ -1445,10 +1445,23 @@ function covTimeLabel(row) {
     : 'Full day';
 }
 
+// A half_day_period (AM/PM) means the employee picked "Half day" on the leave
+// form; partial_day means they picked "Partial day…" and chose a custom time
+// range. Both carry start_time/end_time, but only checking for those (as this
+// used to) mislabeled every custom time range as "Half day" and every true
+// Half Day request as "Full day" -- see 20260828000001_half_day_am_pm.sql.
 function covDurationBadge(row) {
-  const isHalfDay = !!(row.start_time && row.end_time);
-  const cls = isHalfDay ? 'badge-cov-half' : 'badge-cov-full';
-  const label = isHalfDay ? 'Half day' : 'Full day';
+  let cls, label;
+  if (row.half_day_period) {
+    cls = 'badge-cov-half';
+    label = `Half day (${row.half_day_period})`;
+  } else if (row.partial_day) {
+    cls = 'badge-cov-partial';
+    label = 'Partial day';
+  } else {
+    cls = 'badge-cov-full';
+    label = 'Full day';
+  }
   return `<span class="pto-type-badge ${cls}">${label}</span>`;
 }
 

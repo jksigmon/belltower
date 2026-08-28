@@ -69,8 +69,12 @@ function renderPtoEmail({
     ? `${request.requested_hours} hours`
     : '';
 
+  const halfDaySuffix = request.half_day_period
+    ? ` – ${request.half_day_period === 'AM' ? 'Morning' : 'Afternoon'}`
+    : '';
+
   const durationLabel = request.requested_duration_label
-    ? ` (${request.requested_duration_label})`
+    ? ` (${request.requested_duration_label}${halfDaySuffix})`
     : '';
 
   const notesHtml = request.notes

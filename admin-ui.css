@@ -2804,9 +2804,10 @@ nav a[data-cap-group] {
 .badge-pto-professional { background: #d1fae5; color: #065f46; }
 .badge-pto-other        { background: #f1f5f9; color: #475569; }
 
-/* Coverage duration badges (full day vs. half day) */
-.badge-cov-full { background: #e0e7ff; color: #3730a3; }
-.badge-cov-half { background: #fef3c7; color: #92400e; }
+/* Coverage duration badges (full day vs. half day vs. partial day) */
+.badge-cov-full    { background: #e0e7ff; color: #3730a3; }
+.badge-cov-half    { background: #fef3c7; color: #92400e; }
+.badge-cov-partial { background: #cffafe; color: #0e7490; }
 
 /* Status inline spans */
 .status-pending {
@@ -8822,6 +8823,70 @@ select.admin-input {
 }
 .bg-role-card:has(.bg-role-check:checked) .bg-role-name {
   color: var(--primary, #2563eb);
+}
+
+/* ── Half-day AM/PM card picker (staff + proxy leave forms) ── */
+.half-day-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 6px;
+}
+@media (max-width: 600px) {
+  .half-day-grid { grid-template-columns: 1fr; }
+}
+.half-day-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+.half-day-card:hover {
+  border-color: #93c5fd;
+  background: #f8faff;
+}
+.half-day-card .half-day-radio {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.half-day-icon {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 9px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.half-day-card:has(.half-day-radio:checked) .half-day-icon {
+  background: #dbeafe;
+}
+.half-day-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.3;
+}
+.half-day-card:has(.half-day-radio:checked) {
+  border-color: var(--primary, #2563eb);
+  background: #eff6ff;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+}
+.half-day-card:has(.half-day-radio:checked) .half-day-name {
+  color: var(--primary, #2563eb);
+}
+.half-day-card:has(.half-day-radio:focus-visible) {
+  outline: 2px solid var(--primary, #2563eb);
+  outline-offset: 2px;
 }
 
 /* ── BG Check request form: header + numbered steps (staff.html) ── */

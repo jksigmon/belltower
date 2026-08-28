@@ -372,6 +372,15 @@
   display: grid;
 }
 
+/* Half day AM/PM conditional panel — card styles shared via admin-ui.css .half-day-* */
+.pto-form-row-halfday {
+  display: none;
+  width: 100%;
+}
+.pto-form.half-day-active .pto-form-row-halfday {
+  display: block;
+}
+
 .pto-computed-hours {
   align-self: end;
   font-size: 13px;
@@ -1147,6 +1156,32 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       <select id="ptoEndTime" class="pto-conditional"></select>
     </div>
     <div id="ptoComputedHours" class="pto-computed-hours">Total: —</div>
+  </div>
+
+  <!-- Conditional: half day AM/PM (shown when Duration = Half day) -->
+  <div class="pto-form-row-halfday">
+    <div class="pto-field">
+      <span class="pto-field-label">Which half of the day? <span style="color:#dc2626;">*</span></span>
+      <div class="half-day-grid">
+        <label class="half-day-card">
+          <input type="radio" name="ptoHalfDayPeriod" value="AM" class="half-day-radio" />
+          <span class="half-day-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          </span>
+          <span class="half-day-name">Morning</span>
+        </label>
+        <label class="half-day-card">
+          <input type="radio" name="ptoHalfDayPeriod" value="PM" class="half-day-radio" />
+          <span class="half-day-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          </span>
+          <span class="half-day-name">Afternoon</span>
+        </label>
+      </div>
+      <span id="ptoHalfDayPeriodErr" style="font-size:12px; color:#b91c1c; display:none; margin-top:8px;">
+        Please choose AM or PM so the sub coordinator knows which half you need covered.
+      </span>
+    </div>
   </div>
 
   <!-- Notes -->
@@ -2164,8 +2199,10 @@ durationSelect.addEventListener('change', () => {
   const dur = durationSelect.value;
   const isPartial = dur === 'partial';
   const isMulti = dur === 'multi';
+  const isHalfDay = dur === 'half';
 
   form.classList.toggle('partial-day-active', isPartial);
+  form.classList.toggle('half-day-active', isHalfDay);
 
   if (isPartial) {
     buildTimeSelectOptions();
@@ -2175,6 +2212,12 @@ durationSelect.addEventListener('change', () => {
     if (startSel) startSel.value = '';
     if (endSel) endSel.value = '';
   }
+
+  if (!isHalfDay) {
+    document.querySelectorAll('input[name="ptoHalfDayPeriod"]').forEach(r => r.checked = false);
+    document.getElementById('ptoHalfDayPeriodErr').style.display = 'none';
+  }
+
   updateComputedHoursUI();
 
   if (ptoDatePicker) {
@@ -4844,8 +4887,26 @@ if (isPartial) {
   }
 }
 
-const startTime = isPartial ? normalizeStartTime(startTimeInput) : null;
-const endTime   = isPartial ? normalizeEndTime(endTimeRaw) : null;
+const halfDayPeriod = document.querySelector('input[name="ptoHalfDayPeriod"]:checked')?.value ?? null;
+const halfDayPeriodErr = document.getElementById('ptoHalfDayPeriodErr');
+if (isHalfDay && !halfDayPeriod) {
+  if (halfDayPeriodErr) halfDayPeriodErr.style.display = 'inline';
+  message.textContent = 'Please choose morning or afternoon for your half day.';
+  return;
+} else if (halfDayPeriodErr) {
+  halfDayPeriodErr.style.display = 'none';
+}
+
+const startTime = isPartial
+  ? normalizeStartTime(startTimeInput)
+  : isHalfDay
+    ? (halfDayPeriod === 'AM' ? DAY_START_TIME : addHoursToTime(DAY_END_TIME, -(SCHOOL_WORKDAY_HOURS / 2)))
+    : null;
+const endTime = isPartial
+  ? normalizeEndTime(endTimeRaw)
+  : isHalfDay
+    ? (halfDayPeriod === 'AM' ? addHoursToTime(DAY_START_TIME, SCHOOL_WORKDAY_HOURS / 2) : DAY_END_TIME)
+    : null;
 
 let customHours = null;
 if (isPartial) {
@@ -4911,6 +4972,7 @@ const needsSubCoverage = subChoice === 'yes';
 
       partial_day: isPartial,
       partial_hours: isPartial ? customHours : null,
+      half_day_period: isHalfDay ? halfDayPeriod : null,
 
       start_time: startTime,
       end_time: endTime,
@@ -4938,7 +5000,11 @@ const needsSubCoverage = subChoice === 'yes';
 
   document
     .querySelector('.pto-form')
-    .classList.remove('partial-day-active');
+    .classList.remove('partial-day-active', 'half-day-active');
+
+  document.querySelectorAll('input[name="ptoHalfDayPeriod"]').forEach(r => r.checked = false);
+  const halfDayPeriodErrReset = document.getElementById('ptoHalfDayPeriodErr');
+  if (halfDayPeriodErrReset) halfDayPeriodErrReset.style.display = 'none';
 
 document.querySelectorAll('input[name="subCoverageNeeded"]').forEach(r => r.checked = false);
 

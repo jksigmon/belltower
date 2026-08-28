@@ -430,6 +430,9 @@ function formatTime(t) {
 function formatHoursWithTime(r) {
   const hours = Number(r.requested_hours ?? 0);
   if (!hours) return '—';
+  if (r.half_day_period) {
+    return `Half Day (${r.half_day_period}) · ${hours} hrs (${formatTime(r.start_time)}–${formatTime(r.end_time)})`;
+  }
   if (r.start_time && r.end_time) {
     return `${hours} hrs (${formatTime(r.start_time)}–${formatTime(r.end_time)})`;
   }
@@ -1350,6 +1353,7 @@ async function loadStaffPtoHistory(employeeId) {
       end_date,
       partial_day,
       partial_hours,
+      half_day_period,
       start_time,
       end_time,
       requested_hours,
@@ -2140,6 +2144,7 @@ async function openCalEventPopover(el, fcEvent) {
     .select(`
       requested_hours,
       requested_duration_label,
+      half_day_period,
       notes,
       decided_at,
       approver:employees!pto_requests_decided_by_fkey(first_name, last_name)
@@ -2154,7 +2159,8 @@ async function openCalEventPopover(el, fcEvent) {
   // (no start_time/end_time, but not a full day either). Reconcile against the
   // actual duration label so Time and Hours never contradict each other.
   if (fcEvent.allDay && data.requested_duration_label === 'Half Day') {
-    document.getElementById('calPopTime').textContent = 'Half day';
+    document.getElementById('calPopTime').textContent =
+      data.half_day_period ? `Half day (${data.half_day_period})` : 'Half day';
   }
 
   document.getElementById('calPopHours').textContent =
@@ -3242,16 +3248,28 @@ let proxyDatePicker = null;
 let proxySelectedStart = null;
 let proxySelectedEnd = null;
 let proxyWorkdayHours = 8;
+let proxyDayStartTime = '08:00';
+let proxyDayEndTime   = '16:00';
 const PROXY_INCREMENT_MINUTES = 30;
 
+function addHoursToTime(startTime, hours) {
+  const [h, m] = startTime.split(':').map(Number);
+  const totalMinutes = h * 60 + m + hours * 60;
+  const endH = Math.floor(totalMinutes / 60) % 24;
+  const endM = totalMinutes % 60;
+  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+}
+
 async function initProxySubmitView() {
-  // Load workday hours from school settings
+  // Load workday hours + day start/end from school settings
   const { data: settings } = await supabase
     .from('school_settings')
-    .select('workday_hours')
+    .select('workday_hours, day_start_time, day_end_time')
     .eq('school_id', currentProfile.school_id)
     .single();
-  proxyWorkdayHours = settings?.workday_hours ?? 8;
+  proxyWorkdayHours  = settings?.workday_hours ?? 8;
+  proxyDayStartTime  = (settings?.day_start_time ?? '08:00').slice(0, 5);
+  proxyDayEndTime    = (settings?.day_end_time   ?? '16:00').slice(0, 5);
 
   // Populate staff picker
   const staffSelect = document.getElementById('proxyStaffSelect');
@@ -3275,6 +3293,7 @@ async function initProxySubmitView() {
     const val = durationSelect.value;
     const isMulti = val === 'multi';
     const isPartial = val === 'partial';
+    const isHalfDay = val === 'half';
     if (proxyDatePicker) {
       proxyDatePicker.set('mode', isMulti ? 'range' : 'single');
       proxyDatePicker.clear();
@@ -3282,6 +3301,11 @@ async function initProxySubmitView() {
       proxySelectedEnd = null;
     }
     document.getElementById('proxyTimeRow').classList.toggle('visible', isPartial);
+    document.getElementById('proxyHalfDayRow').classList.toggle('visible', isHalfDay);
+    if (!isHalfDay) {
+      document.querySelectorAll('input[name="proxyHalfDayPeriod"]').forEach(r => r.checked = false);
+      document.getElementById('proxyHalfDayPeriodErr').style.display = 'none';
+    }
     updateProxyComputedHours();
   });
 
@@ -3410,6 +3434,16 @@ async function submitProxyLeave() {
     return;
   }
 
+  const halfDayPeriod = document.querySelector('input[name="proxyHalfDayPeriod"]:checked')?.value ?? null;
+  const halfDayPeriodErr = document.getElementById('proxyHalfDayPeriodErr');
+  if (isHalfDay && !halfDayPeriod) {
+    if (halfDayPeriodErr) halfDayPeriodErr.style.display = 'inline';
+    message.textContent = 'Please choose morning or afternoon for the half day.';
+    return;
+  } else if (halfDayPeriodErr) {
+    halfDayPeriodErr.style.display = 'none';
+  }
+
   let startTime = null;
   let endTime   = null;
   let customHours = null;
@@ -3423,6 +3457,9 @@ async function submitProxyLeave() {
     const [eh, em] = endTime.split(':').map(Number);
     customHours = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
     if (customHours <= 0) { message.textContent = 'End time must be after start time.'; return; }
+  } else if (isHalfDay) {
+    startTime = halfDayPeriod === 'AM' ? proxyDayStartTime : addHoursToTime(proxyDayEndTime, -(proxyWorkdayHours / 2));
+    endTime   = halfDayPeriod === 'AM' ? addHoursToTime(proxyDayStartTime, proxyWorkdayHours / 2) : proxyDayEndTime;
   }
 
   const requestedHours = proxyCalculateHours({ startDate, endDate, isHalfDay, isPartial, partialHours: customHours });
@@ -3443,6 +3480,7 @@ async function submitProxyLeave() {
     requested_duration_label: durationLabel,
     partial_day:              isPartial,
     partial_hours:            isPartial ? customHours : null,
+    half_day_period:          isHalfDay ? halfDayPeriod : null,
     start_time:               startTime,
     end_time:                 endTime,
     notes:                    notes || null,
@@ -3464,6 +3502,10 @@ async function submitProxyLeave() {
   document.getElementById('proxyPtoType').value = '';
   document.getElementById('proxyDuration').value = 'full';
   document.getElementById('proxyTimeRow').classList.remove('visible');
+  document.getElementById('proxyHalfDayRow').classList.remove('visible');
+  document.querySelectorAll('input[name="proxyHalfDayPeriod"]').forEach(r => r.checked = false);
+  const halfDayPeriodErrReset = document.getElementById('proxyHalfDayPeriodErr');
+  if (halfDayPeriodErrReset) halfDayPeriodErrReset.style.display = 'none';
   document.getElementById('proxyNotes').value = '';
   document.querySelectorAll('input[name="proxySubCoverage"]').forEach(r => r.checked = false);
   if (proxyDatePicker) { proxyDatePicker.set('mode', 'single'); proxyDatePicker.clear(); }
