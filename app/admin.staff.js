@@ -317,7 +317,7 @@ async function saveEditStaff() {
   const updated = {
     first_name:        first,
     last_name:         last,
-    email:             document.getElementById('esEmail').value.trim(),
+    email:             document.getElementById('esEmail').value.trim() || null,
     position:          document.getElementById('esPosition').value.trim(),
     supervisor_id:     document.getElementById('esSupervisor').value || null,
     campus_id:         document.getElementById('esCampus').value || null,
@@ -605,7 +605,7 @@ function populateStaffGroupSelect(select, selectedId) {
 async function createStaff() {
   const first = document.getElementById('staffFirst').value.trim();
   const last  = document.getElementById('staffLast').value.trim();
-  const email = document.getElementById('staffEmail').value.trim();
+  const email = document.getElementById('staffEmail').value.trim() || null;
   const position = document.getElementById('staffPosition').value.trim();
   const supervisorId = document.getElementById('staffSupervisor')?.value || null;
   const campusId     = document.getElementById('staffCampusAdd')?.value || null;
