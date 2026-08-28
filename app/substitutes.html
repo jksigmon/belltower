@@ -1439,10 +1439,19 @@ function covFmtDay(dateStr, withYear = false) {
   });
 }
 
+// Half Day requests submitted before half_day_period existed have no AM/PM
+// and no start_time/end_time recorded, but requested_duration_label was
+// already being stamped 'Half Day' at submission -- use it so those legacy
+// rows don't read as "Full day" just because the newer columns are empty.
+function covIsLegacyHalfDay(row) {
+  return !row.half_day_period && !row.partial_day && row.requested_duration_label === 'Half Day';
+}
+
 function covTimeLabel(row) {
-  return (row.start_time && row.end_time)
-    ? `${fmtTime(row.start_time)}–${fmtTime(row.end_time)}`
-    : 'Full day';
+  if (row.start_time && row.end_time) {
+    return `${fmtTime(row.start_time)}–${fmtTime(row.end_time)}`;
+  }
+  return covIsLegacyHalfDay(row) ? 'Half day (AM/PM not recorded)' : 'Full day';
 }
 
 // A half_day_period (AM/PM) means the employee picked "Half day" on the leave
@@ -1458,6 +1467,9 @@ function covDurationBadge(row) {
   } else if (row.partial_day) {
     cls = 'badge-cov-partial';
     label = 'Partial day';
+  } else if (covIsLegacyHalfDay(row)) {
+    cls = 'badge-cov-half';
+    label = 'Half day';
   } else {
     cls = 'badge-cov-full';
     label = 'Full day';
