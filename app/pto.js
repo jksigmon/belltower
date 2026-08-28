@@ -2149,6 +2149,14 @@ async function openCalEventPopover(el, fcEvent) {
 
   if (error || !data) return;
 
+  // "Time" was derived purely from FullCalendar's allDay flag, which only reflects
+  // whether the event has clock times — it doesn't know about Half Day requests
+  // (no start_time/end_time, but not a full day either). Reconcile against the
+  // actual duration label so Time and Hours never contradict each other.
+  if (fcEvent.allDay && data.requested_duration_label === 'Half Day') {
+    document.getElementById('calPopTime').textContent = 'Half day';
+  }
+
   document.getElementById('calPopHours').textContent =
     data.requested_duration_label || (data.requested_hours != null ? `${data.requested_hours} hrs` : '—');
 
