@@ -27,3 +27,10 @@ rollover-2026.sql
 
 # Local working files with sensitive data — never commit
 Background Check Data.numbers
+
+# design-sync: staged converter scripts + build output (regenerated, not committed)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
