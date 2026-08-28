@@ -3933,7 +3933,7 @@ function renderMyCeuProgress(licenses, ceusByLicense) {
     const label = lic.license_type + (lic.license_area ? ' – ' + lic.license_area : '');
     const verifiedBadge = lic.verified
       ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">✓ Verified</span>'
-      : '<span style="background:#fef9c3;color:#a16207;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;" title="An administrator hasn\'t confirmed this license yet — you can still log CEUs against it.">Pending Verification</span>';
+      : '<span style="background:#fef9c3;color:#a16207;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;" title="An administrator hasn\'t confirmed this license yet. You can still log CEUs against it.">Pending Verification</span>';
 
     let html = `<div class="ceu-license-card">
       <div class="ceu-license-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
@@ -4098,7 +4098,7 @@ document.getElementById('staffLicSaveBtn')?.addEventListener('click', async () =
 
   saveBtn.disabled = false;
   closeStaffLicenseModal();
-  showToast('License saved — pending admin verification. You can log CEUs against it now.');
+  showToast('License saved. Pending admin verification, but you can log CEUs against it now.');
   await loadMyLicenses();
 });
 
@@ -4272,7 +4272,13 @@ async function loadMyLicenses() {
     .order('expiration_date', { ascending: true });
 
   if (error || !data?.length) {
-    container.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:32px 0;">No license records on file yet. Click "+ Add License" above to add your own — an administrator will verify it, and you can start logging CEUs against it right away.</p>';
+    container.innerHTML = `
+      <div class="admin-empty-state">
+        <div class="admin-empty-state-icon"><i data-lucide="badge-check"></i></div>
+        <p class="admin-empty-state-title">No license records on file yet</p>
+        <p class="admin-empty-state-desc">Click "+ Add License" above to add your own. An administrator will verify it, and you can start logging CEUs against it right away.</p>
+      </div>`;
+    if (window.lucide) lucide.createIcons({ el: container });
     if (ceuContainer) ceuContainer.innerHTML = '';
     return;
   }
