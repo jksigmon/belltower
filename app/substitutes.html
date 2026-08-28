@@ -949,15 +949,17 @@
           <table id="pendingCoverageTable" style="margin-top:12px; width:100%;">
             <colgroup>
               <col>                    <!-- Staff member -->
-              <col style="width:20%">  <!-- Date -->
-              <col style="width:14%">  <!-- Type -->
-              <col style="width:26%">  <!-- Notes -->
+              <col style="width:18%">  <!-- Date -->
+              <col style="width:13%">  <!-- Duration -->
+              <col style="width:13%">  <!-- Type -->
+              <col style="width:22%">  <!-- Notes -->
               <col style="width:36px"> <!-- Chevron -->
             </colgroup>
             <thead>
               <tr>
                 <th>Staff Member</th>
                 <th>Date</th>
+                <th>Duration</th>
                 <th>Type</th>
                 <th>Notes</th>
                 <th></th>
@@ -1443,6 +1445,13 @@ function covTimeLabel(row) {
     : 'Full day';
 }
 
+function covDurationBadge(row) {
+  const isHalfDay = !!(row.start_time && row.end_time);
+  const cls = isHalfDay ? 'badge-cov-half' : 'badge-cov-full';
+  const label = isHalfDay ? 'Half day' : 'Full day';
+  return `<span class="pto-type-badge ${cls}">${label}</span>`;
+}
+
 function covInitials(first, last) {
   return `${first?.[0] ?? ''}${last?.[0] ?? ''}`.toUpperCase();
 }
@@ -1778,8 +1787,9 @@ function renderCovRow(row) {
     </td>
     <td>
       ${esc(covFmtDay(row.coverage_date))}
-      <span class="cov-date-sub">${esc(covTimeLabel(row))}</span>
+      <span class="cov-date-sub">${row.start_time && row.end_time ? esc(covTimeLabel(row)) : ''}</span>
     </td>
+    <td>${covDurationBadge(row)}</td>
     <td>${covTypeBadge(row.pto_type)}</td>
     <td class="cov-note-cell" title="${esc(row.notes ?? '')}">${esc(row.notes ?? '—')}</td>
     <td class="staff-cell-chevron">

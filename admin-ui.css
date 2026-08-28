@@ -2804,6 +2804,10 @@ nav a[data-cap-group] {
 .badge-pto-professional { background: #d1fae5; color: #065f46; }
 .badge-pto-other        { background: #f1f5f9; color: #475569; }
 
+/* Coverage duration badges (full day vs. half day) */
+.badge-cov-full { background: #e0e7ff; color: #3730a3; }
+.badge-cov-half { background: #fef3c7; color: #92400e; }
+
 /* Status inline spans */
 .status-pending {
   display: inline-block;
