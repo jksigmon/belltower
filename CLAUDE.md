@@ -105,7 +105,9 @@ All functions use the Deno runtime and `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS
 | `pto_calendar_ics` | Generate ICS calendar file for PTO events |
 | `pto_decision_handler` | Handle PTO approval/denial decisions |
 | `send_pto_notifications` | Send email notifications via Resend |
-| `send_license_alerts` | Send licensure expiry alerts |
+| `send_license_alerts` | Send licensure expiry alerts (cron-driven, threshold-based) |
+| `send_license_submission_notification` | Email licensure admins when staff self-submit a new license or CEU entry pending verification |
+| `send_license_verification_notification` | Email a staff member when an admin verifies (or un-verifies) one of their licenses or CEU entries |
 | `send_request_notification` | Email managers on a new Requests-module submission, and confirm receipt to the submitter |
 | `send_request_update_notification` | Email the submitter when a manager changes a request's status or notes |
 | `compliance_form_lookup` | Validate a form token and return template content |

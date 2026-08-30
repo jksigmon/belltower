@@ -389,25 +389,32 @@ async function openLicenseAttachment(licenseId) {
 async function loadAuditLog() {
   const search = document.getElementById('auditSearch')?.value.trim().toLowerCase() ?? '';
 
-  const { data, error } = await supabase
-    .from('staff_license_history')
-    .select(`
-      id, changed_at, change_type, field_changes,
-      changed_by,
-      staff_licenses ( employee_id )
-    `)
-    .eq('school_id', currentProfile.school_id)
-    .order('changed_at', { ascending: false })
-    .limit(200);
+  const [licRes, ceuRes] = await Promise.all([
+    supabase
+      .from('staff_license_history')
+      .select('id, employee_id, changed_at, change_type, field_changes, changed_by')
+      .eq('school_id', currentProfile.school_id)
+      .order('changed_at', { ascending: false })
+      .limit(200),
+    supabase
+      .from('staff_license_ceu_history')
+      .select('id, employee_id, changed_at, change_type, field_changes, changed_by')
+      .eq('school_id', currentProfile.school_id)
+      .order('changed_at', { ascending: false })
+      .limit(200),
+  ]);
 
-  if (error) {
+  if (licRes.error || ceuRes.error) {
     const tbody = document.getElementById('auditTableBody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="lic-empty" style="color:#dc2626;">Failed to load audit log. Please try again.</td></tr>`;
-    console.error(error);
+    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="lic-empty" style="color:#dc2626;">Failed to load audit log. Please try again.</td></tr>`;
+    console.error(licRes.error || ceuRes.error);
     return;
   }
 
-  let rows = data || [];
+  let rows = [
+    ...(licRes.data || []).map(r => ({ ...r, record_type: 'license' })),
+    ...(ceuRes.data || []).map(r => ({ ...r, record_type: 'ceu' })),
+  ].sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at)).slice(0, 200);
 
   // Resolve changed_by user_ids → display names
   const changerIds = [...new Set(rows.map(r => r.changed_by).filter(Boolean))];
@@ -424,20 +431,19 @@ async function loadAuditLog() {
 
   if (search) {
     rows = rows.filter(r => {
-      const name = (employeeLookup[r.staff_licenses?.employee_id] ?? '').toLowerCase();
+      const name = (employeeLookup[r.employee_id] ?? '').toLowerCase();
       const changer = (changerLookup[r.changed_by] ?? '').toLowerCase();
       return name.includes(search) || r.change_type.toLowerCase().includes(search) || changer.includes(search);
     });
   }
 
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="lic-empty">No audit history yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="lic-empty">No audit history yet.</td></tr>';
     return;
   }
 
   tbody.innerHTML = '';
   rows.forEach(r => {
-    const employeeId = r.staff_licenses?.employee_id;
     const changerProfile = changerLookup[r.changed_by] ?? '—';
     const details = r.field_changes
       ? Object.entries(r.field_changes)
@@ -448,7 +454,8 @@ async function loadAuditLog() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${formatDateTime(r.changed_at)}</td>
-      <td>${esc(employeeLookup[employeeId] ?? '—')}</td>
+      <td>${esc(employeeLookup[r.employee_id] ?? '—')}</td>
+      <td>${r.record_type === 'ceu' ? 'CEU' : 'License'}</td>
       <td><span class="badge badge-${changeTypeBadge(r.change_type)}">${esc(r.change_type)}</span></td>
       <td>${esc(changerProfile)}</td>
       <td>${details}</td>
@@ -542,13 +549,27 @@ function resetForm() {
 /* ─────────────────────────────────────────────────────
    SAVE / DELETE
 ───────────────────────────────────────────────────── */
+// Stamps verified_by/verified_at the moment `verified` actually flips, and
+// clears them on the way back to unverified -- left untouched on saves where
+// verified doesn't change, so a later edit of some other field doesn't
+// overwrite who originally verified it.
+function applyVerificationStamp(payload, wasVerified) {
+  if (payload.verified && !wasVerified) {
+    payload.verified_by = currentProfile.user_id;
+    payload.verified_at = new Date().toISOString();
+  } else if (!payload.verified && wasVerified) {
+    payload.verified_by = null;
+    payload.verified_at = null;
+  }
+  return payload;
+}
+
 async function saveLicense() {
   const isEdit   = !!editingId;
   const schoolId = currentProfile.school_id;
+  const old      = isEdit ? allLicenses.find(l => l.id === editingId) : null;
 
-  const employeeId = isEdit
-    ? allLicenses.find(l => l.id === editingId)?.employee_id
-    : document.getElementById('licStaff').value;
+  const employeeId = isEdit ? old?.employee_id : document.getElementById('licStaff').value;
 
   if (!employeeId) { showToast('Please select a staff member.', 'warn'); return; }
 
@@ -585,10 +606,13 @@ async function saveLicense() {
     notes:               document.getElementById('licNotes').value.trim() || null,
   };
 
+  const wasVerified = isEdit ? !!old?.verified : false;
+  applyVerificationStamp(payload, wasVerified);
+  const verificationChanged = payload.verified !== wasVerified;
+
   let licenseId;
 
   if (isEdit) {
-    const old = allLicenses.find(l => l.id === editingId);
     const changes = diffObjects(old, payload);
     const { error } = await supabase.from('staff_licenses').update(payload).eq('id', editingId);
     if (error) { console.error(error); showToast('Failed to save license.', 'error'); return; }
@@ -600,16 +624,21 @@ async function saveLicense() {
     }
 
     if (Object.keys(changes).length) {
-      await writeHistory(editingId, schoolId, 'updated', changes);
+      await writeHistory(editingId, schoolId, 'updated', changes, employeeId);
     }
     licenseId = editingId;
   } else {
     payload.created_by = currentProfile.user_id;
     const { data, error } = await supabase.from('staff_licenses').insert(payload).select().single();
     if (error) { console.error(error); showToast('Failed to save license.', 'error'); return; }
-    await writeHistory(data.id, schoolId, 'created', null);
+    await writeHistory(data.id, schoolId, 'created', null, employeeId);
     licenseId = data.id;
   }
+
+  // Invalidate the cached license list for this employee so a newly added or
+  // edited license shows up immediately in the CEU drawer's "Applies To
+  // License" dropdown, instead of waiting for a page reload.
+  delete ceuLicensesForStaff[employeeId];
 
   // Upload file if one was selected
   const fileInput = document.getElementById('licFileInput');
@@ -619,6 +648,12 @@ async function saveLicense() {
 
   window.closeDrawer?.('licenseDrawer');
   await loadLicenses();
+
+  if (verificationChanged) {
+    supabase.functions.invoke('send_license_verification_notification', {
+      body: { record_type: 'license', record_id: licenseId, verified: payload.verified }
+    }).catch(err => console.error('verification notification failed', err));
+  }
 }
 
 async function deleteLicense(id) {
@@ -629,15 +664,39 @@ async function deleteLicense(id) {
     `Delete the ${lic?.license_type ?? 'license'} record for ${name}? This cannot be undone.`
   );
   if (!confirmed) return;
-  if (lic) await writeHistory(id, currentProfile.school_id, 'deleted', null);
+  if (lic) await writeHistory(id, currentProfile.school_id, 'deleted', null, lic.employee_id);
   const { error } = await supabase.from('staff_licenses').delete().eq('id', id);
   if (error) { console.error(error); showToast('Failed to delete license.', 'error'); return; }
+  if (lic) delete ceuLicensesForStaff[lic.employee_id];
   await loadLicenses();
 }
 
-async function writeHistory(licenseId, schoolId, changeType, fieldChanges) {
+async function writeHistory(licenseId, schoolId, changeType, fieldChanges, employeeId) {
   await supabase.from('staff_license_history').insert({
     license_id:    licenseId,
+    employee_id:   employeeId,
+    school_id:     schoolId,
+    changed_by:    currentProfile.user_id,
+    change_type:   changeType,
+    field_changes: fieldChanges,
+  });
+}
+
+function diffCeuObjects(oldObj, newObj) {
+  const changes = {};
+  const keys = ['license_id','category','title','provider','source_type','hours','completed_date','verified','notes'];
+  keys.forEach(k => {
+    const oldVal = JSON.stringify(oldObj[k] ?? null);
+    const newVal = JSON.stringify(newObj[k] ?? null);
+    if (oldVal !== newVal) changes[k] = { old: oldObj[k], new: newObj[k] };
+  });
+  return changes;
+}
+
+async function writeCeuHistory(ceuId, schoolId, changeType, fieldChanges, employeeId) {
+  await supabase.from('staff_license_ceu_history').insert({
+    ceu_id:        ceuId,
+    employee_id:   employeeId,
     school_id:     schoolId,
     changed_by:    currentProfile.user_id,
     change_type:   changeType,
@@ -995,11 +1054,7 @@ async function populateCeuLicenseOptions(employeeId, preselectLicenseId) {
   }
 
   const licenses = ceuLicensesForStaff[employeeId];
-  if (!licenses.length) {
-    sel.innerHTML = '<option value="">No licenses on file for this staff member</option>';
-    return;
-  }
-  sel.innerHTML = '<option value="">Select license…</option>' + licenses.map(l =>
+  sel.innerHTML = '<option value="">No linked license (general CEU)</option>' + licenses.map(l =>
     `<option value="${l.id}">${esc(l.license_type)}${l.license_area ? ' — ' + esc(l.license_area) : ''}</option>`
   ).join('');
   if (preselectLicenseId) sel.value = preselectLicenseId;
@@ -1036,12 +1091,20 @@ async function openEditCeuModal(id, { returnLicenseId = null } = {}) {
   editingCeuId        = id;
   ceuReturnLicenseId  = returnLicenseId;
   lockedCeuEmployeeId = entry.employee_id ?? currentEditingLicense?.employee_id;
-  lockedCeuLicenseId  = entry.license_id ?? currentEditingLicense?.id;
+  // entry.license_id may legitimately be null (a general, unlinked CEU) --
+  // don't let `??` fall through to currentEditingLicense in that case, or
+  // editing a general CEU opened from the cross-license CEUs tab could
+  // silently re-link it.
+  lockedCeuLicenseId  = entry.license_id;
 
   document.getElementById('ceuModalTitle').textContent = 'Edit CEU Entry';
   document.getElementById('saveCeuBtn').textContent    = 'Update Entry';
   document.getElementById('ceuStaffSelectRow').style.display   = 'none';
-  document.getElementById('ceuLicenseSelectRow').style.display = 'none';
+  // Unlike the staff field, the license link stays editable in edit mode --
+  // this is how a general CEU (added before any license existed, or before
+  // one was verified) gets linked to a license after the fact.
+  document.getElementById('ceuLicenseSelectRow').style.display = '';
+  await populateCeuLicenseOptions(lockedCeuEmployeeId, entry.license_id);
 
   document.getElementById('ceuTitle').value       = entry.title ?? '';
   document.getElementById('ceuProvider').value    = entry.provider ?? '';
@@ -1073,11 +1136,18 @@ async function closeCeuDrawerAndReturn() {
 async function saveCeu() {
   const isEdit     = !!editingCeuId;
   const schoolId   = currentProfile.school_id;
+  const old        = isEdit ? (allCeus.find(c => c.id === editingCeuId) || currentLicenseCeus.find(c => c.id === editingCeuId)) : null;
   const employeeId = lockedCeuEmployeeId || document.getElementById('ceuStaff').value;
-  const licenseId  = lockedCeuLicenseId  || document.getElementById('ceuLicense').value;
+  // The license select is hidden (and its value stale/irrelevant) only when
+  // adding a CEU from a license's own drawer panel -- there, lockedCeuLicenseId
+  // must win outright rather than falling through to the hidden select's
+  // leftover value. Every other case (top-level add, and all edits) reads the
+  // select directly, since edit mode now leaves it open for re-linking a
+  // general CEU to a license (or changing which one) after the fact.
+  const licenseLocked = document.getElementById('ceuLicenseSelectRow').style.display === 'none';
+  const licenseId = licenseLocked ? lockedCeuLicenseId : (document.getElementById('ceuLicense').value || null);
 
   if (!employeeId) { showToast('Please select a staff member.', 'warn'); return; }
-  if (!licenseId)  { showToast('Please select which license this counts toward.', 'warn'); return; }
 
   const title = document.getElementById('ceuTitle').value.trim();
   if (!title) { showToast('Title is required.', 'warn'); return; }
@@ -1102,15 +1172,24 @@ async function saveCeu() {
     notes:          document.getElementById('ceuNotes').value.trim() || null,
   };
 
+  const wasVerified = isEdit ? !!old?.verified : false;
+  applyVerificationStamp(payload, wasVerified);
+  const verificationChanged = payload.verified !== wasVerified;
+
   let ceuId;
   if (isEdit) {
+    const changes = diffCeuObjects(old, payload);
     const { error } = await supabase.from('staff_license_ceus').update(payload).eq('id', editingCeuId);
     if (error) { console.error(error); showToast('Failed to save CEU entry.', 'error'); return; }
+    if (Object.keys(changes).length) {
+      await writeCeuHistory(editingCeuId, schoolId, 'updated', changes, employeeId);
+    }
     ceuId = editingCeuId;
   } else {
     payload.created_by = currentProfile.user_id;
     const { data, error } = await supabase.from('staff_license_ceus').insert(payload).select().single();
     if (error) { console.error(error); showToast('Failed to save CEU entry.', 'error'); return; }
+    await writeCeuHistory(data.id, schoolId, 'created', null, employeeId);
     ceuId = data.id;
   }
 
@@ -1126,11 +1205,20 @@ async function saveCeu() {
   } else {
     await loadCeus();
   }
+
+  if (verificationChanged) {
+    supabase.functions.invoke('send_license_verification_notification', {
+      body: { record_type: 'ceu', record_id: ceuId, verified: payload.verified }
+    }).catch(err => console.error('verification notification failed', err));
+  }
 }
 
 async function deleteCeu(id, returnLicenseId = null) {
   const confirmed = await showConfirm('Delete CEU Entry', 'Delete this CEU entry? This cannot be undone.');
   if (!confirmed) return;
+
+  const entry = allCeus.find(c => c.id === id) || currentLicenseCeus.find(c => c.id === id);
+  if (entry) await writeCeuHistory(id, currentProfile.school_id, 'deleted', null, entry.employee_id);
 
   const { error } = await supabase.from('staff_license_ceus').delete().eq('id', id);
   if (error) { console.error(error); showToast('Failed to delete CEU entry.', 'error'); return; }
@@ -1342,6 +1430,14 @@ function wireEvents() {
 
   document.getElementById('ceuStaff')?.addEventListener('change', e => {
     populateCeuLicenseOptions(e.target.value);
+  });
+  document.getElementById('ceuLicense')?.addEventListener('change', e => {
+    // In edit mode ceuStaffSelectRow is hidden and its value is stale (left
+    // over from whatever the add-flow last set it to) -- lockedCeuEmployeeId
+    // is the source of truth there, same as saveCeu() uses.
+    const employeeId = lockedCeuEmployeeId || document.getElementById('ceuStaff').value;
+    const lic = (ceuLicensesForStaff[employeeId] || []).find(l => l.id === e.target.value);
+    document.getElementById('ceuCategory').value = lic ? suggestedCeuCategory(lic) : 'general_other';
   });
   document.getElementById('ceuSourceType')?.addEventListener('change', updateCeuHoursLabel);
   document.getElementById('ceuHours')?.addEventListener('input', updateCeuAmountPreview);

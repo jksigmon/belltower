@@ -1965,7 +1965,16 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <h3>Add CEU Entry</h3>
         <span class="modal-close" id="staffCeuModalClose">&times;</span>
       </div>
-      <p id="staffCeuLicenseLabel" class="muted"></p>
+      <p class="muted" style="font-size:0.82rem;margin:0 0 12px;">
+        Link this to one of your licenses to count it toward that license's CEU progress, or leave it
+        unlinked to log it as a general entry.
+      </p>
+      <div class="drawer-field">
+        <label>License <span class="muted" style="font-weight:400;">(optional)</span></label>
+        <select id="staffCeuLicenseSelect" class="form-input">
+          <option value="">No linked license (general CEU)</option>
+        </select>
+      </div>
 
       <div class="drawer-field">
         <label>Title <span class="required">*</span></label>
@@ -3962,7 +3971,7 @@ function ceuCycleStartDate(expirationDate) {
   return d.toISOString().slice(0, 10);
 }
 
-function renderMyCeuProgress(licenses, ceusByLicense) {
+function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
   const container = document.getElementById('staffCeuProgress');
   if (!container) return;
 
@@ -4022,12 +4031,33 @@ function renderMyCeuProgress(licenses, ceusByLicense) {
     return html;
   }).join('');
 
-  container.innerHTML = cards;
+  const generalTotal = generalCeus.reduce((sum, c) => sum + Number(c.ceu_amount), 0);
+  const generalCard = `<div class="ceu-license-card">
+    <div class="ceu-license-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">General CEUs <span class="muted" style="font-weight:400;font-size:0.78rem;">(not linked to a license)</span></span>
+      <button type="button" class="btn btn-sm staffAddCeuBtn" data-license-id="">+ Add CEU</button>
+    </div>
+    <div class="ceu-progress-total">Total <span>${generalTotal.toFixed(1)} CEU${generalTotal === 1 ? '' : 's'}</span></div>
+    ${generalCeus.length
+      ? '<div class="ceu-entry-list">' + generalCeus.map(c => `
+          <div class="ceu-entry-row">
+            <span class="ceu-cat ceu-cat-${esc(c.category)}">${esc(CEU_CATEGORY_LABELS[c.category] ?? c.category)}</span>
+            <span class="ceu-entry-title">${esc(c.title)}</span>
+            <span class="ceu-entry-date">${fmtShortDate(c.completed_date)}</span>
+            <span class="ceu-entry-ceus">${Number(c.ceu_amount).toFixed(1)} CEU</span>
+            ${c.verified
+              ? '<span class="verified-check" title="Verified">✓</span>'
+              : `<button type="button" class="ceu-entry-delete-btn staffDeleteCeuBtn" data-id="${esc(c.id)}" data-file="${esc(c.file_path ?? '')}" title="Delete (pending verification)">✕</button>`}
+          </div>`).join('') + '</div>'
+      : '<div class="ceu-no-profile">No general CEU entries logged yet.</div>'}
+  </div>`;
+
+  container.innerHTML = cards + generalCard;
 
   container.querySelectorAll('.staffAddCeuBtn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const lic = myLicensesById[btn.dataset.licenseId];
-      if (lic) openStaffCeuModal(lic);
+      const licId = btn.dataset.licenseId;
+      openStaffCeuModal(licId ? myLicensesById[licId] : null);
     });
   });
   container.querySelectorAll('.staffDeleteLicBtn').forEach(btn => {
@@ -4143,6 +4173,10 @@ document.getElementById('staffLicSaveBtn')?.addEventListener('click', async () =
   closeStaffLicenseModal();
   showToast('License saved. Pending admin verification, but you can log CEUs against it now.');
   await loadMyLicenses();
+
+  supabase.functions.invoke('send_license_submission_notification', {
+    body: { record_type: 'license', record_id: data.id }
+  }).catch(err => console.error('submission notification failed', err));
 });
 
 async function deleteMyLicense(id) {
@@ -4162,8 +4196,6 @@ async function deleteMyLicense(id) {
 /* ─────────────────────────────────────────────────────
    My Licenses — Add CEU Entry (self-serve, pending admin verification)
 ───────────────────────────────────────────────────── */
-let staffCeuTargetLicense = null;
-
 function updateStaffCeuHoursLabel() {
   const src     = document.getElementById('staffCeuSourceType').value;
   const label   = document.getElementById('staffCeuHoursLabel');
@@ -4178,14 +4210,26 @@ function updateStaffCeuHoursLabel() {
 document.getElementById('staffCeuSourceType')?.addEventListener('change', updateStaffCeuHoursLabel);
 document.getElementById('staffCeuHours')?.addEventListener('input', updateStaffCeuHoursLabel);
 
-function openStaffCeuModal(license) {
-  staffCeuTargetLicense = license;
+function populateStaffCeuLicenseSelect(preselectId) {
+  const sel = document.getElementById('staffCeuLicenseSelect');
+  if (!sel) return;
+  const licenses = Object.values(myLicensesById);
+  sel.innerHTML = '<option value="">No linked license (general CEU)</option>' + licenses.map(l =>
+    `<option value="${esc(l.id)}">${esc(l.license_type)}${l.license_area ? ' – ' + esc(l.license_area) : ''}</option>`
+  ).join('');
+  sel.value = preselectId || '';
+}
 
-  document.getElementById('staffCeuLicenseLabel').textContent =
-    'For: ' + license.license_type + (license.license_area ? ' – ' + license.license_area : '');
+document.getElementById('staffCeuLicenseSelect')?.addEventListener('change', e => {
+  const lic = myLicensesById[e.target.value] || null;
+  document.getElementById('staffCeuCategory').value = lic ? suggestedStaffCeuCategory(lic) : 'general_other';
+});
+
+function openStaffCeuModal(license = null) {
+  populateStaffCeuLicenseSelect(license ? license.id : '');
   document.getElementById('staffCeuTitle').value       = '';
   document.getElementById('staffCeuProvider').value    = '';
-  document.getElementById('staffCeuCategory').value    = suggestedStaffCeuCategory(license);
+  document.getElementById('staffCeuCategory').value    = license ? suggestedStaffCeuCategory(license) : 'general_other';
   document.getElementById('staffCeuSourceType').value  = 'lea_inservice';
   document.getElementById('staffCeuHours').value       = '';
   document.getElementById('staffCeuCompletedDate').value = toLocalISODate(new Date());
@@ -4225,7 +4269,7 @@ document.getElementById('staffCeuSaveBtn')?.addEventListener('click', async () =
   const errorEl = document.getElementById('staffCeuError');
   errorEl.style.display = 'none';
 
-  if (!staffCeuTargetLicense) return;
+  const licenseId = document.getElementById('staffCeuLicenseSelect').value || null;
 
   const title = document.getElementById('staffCeuTitle').value.trim();
   if (!title) { errorEl.textContent = 'Title is required.'; errorEl.style.display = 'block'; return; }
@@ -4241,7 +4285,7 @@ document.getElementById('staffCeuSaveBtn')?.addEventListener('click', async () =
 
   const payload = {
     school_id:      currentProfile.school_id,
-    license_id:     staffCeuTargetLicense.id,
+    license_id:     licenseId,
     employee_id:    currentProfile.employee_id,
     category:       document.getElementById('staffCeuCategory').value,
     title,
@@ -4283,6 +4327,10 @@ document.getElementById('staffCeuSaveBtn')?.addEventListener('click', async () =
   closeStaffCeuModal();
   showToast('CEU entry saved — pending admin verification.');
   await loadMyLicenses();
+
+  supabase.functions.invoke('send_license_submission_notification', {
+    body: { record_type: 'ceu', record_id: data.id }
+  }).catch(err => console.error('submission notification failed', err));
 });
 
 async function deleteMyCeuEntry(id, filePath) {
@@ -4305,7 +4353,6 @@ async function deleteMyCeuEntry(id, filePath) {
 
 async function loadMyLicenses() {
   const container = document.getElementById('staffLicenseList');
-  const ceuContainer = document.getElementById('staffCeuProgress');
   if (!container) return;
 
   const { data, error } = await supabase
@@ -4314,22 +4361,35 @@ async function loadMyLicenses() {
     .eq('employee_id', currentProfile.employee_id)
     .order('expiration_date', { ascending: true });
 
-  if (error || !data?.length) {
+  const licenses = data || [];
+  myLicensesById = {};
+  licenses.forEach(lic => { myLicensesById[lic.id] = lic; });
+
+  // CEUs not linked to any license — fetched regardless of whether the
+  // employee has license records on file, so the entry point always shows.
+  const { data: generalCeus } = await supabase
+    .from('staff_license_ceus')
+    .select('id, category, title, completed_date, ceu_amount, verified, file_path')
+    .eq('employee_id', currentProfile.employee_id)
+    .is('license_id', null)
+    .order('completed_date', { ascending: false });
+
+  if (error || !licenses.length) {
     container.innerHTML = `
       <div class="admin-empty-state">
         <div class="admin-empty-state-icon"><i data-lucide="badge-check"></i></div>
         <p class="admin-empty-state-title">No license records on file yet</p>
-        <p class="admin-empty-state-desc">Click "+ Add License" above to add your own. An administrator will verify it, and you can start logging CEUs against it right away.</p>
+        <p class="admin-empty-state-desc">Click "+ Add License" above to add your own. An administrator will verify it, and you can start logging CEUs against it right away. You can also log CEUs below without linking them to a license.</p>
       </div>`;
     if (window.lucide) lucide.createIcons({ el: container });
-    if (ceuContainer) ceuContainer.innerHTML = '';
+    renderMyCeuProgress([], {}, generalCeus || []);
     return;
   }
 
   const { data: files } = await supabase
     .from('staff_license_files')
     .select('license_id, file_path, file_name')
-    .in('license_id', data.map(lic => lic.id))
+    .in('license_id', licenses.map(lic => lic.id))
     .eq('is_current', true);
 
   const fileByLicense = {};
@@ -4338,16 +4398,14 @@ async function loadMyLicenses() {
   const { data: ceus } = await supabase
     .from('staff_license_ceus')
     .select('id, license_id, category, title, completed_date, ceu_amount, verified, file_path')
-    .in('license_id', data.map(lic => lic.id))
+    .in('license_id', licenses.map(lic => lic.id))
     .order('completed_date', { ascending: false });
 
   const ceusByLicense = {};
   (ceus ?? []).forEach(c => {
     (ceusByLicense[c.license_id] ??= []).push(c);
   });
-  myLicensesById = {};
-  data.forEach(lic => { myLicensesById[lic.id] = lic; });
-  renderMyCeuProgress(data, ceusByLicense);
+  renderMyCeuProgress(licenses, ceusByLicense, generalCeus || []);
 
   const today = new Date().toISOString().slice(0, 10);
 
@@ -4360,7 +4418,7 @@ async function loadMyLicenses() {
     revoked:         ['#fce7f3','#9d174d'],
   };
 
-  const rows = data.map(lic => {
+  const rows = licenses.map(lic => {
     const daysLeft = lic.expiration_date
       ? Math.round((new Date(lic.expiration_date) - new Date(today)) / 86400000)
       : null;
