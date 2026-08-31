@@ -320,7 +320,7 @@ async function loadRecentActivity() {
   const container = document.getElementById('recentActivityList');
   if (!container) return;
 
-  const rows = await fetchMergedAuditRows(5);
+  const rows = await fetchMergedAuditRows(3);
   if (!rows.length) {
     container.innerHTML = '<div class="lic-empty">No activity yet.</div>';
     return;
