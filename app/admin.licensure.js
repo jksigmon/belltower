@@ -207,7 +207,7 @@ function renderOverviewHeader(expiredCount, expiring30Count) {
     if (icon) icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
   } else {
     banner.classList.add('lic-status-ok');
-    if (pill) { pill.textContent = 'All systems normal'; pill.className = 'badge badge-active'; }
+    if (pill) { pill.textContent = 'Compliant'; pill.className = 'badge badge-active'; }
     if (title) title.textContent = 'No urgent expirations';
     if (sub) sub.textContent = "You're all caught up! No licenses expire in the next 30 days.";
     if (icon) icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;

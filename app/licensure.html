@@ -423,6 +423,11 @@
     .lic-ov-title { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin: 0; }
     .lic-ov-subtitle { font-size: 0.85rem; color: #6b7280; margin: 3px 0 0; }
     .lic-ov-head-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    /* admin-ui.css's .btn-primary resets to height:48px by default (for
+       full-width form submits) and only specific contexts (.directory-actions,
+       .drawer-footer, .modal-actions) scope it back to 34px to match a plain
+       .btn beside it -- this header row needs the same scoping. */
+    .lic-ov-head-actions .btn-primary { height: 34px; }
     .lic-ov-asof {
       display: flex; align-items: center; gap: 6px;
       font-size: 0.8rem; color: #6b7280; white-space: nowrap;
