@@ -345,13 +345,6 @@
     .lic-file-old-row a { color: #9ca3af; }
     .lic-file-old-row a:hover { color: #6b7280; }
 
-    /* Summary stats: even thirds on desktop, stacked pair on phones
-       (was an inline style, which defeated the mobile collapse) */
-    .lic-summary-grid { grid-template-columns: repeat(3, 1fr); }
-    @media (max-width: 600px) {
-      .lic-summary-grid { grid-template-columns: 1fr 1fr; }
-    }
-
     /* ── CEU category badges ── */
     .ceu-cat {
       font-size: 0.68rem; font-weight: 600;
@@ -421,6 +414,132 @@
     .ceu-entry-row:last-child { border-bottom: none; }
     .ceu-entry-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ceu-entry-ceus { font-weight: 600; color: #0f172a; white-space: nowrap; }
+
+    /* ── Overview dashboard header ── */
+    .lic-ov-head {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 16px; flex-wrap: wrap; margin-bottom: 18px;
+    }
+    .lic-ov-title { font-size: 1.4rem; font-weight: 800; color: #0f172a; margin: 0; }
+    .lic-ov-subtitle { font-size: 0.85rem; color: #6b7280; margin: 3px 0 0; }
+    .lic-ov-head-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .lic-ov-asof {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.8rem; color: #6b7280; white-space: nowrap;
+    }
+    .lic-ov-asof svg, .lic-ov-asof i { width: 14px; height: 14px; }
+
+    /* Force 6 evenly-filled columns instead of admin-ui.css's auto-fill,
+       which was leaving a gap on the right rather than spreading tiles to
+       fill the row. */
+    #ovStatGrid { grid-template-columns: repeat(6, 1fr); }
+    @media (max-width: 1100px) { #ovStatGrid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 640px)  { #ovStatGrid { grid-template-columns: repeat(2, 1fr); } }
+
+    /* admin-ui.css's #dashGrid stretches every card in a row to equal
+       height, which is fine when panel contents are similar length but
+       leaves a large dead gap under a short list next to a taller one
+       (e.g. Needs Attention next to the fixed-height Quick Actions tiles).
+       Overrides the shared rule via source order (this <style> block loads
+       after admin-ui.css) -- scoped to this page only, admin.html's own
+       dashboard is untouched since it's a different document. */
+    #dashGrid { align-items: start; }
+
+    /* admin-ui.css's auto-fit, minmax(340px,1fr) is fluid and was computing
+       3 columns at some widths -- Quick Actions ended up sandwiched between
+       the other two with Recent Activity orphaned alone on the next row.
+       Locking to an explicit 2x2 grid. */
+    #dashGrid { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 900px) { #dashGrid { grid-template-columns: 1fr; } }
+
+    /* ── Overview status banner ── */
+    .lic-status-banner {
+      display: flex; align-items: center; gap: 14px;
+      padding: 16px 20px; border-radius: 12px; border: 1px solid;
+      margin: 0 0 20px;
+    }
+    .lic-status-ok       { background: #f0fdf4; border-color: #bbf7d0; }
+    .lic-status-urgent   { background: #fffbeb; border-color: #fde68a; }
+    .lic-status-critical { background: #fef2f2; border-color: #fecaca; }
+    .lic-status-icon {
+      width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .lic-status-ok       .lic-status-icon { background: #dcfce7; color: #16a34a; }
+    .lic-status-urgent   .lic-status-icon { background: #fef3c7; color: #b45309; }
+    .lic-status-critical .lic-status-icon { background: #fee2e2; color: #dc2626; }
+    .lic-status-text { flex: 1; min-width: 0; }
+    .lic-status-title { font-weight: 700; font-size: 0.95rem; color: #0f172a; }
+    .lic-status-sub { font-size: 0.8rem; color: #6b7280; margin-top: 2px; }
+    .lic-status-banner .btn { flex-shrink: 0; }
+
+    /* ── Overview: small count badge next to a panel eyebrow ── */
+    .lic-ov-count-badge {
+      background: #f1f5f9; color: #475569;
+      font-size: 0.7rem; font-weight: 700;
+      padding: 1px 7px; border-radius: 999px;
+      margin-left: 2px;
+    }
+
+    /* ── Overview: Needs Attention / Upcoming Expirations rows ── */
+    .lic-attn-list { display: flex; flex-direction: column; }
+    .lic-attn-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 0; border-bottom: 1px solid #f1f5f9;
+      text-decoration: none;
+    }
+    .lic-attn-row:last-child { border-bottom: none; }
+    .lic-attn-body { flex: 1; min-width: 0; }
+    .lic-attn-name {
+      font-weight: 600; font-size: 0.85rem; color: #0f172a;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .lic-attn-meta { font-size: 0.75rem; color: #6b7280; margin-top: 1px; }
+    .lic-attn-expiry { text-align: right; flex-shrink: 0; min-width: 84px; }
+    .lic-attn-date { font-size: 0.78rem; font-weight: 600; color: #374151; }
+    .lic-attn-days { font-size: 0.7rem; color: #9ca3af; margin-top: 1px; }
+    .lic-attn-chevron { width: 14px; height: 14px; color: #cbd5e1; flex-shrink: 0; }
+
+    /* ── Overview: Quick Actions tiles ── */
+    .lic-qa-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    @media (max-width: 420px) { .lic-qa-grid { grid-template-columns: 1fr; } }
+    .lic-qa-tile {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px; border: 1px solid #e5e7eb; border-radius: 10px;
+      background: #fafbfc; text-decoration: none; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+    .lic-qa-tile:hover {
+      border-color: #0b2d4f; background: #ffffff;
+      box-shadow: 0 4px 14px rgba(11, 45, 79, 0.10);
+    }
+    .lic-qa-icon {
+      width: 36px; height: 36px; border-radius: 9px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .lic-qa-icon i, .lic-qa-icon svg { width: 18px; height: 18px; }
+    .lic-qa-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .lic-qa-title, .lic-qa-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lic-qa-title { font-size: 0.85rem; font-weight: 700; color: #0f172a; }
+    .lic-qa-sub { font-size: 0.72rem; color: #9ca3af; }
+    .lic-qa-chevron { width: 14px; height: 14px; color: #cbd5e1; flex-shrink: 0; }
+
+    /* ── Overview: Recent Activity rows ── */
+    .lic-activity-list { display: flex; flex-direction: column; }
+    .lic-activity-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 0; border-bottom: 1px solid #f1f5f9;
+      text-decoration: none;
+    }
+    .lic-activity-row:last-child { border-bottom: none; }
+    .lic-activity-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .lic-activity-av { width: 26px; height: 26px; font-size: 0.65rem; }
+    .lic-activity-body {
+      flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;
+    }
+    .lic-activity-name { font-weight: 600; font-size: 0.82rem; color: #0f172a; }
+    .lic-activity-action { font-size: 0.78rem; color: #6b7280; }
+    .lic-activity-time { font-size: 0.72rem; color: #9ca3af; flex-shrink: 0; white-space: nowrap; }
   </style>
 </head>
 
@@ -475,41 +594,92 @@
     ══════════════════════════════════════════════════ -->
     <section id="overview" class="lic-view">
 
-      <div class="dash-section" style="margin-top:0;">
-        <p class="dash-section-title">Summary</p>
-        <div class="stat-grid lic-summary-grid">
-          <div class="stat stat-info">
-            <strong id="statTotal">—</strong>
-            <span>Total Active</span>
-          </div>
-          <div class="stat stat-alert">
-            <strong id="stat30">—</strong>
-            <span>Expiring 30d</span>
-          </div>
-          <div class="stat stat-warn">
-            <strong id="stat60">—</strong>
-            <span>Expiring 60d</span>
-          </div>
-          <div class="stat">
-            <strong id="stat90">—</strong>
-            <span>Expiring 90d</span>
-          </div>
-          <div class="stat stat-alert">
-            <strong id="statExpired">—</strong>
-            <span>Expired</span>
-          </div>
-          <div class="stat stat-warn">
-            <strong id="statProvisional">—</strong>
-            <span>Provisional</span>
-          </div>
+      <div class="lic-ov-head">
+        <div>
+          <h2 class="lic-ov-title">Overview</h2>
+          <p class="lic-ov-subtitle">Stay on top of your staff licenses and compliance.</p>
+        </div>
+        <div class="lic-ov-head-actions">
+          <span class="lic-ov-asof"><i data-lucide="calendar"></i> As of <span id="ovAsOfDate">—</span></span>
+          <span class="badge badge-active" id="ovStatusPill">All systems normal</span>
+          <button class="btn btn-primary" id="ovAddLicenseBtn">+ Add License</button>
         </div>
       </div>
 
-      <div class="dash-section">
-        <p class="dash-section-title">Upcoming Expirations</p>
-        <div id="alertList" class="alert-list">
-          <div class="lic-empty">Loading…</div>
+      <div class="lic-status-banner lic-status-ok" id="ovStatusBanner">
+        <div class="lic-status-icon" id="ovStatusIcon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </div>
+        <div class="lic-status-text">
+          <div class="lic-status-title" id="ovStatusTitle">—</div>
+          <div class="lic-status-sub" id="ovStatusSub">—</div>
+        </div>
+        <button class="btn" id="ovViewUpcomingBtn">View Upcoming Expirations</button>
+      </div>
+
+      <div class="stat-grid" id="ovStatGrid">
+        <a href="#licenses" class="stat" data-accent="blue" data-ov-link>
+          <svg class="stat-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="stat-chip"><i data-lucide="shield"></i></span>
+          <strong id="statTotal" class="stat-num">—</strong>
+          <span class="stat-label">Total Active</span>
+        </a>
+        <a href="#licenses" class="stat" data-accent="red" data-ov-link data-ov-expiry="30">
+          <svg class="stat-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="stat-chip"><i data-lucide="clock"></i></span>
+          <strong id="stat30" class="stat-num">—</strong>
+          <span class="stat-label">Expiring in 30 Days</span>
+        </a>
+        <a href="#licenses" class="stat" data-accent="orange" data-ov-link data-ov-expiry="60">
+          <svg class="stat-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="stat-chip"><i data-lucide="calendar"></i></span>
+          <strong id="stat60" class="stat-num">—</strong>
+          <span class="stat-label">Expiring in 60 Days</span>
+        </a>
+        <a href="#licenses" class="stat" data-accent="amber" data-ov-link data-ov-expiry="90">
+          <svg class="stat-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="stat-chip"><i data-lucide="alert-circle"></i></span>
+          <strong id="stat90" class="stat-num">—</strong>
+          <span class="stat-label">Expiring in 90 Days</span>
+        </a>
+        <a href="#licenses" class="stat" data-accent="red" data-ov-link data-ov-expiry="expired">
+          <svg class="stat-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <span class="stat-chip"><i data-lucide="calendar-x"></i></span>
+          <strong id="statExpired" class="stat-num">—</strong>
+          <span class="stat-label">Expired</span>
+        </a>
+        <div class="stat">
+          <span class="stat-chip"><i data-lucide="lock"></i></span>
+          <strong id="statProvisional" class="stat-num">—</strong>
+          <span class="stat-label">Provisional</span>
+        </div>
+      </div>
+
+      <div id="dashGrid">
+
+        <div class="dash-section">
+          <div class="dash-section-head"><i data-lucide="alert-circle"></i><span class="dash-section-eyebrow">Needs Attention</span><span class="lic-ov-count-badge" id="attnCount">0</span><span class="dash-section-rule"></span></div>
+          <div id="attnList" class="lic-attn-list"><div class="lic-empty">Loading…</div></div>
+          <div class="dash-card-foot"><a href="#licenses" class="dash-card-link" id="attnViewAllLink">View all needs attention →</a></div>
+        </div>
+
+        <div class="dash-section">
+          <div class="dash-section-head"><i data-lucide="zap"></i><span class="dash-section-eyebrow">Quick Actions</span><span class="dash-section-rule"></span></div>
+          <div class="lic-qa-grid" id="ovQuickActions"></div>
+        </div>
+
+        <div class="dash-section">
+          <div class="dash-section-head"><i data-lucide="calendar-clock"></i><span class="dash-section-eyebrow">Upcoming Expirations</span><span class="lic-ov-count-badge" id="upcomingCount">0</span><span class="dash-section-rule"></span></div>
+          <div id="upcomingList" class="lic-attn-list"><div class="lic-empty">Loading…</div></div>
+          <div class="dash-card-foot"><a href="#licenses" class="dash-card-link" id="upcomingViewAllLink">View all upcoming expirations →</a></div>
+        </div>
+
+        <div class="dash-section">
+          <div class="dash-section-head"><i data-lucide="history"></i><span class="dash-section-eyebrow">Recent Activity</span><span class="dash-section-rule"></span></div>
+          <div id="recentActivityList" class="lic-activity-list"><div class="lic-empty">Loading…</div></div>
+          <div class="dash-card-foot"><a href="#audit" class="dash-card-link" id="recentActivityLink">View full audit log →</a></div>
+        </div>
+
       </div>
 
     </section>
@@ -872,7 +1042,7 @@
         <label>License Document</label>
         <div id="licCurrentFile" class="lic-file-current" hidden></div>
         <div class="lic-file-choose-row">
-          <input type="file" id="licFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+          <input type="file" id="licFileInput" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,application/pdf,image/*" style="display:none;">
           <button type="button" class="btn btn-sm" id="licFileChooseBtn">Choose File</button>
           <span id="licFileNameLabel" class="muted" style="font-size:0.82rem;">No file chosen</span>
         </div>
@@ -977,7 +1147,7 @@
         <label>Proof of Completion</label>
         <div id="ceuCurrentFile" class="lic-file-current" hidden></div>
         <div class="lic-file-choose-row">
-          <input type="file" id="ceuFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+          <input type="file" id="ceuFileInput" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,application/pdf,image/*" style="display:none;">
           <button type="button" class="btn btn-sm" id="ceuFileChooseBtn">Choose File</button>
           <span id="ceuFileNameLabel" class="muted" style="font-size:0.82rem;">No file chosen</span>
         </div>

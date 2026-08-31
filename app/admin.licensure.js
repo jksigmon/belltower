@@ -169,45 +169,214 @@ async function loadCompliance() {
   setText('statExpired',    expired.count    ?? 0);
   setText('statProvisional',provisional.count ?? 0);
 
-  await loadAlertList(day90, today);
+  renderOverviewHeader(expired.count ?? 0, exp30.count ?? 0);
+  renderOverviewQuickActions();
+
+  await Promise.all([
+    loadAttentionAndUpcoming(today),
+    loadRecentActivity(),
+  ]);
+
+  document.getElementById('dashGrid')?.classList.add('loaded');
 }
 
-async function loadAlertList(day90, today) {
-  const { data } = await supabase
+function renderOverviewHeader(expiredCount, expiring30Count) {
+  const asOf = document.getElementById('ovAsOfDate');
+  if (asOf) asOf.textContent = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+  const pill    = document.getElementById('ovStatusPill');
+  const banner  = document.getElementById('ovStatusBanner');
+  const icon    = document.getElementById('ovStatusIcon');
+  const title   = document.getElementById('ovStatusTitle');
+  const sub     = document.getElementById('ovStatusSub');
+  if (!banner) return;
+
+  banner.classList.remove('lic-status-ok', 'lic-status-urgent', 'lic-status-critical');
+
+  if (expiredCount > 0) {
+    banner.classList.add('lic-status-critical');
+    if (pill) { pill.textContent = 'Needs attention'; pill.className = 'badge badge-expired'; }
+    if (title) title.textContent = `${expiredCount} license${expiredCount === 1 ? '' : 's'} expired`;
+    if (sub) sub.textContent = 'These need immediate renewal to stay compliant.';
+    if (icon) icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+  } else if (expiring30Count > 0) {
+    banner.classList.add('lic-status-urgent');
+    if (pill) { pill.textContent = 'Needs attention'; pill.className = 'badge badge-expiring'; }
+    if (title) title.textContent = `${expiring30Count} license${expiring30Count === 1 ? '' : 's'} expiring within 30 days`;
+    if (sub) sub.textContent = 'Renewals should be started soon to avoid a lapse.';
+    if (icon) icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+  } else {
+    banner.classList.add('lic-status-ok');
+    if (pill) { pill.textContent = 'All systems normal'; pill.className = 'badge badge-active'; }
+    if (title) title.textContent = 'No urgent expirations';
+    if (sub) sub.textContent = "You're all caught up! No licenses expire in the next 30 days.";
+    if (icon) icon.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+  }
+}
+
+function renderOverviewQuickActions() {
+  const row = document.getElementById('ovQuickActions');
+  if (!row) return;
+
+  const actions = [
+    { label: 'Add License',   sub: 'Add a new license',       icon: 'plus',          bg: '#dbeafe', fg: '#2563eb', onClick: () => openAddModal() },
+    { label: 'Add CEU',       sub: 'Record CEU activity',      icon: 'graduation-cap', bg: '#dcfce7', fg: '#15803d', onClick: () => openAddCeuModal() },
+    { label: 'Export Report', sub: 'Download compliance data', icon: 'file-text',      bg: '#f1f5f9', fg: '#475569', onClick: async () => {
+      // allLicenses is only populated once the All Licenses tab has loaded --
+      // a school reached straight from Overview would otherwise export nothing.
+      if (!allLicenses.length) await loadLicenses();
+      exportLicenses();
+    } },
+    { label: 'View Audit Log',sub: 'See recent changes',       icon: 'history',        bg: '#ffedd5', fg: '#c2410c', onClick: () => { history.pushState(null, '', '#audit'); setView('audit'); } },
+  ];
+
+  row.innerHTML = actions.map((a, i) => `
+    <button type="button" class="lic-qa-tile" data-qa-index="${i}">
+      <span class="lic-qa-icon" style="background:${a.bg};color:${a.fg};"><i data-lucide="${a.icon}"></i></span>
+      <span class="lic-qa-text">
+        <span class="lic-qa-title">${esc(a.label)}</span>
+        <span class="lic-qa-sub">${esc(a.sub)}</span>
+      </span>
+      <svg class="lic-qa-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+  `).join('');
+
+  row.querySelectorAll('[data-qa-index]').forEach(btn => {
+    btn.addEventListener('click', () => actions[Number(btn.dataset.qaIndex)].onClick());
+  });
+
+  if (window.lucide) lucide.createIcons({ el: row });
+}
+
+// Needs Attention = expired or expiring within 30 days (the same threshold
+// the status banner uses); Upcoming Expirations = the 31-90 day window
+// beyond that. Genuinely threshold-based, not a fixed row count -- an
+// all-clear school should see an empty, reassuring panel, not padding.
+async function loadAttentionAndUpcoming(today) {
+  const day90 = offsetDate(90);
+
+  const { data, error } = await supabase
     .from('staff_licenses')
-    .select('id, employee_id, license_type, license_area, expiration_date, status, alert_muted')
+    .select('id, employee_id, license_type, license_area, expiration_date, status')
     .eq('school_id', currentProfile.school_id)
+    .not('status', 'in', '(revoked,suspended)')
     .lte('expiration_date', day90)
     .order('expiration_date', { ascending: true })
-    .limit(50);
+    .limit(100);
 
-  const list = document.getElementById('alertList');
+  if (error) { console.error(error); return; }
 
-  if (!data?.length) {
-    list.innerHTML = '<div class="lic-empty">No licenses expiring in the next 90 days.</div>';
+  const rows      = data ?? [];
+  const attention = rows.filter(lic => daysBetween(today, lic.expiration_date) <= 30);
+  const upcoming  = rows.filter(lic => daysBetween(today, lic.expiration_date) > 30);
+
+  setText('attnCount', attention.length);
+  setText('upcomingCount', upcoming.length);
+
+  renderOverviewRows('attnList', attention, today, true);
+  renderOverviewRows('upcomingList', upcoming, today, false);
+}
+
+function renderOverviewRows(containerId, rows, today, isAttention) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  if (!rows.length) {
+    container.innerHTML = `<div class="lic-empty">${isAttention ? 'All caught up — no licenses need attention.' : 'Nothing expiring in the next 90 days.'}</div>`;
     return;
   }
 
-  list.innerHTML = '';
-  data.forEach(lic => {
-    const daysLeft = daysBetween(today, lic.expiration_date);
-    const isExpired = daysLeft < 0;
-    const urgency = isExpired ? 'urgent' : daysLeft <= 30 ? 'urgent' : daysLeft <= 60 ? 'warn' : '';
-    const daysLabel = isExpired
-      ? `${Math.abs(daysLeft)}d overdue`
-      : `${daysLeft}d remaining`;
+  container.innerHTML = rows.map(lic => {
+    const daysLeft   = daysBetween(today, lic.expiration_date);
+    const isExpired  = daysLeft < 0;
+    const daysLabel  = isExpired ? `${Math.abs(daysLeft)} days overdue` : `${daysLeft} days`;
+    const badge      = isAttention
+      ? (isExpired ? statusBadge('expired') : `<span class="badge badge-expiring">License expiring soon</span>`)
+      : statusBadge(lic.status);
 
-    const row = document.createElement('div');
-    row.className = `alert-row ${urgency}`;
-    row.innerHTML = `
-      <span class="alert-name">${esc(employeeLookup[lic.employee_id] ?? '—')}</span>
-      <span class="alert-type">${esc(lic.license_type)}${lic.license_area ? ' · ' + esc(lic.license_area) : ''}</span>
-      <span class="alert-expiry">${formatDate(lic.expiration_date)}</span>
-      <span class="alert-days ${urgency || 'caution'}">${daysLabel}</span>
-      ${lic.alert_muted ? '<span class="muted-badge">Muted</span>' : ''}
-    `;
-    list.appendChild(row);
-  });
+    return `
+      <a class="lic-attn-row" href="/app/licensure.html?employee=${esc(lic.employee_id)}#licenses">
+        <div class="lic-card-av">${esc(initialsFor(lic.employee_id))}</div>
+        <div class="lic-attn-body">
+          <div class="lic-attn-name">${esc(employeeLookup[lic.employee_id] ?? '—')}</div>
+          <div class="lic-attn-meta">${esc(lic.license_type)}${lic.license_area ? ' · ' + esc(lic.license_area) : ''}</div>
+        </div>
+        ${badge}
+        <div class="lic-attn-expiry">
+          <div class="lic-attn-date">${formatDate(lic.expiration_date)}</div>
+          <div class="lic-attn-days">${daysLabel}</div>
+        </div>
+        <svg class="lic-attn-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>`;
+  }).join('');
+}
+
+function initialsFor(employeeId) {
+  const nameParts = (employeeLookup[employeeId] ?? '').split(',');
+  return [nameParts[1]?.trim()[0], nameParts[0]?.trim()[0]].filter(Boolean).join('').toUpperCase() || '?';
+}
+
+async function loadRecentActivity() {
+  const container = document.getElementById('recentActivityList');
+  if (!container) return;
+
+  const rows = await fetchMergedAuditRows(5);
+  if (!rows.length) {
+    container.innerHTML = '<div class="lic-empty">No activity yet.</div>';
+    return;
+  }
+
+  const dotColor = { created: '#16a34a', updated: '#2563eb', deleted: '#dc2626', renewed: '#16a34a', verified: '#2563eb' };
+
+  container.innerHTML = rows.map(r => {
+    const recordWord = r.record_type === 'ceu' ? 'CEU' : 'License';
+    return `
+      <div class="lic-activity-row">
+        <span class="lic-activity-dot" style="background:${dotColor[r.change_type] ?? '#94a3b8'};"></span>
+        <div class="lic-card-av lic-activity-av">${esc(initialsFor(r.employee_id))}</div>
+        <div class="lic-activity-body">
+          <span class="lic-activity-name">${esc(employeeLookup[r.employee_id] ?? '—')}</span>
+          <span class="lic-activity-action">${recordWord} ${esc(r.change_type)}</span>
+        </div>
+        <span class="lic-activity-time">${formatRelativeShort(r.changed_at)}</span>
+      </div>`;
+  }).join('');
+}
+
+function formatRelativeShort(ts) {
+  const d = new Date(ts);
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  if (d.toDateString() === new Date().toDateString()) return `Today, ${time}`;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + time;
+}
+
+// Shared by loadAuditLog() (full table) and loadRecentActivity() (Overview
+// preview) so the two-table merge/sort logic only lives in one place.
+async function fetchMergedAuditRows(limit) {
+  const [licRes, ceuRes] = await Promise.all([
+    supabase
+      .from('staff_license_history')
+      .select('id, employee_id, changed_at, change_type, field_changes, changed_by')
+      .eq('school_id', currentProfile.school_id)
+      .order('changed_at', { ascending: false })
+      .limit(limit),
+    supabase
+      .from('staff_license_ceu_history')
+      .select('id, employee_id, changed_at, change_type, field_changes, changed_by')
+      .eq('school_id', currentProfile.school_id)
+      .order('changed_at', { ascending: false })
+      .limit(limit),
+  ]);
+
+  if (licRes.error || ceuRes.error) {
+    console.error(licRes.error || ceuRes.error);
+    return [];
+  }
+
+  return [
+    ...(licRes.data || []).map(r => ({ ...r, record_type: 'license' })),
+    ...(ceuRes.data || []).map(r => ({ ...r, record_type: 'ceu' })),
+  ].sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at)).slice(0, limit);
 }
 
 /* ─────────────────────────────────────────────────────
@@ -389,32 +558,13 @@ async function openLicenseAttachment(licenseId) {
 async function loadAuditLog() {
   const search = document.getElementById('auditSearch')?.value.trim().toLowerCase() ?? '';
 
-  const [licRes, ceuRes] = await Promise.all([
-    supabase
-      .from('staff_license_history')
-      .select('id, employee_id, changed_at, change_type, field_changes, changed_by')
-      .eq('school_id', currentProfile.school_id)
-      .order('changed_at', { ascending: false })
-      .limit(200),
-    supabase
-      .from('staff_license_ceu_history')
-      .select('id, employee_id, changed_at, change_type, field_changes, changed_by')
-      .eq('school_id', currentProfile.school_id)
-      .order('changed_at', { ascending: false })
-      .limit(200),
-  ]);
+  let rows = await fetchMergedAuditRows(200);
 
-  if (licRes.error || ceuRes.error) {
+  if (!rows.length) {
     const tbody = document.getElementById('auditTableBody');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="6" class="lic-empty" style="color:#dc2626;">Failed to load audit log. Please try again.</td></tr>`;
-    console.error(licRes.error || ceuRes.error);
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="lic-empty">No audit history yet.</td></tr>';
     return;
   }
-
-  let rows = [
-    ...(licRes.data || []).map(r => ({ ...r, record_type: 'license' })),
-    ...(ceuRes.data || []).map(r => ({ ...r, record_type: 'ceu' })),
-  ].sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at)).slice(0, 200);
 
   // Resolve changed_by user_ids → display names
   const changerIds = [...new Set(rows.map(r => r.changed_by).filter(Boolean))];
@@ -763,7 +913,7 @@ async function uploadLicenseFile(licenseId, file) {
     .eq('license_id', licenseId);
 
   // Record the new file
-  await supabase.from('staff_license_files').insert({
+  const { error: linkError } = await supabase.from('staff_license_files').insert({
     license_id:  licenseId,
     school_id:   currentProfile.school_id,
     file_path:   path,
@@ -771,6 +921,10 @@ async function uploadLicenseFile(licenseId, file) {
     uploaded_by: currentProfile.user_id,
     is_current:  true,
   });
+  if (linkError) {
+    console.error('License file link failed', linkError);
+    showToast('File uploaded, but attaching it to the license failed: ' + linkError.message, 'error');
+  }
 }
 
 async function loadLicenseFiles(licenseId) {
@@ -1267,9 +1421,13 @@ async function uploadCeuFile(ceuId, file) {
     return;
   }
 
-  await supabase.from('staff_license_ceus')
+  const { error: linkError } = await supabase.from('staff_license_ceus')
     .update({ file_path: path, file_name: file.name })
     .eq('id', ceuId);
+  if (linkError) {
+    console.error('CEU file link failed', linkError);
+    showToast('File uploaded, but attaching it to the entry failed: ' + linkError.message, 'error');
+  }
 }
 
 /* ─────────────────────────────────────────────────────
@@ -1386,6 +1544,33 @@ function wireEvents() {
   document.getElementById('signOut')?.addEventListener('click', async () => {
     await supabase.auth.signOut();
     window.location.href = '/login.html';
+  });
+
+  // ── Overview dashboard ──
+  document.getElementById('ovAddLicenseBtn')?.addEventListener('click', openAddModal);
+
+  // Stat tiles drill into All Licenses, pre-applying the matching expiry
+  // filter where one exists (Total Active and Provisional have no matching
+  // filter option, so they just switch tabs).
+  document.querySelectorAll('#ovStatGrid [data-ov-link]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      const expiry = el.dataset.ovExpiry;
+      const sel = document.getElementById('licExpiryFilter');
+      if (sel) sel.value = expiry ?? '';
+      history.pushState(null, '', '#licenses');
+      setView('licenses');
+    });
+  });
+
+  const goToLicenses = e => { e.preventDefault(); history.pushState(null, '', '#licenses'); setView('licenses'); };
+  document.getElementById('ovViewUpcomingBtn')?.addEventListener('click', goToLicenses);
+  document.getElementById('attnViewAllLink')?.addEventListener('click', goToLicenses);
+  document.getElementById('upcomingViewAllLink')?.addEventListener('click', goToLicenses);
+  document.getElementById('recentActivityLink')?.addEventListener('click', e => {
+    e.preventDefault();
+    history.pushState(null, '', '#audit');
+    setView('audit');
   });
 
   // Add license

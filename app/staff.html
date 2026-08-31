@@ -1945,7 +1945,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       <div class="drawer-field">
         <label>Attachment <span class="muted" style="font-weight:400;">(optional)</span></label>
         <div class="lic-file-choose-row">
-          <input type="file" id="staffLicFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+          <input type="file" id="staffLicFileInput" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,application/pdf,image/*" style="display:none;">
           <button type="button" class="btn btn-sm" id="staffLicFileChooseBtn">Choose File</button>
           <span id="staffLicFileNameLabel" class="muted" style="font-size:0.82rem;">No file chosen</span>
         </div>
@@ -2019,7 +2019,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       <div class="drawer-field">
         <label>Attachment <span class="muted" style="font-weight:400;">(optional)</span></label>
         <div class="lic-file-choose-row">
-          <input type="file" id="staffCeuFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
+          <input type="file" id="staffCeuFileInput" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,application/pdf,image/*" style="display:none;">
           <button type="button" class="btn btn-sm" id="staffCeuFileChooseBtn">Choose File</button>
           <span id="staffCeuFileNameLabel" class="muted" style="font-size:0.82rem;">No file chosen</span>
         </div>
@@ -4172,7 +4172,7 @@ document.getElementById('staffLicSaveBtn')?.addEventListener('click', async () =
       console.error('License file upload failed', uploadError);
       showToast('License saved, but the file upload failed: ' + uploadError.message);
     } else {
-      await supabase.from('staff_license_files').insert({
+      const { error: linkError } = await supabase.from('staff_license_files').insert({
         license_id:  data.id,
         school_id:   currentProfile.school_id,
         file_path:   path,
@@ -4180,6 +4180,10 @@ document.getElementById('staffLicSaveBtn')?.addEventListener('click', async () =
         uploaded_by: currentProfile.user_id,
         is_current:  true,
       });
+      if (linkError) {
+        console.error('License file link failed', linkError);
+        showToast('License saved and file uploaded, but attaching it to the license failed: ' + linkError.message);
+      }
     }
   }
 
@@ -4350,7 +4354,11 @@ document.getElementById('staffCeuSaveBtn')?.addEventListener('click', async () =
       console.error('CEU file upload failed', uploadError);
       showToast('Entry saved, but the file upload failed: ' + uploadError.message);
     } else {
-      await supabase.from('staff_license_ceus').update({ file_path: path, file_name: file.name }).eq('id', data.id);
+      const { error: linkError } = await supabase.from('staff_license_ceus').update({ file_path: path, file_name: file.name }).eq('id', data.id);
+      if (linkError) {
+        console.error('CEU file link failed', linkError);
+        showToast('Entry saved and file uploaded, but attaching it to the entry failed: ' + linkError.message);
+      }
     }
   }
 
