@@ -2005,11 +2005,8 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <div class="drawer-field">
           <label><span id="staffCeuHoursLabel">Clock Hours</span> <span class="required">*</span></label>
           <div class="lic-hours-input-row">
-            <input id="staffCeuHours" type="number" min="0" step="0.5" class="form-input" />
-            <select id="staffCeuHoursUnit" class="form-input">
-              <option value="hours">Hours</option>
-              <option value="minutes">Minutes</option>
-            </select>
+            <input id="staffCeuHours" type="number" min="0" step="0.5" class="form-input" placeholder="Hours" />
+            <input id="staffCeuMinutes" type="number" min="0" step="1" class="form-input" placeholder="Minutes" />
           </div>
         </div>
         <div class="drawer-field">
@@ -4240,31 +4237,33 @@ async function writeMyCeuHistory(ceuId, changeType) {
 // Short compliance modules (Vector Solutions-style trainings, etc.) usually
 // state duration in minutes on the certificate, not hours -- staff were
 // entering "37" straight from a "37 minutes" certificate into a field that's
-// always meant hours, turning a few-minute module into 3.7 CEUs. The unit
-// select lets them enter whichever number is actually on the certificate;
-// this always converts to decimal hours before it touches the CEU math or
-// the database, so nothing downstream needs to know minutes exist.
+// always meant hours, turning a few-minute module into 3.7 CEUs. Hours and
+// Minutes are separate, additive fields (not an either/or unit choice) so a
+// combined duration like "1 hr 15 min" doesn't require doing the math by
+// hand either -- 1 in Hours, 15 in Minutes, or just 75 in Minutes alone,
+// both land on the same total. Always converts to decimal hours before it
+// touches the CEU math or the database.
 function staffCeuHoursInHours() {
-  const raw  = parseFloat(document.getElementById('staffCeuHours').value);
-  const unit = document.getElementById('staffCeuHoursUnit')?.value ?? 'hours';
-  if (!raw || raw <= 0) return null;
-  return unit === 'minutes' ? Math.round((raw / 60) * 100) / 100 : raw;
+  const hoursRaw   = parseFloat(document.getElementById('staffCeuHours').value) || 0;
+  const isCredit   = document.getElementById('staffCeuSourceType').value === 'college_credit';
+  const minutesRaw = isCredit ? 0 : (parseFloat(document.getElementById('staffCeuMinutes').value) || 0);
+  const total = hoursRaw + minutesRaw / 60;
+  if (total <= 0) return null;
+  return Math.round(total * 100) / 100;
 }
 
 function updateStaffCeuHoursLabel() {
-  const src        = document.getElementById('staffCeuSourceType').value;
-  const label      = document.getElementById('staffCeuHoursLabel');
-  const unitSelect = document.getElementById('staffCeuHoursUnit');
-  const hoursInput = document.getElementById('staffCeuHours');
-  const preview    = document.getElementById('staffCeuAmountPreview');
-  const isCredit   = src === 'college_credit';
+  const src           = document.getElementById('staffCeuSourceType').value;
+  const label         = document.getElementById('staffCeuHoursLabel');
+  const minutesInput  = document.getElementById('staffCeuMinutes');
+  const preview       = document.getElementById('staffCeuAmountPreview');
+  const isCredit      = src === 'college_credit';
 
   label.textContent = isCredit ? 'Semester Credits' : 'Clock Hours';
-  if (unitSelect) {
-    unitSelect.style.display = isCredit ? 'none' : '';
-    if (isCredit) unitSelect.value = 'hours';
+  if (minutesInput) {
+    minutesInput.style.display = isCredit ? 'none' : '';
+    if (isCredit) minutesInput.value = '';
   }
-  hoursInput.step = !isCredit && unitSelect?.value === 'minutes' ? '1' : '0.5';
 
   const hours = staffCeuHoursInHours();
   if (hours === null) { preview.textContent = ''; return; }
@@ -4274,7 +4273,7 @@ function updateStaffCeuHoursLabel() {
 
 document.getElementById('staffCeuSourceType')?.addEventListener('change', updateStaffCeuHoursLabel);
 document.getElementById('staffCeuHours')?.addEventListener('input', updateStaffCeuHoursLabel);
-document.getElementById('staffCeuHoursUnit')?.addEventListener('change', updateStaffCeuHoursLabel);
+document.getElementById('staffCeuMinutes')?.addEventListener('input', updateStaffCeuHoursLabel);
 
 function populateStaffCeuLicenseSelect(preselectId) {
   const sel = document.getElementById('staffCeuLicenseSelect');
@@ -4298,7 +4297,7 @@ function openStaffCeuModal(license = null) {
   document.getElementById('staffCeuCategory').value    = license ? suggestedStaffCeuCategory(license) : 'general_other';
   document.getElementById('staffCeuSourceType').value  = 'lea_inservice';
   document.getElementById('staffCeuHours').value       = '';
-  document.getElementById('staffCeuHoursUnit').value   = 'hours';
+  document.getElementById('staffCeuMinutes').value     = '';
   document.getElementById('staffCeuCompletedDate').value = toLocalISODate(new Date());
   document.getElementById('staffCeuNotes').value       = '';
   document.getElementById('staffCeuFileInput').value   = '';

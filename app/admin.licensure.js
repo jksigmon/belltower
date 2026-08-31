@@ -1177,7 +1177,7 @@ function resetCeuForm() {
   document.getElementById('ceuCategory').value     = 'literacy';
   document.getElementById('ceuSourceType').value   = 'lea_inservice';
   document.getElementById('ceuHours').value        = '';
-  document.getElementById('ceuHoursUnit').value    = 'hours';
+  document.getElementById('ceuMinutes').value      = '';
   document.getElementById('ceuVerified').checked   = false;
   document.getElementById('ceuNotes').value        = '';
   document.getElementById('ceuStaff').value        = '';
@@ -1199,31 +1199,33 @@ function resetCeuFileSection() {
 // Short compliance modules (Vector Solutions-style trainings, etc.) usually
 // state duration in minutes on the certificate, not hours -- admins entering
 // on staff's behalf hit the same "37 minutes" -> "37 hours" mistake as staff
-// self-entry did. The unit select lets whoever's entering use whichever
-// number is actually on the certificate; this always converts to decimal
-// hours before it touches the CEU math or the database.
+// self-entry did. Hours and Minutes are separate, additive fields (not an
+// either/or unit choice) so a combined duration like "1 hr 15 min" doesn't
+// require doing the math by hand either -- 1 in Hours, 15 in Minutes, or
+// just 75 in Minutes alone, both land on the same total. Always converts to
+// decimal hours before it touches the CEU math or the database.
 function ceuHoursInHours() {
-  const raw  = parseFloat(document.getElementById('ceuHours').value);
-  const unit = document.getElementById('ceuHoursUnit')?.value ?? 'hours';
-  if (!raw || raw <= 0) return null;
-  return unit === 'minutes' ? Math.round((raw / 60) * 100) / 100 : raw;
+  const hoursRaw   = parseFloat(document.getElementById('ceuHours').value) || 0;
+  const isCredit   = document.getElementById('ceuSourceType').value === 'college_credit';
+  const minutesRaw = isCredit ? 0 : (parseFloat(document.getElementById('ceuMinutes').value) || 0);
+  const total = hoursRaw + minutesRaw / 60;
+  if (total <= 0) return null;
+  return Math.round(total * 100) / 100;
 }
 
 function updateCeuHoursLabel() {
-  const src        = document.getElementById('ceuSourceType').value;
-  const label      = document.getElementById('ceuHoursLabel');
-  const unitSelect = document.getElementById('ceuHoursUnit');
-  const hoursInput = document.getElementById('ceuHours');
-  const isCredit   = src === 'college_credit';
+  const src          = document.getElementById('ceuSourceType').value;
+  const label        = document.getElementById('ceuHoursLabel');
+  const minutesInput = document.getElementById('ceuMinutes');
+  const isCredit     = src === 'college_credit';
 
   label.innerHTML = isCredit
     ? 'Semester Credits <span class="required">*</span>'
     : 'Clock Hours <span class="required">*</span>';
-  if (unitSelect) {
-    unitSelect.style.display = isCredit ? 'none' : '';
-    if (isCredit) unitSelect.value = 'hours';
+  if (minutesInput) {
+    minutesInput.style.display = isCredit ? 'none' : '';
+    if (isCredit) minutesInput.value = '';
   }
-  if (hoursInput) hoursInput.step = !isCredit && unitSelect?.value === 'minutes' ? '1' : '0.5';
 
   updateCeuAmountPreview();
 }
@@ -1310,11 +1312,21 @@ async function openEditCeuModal(id, { returnLicenseId = null } = {}) {
   document.getElementById('ceuProvider').value    = entry.provider ?? '';
   document.getElementById('ceuCategory').value    = entry.category;
   document.getElementById('ceuSourceType').value  = entry.source_type;
-  document.getElementById('ceuHours').value       = entry.hours;
-  // Stored values are always decimal hours -- there's no record of which
-  // unit was originally used to enter them, so edit mode always starts on
-  // Hours regardless of what the Add flow last left the select on.
-  document.getElementById('ceuHoursUnit').value   = 'hours';
+  // Only the combined decimal hours value is stored -- there's no record of
+  // how it was originally split between the two fields. Re-derive a
+  // reasonable Hours/Minutes split for display; college credit has no
+  // minutes concept, so it always goes back into the Hours field whole
+  // (splitting a fractional credit value like 1.33 would otherwise lose
+  // precision by rounding it into a minutes remainder that then gets
+  // hidden).
+  if (entry.source_type === 'college_credit') {
+    document.getElementById('ceuHours').value   = entry.hours;
+    document.getElementById('ceuMinutes').value = '';
+  } else {
+    const wholeHours = Math.floor(entry.hours);
+    document.getElementById('ceuHours').value   = wholeHours || '';
+    document.getElementById('ceuMinutes').value = Math.round((entry.hours - wholeHours) * 60) || '';
+  }
   document.getElementById('ceuVerified').checked  = entry.verified;
   document.getElementById('ceuNotes').value       = entry.notes ?? '';
   if (fpCeuDate) fpCeuDate.setDate(entry.completed_date, true);
@@ -1676,7 +1688,7 @@ function wireEvents() {
   });
   document.getElementById('ceuSourceType')?.addEventListener('change', updateCeuHoursLabel);
   document.getElementById('ceuHours')?.addEventListener('input', updateCeuAmountPreview);
-  document.getElementById('ceuHoursUnit')?.addEventListener('change', updateCeuHoursLabel);
+  document.getElementById('ceuMinutes')?.addEventListener('input', updateCeuAmountPreview);
 
   document.getElementById('ceuFileChooseBtn')?.addEventListener('click', () => {
     document.getElementById('ceuFileInput')?.click();
