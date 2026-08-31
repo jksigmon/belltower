@@ -1177,6 +1177,7 @@ function resetCeuForm() {
   document.getElementById('ceuCategory').value     = 'literacy';
   document.getElementById('ceuSourceType').value   = 'lea_inservice';
   document.getElementById('ceuHours').value        = '';
+  document.getElementById('ceuHoursUnit').value    = 'hours';
   document.getElementById('ceuVerified').checked   = false;
   document.getElementById('ceuNotes').value        = '';
   document.getElementById('ceuStaff').value        = '';
@@ -1195,21 +1196,44 @@ function resetCeuFileSection() {
   if (current) { current.hidden = true; current.innerHTML = ''; }
 }
 
+// Short compliance modules (Vector Solutions-style trainings, etc.) usually
+// state duration in minutes on the certificate, not hours -- admins entering
+// on staff's behalf hit the same "37 minutes" -> "37 hours" mistake as staff
+// self-entry did. The unit select lets whoever's entering use whichever
+// number is actually on the certificate; this always converts to decimal
+// hours before it touches the CEU math or the database.
+function ceuHoursInHours() {
+  const raw  = parseFloat(document.getElementById('ceuHours').value);
+  const unit = document.getElementById('ceuHoursUnit')?.value ?? 'hours';
+  if (!raw || raw <= 0) return null;
+  return unit === 'minutes' ? Math.round((raw / 60) * 100) / 100 : raw;
+}
+
 function updateCeuHoursLabel() {
-  const src   = document.getElementById('ceuSourceType').value;
-  const label = document.getElementById('ceuHoursLabel');
-  label.innerHTML = src === 'college_credit'
+  const src        = document.getElementById('ceuSourceType').value;
+  const label      = document.getElementById('ceuHoursLabel');
+  const unitSelect = document.getElementById('ceuHoursUnit');
+  const hoursInput = document.getElementById('ceuHours');
+  const isCredit   = src === 'college_credit';
+
+  label.innerHTML = isCredit
     ? 'Semester Credits <span class="required">*</span>'
     : 'Clock Hours <span class="required">*</span>';
+  if (unitSelect) {
+    unitSelect.style.display = isCredit ? 'none' : '';
+    if (isCredit) unitSelect.value = 'hours';
+  }
+  if (hoursInput) hoursInput.step = !isCredit && unitSelect?.value === 'minutes' ? '1' : '0.5';
+
   updateCeuAmountPreview();
 }
 
 function updateCeuAmountPreview() {
   const src     = document.getElementById('ceuSourceType').value;
-  const hours   = parseFloat(document.getElementById('ceuHours').value);
   const preview = document.getElementById('ceuAmountPreview');
   if (!preview) return;
-  if (!hours || hours <= 0) { preview.textContent = ''; return; }
+  const hours = ceuHoursInHours();
+  if (hours === null) { preview.textContent = ''; return; }
   const ceu = src === 'college_credit' ? hours * 1.5 : hours / 10;
   preview.textContent = `= ${ceu.toFixed(1)} CEU${ceu === 1 ? '' : 's'}`;
 }
@@ -1287,6 +1311,10 @@ async function openEditCeuModal(id, { returnLicenseId = null } = {}) {
   document.getElementById('ceuCategory').value    = entry.category;
   document.getElementById('ceuSourceType').value  = entry.source_type;
   document.getElementById('ceuHours').value       = entry.hours;
+  // Stored values are always decimal hours -- there's no record of which
+  // unit was originally used to enter them, so edit mode always starts on
+  // Hours regardless of what the Add flow last left the select on.
+  document.getElementById('ceuHoursUnit').value   = 'hours';
   document.getElementById('ceuVerified').checked  = entry.verified;
   document.getElementById('ceuNotes').value       = entry.notes ?? '';
   if (fpCeuDate) fpCeuDate.setDate(entry.completed_date, true);
@@ -1328,8 +1356,8 @@ async function saveCeu() {
   const title = document.getElementById('ceuTitle').value.trim();
   if (!title) { showToast('Title is required.', 'warn'); return; }
 
-  const hours = parseFloat(document.getElementById('ceuHours').value);
-  if (!hours || hours <= 0) { showToast('Enter a valid number of hours/credits.', 'warn'); return; }
+  const hours = ceuHoursInHours();
+  if (!hours) { showToast('Enter a valid number of hours/credits.', 'warn'); return; }
 
   const completedDate = document.getElementById('ceuCompletedDate').value;
   if (!completedDate) { showToast('Completed date is required.', 'warn'); return; }
@@ -1648,6 +1676,7 @@ function wireEvents() {
   });
   document.getElementById('ceuSourceType')?.addEventListener('change', updateCeuHoursLabel);
   document.getElementById('ceuHours')?.addEventListener('input', updateCeuAmountPreview);
+  document.getElementById('ceuHoursUnit')?.addEventListener('change', updateCeuHoursLabel);
 
   document.getElementById('ceuFileChooseBtn')?.addEventListener('click', () => {
     document.getElementById('ceuFileInput')?.click();

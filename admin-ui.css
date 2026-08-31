@@ -1980,6 +1980,16 @@ select {
   gap: 10px;
 }
 
+/* Hours/Minutes unit pair for CEU duration entry -- same sharing rationale
+   as .lic-file-choose-row above. */
+.lic-hours-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.lic-hours-input-row input { flex: 1; min-width: 0; }
+.lic-hours-input-row select { flex-shrink: 0; width: 108px; }
+
 /* Modal size variants */
 .modal-sm .modal-content {
   max-width: 420px;

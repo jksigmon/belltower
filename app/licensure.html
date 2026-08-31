@@ -1120,7 +1120,13 @@
         </div>
         <div class="drawer-field">
           <label id="ceuHoursLabel">Clock Hours <span class="required">*</span></label>
-          <input type="number" id="ceuHours" class="form-input" min="0.5" step="0.5" placeholder="e.g. 10">
+          <div class="lic-hours-input-row">
+            <input type="number" id="ceuHours" class="form-input" min="0.5" step="0.5" placeholder="e.g. 10">
+            <select id="ceuHoursUnit" class="form-input">
+              <option value="hours">Hours</option>
+              <option value="minutes">Minutes</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="muted" id="ceuAmountPreview" style="font-size:0.8rem;margin-top:-6px;"></div>
