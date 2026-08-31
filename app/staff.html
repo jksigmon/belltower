@@ -4071,6 +4071,20 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
 /* ─────────────────────────────────────────────────────
    My Licenses — Add License (self-serve, pending admin verification)
 ───────────────────────────────────────────────────── */
+// Mirrors writeHistory() in admin.licensure.js -- that one only covers
+// admin-driven changes, so self-service create/delete (the only two actions
+// staff can take here) was invisible in the Audit Log until this existed.
+async function writeMyLicenseHistory(licenseId, changeType) {
+  const { error } = await supabase.from('staff_license_history').insert({
+    license_id:  licenseId,
+    employee_id: currentProfile.employee_id,
+    school_id:   currentProfile.school_id,
+    changed_by:  currentProfile.user_id,
+    change_type: changeType,
+  });
+  if (error) console.error('license history write failed', error);
+}
+
 function openStaffLicenseModal() {
   document.getElementById('staffLicType').value       = '';
   document.getElementById('staffLicCategory').value   = 'teaching';
@@ -4169,6 +4183,8 @@ document.getElementById('staffLicSaveBtn')?.addEventListener('click', async () =
     }
   }
 
+  await writeMyLicenseHistory(data.id, 'created');
+
   saveBtn.disabled = false;
   closeStaffLicenseModal();
   showToast('License saved. Pending admin verification, but you can log CEUs against it now.');
@@ -4181,6 +4197,8 @@ document.getElementById('staffLicSaveBtn')?.addEventListener('click', async () =
 
 async function deleteMyLicense(id) {
   if (!confirm('Delete this license? Any CEU entries logged against it will be deleted too.')) return;
+
+  await writeMyLicenseHistory(id, 'deleted');
 
   const { error } = await supabase.from('staff_licenses').delete().eq('id', id);
   if (error) {
@@ -4196,6 +4214,19 @@ async function deleteMyLicense(id) {
 /* ─────────────────────────────────────────────────────
    My Licenses — Add CEU Entry (self-serve, pending admin verification)
 ───────────────────────────────────────────────────── */
+// Mirrors writeCeuHistory() in admin.licensure.js -- see writeMyLicenseHistory()
+// above for why this exists.
+async function writeMyCeuHistory(ceuId, changeType) {
+  const { error } = await supabase.from('staff_license_ceu_history').insert({
+    ceu_id:      ceuId,
+    employee_id: currentProfile.employee_id,
+    school_id:   currentProfile.school_id,
+    changed_by:  currentProfile.user_id,
+    change_type: changeType,
+  });
+  if (error) console.error('CEU history write failed', error);
+}
+
 function updateStaffCeuHoursLabel() {
   const src     = document.getElementById('staffCeuSourceType').value;
   const label   = document.getElementById('staffCeuHoursLabel');
@@ -4323,6 +4354,8 @@ document.getElementById('staffCeuSaveBtn')?.addEventListener('click', async () =
     }
   }
 
+  await writeMyCeuHistory(data.id, 'created');
+
   saveBtn.disabled = false;
   closeStaffCeuModal();
   showToast('CEU entry saved — pending admin verification.');
@@ -4335,6 +4368,8 @@ document.getElementById('staffCeuSaveBtn')?.addEventListener('click', async () =
 
 async function deleteMyCeuEntry(id, filePath) {
   if (!confirm('Delete this CEU entry?')) return;
+
+  await writeMyCeuHistory(id, 'deleted');
 
   const { error } = await supabase.from('staff_license_ceus').delete().eq('id', id);
   if (error) {

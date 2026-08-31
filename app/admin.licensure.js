@@ -672,7 +672,7 @@ async function deleteLicense(id) {
 }
 
 async function writeHistory(licenseId, schoolId, changeType, fieldChanges, employeeId) {
-  await supabase.from('staff_license_history').insert({
+  const { error } = await supabase.from('staff_license_history').insert({
     license_id:    licenseId,
     employee_id:   employeeId,
     school_id:     schoolId,
@@ -680,6 +680,7 @@ async function writeHistory(licenseId, schoolId, changeType, fieldChanges, emplo
     change_type:   changeType,
     field_changes: fieldChanges,
   });
+  if (error) console.error('license history write failed', error);
 }
 
 function diffCeuObjects(oldObj, newObj) {
@@ -694,7 +695,7 @@ function diffCeuObjects(oldObj, newObj) {
 }
 
 async function writeCeuHistory(ceuId, schoolId, changeType, fieldChanges, employeeId) {
-  await supabase.from('staff_license_ceu_history').insert({
+  const { error } = await supabase.from('staff_license_ceu_history').insert({
     ceu_id:        ceuId,
     employee_id:   employeeId,
     school_id:     schoolId,
@@ -702,6 +703,7 @@ async function writeCeuHistory(ceuId, schoolId, changeType, fieldChanges, employ
     change_type:   changeType,
     field_changes: fieldChanges,
   });
+  if (error) console.error('CEU history write failed', error);
 }
 
 /* ─────────────────────────────────────────────────────
