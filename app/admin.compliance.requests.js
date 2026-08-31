@@ -42,7 +42,7 @@ async function loadVolunteerIndex() {
   if (volunteerIndex) return volunteerIndex;
   const { data } = await supabase
     .from('compliance_volunteers')
-    .select('id, first_name, last_name, guardian_id')
+    .select('id, first_name, last_name, guardian_id, email')
     .eq('school_id', _profile.school_id)
     .is('archived_at', null);
   volunteerIndex = new Map();
@@ -573,7 +573,7 @@ async function openResolveDrawer(id) {
 
   let suggested = null;
   if (row.volunteer_id) {
-    const { data } = await supabase.from('compliance_volunteers').select('id, first_name, last_name, guardian_id').eq('id', row.volunteer_id).maybeSingle();
+    const { data } = await supabase.from('compliance_volunteers').select('id, first_name, last_name, guardian_id, email').eq('id', row.volunteer_id).maybeSingle();
     suggested = data;
   } else {
     suggested = (await loadVolunteerIndex()).get(matchKey(row.subject_first_name, row.subject_last_name)) ?? null;
@@ -770,7 +770,10 @@ function wireExpireAutoFill(clearedId, expiresId) {
 // full Mark Cleared flow) and saveResolveGuardianLink() (linking a
 // guardian ahead of clearing, before any volunteer row may exist yet).
 async function ensureResolvedVolunteerId() {
-  if (resolvedVolunteer?.id) return resolvedVolunteer.id;
+  if (resolvedVolunteer?.id) {
+    await backfillResolvedVolunteerEmail();
+    return resolvedVolunteer.id;
+  }
 
   const { data, error } = await supabase
     .from('compliance_volunteers')
@@ -778,10 +781,10 @@ async function ensureResolvedVolunteerId() {
       school_id: _profile.school_id,
       first_name: activeRequest.subject_first_name,
       last_name: activeRequest.subject_last_name,
-      email: activeRequest.subject_email,
+      email: activeRequest.subject_email || resolvedGuardian?.email || null,
       volunteer_roles: activeRequest.volunteer_roles ?? [],
     })
-    .select('id, first_name, last_name, guardian_id')
+    .select('id, first_name, last_name, guardian_id, email')
     .single();
 
   let created = data;
@@ -791,7 +794,7 @@ async function ensureResolvedVolunteerId() {
     // failing the save outright.
     const existing = await supabase
       .from('compliance_volunteers')
-      .select('id, first_name, last_name, guardian_id')
+      .select('id, first_name, last_name, guardian_id, email')
       .eq('school_id', _profile.school_id)
       .ilike('first_name', activeRequest.subject_first_name)
       .ilike('last_name', activeRequest.subject_last_name)
@@ -812,7 +815,29 @@ async function ensureResolvedVolunteerId() {
     .eq('school_id', _profile.school_id);
 
   setResolvedVolunteer(created, 'Already linked.');
+  await backfillResolvedVolunteerEmail();
   return created.id;
+}
+
+// A volunteer record can predate the email it should have -- created
+// manually, or matched to a request that never carried a subject_email
+// itself. Whenever we're about to link/clear one that still has no
+// email on file, backfill it from whatever email this resolve did turn
+// up (the request's subject_email, or the linked guardian's), so the
+// roster stops showing "--" for people who are clearly already linked.
+async function backfillResolvedVolunteerEmail() {
+  if (!resolvedVolunteer || resolvedVolunteer.email) return;
+  const candidateEmail = activeRequest?.subject_email || resolvedGuardian?.email || null;
+  if (!candidateEmail) return;
+
+  const { error } = await supabase
+    .from('compliance_volunteers')
+    .update({ email: candidateEmail })
+    .eq('id', resolvedVolunteer.id)
+    .eq('school_id', _profile.school_id)
+    .is('email', null); // don't clobber an email set concurrently elsewhere
+
+  if (!error) resolvedVolunteer.email = candidateEmail;
 }
 
 export async function saveResolve() {
