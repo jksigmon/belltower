@@ -3998,7 +3998,7 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
           ${lic.verified ? '' : `<button type="button" class="btn btn-sm staffDeleteLicBtn" data-id="${esc(lic.id)}" style="color:#dc2626;border-color:#fca5a5;" title="Delete (pending verification)">Delete License</button>`}
         </span>
       </div>
-      <div class="ceu-progress-total">Total <span>${total.toFixed(1)} / ${profile ? CEU_TOTAL_TARGET : '—'}</span></div>`;
+      <div class="ceu-progress-total">Total <span>${total.toFixed(3)} / ${profile ? CEU_TOTAL_TARGET : '—'}</span></div>`;
 
     if (profile) {
       html += Object.entries(profile).map(([cat, target]) => {
@@ -4007,7 +4007,7 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
         const short  = earned < target;
         return `
           <div class="ceu-progress-row">
-            <div class="ceu-progress-row-head"><span>${esc(CEU_CATEGORY_LABELS[cat])}</span><span>${earned.toFixed(1)} / ${target}</span></div>
+            <div class="ceu-progress-row-head"><span>${esc(CEU_CATEGORY_LABELS[cat])}</span><span>${earned.toFixed(3)} / ${target}</span></div>
             <div class="ceu-progress-bar-track"><div class="ceu-progress-bar-fill ${short ? 'short' : ''}" style="width:${pct}%;"></div></div>
           </div>`;
       }).join('');
@@ -4021,7 +4021,7 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
           <span class="ceu-cat ceu-cat-${esc(c.category)}">${esc(CEU_CATEGORY_LABELS[c.category] ?? c.category)}</span>
           <span class="ceu-entry-title">${esc(c.title)}</span>
           <span class="ceu-entry-date">${fmtShortDate(c.completed_date)}</span>
-          <span class="ceu-entry-ceus">${Number(c.ceu_amount).toFixed(1)} CEU</span>
+          <span class="ceu-entry-ceus">${Number(c.ceu_amount).toFixed(3)} CEU</span>
           ${c.verified
             ? '<span class="verified-check" title="Verified">✓</span>'
             : `<button type="button" class="ceu-entry-delete-btn staffDeleteCeuBtn" data-id="${esc(c.id)}" data-file="${esc(c.file_path ?? '')}" title="Delete (pending verification)">✕</button>`}
@@ -4040,14 +4040,14 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
       <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">General CEUs <span class="muted" style="font-weight:400;font-size:0.78rem;">(not linked to a license)</span></span>
       <button type="button" class="btn btn-sm staffAddCeuBtn" data-license-id="">+ Add CEU</button>
     </div>
-    <div class="ceu-progress-total">Total <span>${generalTotal.toFixed(1)} CEU${generalTotal === 1 ? '' : 's'}</span></div>
+    <div class="ceu-progress-total">Total <span>${generalTotal.toFixed(3)} CEU${generalTotal === 1 ? '' : 's'}</span></div>
     ${generalCeus.length
       ? '<div class="ceu-entry-list">' + generalCeus.map(c => `
           <div class="ceu-entry-row">
             <span class="ceu-cat ceu-cat-${esc(c.category)}">${esc(CEU_CATEGORY_LABELS[c.category] ?? c.category)}</span>
             <span class="ceu-entry-title">${esc(c.title)}</span>
             <span class="ceu-entry-date">${fmtShortDate(c.completed_date)}</span>
-            <span class="ceu-entry-ceus">${Number(c.ceu_amount).toFixed(1)} CEU</span>
+            <span class="ceu-entry-ceus">${Number(c.ceu_amount).toFixed(3)} CEU</span>
             ${c.verified
               ? '<span class="verified-check" title="Verified">✓</span>'
               : `<button type="button" class="ceu-entry-delete-btn staffDeleteCeuBtn" data-id="${esc(c.id)}" data-file="${esc(c.file_path ?? '')}" title="Delete (pending verification)">✕</button>`}
@@ -4268,7 +4268,7 @@ function updateStaffCeuHoursLabel() {
   const hours = staffCeuHoursInHours();
   if (hours === null) { preview.textContent = ''; return; }
   const ceu = isCredit ? hours * 1.5 : hours / 10;
-  preview.textContent = `= ${ceu.toFixed(1)} CEU${ceu === 1 ? '' : 's'}`;
+  preview.textContent = `= ${ceu.toFixed(3)} CEU${ceu === 1 ? '' : 's'}`;
 }
 
 document.getElementById('staffCeuSourceType')?.addEventListener('change', updateStaffCeuHoursLabel);

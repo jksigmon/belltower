@@ -1051,7 +1051,7 @@ function renderCeuTable(rows) {
         </div>
       </div>
       <div class="ceu-card-amount">
-        <div class="ceu-card-ceus">${Number(c.ceu_amount).toFixed(1)} CEU ${c.verified ? '<span class="verified-check" title="Verified">✓</span>' : ''}</div>
+        <div class="ceu-card-ceus">${Number(c.ceu_amount).toFixed(3)} CEU ${c.verified ? '<span class="verified-check" title="Verified">✓</span>' : ''}</div>
         <div class="ceu-card-date">${formatDate(c.completed_date)}</div>
       </div>
       <div class="ceu-card-actions">
@@ -1126,7 +1126,7 @@ function renderCeuPanel(lic, ceus) {
   const profile = ceuTargetProfile(lic);
   const total   = inCycle.reduce((sum, c) => sum + Number(c.ceu_amount), 0);
 
-  let html = `<div class="ceu-progress-total">CEU Progress (this cycle) <span>${total.toFixed(1)} / ${profile ? CEU_TOTAL_TARGET : '—'}</span></div>`;
+  let html = `<div class="ceu-progress-total">CEU Progress (this cycle) <span>${total.toFixed(3)} / ${profile ? CEU_TOTAL_TARGET : '—'}</span></div>`;
 
   if (profile) {
     html += Object.entries(profile).map(([cat, target]) => {
@@ -1135,7 +1135,7 @@ function renderCeuPanel(lic, ceus) {
       const short  = earned < target;
       return `
         <div class="ceu-progress-row">
-          <div class="ceu-progress-row-head"><span>${esc(CEU_CATEGORY_LABELS[cat])}</span><span>${earned.toFixed(1)} / ${target}</span></div>
+          <div class="ceu-progress-row-head"><span>${esc(CEU_CATEGORY_LABELS[cat])}</span><span>${earned.toFixed(3)} / ${target}</span></div>
           <div class="ceu-progress-bar-track"><div class="ceu-progress-bar-fill ${short ? 'short' : ''}" style="width:${pct}%;"></div></div>
         </div>`;
     }).join('');
@@ -1149,7 +1149,7 @@ function renderCeuPanel(lic, ceus) {
       <div class="ceu-entry-row">
         <span class="ceu-cat ceu-cat-${c.category}">${esc(CEU_CATEGORY_LABELS[c.category] ?? c.category)}</span>
         <span class="ceu-entry-title">${esc(c.title)}</span>
-        <span class="ceu-entry-ceus">${Number(c.ceu_amount).toFixed(1)} CEU</span>
+        <span class="ceu-entry-ceus">${Number(c.ceu_amount).toFixed(3)} CEU</span>
         ${c.verified ? '<span class="verified-check" title="Verified">✓</span>' : ''}
         <button type="button" class="lic-btn-icon editCeuPanelBtn" data-id="${c.id}" title="Edit">${EDIT_ICON_SVG}</button>
         <button type="button" class="lic-btn-icon lic-btn-danger deleteCeuPanelBtn" data-id="${c.id}" title="Delete">${TRASH_ICON_SVG}</button>
@@ -1237,7 +1237,7 @@ function updateCeuAmountPreview() {
   const hours = ceuHoursInHours();
   if (hours === null) { preview.textContent = ''; return; }
   const ceu = src === 'college_credit' ? hours * 1.5 : hours / 10;
-  preview.textContent = `= ${ceu.toFixed(1)} CEU${ceu === 1 ? '' : 's'}`;
+  preview.textContent = `= ${ceu.toFixed(3)} CEU${ceu === 1 ? '' : 's'}`;
 }
 
 async function populateCeuLicenseOptions(employeeId, preselectLicenseId) {
