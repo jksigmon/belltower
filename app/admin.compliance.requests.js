@@ -123,12 +123,14 @@ export async function loadRequests(profile) {
         ${['pending', 'submitted'].includes(row.status) ? `<button class="btn btn-sm" data-resolve="${esc(row.id)}">Resolve</button>` : ''}
         ${row.status === 'pending' ? `<button class="btn btn-sm" data-sent="${esc(row.id)}">Mark Sent</button>` : ''}
         ${['pending', 'submitted'].includes(row.status) ? `<button class="btn btn-sm" data-decline="${esc(row.id)}" style="color:var(--danger);">Decline</button>` : ''}
+        ${['declined', 'cancelled'].includes(row.status) ? `<button class="btn btn-sm" data-restore="${esc(row.id)}">Restore</button>` : ''}
       </td>
       <td>${row.status === 'pending' ? `<input type="checkbox" class="req-row-check" data-id="${esc(row.id)}" ${reqSelection.has(row.id) ? 'checked' : ''}>` : ''}</td>
     `;
     tr.querySelector('[data-resolve]')?.addEventListener('click', () => openResolveDrawer(row.id));
     tr.querySelector('[data-sent]')?.addEventListener('click', () => markSent(row.id));
     tr.querySelector('[data-decline]')?.addEventListener('click', () => declineRequest(row.id));
+    tr.querySelector('[data-restore]')?.addEventListener('click', () => restoreRequest(row.id));
     const checkbox = tr.querySelector('.req-row-check');
     if (checkbox) checkbox.addEventListener('change', () => reqSelection.set(row.id, checkbox.checked));
     tbody.appendChild(tr);
@@ -342,12 +344,33 @@ function renderGuardianMatchReview(matches, ambiguous) {
   };
 }
 
-// Creates a compliance_volunteers row for a matched request's subject if
-// one isn't already linked, mirroring ensureResolvedVolunteerId() below
-// (that one operates on the single request open in the Resolve drawer;
-// this operates on an arbitrary match from the bulk review list).
+// Links a matched request's subject to their compliance_volunteers row,
+// creating one only if the roster genuinely doesn't have them yet.
+// Checks volunteerIndex (keyed by the same matchKey() the DB's
+// uq_compliance_volunteers_match_key constraint is built on) before
+// inserting, rather than inserting blind and catching the conflict --
+// that used to be the only path, which both spammed Postgres error logs
+// on every already-known volunteer and, when the post-conflict ilike
+// name lookup didn't line up exactly with the stored name, silently
+// left the request unlinked even though a volunteer clearly matched.
+// Mirrors ensureResolvedVolunteerId() below (that one operates on the
+// single request open in the Resolve drawer; this operates on an
+// arbitrary match from the bulk review list).
 async function ensureVolunteerForMatch(m) {
   if (m.volunteerId) return m.volunteerId;
+
+  const linkVolunteerId = async id => {
+    const { error } = await supabase
+      .from('compliance_bg_check_requests')
+      .update({ volunteer_id: id })
+      .eq('id', m.requestId)
+      .eq('school_id', _profile.school_id);
+    if (error) throw error;
+    return id;
+  };
+
+  const known = (await loadVolunteerIndex()).get(matchKey(m.subjectFirstName, m.subjectLastName));
+  if (known) return linkVolunteerId(known.id);
 
   const { data, error } = await supabase
     .from('compliance_volunteers')
@@ -361,26 +384,15 @@ async function ensureVolunteerForMatch(m) {
     .select('id')
     .single();
 
-  if (!error) {
-    await supabase.from('compliance_bg_check_requests').update({ volunteer_id: data.id }).eq('id', m.requestId).eq('school_id', _profile.school_id);
-    return data.id;
-  }
+  if (!error) return linkVolunteerId(data.id);
 
   if (error.code === '23505') {
-    // Another match in this same batch (or someone else) already created
-    // a matching volunteer -- link to that one instead of failing.
-    const { data: existing } = await supabase
-      .from('compliance_volunteers')
-      .select('id')
-      .eq('school_id', _profile.school_id)
-      .ilike('first_name', m.subjectFirstName)
-      .ilike('last_name', m.subjectLastName)
-      .is('archived_at', null)
-      .maybeSingle();
-    if (existing) {
-      await supabase.from('compliance_bg_check_requests').update({ volunteer_id: existing.id }).eq('id', m.requestId).eq('school_id', _profile.school_id);
-      return existing.id;
-    }
+    // Someone else created a matching volunteer between when this batch
+    // was loaded and now -- refresh the index and link to that one
+    // instead of failing the match outright.
+    volunteerIndex = null;
+    const existing = (await loadVolunteerIndex()).get(matchKey(m.subjectFirstName, m.subjectLastName));
+    if (existing) return linkVolunteerId(existing.id);
   }
 
   throw error;
@@ -471,6 +483,18 @@ async function declineRequest(id) {
     .eq('school_id', _profile.school_id);
   if (error) { dbError(error, 'Failed'); return; }
   showToast('Request declined');
+  await loadRequests();
+}
+
+async function restoreRequest(id) {
+  if (!confirm('Restore this request to Pending?')) return;
+  const { error } = await supabase
+    .from('compliance_bg_check_requests')
+    .update({ status: 'pending' })
+    .eq('id', id)
+    .eq('school_id', _profile.school_id);
+  if (error) { dbError(error, 'Failed'); return; }
+  showToast('Request restored');
   await loadRequests();
 }
 
