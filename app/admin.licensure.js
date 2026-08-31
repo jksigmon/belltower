@@ -427,6 +427,26 @@ async function loadAuditLog() {
     (profiles ?? []).forEach(p => { changerLookup[p.user_id] = p.display_name ?? p.user_id; });
   }
 
+  // Resolve license_id values inside CEU-history diffs → readable labels.
+  // campus_id (the other FK-valued diff field) already has campusLookup
+  // available from init() regardless of which tab is active.
+  const licenseIds = new Set();
+  rows.forEach(r => {
+    const v = r.field_changes?.license_id;
+    if (v?.old) licenseIds.add(v.old);
+    if (v?.new) licenseIds.add(v.new);
+  });
+  const licenseLabelLookup = {};
+  if (licenseIds.size) {
+    const { data: licenses } = await supabase
+      .from('staff_licenses')
+      .select('id, license_type, license_area')
+      .in('id', [...licenseIds]);
+    (licenses ?? []).forEach(l => {
+      licenseLabelLookup[l.id] = l.license_type + (l.license_area ? ' — ' + l.license_area : '');
+    });
+  }
+
   const tbody = document.getElementById('auditTableBody');
 
   if (search) {
@@ -447,7 +467,7 @@ async function loadAuditLog() {
     const changerProfile = changerLookup[r.changed_by] ?? '—';
     const details = r.field_changes
       ? Object.entries(r.field_changes)
-          .map(([k, v]) => `${esc(k)}: ${esc(v.old ?? '—')} → ${esc(v.new ?? '—')}`)
+          .map(([k, v]) => `${esc(prettyFieldName(k))}: ${esc(formatFieldValue(k, v.old, licenseLabelLookup))} → ${esc(formatFieldValue(k, v.new, licenseLabelLookup))}`)
           .join(', ')
       : '—';
 
@@ -1522,6 +1542,39 @@ function renewalBadge(status) {
 
 function changeTypeBadge(type) {
   return { created: 'active', updated: 'pending', deleted: 'expired', renewed: 'active', verified: 'pending' }[type] ?? 'pending';
+}
+
+const AUDIT_FIELD_LABELS = {
+  campus_id:           'Campus',
+  license_id:          'License',
+  license_number:      'License #',
+  license_type:        'License Type',
+  license_area:        'License Area',
+  grade_authorization: 'Grade Authorization',
+  issue_date:          'Issue Date',
+  expiration_date:     'Expiration Date',
+  renewal_status:      'Renewal Status',
+  is_provisional:      'Provisional',
+  provisional_type:    'Provisional Type',
+  role_applicability:  'Roles',
+  alert_muted:         'Alerts Muted',
+  source_type:         'Source',
+  completed_date:      'Completed Date',
+};
+
+function prettyFieldName(key) {
+  return AUDIT_FIELD_LABELS[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Audit log diffs store whatever raw value each field held -- readable for
+// most (text, dates, enums), but campus_id/license_id are foreign keys and
+// print as bare UUIDs without a lookup translation.
+function formatFieldValue(key, value, licenseLabelLookup) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (key === 'campus_id')  return campusLookup[value] ?? value;
+  if (key === 'license_id') return licenseLabelLookup[value] ?? value;
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  return value;
 }
 
 function showConfirm(title, message, okLabel = 'Delete') {
