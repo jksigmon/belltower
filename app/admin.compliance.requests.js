@@ -116,7 +116,7 @@ export async function loadRequests(profile) {
       <td>${esc(row.requestor?.display_name ?? row.requestor?.email ?? '—')}</td>
       <td style="max-width:160px;white-space:normal;">${(row.volunteer_roles ?? []).map(r => `<span style="background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:10px;font-weight:700;padding:2px 7px;display:inline-block;margin:1px;">${esc(VOLUNTEER_ROLES[r]?.label ?? r)}</span>`).join('') || '<span class="muted">—</span>'}</td>
       <td style="max-width:160px;white-space:normal;">${row.reason ? esc(row.reason) : '<span class="muted">—</span>'}</td>
-      <td>${row.volunteer_id ? '<span class="bg-status-pill bg-status-cleared">Linked</span>' : match ? `<span class="bg-status-pill bg-status-pending">Matches ${esc(match.first_name)} ${esc(match.last_name)}</span>` : '<span class="muted">No match</span>'}</td>
+      <td>${row.volunteer_id ? '<span class="bg-status-pill bg-status-cleared">Linked</span>' : match ? `<span class="bg-status-pill bg-status-pending">Matches ${esc(match.first_name)} ${esc(match.last_name)}</span> <button class="btn btn-sm" data-link="${esc(row.id)}" style="margin-left:2px;">Link</button>` : '<span class="muted">No match</span>'}</td>
       <td><span class="bg-status-pill bg-status-${esc(row.status)}">${esc(row.status)}</span></td>
       <td>${fmtShortDate(row.requested_at)}</td>
       <td style="white-space:nowrap;">
@@ -131,6 +131,7 @@ export async function loadRequests(profile) {
     tr.querySelector('[data-sent]')?.addEventListener('click', () => markSent(row.id));
     tr.querySelector('[data-decline]')?.addEventListener('click', () => declineRequest(row.id));
     tr.querySelector('[data-restore]')?.addEventListener('click', () => restoreRequest(row.id));
+    tr.querySelector('[data-link]')?.addEventListener('click', () => linkRequestToVolunteer(row.id, match.id));
     const checkbox = tr.querySelector('.req-row-check');
     if (checkbox) checkbox.addEventListener('change', () => reqSelection.set(row.id, checkbox.checked));
     tbody.appendChild(tr);
@@ -483,6 +484,24 @@ async function declineRequest(id) {
     .eq('school_id', _profile.school_id);
   if (error) { dbError(error, 'Failed'); return; }
   showToast('Request declined');
+  await loadRequests();
+}
+
+// The "Matches X" pill is a suggestion only (matchKey() name match against
+// the roster) -- it's separate from and more permissive than Auto-Match
+// Guardians, which additionally requires a guardian record it can find by
+// email or exact name. A volunteer can clearly match by name with no
+// matching guardian on file at all, leaving the request unlinked with no
+// bulk tool that would ever pick it up. This lets an admin accept that
+// roster match directly from the list, without opening the Resolve drawer.
+async function linkRequestToVolunteer(requestId, volunteerId) {
+  const { error } = await supabase
+    .from('compliance_bg_check_requests')
+    .update({ volunteer_id: volunteerId })
+    .eq('id', requestId)
+    .eq('school_id', _profile.school_id);
+  if (error) { dbError(error, 'Failed'); return; }
+  showToast('Linked to roster match');
   await loadRequests();
 }
 
