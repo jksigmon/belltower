@@ -599,7 +599,7 @@ async function openResolveDrawer(id) {
     </div>` : ''}
     ${row.reason ? `
     <div class="bg-detail-field">
-      <span class="bg-detail-label">Additional information</span>
+      <span class="bg-detail-label">Notes</span>
       <span class="bg-detail-value">${esc(row.reason)}</span>
     </div>` : ''}
   `;
