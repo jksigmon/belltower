@@ -41,7 +41,7 @@ export async function loadTemplates(profile) {
 
   const { data, error } = await supabase
     .from('compliance_form_templates')
-    .select('id, title, description, body_html, active, require_signature, required_for_chaperones, content_hash, created_at')
+    .select('id, title, description, body_html, active, require_signature, required_for_chaperones, overnight_only, content_hash, created_at')
     .eq('school_id', _profile.school_id)
     .order('created_at', { ascending: false });
 
@@ -67,7 +67,7 @@ export async function loadTemplates(profile) {
       <div class="template-card-header">
         <strong>${esc(t.title)}</strong>
         <span class="badge ${t.active ? 'badge-active' : 'badge-suspended'}">${t.active ? 'Active' : 'Inactive'}</span>
-        ${t.required_for_chaperones ? `<span class="badge" style="background:#eff6ff;color:#1d4ed8;">Field trips</span>` : ''}
+        ${t.required_for_chaperones ? `<span class="badge" style="background:#eff6ff;color:#1d4ed8;">${t.overnight_only ? 'Field trips (overnight only)' : 'Field trips'}</span>` : ''}
       </div>
       ${t.description ? `<p class="muted" style="font-size:13px;margin:4px 0 0;">${esc(t.description)}</p>` : ''}
       <div class="template-card-actions">
@@ -97,6 +97,8 @@ export function openTemplateDrawer(id) {
   document.getElementById('tplActive').checked                = t ? t.active : true;
   document.getElementById('tplRequireSignature').checked      = t ? (t.require_signature ?? true) : true;
   document.getElementById('tplRequiredForChaperones').checked = t?.required_for_chaperones ?? false;
+  document.getElementById('tplOvernightOnly').checked = t?.overnight_only ?? false;
+  updateOvernightOnlyVisibility(t?.required_for_chaperones ?? false);
   document.getElementById('tplDrawerMsg').textContent = '';
 
   document.getElementById('tplDeleteWrap').style.display = id ? '' : 'none';
@@ -122,7 +124,8 @@ export async function saveTemplate() {
 
   const requireSignature      = document.getElementById('tplRequireSignature').checked;
   const requiredForChaperones = document.getElementById('tplRequiredForChaperones').checked;
-  const payload = { title, description, body_html: bodyHtml, active, require_signature: requireSignature, required_for_chaperones: requiredForChaperones, content_hash: contentHash };
+  const overnightOnly         = requiredForChaperones && document.getElementById('tplOvernightOnly').checked;
+  const payload = { title, description, body_html: bodyHtml, active, require_signature: requireSignature, required_for_chaperones: requiredForChaperones, overnight_only: overnightOnly, content_hash: contentHash };
 
   let error;
   if (activeTemplateId) {
@@ -495,6 +498,20 @@ export function wireFormFilters() {
   document.getElementById('agreementTemplateFilter')?.addEventListener('change', resetAgr);
   document.getElementById('agreementLinkFilter')?.addEventListener('change', resetAgr);
   document.getElementById('agrShowArchived')?.addEventListener('change', resetAgr);
+
+  // "Only for overnight trips" only means anything once the form is
+  // required for chaperones at all -- keep it hidden (and cleared, on
+  // save) otherwise rather than letting it hold a dangling true.
+  document.getElementById('tplRequiredForChaperones')?.addEventListener('change', e => {
+    updateOvernightOnlyVisibility(e.target.checked);
+  });
+}
+
+function updateOvernightOnlyVisibility(requiredForChaperones) {
+  const wrap = document.getElementById('tplOvernightOnlyWrap');
+  if (!wrap) return;
+  wrap.style.display = requiredForChaperones ? 'flex' : 'none';
+  if (!requiredForChaperones) document.getElementById('tplOvernightOnly').checked = false;
 }
 
 // ═══════════════════════════════════════════════════════════════════════

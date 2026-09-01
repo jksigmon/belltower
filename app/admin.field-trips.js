@@ -544,13 +544,28 @@ async function loadChaperones() {
 async function loadRequiredForms() {
   const { data } = await supabase
     .from('compliance_form_templates')
-    .select('id, title')
+    .select('id, title, overnight_only')
     .eq('school_id', profile.school_id)
     .eq('required_for_chaperones', true)
     .eq('active', true)
     .order('title');
   requiredFormTemplates = data ?? [];
   document.getElementById('thForms').style.display = requiredFormTemplates.length ? '' : 'none';
+}
+
+// A trip counts as overnight when it spans more than one calendar day --
+// the same signal already used elsewhere in this file to decide whether
+// to render a date range instead of a single date (no separate
+// "overnight" field on field_trips needed).
+function isOvernightTrip(trip) {
+  return !!(trip?.end_date && trip.end_date !== trip.start_date);
+}
+
+// requiredFormTemplates is school-wide and loaded once on init, but
+// whether an overnight_only template actually applies depends on the
+// trip being viewed -- this narrows it per call site instead.
+function requiredFormsForTrip(trip) {
+  return requiredFormTemplates.filter(t => !t.overnight_only || isOvernightTrip(trip));
 }
 
 async function loadAgreements(chaperones) {
@@ -640,12 +655,13 @@ function getVolunteer(guardian) {
 }
 
 function getMissingForms(guardian) {
-  if (!requiredFormTemplates.length) return [];
+  const forms = requiredFormsForTrip(currentTrip);
+  if (!forms.length) return [];
   const email  = (guardian?.email ?? '').toLowerCase();
   const byEmail = email ? agreementsMap.get(email) ?? new Set() : new Set();
   const byGid   = guardian?.id ? agreementsGuardianMap.get(guardian.id) ?? new Set() : new Set();
   const signed  = new Set([...byEmail, ...byGid]);
-  return requiredFormTemplates.filter(t => !signed.has(t.id));
+  return forms.filter(t => !signed.has(t.id));
 }
 
 function computeComplianceStatus(guardian, volunteer, tripDate, isDriver) {
@@ -713,7 +729,7 @@ function renderFormsChip(guardian) {
 function renderChaperoneTable() {
   const tbody         = document.getElementById('ftChapTableBody');
   const driversNeeded = currentTrip.drivers_needed;
-  const formsRequired = requiredFormTemplates.length > 0;
+  const formsRequired = requiredFormsForTrip(currentTrip).length > 0;
   const tripDate      = currentTrip.end_date ?? currentTrip.start_date;
 
   const requireMvrGlobal = schoolConfig?.require_mvr_for_drivers !== false;
@@ -828,15 +844,16 @@ async function renderComplianceFormLinks() {
   const wrap = document.getElementById('ftFormLinksWrap');
   if (!wrap) return;
 
-  const { data: templates } = await supabase
+  const { data } = await supabase
     .from('compliance_form_templates')
-    .select('id, title')
+    .select('id, title, overnight_only')
     .eq('school_id', profile.school_id)
     .eq('required_for_chaperones', true)
     .eq('active', true)
     .order('title');
 
-  if (!templates?.length) { wrap.style.display = 'none'; return; }
+  const templates = (data ?? []).filter(t => !t.overnight_only || isOvernightTrip(currentTrip));
+  if (!templates.length) { wrap.style.display = 'none'; return; }
 
   const { data: links } = await supabase
     .from('compliance_form_links')
@@ -1502,10 +1519,11 @@ function exportChaperoneCSV() {
   if (!currentTrip || !chaperoneList.length) return;
 
   const driversNeeded = currentTrip.drivers_needed;
+  const forms = requiredFormsForTrip(currentTrip);
   const headers = ['Name', 'Email', 'Driver', 'Students in family', 'BG Check status', 'BG Check expires'];
   if (driversNeeded) headers.push('MVR cleared', 'MVR expires', "DL expires", 'Insurance expires', 'May drive');
-  if (requiredFormTemplates.length) {
-    requiredFormTemplates.forEach(t => headers.push(`Form: ${t.title}`));
+  if (forms.length) {
+    forms.forEach(t => headers.push(`Form: ${t.title}`));
     headers.push('Missing forms');
   }
   headers.push('Overall compliance');
@@ -1525,8 +1543,8 @@ function exportChaperoneCSV() {
         '',
       ];
       if (driversNeeded) row.push('', '', '', '', '');
-      if (requiredFormTemplates.length) {
-        requiredFormTemplates.forEach(() => row.push('N/A'));
+      if (forms.length) {
+        forms.forEach(() => row.push('N/A'));
         row.push('N/A');
       }
       row.push('Staff');
@@ -1552,10 +1570,10 @@ function exportChaperoneCSV() {
         volunteer?.can_drive === false ? 'No' : 'Yes',
       );
     }
-    if (requiredFormTemplates.length) {
+    if (forms.length) {
       const missing = getMissingForms(g);
-      const signed  = new Set(requiredFormTemplates.map(t => t.id).filter(id => !missing.find(m => m.id === id)));
-      requiredFormTemplates.forEach(t => row.push(signed.has(t.id) ? 'Signed' : 'Not signed'));
+      const signed  = new Set(forms.map(t => t.id).filter(id => !missing.find(m => m.id === id)));
+      forms.forEach(t => row.push(signed.has(t.id) ? 'Signed' : 'Not signed'));
       row.push(missing.map(t => t.title).join('; ') || 'None');
     }
     row.push(s);
