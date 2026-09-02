@@ -1,7 +1,7 @@
 import { supabase } from '/app/admin.supabase.js?v=2';
 import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
-import { showToast, esc, getAvatarColor, fmtShortDate, toLocalISODate } from '/app/admin.shared.js?v=3';
+import { showToast, esc, getAvatarColor, fmtShortDate, toLocalISODate, fetchAllRows } from '/app/admin.shared.js?v=3';
 import { SUPABASE_URL } from '/app/config.js';
 
 /* =============================================
@@ -1179,12 +1179,12 @@ async function updatePtoStatus(requestId, newStatus, rowEl = null) {
 ============================================= */
 async function loadStaffList() {
   if (!staffListCache) {
-    const { data, error } = await supabase
+    const { data, error } = await fetchAllRows(() => supabase
       .from('employees')
       .select('id, first_name, last_name')
       .eq('school_id', currentProfile.school_id)
       .eq('active', true)
-      .order('last_name');
+      .order('last_name'));
     if (error) { console.error('Failed to load staff list:', error); return []; }
     staffListCache = data || [];
   }
@@ -1708,12 +1708,12 @@ async function loadPtoPolicies() {
     headerRow.appendChild(th);
   });
 
-  const { data: employees, error: empErr } = await supabase
+  const { data: employees, error: empErr } = await fetchAllRows(() => supabase
     .from('employees')
     .select('id, first_name, last_name, employment_months')
     .eq('school_id', currentProfile.school_id)
     .eq('active', true)
-    .order('last_name');
+    .order('last_name'));
 
   if (empErr || !employees?.length) return;
 
@@ -2924,12 +2924,12 @@ async function runRolloverReport() {
     const payoutEligible = settings?.payout_eligible_months ?? [10];
     const workdayHours   = settings?.workday_hours ?? 8;
 
-    const { data: employees, error: empErr } = await supabase
+    const { data: employees, error: empErr } = await fetchAllRows(() => supabase
       .from('employees')
       .select('id, first_name, last_name, employment_months')
       .eq('school_id', currentProfile.school_id)
       .eq('active', true)
-      .order('last_name');
+      .order('last_name'));
 
     if (empErr) throw empErr;
 

@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { loadFamilyOptions, loadBusGroupOptions, searchFamilies, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER, todayISO, fmtShortDate, dbError, showToast } from './admin.shared.js?v=3';
+import { loadFamilyOptions, loadBusGroupOptions, searchFamilies, esc, getAvatarColor, cloneSelectOptions, debounce, loadSchoolConfig, GRADE_ORDER, todayISO, fmtShortDate, dbError, showToast, fetchAllRows } from './admin.shared.js?v=3';
 import { createDirectory } from './admin.directory.js?v=2';
 
 let currentProfile;
@@ -139,13 +139,13 @@ function populateGradeSelects() {
 ================================ */
 
 async function loadHomeroomOptions() {
-  const { data, error } = await supabase
+  const { data, error } = await fetchAllRows(() => supabase
     .from('employees')
     .select('id, first_name, last_name')
     .eq('school_id', currentProfile.school_id)
     .eq('active', true)
     .eq('is_teacher', true)
-    .order('last_name');
+    .order('last_name'));
 
   if (error) { console.error('Failed to load teachers', error); return; }
 

@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
-import { debounce, esc, showToast } from './admin.shared.js?v=3';
+import { debounce, esc, showToast, fetchAllRows } from './admin.shared.js?v=3';
 
 /* ─────────────────────────────────────────────────────
    STATE
@@ -121,12 +121,12 @@ async function loadCampuses() {
 }
 
 async function loadEmployees() {
-  const { data } = await supabase
+  const { data } = await fetchAllRows(() => supabase
     .from('employees')
     .select('id, first_name, last_name')
     .eq('school_id', currentProfile.school_id)
     .eq('active', true)
-    .order('last_name');
+    .order('last_name'));
 
   employeeLookup = {};
   (data || []).forEach(e => {
@@ -390,31 +390,34 @@ async function loadLicenses() {
   const expiry  = document.getElementById('licExpiryFilter')?.value ?? '';
   const today   = new Date().toISOString().slice(0, 10);
 
-  let query = supabase
-    .from('staff_licenses')
-    .select(`
-      id, employee_id, campus_id,
-      license_number, state, license_type, license_class, category,
-      license_area, grade_authorization,
-      issue_date, expiration_date,
-      status, is_provisional, provisional_type,
-      renewal_status, verified, alert_muted,
-      notes, role_applicability
-    `)
-    .eq('school_id', currentProfile.school_id)
-    .order('expiration_date', { ascending: true });
+  const buildQuery = () => {
+    let q = supabase
+      .from('staff_licenses')
+      .select(`
+        id, employee_id, campus_id,
+        license_number, state, license_type, license_class, category,
+        license_area, grade_authorization,
+        issue_date, expiration_date,
+        status, is_provisional, provisional_type,
+        renewal_status, verified, alert_muted,
+        notes, role_applicability
+      `)
+      .eq('school_id', currentProfile.school_id)
+      .order('expiration_date', { ascending: true });
 
-  if (status) query = query.eq('status', status);
-  if (type)   query = query.eq('license_type', type);
-  if (campus) query = query.eq('campus_id', campus);
+    if (status) q = q.eq('status', status);
+    if (type)   q = q.eq('license_type', type);
+    if (campus) q = q.eq('campus_id', campus);
 
-  if (expiry === 'expired') {
-    query = query.lt('expiration_date', today);
-  } else if (expiry) {
-    query = query.lte('expiration_date', offsetDate(parseInt(expiry))).gte('expiration_date', today);
-  }
+    if (expiry === 'expired') {
+      q = q.lt('expiration_date', today);
+    } else if (expiry) {
+      q = q.lte('expiration_date', offsetDate(parseInt(expiry))).gte('expiration_date', today);
+    }
+    return q;
+  };
 
-  const { data, error } = await query;
+  const { data, error } = await fetchAllRows(buildQuery);
   if (error) {
     const container = document.getElementById('licenseTableBody');
     if (container) container.innerHTML = `<div class="lic-empty" style="color:#dc2626;">Failed to load licenses. Please try again.</div>`;

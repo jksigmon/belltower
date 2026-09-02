@@ -1,5 +1,5 @@
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast, getAvatarColor, fmtShortDate } from './admin.shared.js?v=3';
+import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast, getAvatarColor, fmtShortDate, fetchAllRows } from './admin.shared.js?v=3';
 import {
   initSessions, showSessionList, showCreateForm, renderSessionList,
   setShowArchived, setShowDeleted, setShowAllYears, submitCreateForm, showConfirmModal,
@@ -2520,12 +2520,12 @@ async function addPlaceholderColumn(name) {
 
 async function getAvailableEmployees() {
   if (!_formEmployees.length) {
-    const { data } = await supabase
+    const { data } = await fetchAllRows(() => supabase
       .from('employees')
       .select('id, first_name, last_name, position')
       .eq('school_id', _profile.school_id)
       .eq('active', true)
-      .order('last_name');
+      .order('last_name'));
     _formEmployees = data || [];
   }
   const onBoard = new Set(_teachers.filter(t => !t.isPlaceholder).map(t => t.id));

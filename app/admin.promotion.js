@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { GRADE_ORDER, nextGrade, gradeLabel, isTerminalGrade, loadSchoolConfig } from './admin.shared.js?v=3';
+import { GRADE_ORDER, nextGrade, gradeLabel, isTerminalGrade, loadSchoolConfig, fetchAllRows } from './admin.shared.js?v=3';
 
 /* ─── Module state ──────────────────────────────────────────── */
 let _profile = null;
@@ -166,18 +166,24 @@ async function loadPromotionPreview() {
   btn.disabled = true;
   btn.textContent = 'Loading…';
 
-  let query = supabase
-    .from('students')
-    .select('id, first_name, last_name, grade_level, student_number, is_retained')
-    .eq('school_id', _profile.school_id)
-    .eq('active', true)
-    .order('last_name');
-
   const campusId = document.getElementById('promotionCampus')?.value;
   _draftCampusId = campusId || 'all';  // stable for all draft ops until next preview load
-  if (campusId) query = query.eq('campus_id', campusId);
 
-  const { data, error } = await query;
+  // Paginated -- an unranged select caps at 1000 rows, which would
+  // silently drop students from this batch promotion for a large
+  // multi-campus school instead of erroring.
+  const buildQuery = () => {
+    let q = supabase
+      .from('students')
+      .select('id, first_name, last_name, grade_level, student_number, is_retained')
+      .eq('school_id', _profile.school_id)
+      .eq('active', true)
+      .order('last_name');
+    if (campusId) q = q.eq('campus_id', campusId);
+    return q;
+  };
+
+  const { data, error } = await fetchAllRows(buildQuery);
 
   btn.disabled = false;
   btn.textContent = 'Load Preview';

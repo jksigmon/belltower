@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, GRADE_ORDER, gradeLabel, invalidateSchoolConfigCache } from './admin.shared.js?v=3';
+import { esc, GRADE_ORDER, gradeLabel, invalidateSchoolConfigCache, fetchAllRows } from './admin.shared.js?v=3';
 
 export function showConfirmModal({ title, body, okLabel = 'Delete', danger = true }) {
   return new Promise(resolve => {
@@ -1070,12 +1070,12 @@ async function loadEmployeesForForm() {
     });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await fetchAllRows(() => supabase
     .from('employees')
     .select('id, first_name, last_name, position, campus_id')
     .eq('school_id', _profile.school_id)
     .eq('active', true)
-    .order('last_name');
+    .order('last_name'));
 
   if (error) {
     container.innerHTML = '<p class="muted" style="font-size:13px;">Failed to load employees.</p>';

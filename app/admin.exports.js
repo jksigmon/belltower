@@ -150,13 +150,13 @@ async function initRosterPrinting() {
   if (!groupBySel || !scopeSel || !printBtn) return;
 
   if (usesHomerooms()) {
-    const { data, error } = await supabase
+    const { data, error } = await fetchAllRows(() => supabase
       .from('employees')
       .select('id, first_name, last_name')
       .eq('school_id', currentProfile.school_id)
       .eq('active', true)
       .eq('is_teacher', true)
-      .order('last_name');
+      .order('last_name'));
 
     if (error) console.error('Failed to load homeroom teachers', error);
     homeroomTeachers = data ?? [];
