@@ -777,6 +777,11 @@
       <label for="guardianMatchSelectAll" style="font-size:13px;font-weight:600;">Select all</label>
     </div>
     <div id="guardianMatchList"></div>
+    <div id="guardianMatchUnmatchedWrap" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+      <h3 style="font-size:13px;margin:0 0 4px;">Not matched (<span id="guardianMatchUnmatchedCount"></span>)</h3>
+      <p class="muted" style="font-size:12px;margin:0 0 8px;">No guardian found by exact email or name match for these. This isn't the same as "ambiguous" above -- it means nothing matched at all. If you know a guardian record exists for one of these, search and link it from that request's Resolve drawer.</p>
+      <div id="guardianMatchUnmatchedList" style="font-size:13px;line-height:1.8;"></div>
+    </div>
     <div id="guardianMatchMsg" style="font-size:13px;color:var(--danger);min-height:18px;margin-top:8px;"></div>
   </div>
   <div class="drawer-footer">

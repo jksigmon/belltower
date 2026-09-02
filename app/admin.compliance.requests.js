@@ -237,13 +237,13 @@ async function openGuardianMatchReview() {
     const result = await computeGuardianMatchCandidates();
     if (!result) return; // error already surfaced via dbError
 
-    if (!result.matches.length) {
+    if (!result.matches.length && !result.unmatched.length) {
       showToast(result.ambiguous ? `No confident matches found (${result.ambiguous} skipped — ambiguous)` : 'No matches found');
       return;
     }
 
     guardianMatchCandidates = result.matches;
-    renderGuardianMatchReview(result.matches, result.ambiguous);
+    renderGuardianMatchReview(result.matches, result.ambiguous, result.unmatched);
     openDrawer('guardianMatch');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Auto-Match Guardians'; }
@@ -257,7 +257,7 @@ async function computeGuardianMatchCandidates() {
     .eq('school_id', _profile.school_id)
     .is('archived_at', null);
   if (reqErr) { dbError(reqErr, 'Auto-match failed'); return null; }
-  if (!requests?.length) return { matches: [], ambiguous: 0 };
+  if (!requests?.length) return { matches: [], ambiguous: 0, unmatched: [] };
 
   // "Already resolved" means linked to a volunteer that itself already
   // has a guardian -- the same state Save Link leaves behind manually.
@@ -272,14 +272,24 @@ async function computeGuardianMatchCandidates() {
     volunteerGuardians = new Map((vols ?? []).map(v => [v.id, v.guardian_id]));
   }
   const candidates = requests.filter(r => !(r.volunteer_id && volunteerGuardians.get(r.volunteer_id)));
-  if (!candidates.length) return { matches: [], ambiguous: 0 };
+  if (!candidates.length) return { matches: [], ambiguous: 0, unmatched: [] };
 
-  const { data: guardians, error: gErr } = await supabase
-    .from('guardians')
-    .select('id, first_name, last_name, email')
-    .eq('school_id', _profile.school_id)
-    .eq('active', true);
-  if (gErr) { dbError(gErr, 'Auto-match failed'); return null; }
+  // Paginated rather than a single unbounded select -- Supabase's default
+  // row cap (1000) was silently truncating this for schools with a large
+  // guardians table, so anyone past the cutoff could never match no
+  // matter how exact their email/name was, with zero indication why.
+  const guardians = [];
+  for (let from = 0; ; from += 1000) {
+    const { data: page, error: gErr } = await supabase
+      .from('guardians')
+      .select('id, first_name, last_name, email')
+      .eq('school_id', _profile.school_id)
+      .eq('active', true)
+      .range(from, from + 999);
+    if (gErr) { dbError(gErr, 'Auto-match failed'); return null; }
+    guardians.push(...(page ?? []));
+    if (!page || page.length < 1000) break;
+  }
 
   const norm = s => (s ?? '').trim().toLowerCase();
   const byEmail = new Map();
@@ -294,13 +304,17 @@ async function computeGuardianMatchCandidates() {
   });
 
   const matches = [];
+  const unmatched = [];
   let ambiguous = 0;
   candidates.forEach(r => {
     let basis = 'email';
     let g = r.subject_email ? byEmail.get(norm(r.subject_email)) : undefined;
     if (g === undefined) { basis = 'name'; g = byName.get(`${norm(r.subject_last_name)}|${norm(r.subject_first_name)}`); }
     if (g === null) { ambiguous++; return; }
-    if (!g) return;
+    if (!g) {
+      unmatched.push({ name: `${r.subject_first_name} ${r.subject_last_name}`, email: r.subject_email });
+      return;
+    }
     matches.push({
       requestId:       r.id,
       volunteerId:     r.volunteer_id || null,
@@ -316,13 +330,22 @@ async function computeGuardianMatchCandidates() {
     });
   });
 
-  return { matches, ambiguous };
+  return { matches, ambiguous, unmatched };
 }
 
-function renderGuardianMatchReview(matches, ambiguous) {
+function renderGuardianMatchReview(matches, ambiguous, unmatched) {
   document.getElementById('guardianMatchSummary').textContent =
-    `${matches.length} match${matches.length === 1 ? '' : 'es'} found` + (ambiguous ? ` — ${ambiguous} skipped (ambiguous match)` : '');
+    `${matches.length} match${matches.length === 1 ? '' : 'es'} found`
+    + (ambiguous ? ` — ${ambiguous} skipped (ambiguous match)` : '')
+    + (unmatched.length ? ` — ${unmatched.length} not matched at all` : '');
   document.getElementById('guardianMatchMsg').textContent = '';
+
+  const unmatchedWrap = document.getElementById('guardianMatchUnmatchedWrap');
+  unmatchedWrap.style.display = unmatched.length ? '' : 'none';
+  document.getElementById('guardianMatchUnmatchedCount').textContent = unmatched.length;
+  document.getElementById('guardianMatchUnmatchedList').innerHTML = unmatched
+    .map(u => `<div>${esc(u.name)}${u.email ? ` <span class="muted">${esc(u.email)}</span>` : ''}</div>`)
+    .join('');
 
   const listEl = document.getElementById('guardianMatchList');
   listEl.innerHTML = matches.map((m, i) => `
