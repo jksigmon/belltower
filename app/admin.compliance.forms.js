@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc } from './admin.shared.js?v=3';
+import { esc, fetchAllRows } from './admin.shared.js?v=3';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { VOLUNTEER_BASE, openDrawer, closeDrawer, showToast, renderPagination, PAGE_SIZE } from './admin.compliance.utils.js';
 
@@ -306,21 +306,28 @@ export async function loadAgreements(profile) {
   if (!agreementCache.length || filtersChanged) {
     tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>';
 
-    let query = supabase
-      .from('compliance_agreements')
-      .select(`
-        id, signer_name, signer_email, signature_type, signed_at, expires_at, voided_at, content_hash,
-        guardian_id, family_id, link_status, student_name_hint, carline_tag_hint, submitted_phone, submitted_relationship,
-        submitted_data_reviewed, archived_at,
-        compliance_form_templates!inner ( id, title )
-      `)
-      .eq('school_id', _profile.school_id)
-      .order('signed_at', { ascending: false });
+    // Fetched in full (paginated via fetchAllRows) rather than an unranged
+    // select -- a school with a few years of signed forms can exceed
+    // PostgREST's 1000-row cap, which would otherwise silently drop the
+    // tail of whatever "signed_at desc" happened to sort last.
+    const buildQuery = () => {
+      let q = supabase
+        .from('compliance_agreements')
+        .select(`
+          id, signer_name, signer_email, signature_type, signed_at, expires_at, voided_at, content_hash,
+          guardian_id, family_id, link_status, student_name_hint, carline_tag_hint, submitted_phone, submitted_relationship,
+          submitted_data_reviewed, archived_at,
+          compliance_form_templates!inner ( id, title )
+        `)
+        .eq('school_id', _profile.school_id)
+        .order('signed_at', { ascending: false });
 
-    if (templateVal) query = query.eq('template_id', templateVal);
-    if (linkVal)     query = query.eq('link_status', linkVal);
+      if (templateVal) q = q.eq('template_id', templateVal);
+      if (linkVal)     q = q.eq('link_status', linkVal);
+      return q;
+    };
 
-    const { data, error } = await query;
+    const { data, error } = await fetchAllRows(buildQuery);
     if (error) {
       tbody.innerHTML = `<tr><td colspan="9" class="status-danger" style="text-align:center;padding:32px 0;">Failed: ${esc(error.message)}</td></tr>`;
       return;

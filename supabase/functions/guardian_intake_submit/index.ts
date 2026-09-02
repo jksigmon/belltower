@@ -18,6 +18,26 @@ const json = (body: unknown, status = 200) =>
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 
+// An unranged select caps at 1000 rows -- for a school with more active
+// guardians than that, matching would silently stop seeing the tail end,
+// so a submission that should match an existing guardian creates a
+// duplicate instead.
+async function fetchAllRows<T = any>(
+  build: () => { range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }> }
+): Promise<{ data: T[]; error: unknown }> {
+  const rows: T[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await build().range(from, from + pageSize - 1);
+    if (error) return { data: rows, error };
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < pageSize) break;
+    from += pageSize;
+  }
+  return { data: rows, error: null };
+}
+
 // ── Normalize phone to digits only ───────────────────────────
 function normalizePhone(p: string): string {
   return p.replace(/\D/g, "");
@@ -153,11 +173,11 @@ serve(async (req) => {
     }
 
     // ── Load guardians for matching ───────────────────────────
-    const { data: guardians } = await supabase
+    const { data: guardians } = await fetchAllRows(() => supabase
       .from("guardians")
       .select("id, first_name, last_name, phone, email")
       .eq("school_id", campaign.school_id)
-      .eq("active", true);
+      .eq("active", true));
 
     const { confidence, candidates } = computeMatch(guardians ?? [], {
       first_name: first_name.trim(),

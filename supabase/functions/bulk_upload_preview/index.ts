@@ -10,6 +10,28 @@ const corsHeaders = {
 };
 
 
+// Existing-record lookups below select the whole school's table with no
+// limit -- Supabase/PostgREST caps an unranged select at 1000 rows, which
+// for a school with more families/guardians/students/employees than that
+// silently hides the tail end from duplicate detection. That doesn't fail
+// loudly; it just makes the preview think those records don't exist yet,
+// so a bulk import creates duplicates instead of matching them.
+async function fetchAllRows<T = any>(
+  build: () => { range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }> }
+): Promise<{ data: T[]; error: unknown }> {
+  const rows: T[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await build().range(from, from + pageSize - 1);
+    if (error) return { data: rows, error };
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < pageSize) break;
+    from += pageSize;
+  }
+  return { data: rows, error: null };
+}
+
 function generateStudentNumber() {
   return `AUTO-${Math.random()
     .toString(36)
@@ -102,10 +124,10 @@ serve(async (req) => {
     }
 
     
-const { data: existingFamilies } = await admin
+const { data: existingFamilies } = await fetchAllRows(() => admin
   .from("families")
   .select("id, carline_tag_number, family_name, active")
-  .eq("school_id", profile.school_id);
+  .eq("school_id", profile.school_id));
 
 
 const existingFamiliesByTag = new Map<string, {
@@ -282,10 +304,10 @@ if (selected_sheets.includes("Families")) {
 // Guardians validation (FINAL – schema aligned, phone-aware)
 // --------------------------------------------------
 
-const { data: existingGuardians } = await admin
+const { data: existingGuardians } = await fetchAllRows(() => admin
   .from("guardians")
   .select("id, family_id, first_name, last_name, phone, email")
-  .eq("school_id", profile.school_id);
+  .eq("school_id", profile.school_id));
 
 // ✅ Build lookup map keyed by family_id + name + email
 const existingGuardiansByKey = new Map<string, {
@@ -471,13 +493,13 @@ const existingBusGroupsByName = new Map<string, {
 // --------------------------------------------------
 // Homeroom teacher lookup (email → employee_id)
 // --------------------------------------------------
-const { data: teacherEmployees } = await admin
+const { data: teacherEmployees } = await fetchAllRows(() => admin
   .from("employees")
   .select("id, email, first_name, last_name, active")
   .eq("school_id", profile.school_id)
   .eq("active", true)
   .eq("is_teacher", true)
-  .not("email", "is", null);
+  .not("email", "is", null));
 
 const teachersByEmail = new Map<string, string>(
   (teacherEmployees ?? []).map(t => [
@@ -487,7 +509,7 @@ const teachersByEmail = new Map<string, string>(
 );
 
 
-const { data: existingStudents } = await admin
+const { data: existingStudents } = await fetchAllRows(() => admin
   .from("students")
   .select(
     `
@@ -505,7 +527,7 @@ const { data: existingStudents } = await admin
     active
     `
   )
-  .eq("school_id", profile.school_id);
+  .eq("school_id", profile.school_id));
 
 
 
@@ -844,11 +866,11 @@ const birthdate = parseDate(row.birthdate);
 
 
 // Load existing staff from DB
-const { data: existingEmployees } = await admin
+const { data: existingEmployees } = await fetchAllRows(() => admin
   .from("employees")
   .select("id, email, first_name, last_name, position, active, supervisor_id, campus_id")
   .eq("school_id", profile.school_id)
-  .not("email", "is", null);
+  .not("email", "is", null));
 
 
 const existingStaffByEmail = new Map<string, {

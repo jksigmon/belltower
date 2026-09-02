@@ -11,6 +11,26 @@ const supabase = createClient(
 
 const FROM_ADDRESS = "Belltower <notifications@belltower.school>";
 
+// Unranged selects cap at 1000 rows -- for a large district's staff_licenses
+// or an alert_log that's accumulated for years, that silently drops rows
+// past the cutoff. For this function that means licenses stop getting
+// expiry alerts at all past row 1000, with nothing in the logs to say why.
+async function fetchAllRows<T = any>(
+  build: () => { range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }> }
+): Promise<{ data: T[]; error: unknown }> {
+  const rows: T[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await build().range(from, from + pageSize - 1);
+    if (error) return { data: rows, error };
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < pageSize) break;
+    from += pageSize;
+  }
+  return { data: rows, error: null };
+}
+
 /* ─────────────────────────────────────────────────────
    ENTRY POINT
    Triggered by:
@@ -62,14 +82,14 @@ async function processSchool(schoolId: string, today: Date) {
   const day90    = offsetDate(today, 90);
 
   // Load licenses expiring within 90 days OR already expired, not muted, not revoked/suspended
-  const { data: licenses, error: licErr } = await supabase
+  const { data: licenses, error: licErr } = await fetchAllRows(() => supabase
     .from("staff_licenses")
     .select(`id, employee_id, license_type, license_area, expiration_date, status, alert_muted, license_number`)
     .eq("school_id", schoolId)
     .eq("alert_muted", false)
     .lte("expiration_date", day90)        // within 90-day window OR already expired
     .neq("status", "revoked")
-    .neq("status", "suspended");
+    .neq("status", "suspended"));
 
   if (licErr) { console.error(licErr); return { error: licErr.message }; }
   if (!licenses?.length) return { alertsSent: 0 };
@@ -78,10 +98,10 @@ async function processSchool(schoolId: string, today: Date) {
   // We check all-time (not just today) so each threshold fires only once per
   // expiration cycle. Alert log entries are cleared on the JS side when
   // expiration_date changes (license renewal).
-  const { data: sentAlerts } = await supabase
+  const { data: sentAlerts } = await fetchAllRows(() => supabase
     .from("license_alert_log")
     .select("license_id, alert_type")
-    .eq("school_id", schoolId);
+    .eq("school_id", schoolId));
 
   const alreadySent = new Set(
     (sentAlerts ?? []).map((r: { license_id: string; alert_type: string }) =>
