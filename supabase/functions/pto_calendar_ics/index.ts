@@ -17,6 +17,25 @@ function escapeICS(text: string) {
     .replace(/\n/g, "\\n");
 }
 
+// This feed has no date filter -- it's every APPROVED PTO request ever, so
+// an established school will eventually exceed PostgREST's 1000-row cap on
+// an unranged select and start silently dropping events off the calendar.
+async function fetchAllRows<T = any>(
+  build: () => { range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }> }
+): Promise<{ data: T[]; error: unknown }> {
+  const rows: T[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await build().range(from, from + pageSize - 1);
+    if (error) return { data: rows, error };
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < pageSize) break;
+    from += pageSize;
+  }
+  return { data: rows, error: null };
+}
+
 /* =====================================================
    EDGE FUNCTION
 ===================================================== */
@@ -58,7 +77,7 @@ serve(async (req) => {
     /* --------------------------------------------------
        2. Load APPROVED PTO requests
     -------------------------------------------------- */
-    const { data: requests, error } = await admin
+    const { data: requests, error } = await fetchAllRows(() => admin
       .from("pto_requests")
       .select(`
         id,
@@ -71,7 +90,7 @@ serve(async (req) => {
         )
       `)
       .eq("school_id", schoolId)
-      .eq("status", "APPROVED");
+      .eq("status", "APPROVED"));
 
     if (error) {
       console.error(error);

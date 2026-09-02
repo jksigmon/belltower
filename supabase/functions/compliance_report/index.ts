@@ -12,6 +12,25 @@ const supabaseService = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
+// An unranged select caps at 1000 rows -- for a large district running this
+// report school-wide, that would silently drop teachers/students/guardians
+// off the end rather than erroring.
+async function fetchAllRows<T = any>(
+  build: () => { range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }> }
+): Promise<{ data: T[]; error: unknown }> {
+  const rows: T[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await build().range(from, from + pageSize - 1);
+    if (error) return { data: rows, error };
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < pageSize) break;
+    from += pageSize;
+  }
+  return { data: rows, error: null };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -87,30 +106,28 @@ serve(async (req) => {
     }
 
     // ── Fetch employees (for teacher selector) ────────────────────────
-    let teacherQuery = supabaseService
-      .from("employees")
-      .select("id, first_name, last_name")
-      .eq("school_id", schoolId)
-      .eq("active", true)
-      .order("last_name");
-
-    if (allowedTeacherIds !== null) {
-      teacherQuery = teacherQuery.in("id", allowedTeacherIds);
-    }
-
-    const { data: teachers } = await teacherQuery;
+    const { data: teachers } = await fetchAllRows(() => {
+      let q = supabaseService
+        .from("employees")
+        .select("id, first_name, last_name")
+        .eq("school_id", schoolId)
+        .eq("active", true)
+        .order("last_name");
+      if (allowedTeacherIds !== null) q = q.in("id", allowedTeacherIds);
+      return q;
+    });
     if (!teachers?.length) return json({ teachers: [], templates: [], rows: [] }, 200);
 
     const teacherIds = teachers.map((t: { id: string }) => t.id);
 
     // ── Fetch students in those homerooms ─────────────────────────────
-    const { data: students } = await supabaseService
+    const { data: students } = await fetchAllRows(() => supabaseService
       .from("students")
       .select("id, first_name, last_name, grade_level, homeroom_teacher_id, family_id")
       .eq("school_id", schoolId)
       .eq("active", true)
       .in("homeroom_teacher_id", teacherIds)
-      .order("last_name");
+      .order("last_name"));
 
     if (!students?.length) {
       const { data: templates } = await fetchTemplates(schoolId, template_ids);
@@ -125,12 +142,12 @@ serve(async (req) => {
     const guardiansByFamily = new Map<string, { id: string; name: string; email: string; can_chaperone: boolean; can_drive: boolean }[]>();
 
     if (familyIds.length) {
-      const { data: guardians } = await supabaseService
+      const { data: guardians } = await fetchAllRows(() => supabaseService
         .from("guardians")
         .select("id, family_id, first_name, last_name, email, can_chaperone, can_drive")
         .eq("school_id", schoolId)
         .eq("active", true)
-        .in("family_id", familyIds);
+        .in("family_id", familyIds));
 
       (guardians ?? []).forEach((g: { id: string; family_id: string; first_name: string; last_name: string; email: string; can_chaperone: boolean; can_drive: boolean }) => {
         const list = guardiansByFamily.get(g.family_id) ?? [];
@@ -163,26 +180,30 @@ serve(async (req) => {
     const baseSelect = `id, guardian_id, template_id, signer_name, signer_email, signed_at, expires_at, voided_at`;
 
     if (allGuardianIds.length) {
-      let q = supabaseService
-        .from("compliance_agreements")
-        .select(baseSelect)
-        .eq("school_id", schoolId)
-        .is("voided_at", null)
-        .in("guardian_id", allGuardianIds);
-      if (template_ids?.length) q = q.in("template_id", template_ids);
-      const { data } = await q;
+      const { data } = await fetchAllRows<AgreementRow>(() => {
+        let q = supabaseService
+          .from("compliance_agreements")
+          .select(baseSelect)
+          .eq("school_id", schoolId)
+          .is("voided_at", null)
+          .in("guardian_id", allGuardianIds);
+        if (template_ids?.length) q = q.in("template_id", template_ids);
+        return q;
+      });
       agreements.push(...(data ?? []));
     }
 
     if (allGuardianEmails.length) {
-      let q = supabaseService
-        .from("compliance_agreements")
-        .select(baseSelect)
-        .eq("school_id", schoolId)
-        .is("voided_at", null)
-        .in("signer_email", allGuardianEmails);
-      if (template_ids?.length) q = q.in("template_id", template_ids);
-      const { data } = await q;
+      const { data } = await fetchAllRows<AgreementRow>(() => {
+        let q = supabaseService
+          .from("compliance_agreements")
+          .select(baseSelect)
+          .eq("school_id", schoolId)
+          .is("voided_at", null)
+          .in("signer_email", allGuardianEmails);
+        if (template_ids?.length) q = q.in("template_id", template_ids);
+        return q;
+      });
       // Merge, dedup by id
       const seen = new Set(agreements.map((a: AgreementRow) => a.id));
       (data ?? []).forEach((a: AgreementRow) => { if (!seen.has(a.id)) agreements.push(a); });

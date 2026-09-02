@@ -100,7 +100,7 @@ async function buildSnapshot(schoolId: string) {
     schoolRes,
     eventsRes,
     students,
-    employeesRes,
+    employees,
     families,
     campusesRes,
     pickupGroupsRes,
@@ -118,11 +118,11 @@ async function buildSnapshot(schoolId: string) {
       .eq("school_id", schoolId)
       .eq("active", true)
       .order("last_name")),
-    supabase
+    fetchAllRows(() => supabase
       .from("employees")
       .select("id, first_name, last_name")
       .eq("school_id", schoolId)
-      .eq("active", true),
+      .eq("active", true)),
     fetchAllRows(() => supabase
       .from("families")
       .select("id, carline_tag_number")
@@ -144,7 +144,6 @@ async function buildSnapshot(schoolId: string) {
   // loudly instead so poll() keeps the last good one.
   if (schoolRes.error)       { console.error("carline_kiosk schools lookup failed:", schoolRes.error); throw schoolRes.error; }
   if (eventsRes.error)       { console.error("carline_kiosk carline_events lookup failed:", eventsRes.error); throw eventsRes.error; }
-  if (employeesRes.error)    { console.error("carline_kiosk employees lookup failed:", employeesRes.error); throw employeesRes.error; }
   if (campusesRes.error)     { console.error("carline_kiosk campuses lookup failed:", campusesRes.error); throw campusesRes.error; }
   if (pickupGroupsRes.error) { console.error("carline_kiosk carline_pickup_groups lookup failed:", pickupGroupsRes.error); throw pickupGroupsRes.error; }
 
@@ -164,7 +163,7 @@ async function buildSnapshot(schoolId: string) {
     school:       schoolRes.data,
     events,
     students,
-    employees:    employeesRes.data    ?? [],
+    employees,
     families,
     campuses:     campusesRes.data     ?? [],
     pickupGroups: pickupGroupsRes.data ?? [],

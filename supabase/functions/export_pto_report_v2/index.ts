@@ -19,6 +19,26 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+// These reports are meant to be exhaustive spreadsheets, so an unranged
+// select silently truncating at PostgREST's 1000-row cap is exactly the
+// wrong failure mode here -- the export would just look complete while
+// quietly missing employees/transactions past the cutoff.
+async function fetchAllRows<T = any>(
+  build: () => { range: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }> }
+): Promise<{ data: T[]; error: unknown }> {
+  const rows: T[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await build().range(from, from + pageSize - 1);
+    if (error) return { data: rows, error };
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < pageSize) break;
+    from += pageSize;
+  }
+  return { data: rows, error: null };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { status: 200, headers: corsHeaders });
@@ -115,11 +135,11 @@ if (moduleError || !moduleRow?.enabled) {
     ===================================================== */
     let campusEmployeeIds: string[] | null = null;
     if (campus_id) {
-      const { data: campusEmps } = await admin
+      const { data: campusEmps } = await fetchAllRows(() => admin
         .from("employees")
         .select("id")
         .eq("campus_id", campus_id)
-        .eq("school_id", profile.school_id);
+        .eq("school_id", profile.school_id));
       campusEmployeeIds = (campusEmps || []).map((e: any) => e.id);
     }
 
@@ -135,22 +155,24 @@ if (moduleError || !moduleRow?.enabled) {
 
       const workdayHours = Number(settingsData?.workday_hours ?? 8);
 
-      let balancesQuery = admin
-        .from("employees")
-        .select(`
-          first_name,
-          last_name,
-          employment_months,
-          pto_balances (
-            pto_type,
-            balance_hours
-          )
-        `)
-        .eq("active", true)
-        .eq("school_id", profile.school_id)
-        .order("last_name");
-      if (campusEmployeeIds) balancesQuery = balancesQuery.in("id", campusEmployeeIds);
-      const { data, error } = await balancesQuery;
+      const { data, error } = await fetchAllRows(() => {
+        let q = admin
+          .from("employees")
+          .select(`
+            first_name,
+            last_name,
+            employment_months,
+            pto_balances (
+              pto_type,
+              balance_hours
+            )
+          `)
+          .eq("active", true)
+          .eq("school_id", profile.school_id)
+          .order("last_name");
+        if (campusEmployeeIds) q = q.in("id", campusEmployeeIds);
+        return q;
+      });
 
       if (error) throw error;
 
@@ -193,24 +215,26 @@ if (moduleError || !moduleRow?.enabled) {
         throw new Error("Missing date range");
       }
 
-      let txQuery = admin
-        .from("pto_ledger")
-        .select(`
-          pto_type,
-          delta_hours,
-          reason,
-          created_at,
-          employees!pto_ledger_employee_id_fkey (
-            first_name,
-            last_name
-          )
-        `)
-        .eq("school_id", profile.school_id)
-        .gte("created_at", start_date)
-        .lte("created_at", end_date)
-        .order("created_at");
-      if (campusEmployeeIds) txQuery = txQuery.in("employee_id", campusEmployeeIds);
-      const { data, error } = await txQuery;
+      const { data, error } = await fetchAllRows(() => {
+        let q = admin
+          .from("pto_ledger")
+          .select(`
+            pto_type,
+            delta_hours,
+            reason,
+            created_at,
+            employees!pto_ledger_employee_id_fkey (
+              first_name,
+              last_name
+            )
+          `)
+          .eq("school_id", profile.school_id)
+          .gte("created_at", start_date)
+          .lte("created_at", end_date)
+          .order("created_at");
+        if (campusEmployeeIds) q = q.in("employee_id", campusEmployeeIds);
+        return q;
+      });
 
       if (error) throw error;
 
@@ -257,23 +281,25 @@ if (moduleError || !moduleRow?.enabled) {
 
       const workdayHours = Number(settingsData?.workday_hours ?? 8);
 
-      let payrollQuery = admin
-        .from("pto_ledger")
-        .select(`
-          employee_id,
-          pto_type,
-          delta_hours,
-          employees!pto_ledger_employee_id_fkey (
-            first_name,
-            last_name
-          )
-        `)
-        .eq("reason", "REQUEST APPROVED")
-        .eq("school_id", profile.school_id)
-        .gte("created_at", start_date)
-        .lte("created_at", end_date);
-      if (campusEmployeeIds) payrollQuery = payrollQuery.in("employee_id", campusEmployeeIds);
-      const { data, error } = await payrollQuery;
+      const { data, error } = await fetchAllRows(() => {
+        let q = admin
+          .from("pto_ledger")
+          .select(`
+            employee_id,
+            pto_type,
+            delta_hours,
+            employees!pto_ledger_employee_id_fkey (
+              first_name,
+              last_name
+            )
+          `)
+          .eq("reason", "REQUEST APPROVED")
+          .eq("school_id", profile.school_id)
+          .gte("created_at", start_date)
+          .lte("created_at", end_date);
+        if (campusEmployeeIds) q = q.in("employee_id", campusEmployeeIds);
+        return q;
+      });
 
       if (error) throw error;
 
@@ -339,22 +365,24 @@ if (moduleError || !moduleRow?.enabled) {
 
       const workdayHours = Number(settingsData?.workday_hours ?? 8);
 
-      let negQuery = admin
-        .from("employees")
-        .select(`
-          first_name,
-          last_name,
-          employment_months,
-          pto_balances (
-            pto_type,
-            balance_hours
-          )
-        `)
-        .eq("active", true)
-        .eq("school_id", profile.school_id)
-        .order("last_name");
-      if (campusEmployeeIds) negQuery = negQuery.in("id", campusEmployeeIds);
-      const { data, error } = await negQuery;
+      const { data, error } = await fetchAllRows(() => {
+        let q = admin
+          .from("employees")
+          .select(`
+            first_name,
+            last_name,
+            employment_months,
+            pto_balances (
+              pto_type,
+              balance_hours
+            )
+          `)
+          .eq("active", true)
+          .eq("school_id", profile.school_id)
+          .order("last_name");
+        if (campusEmployeeIds) q = q.in("id", campusEmployeeIds);
+        return q;
+      });
 
       if (error) throw error;
 
@@ -419,23 +447,27 @@ if (moduleError || !moduleRow?.enabled) {
 
       const workdayHours = Number(settingsData?.workday_hours ?? 8);
 
-      let yesEmpQuery = admin
-        .from("employees")
-        .select("id, first_name, last_name, employment_months")
-        .eq("school_id", profile.school_id)
-        .eq("active", true)
-        .order("last_name");
-      if (campusEmployeeIds) yesEmpQuery = yesEmpQuery.in("id", campusEmployeeIds);
-      const { data: employees, error: empErr } = await yesEmpQuery;
+      const { data: employees, error: empErr } = await fetchAllRows(() => {
+        let q = admin
+          .from("employees")
+          .select("id, first_name, last_name, employment_months")
+          .eq("school_id", profile.school_id)
+          .eq("active", true)
+          .order("last_name");
+        if (campusEmployeeIds) q = q.in("id", campusEmployeeIds);
+        return q;
+      });
 
       if (empErr) throw empErr;
 
-      let balQuery = admin
-        .from("pto_balances")
-        .select("employee_id, pto_type, balance_hours")
-        .eq("school_id", profile.school_id);
-      if (campusEmployeeIds) balQuery = balQuery.in("employee_id", campusEmployeeIds);
-      const { data: balances, error: balErr } = await balQuery;
+      const { data: balances, error: balErr } = await fetchAllRows(() => {
+        let q = admin
+          .from("pto_balances")
+          .select("employee_id, pto_type, balance_hours")
+          .eq("school_id", profile.school_id);
+        if (campusEmployeeIds) q = q.in("employee_id", campusEmployeeIds);
+        return q;
+      });
 
       if (balErr) throw balErr;
 
@@ -445,14 +477,16 @@ if (moduleError || !moduleRow?.enabled) {
         balanceMap[b.employee_id][b.pto_type] = Number(b.balance_hours);
       });
 
-      let ledgerQuery = admin
-        .from("pto_ledger")
-        .select("employee_id, pto_type, delta_hours, reason")
-        .eq("school_id", profile.school_id)
-        .gte("created_at", start_date)
-        .lte("created_at", end_date);
-      if (campusEmployeeIds) ledgerQuery = ledgerQuery.in("employee_id", campusEmployeeIds);
-      const { data: ledger, error: ledErr } = await ledgerQuery;
+      const { data: ledger, error: ledErr } = await fetchAllRows(() => {
+        let q = admin
+          .from("pto_ledger")
+          .select("employee_id, pto_type, delta_hours, reason")
+          .eq("school_id", profile.school_id)
+          .gte("created_at", start_date)
+          .lte("created_at", end_date);
+        if (campusEmployeeIds) q = q.in("employee_id", campusEmployeeIds);
+        return q;
+      });
 
       if (ledErr) throw ledErr;
 
