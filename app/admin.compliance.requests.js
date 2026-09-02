@@ -2,7 +2,10 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { esc, fmtShortDate, dbError, debounce, getAvatarColor } from './admin.shared.js?v=3';
 import { openDrawer, closeDrawer, showToast, renderPagination, createBulkSelection, PAGE_SIZE } from './admin.compliance.utils.js';
-import { VOLUNTEER_ROLES, roleCheckboxGridHTML } from './compliance.roles.js?v=2';
+import {
+  VOLUNTEER_ROLES, roleCheckboxGridHTML, wireRoleDetailsRequirement,
+  rolesRequireDetails, DETAIL_ROLE_HINT, DETAIL_ROLE_ERROR,
+} from './compliance.roles.js?v=3';
 import { downloadCSV } from './admin.compliance.volunteers.js';
 
 const reqSelection = createBulkSelection({ barId: 'reqBulkBar', countId: 'reqBulkCount', label: 'selected' });
@@ -36,6 +39,23 @@ function matchKey(firstName, lastName) {
   const last = norm(lastName).toLowerCase();
   const first = norm(firstName).toLowerCase().split(' ')[0] ?? '';
   return `${last}|${first}`;
+}
+
+// A role of "Other" carries no meaning on its own -- the request's notes
+// are the only description of what the person will be doing, and the
+// volunteer roster shows role chips without the request behind them.
+// Carry that text onto the volunteer's admin note whenever a request
+// creates or clears one, so the roster never shows a bare "Other".
+function otherRoleNote(request) {
+  const reason = request?.reason?.trim();
+  if (!reason || !rolesRequireDetails(request?.volunteer_roles)) return null;
+  return `Other role: ${reason}`;
+}
+
+function mergeAdminNote(existing, addition) {
+  if (!addition) return existing ?? null;
+  if (existing?.includes(addition)) return existing;
+  return existing ? `${existing}\n${addition}` : addition;
 }
 
 async function loadVolunteerIndex() {
@@ -253,7 +273,7 @@ async function openGuardianMatchReview() {
 async function computeGuardianMatchCandidates() {
   const { data: requests, error: reqErr } = await supabase
     .from('compliance_bg_check_requests')
-    .select('id, subject_first_name, subject_last_name, subject_email, volunteer_id, volunteer_roles')
+    .select('id, subject_first_name, subject_last_name, subject_email, volunteer_id, volunteer_roles, reason')
     .eq('school_id', _profile.school_id)
     .is('archived_at', null);
   if (reqErr) { dbError(reqErr, 'Auto-match failed'); return null; }
@@ -321,6 +341,7 @@ async function computeGuardianMatchCandidates() {
       subjectFirstName: r.subject_first_name,
       subjectLastName:  r.subject_last_name,
       volunteerRoles:  r.volunteer_roles ?? [],
+      adminNote:       otherRoleNote(r),
       requestName:     `${r.subject_first_name} ${r.subject_last_name}`,
       requestEmail:    r.subject_email,
       guardianId:      g.id,
@@ -404,6 +425,7 @@ async function ensureVolunteerForMatch(m) {
       last_name: m.subjectLastName,
       email: m.requestEmail,
       volunteer_roles: m.volunteerRoles,
+      admin_note: m.adminNote,
     })
     .select('id')
     .single();
@@ -548,6 +570,18 @@ function openAddRequestDrawer() {
   document.getElementById('reqAddReason').value = '';
   document.getElementById('reqAddDrawerMsg').textContent = '';
   document.getElementById('reqAddRoleGrid').innerHTML = roleCheckboxGridHTML('reqAddRole');
+  document.getElementById('reqAddReasonRequiredHint').textContent = DETAIL_ROLE_HINT;
+  // Re-run on every open: the grid is rebuilt fresh (nothing checked), so
+  // the required marker has to be reset even though the wiring persists.
+  wireRoleDetailsRequirement({
+    inputName: 'reqAddRole',
+    root: document.getElementById('reqAddRoleGrid'),
+    notesEl: document.getElementById('reqAddReason'),
+    showWhenRequired: [
+      document.getElementById('reqAddReasonRequiredMark'),
+      document.getElementById('reqAddReasonRequiredHint'),
+    ],
+  });
   openDrawer('reqAdd');
 }
 
@@ -556,9 +590,15 @@ export async function saveAddRequest() {
   const firstName = document.getElementById('reqAddFirstName')?.value.trim();
   const lastName  = document.getElementById('reqAddLastName')?.value.trim();
   const roles     = [...document.querySelectorAll('input[name="reqAddRole"]:checked')].map(el => el.value);
+  const reason    = document.getElementById('reqAddReason')?.value.trim() || null;
 
   if (!firstName || !lastName) { msgEl.textContent = 'First and last name are required.'; return; }
   if (!roles.length) { msgEl.textContent = 'Select at least one role.'; return; }
+  if (rolesRequireDetails(roles) && !reason) {
+    msgEl.textContent = DETAIL_ROLE_ERROR;
+    document.getElementById('reqAddReason')?.focus();
+    return;
+  }
 
   const saveBtn = document.getElementById('reqAddDrawerSave');
   saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
@@ -572,7 +612,7 @@ export async function saveAddRequest() {
       subject_last_name: lastName,
       subject_email: document.getElementById('reqAddEmail')?.value.trim() || null,
       volunteer_roles: roles,
-      reason: document.getElementById('reqAddReason')?.value.trim() || null,
+      reason,
       status: 'pending',
     });
 
@@ -622,8 +662,13 @@ async function openResolveDrawer(id) {
     </div>` : ''}
     ${row.reason ? `
     <div class="bg-detail-field">
-      <span class="bg-detail-label">Notes</span>
+      <span class="bg-detail-label">${rolesRequireDetails(row.volunteer_roles) ? 'Role details (Other)' : 'Notes'}</span>
       <span class="bg-detail-value">${esc(row.reason)}</span>
+    </div>` : ''}
+    ${!row.reason && rolesRequireDetails(row.volunteer_roles) ? `
+    <div class="bg-detail-field">
+      <span class="bg-detail-label">Role details (Other)</span>
+      <span class="bg-detail-value status-danger">No description on file — check with the requester before clearing.</span>
     </div>` : ''}
   `;
 
@@ -849,6 +894,7 @@ async function ensureResolvedVolunteerId() {
       last_name: activeRequest.subject_last_name,
       email: activeRequest.subject_email || resolvedGuardian?.email || null,
       volunteer_roles: activeRequest.volunteer_roles ?? [],
+      admin_note: otherRoleNote(activeRequest),
     })
     .select('id, first_name, last_name, guardian_id, email')
     .single();
@@ -932,12 +978,20 @@ export async function saveResolve() {
   // multiple separate requests over time.
   const { data: volunteer } = await supabase
     .from('compliance_volunteers')
-    .select('volunteer_roles')
+    .select('volunteer_roles, admin_note')
     .eq('id', volunteerId)
     .single();
   const mergedRoles = Array.from(new Set([...(volunteer?.volunteer_roles ?? []), ...(activeRequest.volunteer_roles ?? [])]));
 
-  const volUpdate = { bg_cleared_at: clearedAt, bg_expires_at: expiresAt, volunteer_roles: mergedRoles };
+  const volUpdate = {
+    bg_cleared_at: clearedAt,
+    bg_expires_at: expiresAt,
+    volunteer_roles: mergedRoles,
+    // Same reasoning as the roles merge -- an "Other" description from
+    // this request is appended to whatever note is already there rather
+    // than replacing it.
+    admin_note: mergeAdminNote(volunteer?.admin_note, otherRoleNote(activeRequest)),
+  };
   if (mvrClearedAt) { volUpdate.mvr_cleared_at = mvrClearedAt; volUpdate.mvr_expires_at = mvrExpiresAt; }
   if (resolvedGuardian) volUpdate.guardian_id = resolvedGuardian.id;
 

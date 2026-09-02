@@ -37,7 +37,31 @@ export const VOLUNTEER_ROLES = {
     requires: ['bg'],
     icon: '<path d="M14.4 14.4 9.6 9.6" /><path d="M18.657 21.485a2 2 0 1 1-2.829-2.828l-1.767 1.768a2 2 0 1 1-2.829-2.829l6.364-6.364a2 2 0 1 1 2.829 2.829l-1.768 1.767a2 2 0 1 1 2.828 2.829z" /><path d="m21.5 21.5-1.4-1.4" /><path d="M3.9 3.9 2.5 2.5" /><path d="M6.404 12.768a2 2 0 1 1-2.829-2.829l1.768-1.767a2 2 0 1 1-2.828-2.829l2.828-2.828a2 2 0 1 1 2.829 2.828l1.767-1.768a2 2 0 1 1 2.829 2.829z" />',
   },
+  // Unlike the fixed roles above, "Other" carries no inherent meaning --
+  // what the person will actually be doing only exists in the free-text
+  // notes on the request. `requiresDetails` is what every form that
+  // collects roles keys off of to make that text mandatory (see
+  // wireRoleDetailsRequirement below); without it an "Other" chip on the
+  // volunteer roster tells an admin nothing at all.
+  'Other': {
+    label: 'Other',
+    description: 'BG check required — describe the role in the notes',
+    requires: ['bg'],
+    requiresDetails: true,
+    icon: '<circle cx="12" cy="12" r="10" /><path d="M17 12h.01" /><path d="M12 12h.01" /><path d="M7 12h.01" />',
+  },
 };
+
+export const DETAIL_ROLE_HINT = 'Tell us what this person will be doing — required when “Other” is selected.';
+export const DETAIL_ROLE_ERROR = 'Add a note describing the role — required when “Other” is selected.';
+
+export function rolesRequireDetails(roles) {
+  return (roles ?? []).some(r => VOLUNTEER_ROLES[r]?.requiresDetails);
+}
+
+export function checkedRoles(inputName, root = document) {
+  return [...root.querySelectorAll(`input[name="${inputName}"]:checked`)].map(cb => cb.value);
+}
 
 const CREDENTIAL_LABELS = {
   bg:        'Background check',
@@ -99,7 +123,7 @@ export function credentialLabel(cred) {
 // caller keep its own querySelector scope (`bgRole` vs `bgDrawerRole`).
 export function roleCheckboxGridHTML(inputName) {
   return Object.entries(VOLUNTEER_ROLES).map(([key, role]) => `
-    <label class="bg-role-card">
+    <label class="bg-role-card${role.requiresDetails ? ' bg-role-card-wide' : ''}">
       <input type="checkbox" name="${inputName}" value="${key}" class="bg-role-check">
       <span class="bg-role-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${role.icon}</svg></span>
       <div>
@@ -107,4 +131,34 @@ export function roleCheckboxGridHTML(inputName) {
         <div class="bg-role-desc">${role.description}</div>
       </div>
     </label>`).join('');
+}
+
+// Keeps a notes field in step with the role cards above it: checking a
+// role that `requiresDetails` (i.e. "Other") flips the notes field from
+// optional to required, in the markup as well as in the submit-time
+// check each caller runs with rolesRequireDetails(). Wired once per
+// root -- the role grid is re-rendered with innerHTML on every drawer
+// open, but the container (and the notes field) outlive that, so a
+// naive per-open addEventListener would stack duplicates.
+//
+// Returns the sync function so a caller can re-run it after clearing
+// the form programmatically (checkboxes reset in JS fire no 'change').
+const _detailsWiredRoots = new WeakSet();
+export function wireRoleDetailsRequirement({ inputName, notesEl, showWhenRequired = [], hideWhenRequired = [], root = document }) {
+  const basePlaceholder = notesEl?.placeholder ?? '';
+
+  const sync = () => {
+    const required = rolesRequireDetails(checkedRoles(inputName, root));
+    showWhenRequired.filter(Boolean).forEach(el => { el.style.display = required ? '' : 'none'; });
+    hideWhenRequired.filter(Boolean).forEach(el => { el.style.display = required ? 'none' : ''; });
+    if (notesEl) notesEl.placeholder = required ? 'Required — what will this person be doing?' : basePlaceholder;
+    return required;
+  };
+
+  if (!_detailsWiredRoots.has(root)) {
+    _detailsWiredRoots.add(root);
+    root.addEventListener('change', e => { if (e.target?.name === inputName) sync(); });
+  }
+  sync();
+  return sync;
 }

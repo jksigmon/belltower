@@ -5,7 +5,7 @@ import {
   openDrawer, closeDrawer, showToast, renderPagination,
   createBulkSelection, applyVolunteerStatusFilters, PAGE_SIZE,
 } from './admin.compliance.utils.js';
-import { VOLUNTEER_ROLES, credentialStatus } from './compliance.roles.js?v=2';
+import { VOLUNTEER_ROLES, credentialStatus } from './compliance.roles.js?v=3';
 import { openVolunteerDrawerForRow, populateVolunteerRoleFilters, downloadCSV } from './admin.compliance.volunteers.js';
 
 let _profile          = null;

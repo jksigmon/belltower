@@ -8833,6 +8833,11 @@ select.admin-input {
 .bg-role-card:has(.bg-role-check:checked) .bg-role-name {
   color: var(--primary, #2563eb);
 }
+/* "Other" sits on its own row under the fixed roles rather than leaving a
+   ragged half-empty cell beside them. */
+.bg-role-card-wide {
+  grid-column: 1 / -1;
+}
 
 /* ── Half-day AM/PM card picker (staff + proxy leave forms) ── */
 .half-day-grid {

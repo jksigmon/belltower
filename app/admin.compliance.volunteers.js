@@ -5,7 +5,10 @@ import {
   openDrawer, closeDrawer, showToast, renderPagination,
   createBulkSelection, applyVolunteerStatusFilters, PAGE_SIZE,
 } from './admin.compliance.utils.js';
-import { VOLUNTEER_ROLES, roleCheckboxGridHTML, credentialStatus } from './compliance.roles.js?v=2';
+import {
+  VOLUNTEER_ROLES, roleCheckboxGridHTML, credentialStatus,
+  wireRoleDetailsRequirement, rolesRequireDetails, DETAIL_ROLE_HINT, DETAIL_ROLE_ERROR,
+} from './compliance.roles.js?v=3';
 import { openLinkGuardianDrawerForVolunteer } from './admin.compliance.forms.js';
 
 let _profile        = null;
@@ -256,7 +259,7 @@ function renderVolunteerDrawer(row, prefill) {
     </div>
     <div class="drawer-field">
       <label style="text-transform:none;font-size:0.85rem;">Volunteer role(s)</label>
-      <div class="bg-role-grid">${roleCheckboxGridHTML('bgDrawerRole')}</div>
+      <div class="bg-role-grid" id="bgDrawerRoleGrid">${roleCheckboxGridHTML('bgDrawerRole')}</div>
     </div>
     <hr style="border:none;border-top:1px solid var(--border);margin:0;">
     <div class="drawer-row-2">
@@ -298,13 +301,28 @@ function renderVolunteerDrawer(row, prefill) {
       </label>
     </div>
     <div class="drawer-field">
-      <label for="bgDrawerAdminNote">Admin note</label>
+      <label for="bgDrawerAdminNote">Admin note <span id="bgDrawerAdminNoteMark" style="color:var(--danger);display:none;">*</span></label>
       <textarea id="bgDrawerAdminNote" rows="3">${esc(v.admin_note ?? '')}</textarea>
+      <span id="bgDrawerAdminNoteHint" class="muted" style="display:none;font-size:12px;margin-top:4px;">${DETAIL_ROLE_HINT}</span>
     </div>
     <div id="bgDrawerMsg" style="font-size:13px;color:var(--danger);min-height:18px;"></div>
   `;
 
   document.querySelectorAll('input[name="bgDrawerRole"]').forEach(cb => { cb.checked = selectedRoles.has(cb.value); });
+
+  // The admin note is where an "Other" role gets its meaning here --
+  // same rule the staff request form and Log a Request drawer enforce.
+  // Wired after the checkboxes are restored so the marker reflects a
+  // volunteer who already holds the role.
+  wireRoleDetailsRequirement({
+    inputName: 'bgDrawerRole',
+    root: document.getElementById('bgDrawerRoleGrid'),
+    notesEl: document.getElementById('bgDrawerAdminNote'),
+    showWhenRequired: [
+      document.getElementById('bgDrawerAdminNoteMark'),
+      document.getElementById('bgDrawerAdminNoteHint'),
+    ],
+  });
   renderGuardianSection(row);
 
   const archiveBtn = document.getElementById('bgDrawerArchive');
@@ -398,6 +416,12 @@ export async function saveVolunteer() {
     can_drive:       document.getElementById('bgDrawerCanDrive')?.checked ?? true,
     admin_note:      document.getElementById('bgDrawerAdminNote')?.value.trim() || null,
   };
+
+  if (rolesRequireDetails(payload.volunteer_roles) && !payload.admin_note) {
+    msgEl.textContent = DETAIL_ROLE_ERROR;
+    document.getElementById('bgDrawerAdminNote')?.focus();
+    return;
+  }
 
   const saveBtn = document.getElementById('bgDrawerSave');
   saveBtn.disabled = true; saveBtn.textContent = 'Saving…';

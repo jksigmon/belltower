@@ -682,8 +682,9 @@
       <div class="bg-role-grid" id="reqAddRoleGrid"></div>
     </div>
     <div class="drawer-field">
-      <label for="reqAddReason">Notes</label>
+      <label for="reqAddReason">Notes <span id="reqAddReasonRequiredMark" style="color:var(--danger);display:none;">*</span></label>
       <textarea id="reqAddReason" rows="2"></textarea>
+      <span id="reqAddReasonRequiredHint" class="muted" style="display:none;font-size:12px;margin-top:4px;"></span>
     </div>
     <div id="reqAddDrawerMsg" style="font-size:13px;color:var(--danger);min-height:18px;"></div>
   </div>

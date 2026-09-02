@@ -1315,8 +1315,9 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <div class="bg-step-header"><span class="bg-step-num">3</span><span class="bg-step-label">Additional details</span></div>
 
         <div class="pto-field" style="margin-bottom:18px;">
-          <span class="pto-field-label">Notes (optional)</span>
+          <span class="pto-field-label">Notes <span id="bgNotesOptionalMark">(optional)</span><span id="bgNotesRequiredMark" style="color:#dc2626;display:none;">*</span></span>
           <textarea id="bgNotes" placeholder="e.g. specific event, additional context…" rows="2" style="resize:vertical;"></textarea>
+          <span id="bgNotesRequiredHint" class="muted" style="display:none;font-size:12px;margin-top:4px;"></span>
         </div>
 
         <div style="display:flex;align-items:center;gap:12px;">
@@ -2050,10 +2051,22 @@ import { initCalendarStrip } from '/app/calendar-strip.js';
 import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE, getAvatarColor, renderQuickActions, QA_ICONS } from '/app/admin.shared.js?v=3';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
-import { roleCheckboxGridHTML } from '/app/compliance.roles.js?v=2';
+import { VOLUNTEER_ROLES, roleCheckboxGridHTML, wireRoleDetailsRequirement, rolesRequireDetails, DETAIL_ROLE_HINT, DETAIL_ROLE_ERROR } from '/app/compliance.roles.js?v=3';
 import { printRosters, saveRostersPdf, saveRostersXlsx, printStudentSchedule, toRosterStudent, ROSTER_SELECT } from '/app/roster-print.js?v=7';
 
 document.getElementById('bgRoleGrid').innerHTML = roleCheckboxGridHTML('bgRole');
+
+// "Other" has no fixed requirement list of its own, so the Notes field
+// becomes mandatory the moment it's checked -- that text is the only
+// record of what the person will actually be doing.
+document.getElementById('bgNotesRequiredHint').textContent = DETAIL_ROLE_HINT;
+const syncBgNotesRequirement = wireRoleDetailsRequirement({
+  inputName: 'bgRole',
+  root: document.getElementById('bgRoleGrid'),
+  notesEl: document.getElementById('bgNotes'),
+  showWhenRequired: [document.getElementById('bgNotesRequiredMark'), document.getElementById('bgNotesRequiredHint')],
+  hideWhenRequired: [document.getElementById('bgNotesOptionalMark')],
+});
 
 // Prevent browser from restoring a stale scroll position on load
 if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -5702,7 +5715,7 @@ async function loadMyBgRequests() {
             <span class="bg-req-date">${date}</span>
           </div>
           ${req.subject_email ? `<div class="bg-req-email">${escHtml(req.subject_email)}</div>` : ''}
-          ${req.volunteer_roles?.length ? `<div style="margin-top:6px;">${req.volunteer_roles.map(r => `<span style="background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:11px;font-weight:700;padding:2px 8px;margin-right:3px;">${escHtml(r)}</span>`).join('')}</div>` : ''}
+          ${req.volunteer_roles?.length ? `<div style="margin-top:6px;">${req.volunteer_roles.map(r => `<span style="background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:11px;font-weight:700;padding:2px 8px;margin-right:3px;">${escHtml(VOLUNTEER_ROLES[r]?.label ?? r)}</span>`).join('')}</div>` : ''}
           ${req.reason ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">${escHtml(req.reason)}</div>` : ''}
           ${noteHTML}
           ${cancelBtn}
@@ -5741,6 +5754,11 @@ document.getElementById('bgSubmitBtn')?.addEventListener('click', async () => {
     msgEl.textContent = 'Please select at least one volunteer role.';
     return;
   }
+  if (rolesRequireDetails(roles) && !notes) {
+    msgEl.textContent = DETAIL_ROLE_ERROR;
+    document.getElementById('bgNotes')?.focus();
+    return;
+  }
   msgEl.textContent = '';
 
   const btn      = document.getElementById('bgSubmitBtn');
@@ -5774,6 +5792,7 @@ document.getElementById('bgSubmitBtn')?.addEventListener('click', async () => {
   document.querySelectorAll('input[name="bgRole"]').forEach(cb => { cb.checked = false; });
   document.getElementById('bgNotes').value     = '';
   document.getElementById('bgDedupWarning').style.display = 'none';
+  syncBgNotesRequirement(); // clearing checkboxes in JS fires no 'change'
 
   showToast('Background check request submitted');
   loadMyBgRequests();
