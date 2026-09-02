@@ -159,7 +159,7 @@ async function loadTrips() {
 
   let query = supabase
     .from('field_trips')
-    .select('id, name, destination, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, notes, parent_notes, status, created_at, payment_required, student_cost, chaperone_payment_required, chaperone_cost, allow_installments, installment_schedule, payment_due_date')
+    .select('id, name, destination, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, chaperones_needed, notes, parent_notes, status, created_at, payment_required, student_cost, chaperone_payment_required, chaperone_cost, allow_installments, installment_schedule, payment_due_date')
     .eq('school_id', profile.school_id)
     .order('start_date', { ascending: false });
   if (tripIds) query = query.in('id', tripIds);
@@ -222,7 +222,7 @@ function renderTripList() {
       <td>${dateStr}</td>
       <td>${t.destination ? esc(t.destination) : '<span class="muted">—</span>'}</td>
       <td>${grades || '<span class="muted">—</span>'}</td>
-      <td id="chapCount-${esc(t.id)}"><span class="muted">—</span></td>
+      <td id="chapCount-${esc(t.id)}">${t.chaperones_needed === false ? '<span class="muted">N/A</span>' : '<span class="muted">—</span>'}</td>
       <td id="studCount-${esc(t.id)}"><span class="muted">—</span></td>
       <td id="payCell-${esc(t.id)}"><span class="muted">—</span></td>
       <td>${badge}</td>
@@ -236,7 +236,7 @@ function renderTripList() {
     tbody.appendChild(tr);
   });
 
-  loadChaperoneCounts(filtered.map(t => t.id));
+  loadChaperoneCounts(filtered.filter(t => t.chaperones_needed !== false).map(t => t.id));
   loadStudentCounts(filtered);
   loadPaymentStatus(filtered);
 }
@@ -1610,6 +1610,10 @@ function wireTripDrawer() {
     }
   });
 
+  document.getElementById('ftDrawerChaperonesNeeded')?.addEventListener('change', e => {
+    document.getElementById('ftDrawerChaperoneFieldsWrap').style.display = e.target.checked ? '' : 'none';
+  });
+
   // Payment toggles
   document.getElementById('ftDrawerPaymentRequired')?.addEventListener('change', e => {
     document.getElementById('ftDrawerPaymentFields').style.display = e.target.checked ? '' : 'none';
@@ -1689,6 +1693,9 @@ function openTripDrawer(trip) {
   document.getElementById('ftDrawerReturn').value  = trip?.return_at ?? '';
   document.getElementById('ftDrawerMaxChap').value = trip?.max_chaperones ?? '';
   document.getElementById('ftDrawerDrivers').checked = trip?.drivers_needed ?? false;
+  const chapNeeded = trip?.chaperones_needed ?? true;
+  document.getElementById('ftDrawerChaperonesNeeded').checked = chapNeeded;
+  document.getElementById('ftDrawerChaperoneFieldsWrap').style.display = chapNeeded ? '' : 'none';
   document.getElementById('ftDrawerNotes').value   = trip?.notes ?? '';
   document.getElementById('ftDrawerParentNotes').value = trip?.parent_notes ?? '';
 
@@ -1828,6 +1835,7 @@ async function saveTrip() {
   }
 
   const grades = [...document.querySelectorAll('#ftDrawerGrades input:checked')].map(cb => cb.value);
+  const chaperonesNeeded = document.getElementById('ftDrawerChaperonesNeeded').checked;
 
   const payload = {
     school_id:                  profile.school_id,
@@ -1838,8 +1846,9 @@ async function saveTrip() {
     depart_at:                  document.getElementById('ftDrawerDepart').value  || null,
     return_at:                  document.getElementById('ftDrawerReturn').value  || null,
     grade_levels:               grades,
-    drivers_needed:             document.getElementById('ftDrawerDrivers').checked,
-    max_chaperones:             document.getElementById('ftDrawerMaxChap').value ? parseInt(document.getElementById('ftDrawerMaxChap').value, 10) : null,
+    chaperones_needed:          chaperonesNeeded,
+    drivers_needed:             chaperonesNeeded && document.getElementById('ftDrawerDrivers').checked,
+    max_chaperones:             chaperonesNeeded && document.getElementById('ftDrawerMaxChap').value ? parseInt(document.getElementById('ftDrawerMaxChap').value, 10) : null,
     notes:                      document.getElementById('ftDrawerNotes').value.trim() || null,
     parent_notes:               document.getElementById('ftDrawerParentNotes').value.trim() || null,
     payment_required:           paymentRequired,

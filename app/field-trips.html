@@ -649,15 +649,25 @@
     <div id="ftDrawerConflictWarning" class="ft-conflict-warning" style="display:none;"></div>
 
     <div class="drawer-field">
-      <label class="drawer-label" for="ftDrawerMaxChap">Max chaperones</label>
-      <input type="number" id="ftDrawerMaxChap" min="1" max="99" placeholder="Leave blank for unlimited">
+      <label class="drawer-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="ftDrawerChaperonesNeeded" checked style="width:16px;height:16px;">
+        Chaperones needed for this trip
+      </label>
+      <small style="font-size:11px;color:#9ca3af;">Uncheck for on-site trips or ones that don't need volunteers. Hides the fields below and shows "N/A" on the trip list instead of a chaperone count.</small>
     </div>
 
-    <div class="drawer-field">
-      <label class="drawer-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-        <input type="checkbox" id="ftDrawerDrivers" style="width:16px;height:16px;">
-        Drivers needed (require MVR clearance for drivers)
-      </label>
+    <div id="ftDrawerChaperoneFieldsWrap">
+      <div class="drawer-field">
+        <label class="drawer-label" for="ftDrawerMaxChap">Max chaperones</label>
+        <input type="number" id="ftDrawerMaxChap" min="1" max="99" placeholder="Leave blank for unlimited">
+      </div>
+
+      <div class="drawer-field">
+        <label class="drawer-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="ftDrawerDrivers" style="width:16px;height:16px;">
+          Drivers needed (require MVR clearance for drivers)
+        </label>
+      </div>
     </div>
 
     <div class="drawer-field">
