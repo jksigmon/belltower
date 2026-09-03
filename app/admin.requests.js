@@ -1311,7 +1311,7 @@ function formatResponseValue(val, type) {
   if (type === 'file') {
     const url = esc(val);
     const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(val);
-    if (isImage) return `<img src="${url}" alt="Attachment" style="max-width:220px;max-height:180px;border-radius:6px;display:block;margin-top:4px;" />`;
+    if (isImage) return `<a href="${url}" target="_blank" rel="noopener noreferrer"><img src="${url}" alt="Attachment" style="max-width:220px;max-height:180px;border-radius:6px;display:block;margin-top:4px;cursor:pointer;" /></a>`;
     return `<a href="${url}" target="_blank" rel="noopener noreferrer">View Attachment</a>`;
   }
   return esc(val);
