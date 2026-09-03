@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, fmtShortDate, dbError } from './admin.shared.js?v=3';
+import { esc, fmtShortDate, dbError, downloadCSV } from './admin.shared.js?v=3';
 import {
   openDrawer, closeDrawer, showToast, renderPagination,
   createBulkSelection, applyVolunteerStatusFilters, PAGE_SIZE,
@@ -189,19 +189,9 @@ async function exportVolunteersCSV() {
   downloadCSV('volunteers.csv', header, csvRows);
 }
 
-export function downloadCSV(filename, header, rows) {
-  const escCell = v => {
-    const s = String(v ?? '');
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const csv = [header, ...rows].map(row => row.map(escCell).join(',')).join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-}
+// Moved to admin.shared.js — re-exported here so the compliance modules that
+// already import it from this file keep working.
+export { downloadCSV };
 
 // ── Volunteer Drawer (shared with Attention's row-level Edit) ─────────
 // Reuses the #bgDrawer markup left over from the old single BG-checks

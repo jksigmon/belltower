@@ -630,7 +630,8 @@ td strong { color: #111827; }
         <th>What it grants access to</th>
       </tr>
       <tr><td><code>can_access_admin</code></td><td>The Admin Panel itself. Without this, staff only see the Staff Portal. Also unlocks the <strong>Setup Checklist</strong>.</td></tr>
-      <tr><td><code>can_manage_requests</code></td><td>Requests tab — create/edit request categories (forms) and assign category managers. Doesn't affect who can submit requests, or who can respond to submissions in a category they're already assigned to manage.</td></tr>
+      <tr><td><code>can_manage_requests</code></td><td>Requests tab, <strong>Request Forms</strong> view — create/edit request categories (forms) and assign category managers. Doesn't affect who can submit requests, who can read submissions, or who can respond to submissions in a category they're already assigned to manage.</td></tr>
+      <tr><td><code>can_review_all_requests</code></td><td>Requests tab, <strong>Submissions</strong> view, plus the Request Manager page — read and action every submission school-wide. Independent of <code>can_manage_requests</code>: grant it to people who triage what comes in without letting them restructure forms. Does <em>not</em> grant access to forms marked <strong>Confidential</strong>, which stay limited to that form's assigned managers.</td></tr>
       <tr><td><code>can_manage_staff</code></td><td>Staff tab — add, edit, deactivate employee records.</td></tr>
       <tr><td><code>can_manage_students</code></td><td>Students tab — add, edit, manage student records.</td></tr>
       <tr><td><code>can_view_students</code></td><td>Students tab, read-only — can see student records but not add, edit, withdraw, or delete. Not needed if <code>can_manage_students</code> is already granted.</td></tr>
@@ -712,7 +713,7 @@ td strong { color: #111827; }
       <tr>
         <td><code>requests</code></td>
         <td>Requests form management (admin panel nav), Submit a Request (staff portal nav)</td>
-        <td>Admin form management: <code>can_access_admin</code> + <code>can_manage_requests</code>. Staff submission: none — any authenticated staff member can submit. Defaults to enabled (no explicit school toggle required).</td>
+        <td>Admin form management: <code>can_access_admin</code> + <code>can_manage_requests</code>. Reviewing all submissions: <code>can_review_all_requests</code>. Staff submission: none — any authenticated staff member can submit. Defaults to enabled (no explicit school toggle required).</td>
       </tr>
       <tr>
         <td><code>reservations</code></td>

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Request Manager — Belltower</title>
+  <title>Request Manager · Belltower</title>
   <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
@@ -76,7 +76,8 @@
       <select id="reqmFilterCat" class="admin-input">
         <option value="">All My Forms</option>
       </select>
-      <select id="reqmFilterStatus" class="admin-input">
+      <select id="reqmFilterStatus" class="admin-input" title="Open = Pending and In Review. Resolved, Completed, and Denied are hidden.">
+        <option value="open" selected>Open</option>
         <option value="">All Statuses</option>
         <option value="pending">Pending</option>
         <option value="in_review">In Review</option>
@@ -84,6 +85,7 @@
         <option value="completed">Completed</option>
         <option value="denied">Denied</option>
       </select>
+      <button class="btn" id="reqmExportBtn" style="margin-left:auto;white-space:nowrap;">Export CSV</button>
     </div>
 
     <div id="reqmListWrap"></div>
@@ -98,6 +100,7 @@
       <div class="drawer-footer">
         <p id="reqmSaveError" class="reqm-save-error" style="display:none;"></p>
         <button class="btn" id="reqmCloseBtn">Close</button>
+        <button class="btn" id="reqmExportSubBtn">Export CSV</button>
         <button class="btn btn-primary" id="reqmSaveBtn">Save</button>
       </div>
     </div>

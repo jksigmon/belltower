@@ -5331,6 +5331,13 @@ async function showRequestManagerNavIfManager() {
   const link = document.getElementById('navRequestManager');
   if (!link) return;
 
+  // School-wide reviewers get the link even if they manage no forms —
+  // otherwise the page is only reachable by typing the URL.
+  if (currentProfile.is_superadmin || currentProfile.can_review_all_requests) {
+    link.style.display = 'flex';
+    return;
+  }
+
   const { count } = await supabase
     .from('request_category_managers')
     .select('category_id', { count: 'exact', head: true })

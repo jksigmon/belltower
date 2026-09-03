@@ -34,12 +34,12 @@ async function preselectCategoryFromUrl() {
 }
 
 async function loadCategories() {
-  const { data } = await supabase
-    .from('request_categories')
-    .select('id, name, description')
-    .eq('school_id', currentProfile.school_id)
-    .eq('is_active', true)
-    .order('name');
+  // RPC, not a table select: a restricted form must be hidden here even from
+  // admins who can edit it in the admin panel, and request_categories' own
+  // policy has to stay permissive enough for that editing to work. See
+  // 20260903000001_restricted_form_visibility.sql.
+  const { data, error } = await supabase.rpc('get_submittable_request_categories');
+  if (error) console.error('loadCategories', error);
   categories = data ?? [];
 }
 
@@ -151,7 +151,7 @@ async function selectCategory(cat) {
 // return times for a trip can fall anywhere in the day). Labels always
 // show AM/PM via fmtTime — see the 'time' case in renderFormField.
 function timeOptionsHtml() {
-  const opts = ['<option value="">— Select —</option>'];
+  const opts = ['<option value="">Select…</option>'];
   for (let h = 0; h < 24; h++) {
     for (let m = 0; m < 60; m += 15) {
       const value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
@@ -175,7 +175,7 @@ function renderFormField(field) {
     case 'select': {
       const opts = Array.isArray(field.options) ? field.options : [];
       inputHtml = `<select id="field_${esc(field.id)}" class="form-control" ${field.is_required ? 'required' : ''}>
-        <option value="">— Select —</option>
+        <option value="">Select…</option>
         ${opts.map(o => `<option value="${esc(o)}">${esc(o)}</option>`).join('')}
       </select>`;
       break;
@@ -186,7 +186,7 @@ function renderFormField(field) {
       // resolution happens at submit time.
       const opts = Array.isArray(field.options) ? field.options : [];
       inputHtml = `<select id="field_${esc(field.id)}" class="form-control" ${field.is_required ? 'required' : ''}>
-        <option value="">— Select —</option>
+        <option value="">Select…</option>
         ${opts.map(o => `<option value="${esc(o.label ?? '')}">${esc(o.label ?? '')}</option>`).join('')}
       </select>`;
       break;

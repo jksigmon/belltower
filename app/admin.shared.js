@@ -636,3 +636,22 @@ export function renderQuickActions(container, actions) {
     }, { passive: false });
   }
 }
+
+/**
+ * Build and download a CSV. `header` is an array of column names, `rows` an
+ * array of arrays. Cells containing quotes, commas, or newlines are quoted
+ * and internal quotes doubled, per RFC 4180.
+ */
+export function downloadCSV(filename, header, rows) {
+  const escCell = v => {
+    const s = String(v ?? '');
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [header, ...rows].map(row => row.map(escCell).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}

@@ -1,5 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, debounce, getAvatarColor, fmtShortDate, showToast } from './admin.shared.js?v=3';
+import { esc, debounce, getAvatarColor, fmtShortDate, showToast, fetchAllRows } from './admin.shared.js?v=3';
+import { exportSubmissions, exportOneSubmission } from './requests.export.js?v=1';
 
 let currentProfile = null;
 let currentView = 'forms'; // 'forms' | 'submissions'
@@ -11,7 +12,10 @@ let draftManagers = [];    // manager chips in open drawer
 let draftVisibility = [];  // "visible to" chips in open drawer (when restricted)
 let submissions  = [];
 let filterCatId  = '';
-let filterStatus = '';
+// 'open' = pending + in_review. Default so finished work drops out of the
+// queue on its own; '' (All Statuses) is one click away.
+let filterStatus = 'open';
+const OPEN_STATUSES = ['pending', 'in_review'];
 let mgSearchTimeout = null;
 let visSearchTimeout = null;
 
@@ -21,14 +25,19 @@ let visSearchTimeout = null;
 export async function initRequestsSection(profile) {
   currentProfile = profile;
 
-  if (!profile.is_superadmin && profile.role !== 'admin' && !profile.can_manage_requests) {
+  if (!canBuildForms() && !canReviewAll()) {
     document.getElementById('requestsSectionRoot').innerHTML =
       '<p class="muted" style="padding:40px;">You are not authorized to manage request forms.</p>';
     return;
   }
 
+  // Someone who only reviews submissions lands on that tab; the Forms tab
+  // isn't rendered for them at all.
+  if (!canBuildForms()) currentView = 'submissions';
+
   await loadCategories();
   renderRoot();
+  await renderInitialView();
   document.getElementById('reqCatDrawerClose')?.addEventListener('click', closeCatDrawer);
   document.getElementById('reqCatOverlay')?.addEventListener('click', closeCatDrawer);
   document.getElementById('reqSubDrawerClose')?.addEventListener('click', handleCloseSubRequest);
@@ -55,7 +64,7 @@ export async function initRequestsSection(profile) {
 async function loadCategories() {
   const { data, error } = await supabase
     .from('request_categories')
-    .select('id, name, description, is_active, is_restricted, notify_managers, resolved_label, allow_denial, denied_label, allow_completed, created_at, request_category_fields(count), request_category_managers(count), staff_requests(count)')
+    .select('id, name, description, is_active, is_restricted, is_confidential, notify_managers, resolved_label, allow_denial, denied_label, allow_completed, created_at, request_category_fields(count), request_category_managers(count), staff_requests(count)')
     .eq('school_id', currentProfile.school_id)
     .order('name');
   if (error) console.error('loadCategories', error);
@@ -63,21 +72,25 @@ async function loadCategories() {
 }
 
 async function loadSubmissions() {
-  let q = supabase
-    .from('staff_requests')
-    .select(`
-      id, status, created_at, manager_notes,
-      request_categories ( name, resolved_label, allow_denial, denied_label, allow_completed ),
-      profiles!staff_requests_submitted_by_fkey ( display_name, email ),
-      staff_request_responses ( value, request_category_fields ( label, field_type, sort_order ) )
-    `)
-    .eq('school_id', currentProfile.school_id)
-    .order('created_at', { ascending: false });
+  // Paged: an unranged select stops at 1000 rows, which would silently drop
+  // the oldest submissions from both the list and the CSV export.
+  const { data, error } = await fetchAllRows(() => {
+    let q = supabase
+      .from('staff_requests')
+      .select(`
+        id, status, created_at, manager_notes,
+        request_categories ( name, resolved_label, allow_denial, denied_label, allow_completed ),
+        profiles!staff_requests_submitted_by_fkey ( display_name, email ),
+        staff_request_responses ( value, request_category_fields ( label, field_type, sort_order ) )
+      `)
+      .eq('school_id', currentProfile.school_id)
+      .order('created_at', { ascending: false });
 
-  if (filterCatId)  q = q.eq('category_id', filterCatId);
-  if (filterStatus) q = q.eq('status', filterStatus);
-
-  const { data, error } = await q;
+    if (filterCatId) q = q.eq('category_id', filterCatId);
+    if (filterStatus === 'open') q = q.in('status', OPEN_STATUSES);
+    else if (filterStatus)       q = q.eq('status', filterStatus);
+    return q;
+  });
   if (error) console.error('loadSubmissions', error);
   submissions = data ?? [];
 }
@@ -111,6 +124,18 @@ async function loadCategoryDetail(catId) {
 /* ═══════════════════════════════════════════════════════════
    ROOT RENDER
 ═══════════════════════════════════════════════════════════ */
+// Building forms and reviewing what comes in are independent permissions —
+// see 20260902000001_request_submission_visibility.sql.
+function canBuildForms() {
+  return currentProfile.is_superadmin === true
+      || currentProfile.can_manage_requests === true;
+}
+
+function canReviewAll() {
+  return currentProfile.is_superadmin === true
+      || currentProfile.can_review_all_requests === true;
+}
+
 function renderRoot() {
   const root = document.getElementById('requestsSectionRoot');
   if (!root) return;
@@ -118,15 +143,15 @@ function renderRoot() {
   root.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;">
       <h2 style="margin:0;font-size:20px;font-weight:700;">Staff Requests</h2>
-      ${currentView === 'forms' ? `
+      ${currentView === 'forms' && canBuildForms() ? `
         <button class="btn btn-primary" id="reqNewFormBtn" style="white-space:nowrap;flex-shrink:0;">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           New Form
         </button>` : ''}
     </div>
     <div class="req-tabs" style="margin-bottom:16px;">
-      <button class="req-tab${currentView === 'forms' ? ' active' : ''}" data-view="forms">Request Forms</button>
-      <button class="req-tab${currentView === 'submissions' ? ' active' : ''}" data-view="submissions">Submissions</button>
+      ${canBuildForms() ? `<button class="req-tab${currentView === 'forms' ? ' active' : ''}" data-view="forms">Request Forms</button>` : ''}
+      ${canReviewAll() ? `<button class="req-tab${currentView === 'submissions' ? ' active' : ''}" data-view="submissions">Submissions</button>` : ''}
     </div>
     <div id="reqViewContainer"></div>
   `;
@@ -149,6 +174,14 @@ function renderRoot() {
   if (currentView === 'forms') renderFormsView();
 }
 
+// Initial paint for a reviewer who has no Forms tab — the tab handler above
+// only fires on click, so the submissions view needs kicking off once.
+async function renderInitialView() {
+  if (currentView !== 'submissions') return;
+  await loadSubmissions();
+  renderSubmissionsView();
+}
+
 /* ═══════════════════════════════════════════════════════════
    FORMS VIEW
 ═══════════════════════════════════════════════════════════ */
@@ -163,7 +196,7 @@ function renderFormsView() {
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         </div>
         <p style="font-size:16px;font-weight:600;color:#374151;margin:0 0 6px;">No request forms yet</p>
-        <p style="font-size:13px;color:#9ca3af;margin:0 auto 24px;max-width:360px;line-height:1.6;">Create a form so staff can submit requests — for IT support, facilities work, supply orders, or anything else your school needs to track.</p>
+        <p style="font-size:13px;color:#9ca3af;margin:0 auto 24px;max-width:360px;line-height:1.6;">Create a form so staff can submit requests for IT support, facilities work, supply orders, or anything else your school needs to track.</p>
         <button class="btn btn-primary" id="reqEmptyNewBtn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Create First Form
@@ -174,7 +207,7 @@ function renderFormsView() {
   }
 
   container.innerHTML = `
-    <p style="font-size:13px;color:#6b7280;margin:0 0 16px;">${categories.length} form${categories.length === 1 ? '' : 's'} — click a card to edit fields and managers.</p>
+    <p style="font-size:13px;color:#6b7280;margin:0 0 16px;">${categories.length} form${categories.length === 1 ? '' : 's'}. Click a card to edit fields and managers.</p>
     <div class="req-cat-grid">
       ${categories.map(c => {
         const fieldCount = c.request_category_fields?.[0]?.count ?? 0;
@@ -185,6 +218,7 @@ function renderFormsView() {
             <span class="req-cat-name">${esc(c.name)}</span>
             <span style="display:flex;gap:6px;flex-shrink:0;">
               ${c.is_restricted ? `<span class="status-badge badge-amber" title="Only specific people can see and submit this form">Restricted</span>` : ''}
+              ${c.is_confidential ? `<span class="status-badge badge-red" title="Only this form's managers can read submissions">Confidential</span>` : ''}
               <span class="status-badge ${c.is_active ? 'badge-green' : 'badge-gray'}">${c.is_active ? 'Active' : 'Inactive'}</span>
             </span>
           </div>
@@ -233,6 +267,13 @@ async function openCatDrawer(cat) {
   document.getElementById('reqCatOverlay').classList.add('open');
 
   if (cat) {
+    // True count, not the RLS-filtered embed from loadCategories — otherwise
+    // a confidential form the current user can't review looks empty and the
+    // Delete button appears on a form that actually has submissions.
+    const { data: trueCount } = await supabase
+      .rpc('request_category_submission_count', { p_category_id: cat.id });
+    if (typeof trueCount === 'number') cat.staff_requests = [{ count: trueCount }];
+
     const { fields, managers, visibility } = await loadCategoryDetail(cat.id);
     draftFields   = fields.map(f => ({ ...f }));
     draftManagers = managers.map(m => ({
@@ -356,7 +397,7 @@ function renderCatDrawerBody(cat) {
         <input id="reqCatRestricted" type="checkbox" ${cat?.is_restricted ? 'checked' : ''} />
         <div class="req-toggle-row-text">
           <span class="req-toggle-row-title">Restrict to specific people</span>
-          <span class="req-toggle-row-desc">Only the people picked below (plus managers and admins) can see and submit this form. Off = everyone at the school.</span>
+          <span class="req-toggle-row-desc">Only the people picked below, plus this form's managers, can see and submit this form. It won't appear on anyone else's Submit a Request page. Off = everyone at the school.</span>
         </div>
       </div>
       <div id="reqVisibilityPicker" style="${cat?.is_restricted ? '' : 'display:none;'}margin-top:10px;">
@@ -364,6 +405,14 @@ function renderCatDrawerBody(cat) {
         <div style="position:relative;">
           <input id="reqVisSearch" class="form-control" type="text" placeholder="Search staff by name or email…" autocomplete="off" />
           <div id="reqVisDropdown" class="req-mgr-dropdown" style="display:none;"></div>
+        </div>
+      </div>
+
+      <div class="req-toggle-row" style="margin-top:14px;">
+        <input id="reqCatConfidential" type="checkbox" ${cat?.is_confidential ? 'checked' : ''} />
+        <div class="req-toggle-row-text">
+          <span class="req-toggle-row-title">Confidential submissions</span>
+          <span class="req-toggle-row-desc">Only this form's managers can read submissions. Other admins and request managers are locked out. Use for sensitive records like office referrals.</span>
         </div>
       </div>
     </div>
@@ -374,7 +423,7 @@ function renderCatDrawerBody(cat) {
       ${cat && submissionCount === 0 ? `<button class="btn danger" id="reqDeleteCatBtn" style="height:36px;">Delete Form</button>` : ''}
       <button class="btn" id="reqCancelCatBtn" style="height:36px;">Cancel</button>
     </div>
-    ${cat && submissionCount > 0 ? `<p style="font-size:12px;color:#9ca3af;margin-top:6px;">This form has ${submissionCount} submission${submissionCount === 1 ? '' : 's'}, so it can't be deleted — deactivate it instead.</p>` : ''}
+    ${cat && submissionCount > 0 ? `<p style="font-size:12px;color:#9ca3af;margin-top:6px;">This form has ${submissionCount} submission${submissionCount === 1 ? '' : 's'}, so it can't be deleted. Deactivate it instead.</p>` : ''}
     <p id="reqCatError" style="color:#dc2626;font-size:13px;margin-top:8px;display:none;"></p>
   `;
 
@@ -600,7 +649,7 @@ function renderRoutingEditor(f, fieldIdx) {
           type="text" placeholder="Option label (what staff see)" value="${esc(o.label ?? '')}" style="flex:1;" />
         <span style="font-size:12px;color:#9ca3af;flex-shrink:0;">routes to</span>
         <select class="form-control req-routing-mgr" data-field="${fieldIdx}" data-opt="${oIdx}" style="width:180px;">
-          <option value="">— Select manager —</option>
+          <option value="">Select manager…</option>
           ${draftManagers.map(m =>
             `<option value="${esc(m.profile_id)}" ${o.manager_id === m.profile_id ? 'selected' : ''}>${esc(m.display_name)}</option>`
           ).join('')}
@@ -608,7 +657,7 @@ function renderRoutingEditor(f, fieldIdx) {
         </select>
         <button class="btn btn-sm req-field-remove req-routing-remove" data-field="${fieldIdx}" data-opt="${oIdx}" title="Remove option">&times;</button>
       </div>
-      ${orphaned ? '<div style="font-size:12px;color:#b91c1c;margin-top:3px;">This option points at someone no longer on this form — pick a current manager or it will be removed on save.</div>' : ''}`;
+      ${orphaned ? '<div style="font-size:12px;color:#b91c1c;margin-top:3px;">This option points at someone no longer on this form. Pick a current manager or it will be removed on save.</div>' : ''}`;
   }).join('');
 
   return `
@@ -746,6 +795,7 @@ async function saveCategoryDrawer() {
     : resolvedSel;
   const allowDenial    = document.getElementById('reqCatAllowDenial')?.checked ?? false;
   const allowCompleted = document.getElementById('reqCatAllowCompleted')?.checked ?? false;
+  const confidential   = document.getElementById('reqCatConfidential')?.checked ?? false;
   const deniedSel      = document.getElementById('reqCatDeniedLabel')?.value;
   const deniedLabel    = deniedSel === '__custom'
     ? document.getElementById('reqCatDeniedLabelCustom')?.value.trim()
@@ -757,7 +807,7 @@ async function saveCategoryDrawer() {
   const invalidFields = draftFields.some(f => !f.label.trim());
   if (invalidFields) { showCatError('All fields must have a label.'); return; }
   if (restricted && !draftVisibility.length) {
-    showCatError('Add at least one person this restricted form should be visible to (managers and admins always have access).');
+    showCatError('Add at least one person this restricted form should be visible to (this form\'s managers always have access).');
     return;
   }
 
@@ -796,6 +846,7 @@ async function saveCategoryDrawer() {
       .update({
         name, description: desc || null, is_active: active, notify_managers: notify,
         is_restricted:  restricted,
+        is_confidential: confidential,
         resolved_label: resolvedLabel || null,
         allow_denial:   allowDenial,
         denied_label:   allowDenial ? (deniedLabel || null) : null,
@@ -809,6 +860,7 @@ async function saveCategoryDrawer() {
       .insert({
         school_id: currentProfile.school_id, name, description: desc || null, is_active: active, notify_managers: notify,
         is_restricted:  restricted,
+        is_confidential: confidential,
         resolved_label: resolvedLabel || null,
         allow_denial:   allowDenial,
         denied_label:   allowDenial ? (deniedLabel || null) : null,
@@ -928,16 +980,17 @@ async function toggleCatActive() {
 async function deleteCategory() {
   if (!editingCat) return;
 
-  const { count, error: countError } = await supabase
-    .from('staff_requests')
-    .select('id', { count: 'exact', head: true })
-    .eq('category_id', editingCat.id);
+  // Authoritative count — an RLS-filtered count reads 0 on a confidential
+  // form the current user can't review, which would offer a delete the FK
+  // then refuses. See 20260902000001_request_submission_visibility.sql.
+  const { data: count, error: countError } = await supabase
+    .rpc('request_category_submission_count', { p_category_id: editingCat.id });
   if (countError) {
     showToast('Failed to delete form: ' + countError.message, 'error');
     return;
   }
   if (count > 0) {
-    showToast('This form now has submissions and can\'t be deleted — deactivate it instead.', 'error');
+    showToast('This form now has submissions and can\'t be deleted. Deactivate it instead.', 'error');
     closeCatDrawer();
     await loadCategories();
     renderRoot();
@@ -989,19 +1042,36 @@ function renderSubmissionsView() {
         <option value="">All Forms</option>
         ${catOptions}
       </select>
-      <select id="reqFilterStatus" class="form-control" style="width:160px;">
-        <option value="">All Statuses</option>
+      <select id="reqFilterStatus" class="form-control" style="width:auto;min-width:160px;" title="Open = Pending and In Review. Resolved, Completed, and Denied are hidden.">
+        <option value="open"      ${filterStatus === 'open'      ? 'selected' : ''}>Open</option>
+        <option value=""          ${filterStatus === ''          ? 'selected' : ''}>All Statuses</option>
         <option value="pending"   ${filterStatus === 'pending'   ? 'selected' : ''}>Pending</option>
         <option value="in_review" ${filterStatus === 'in_review' ? 'selected' : ''}>In Review</option>
         <option value="resolved"  ${filterStatus === 'resolved'  ? 'selected' : ''}>Resolved</option>
         <option value="completed" ${filterStatus === 'completed' ? 'selected' : ''}>Completed</option>
         <option value="denied"    ${filterStatus === 'denied'    ? 'selected' : ''}>Denied</option>
       </select>
+      <button class="btn" id="reqExportBtn" style="margin-left:auto;white-space:nowrap;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV
+      </button>
     </div>
     <div id="reqSubList" style="margin-top:16px;"></div>
   `;
 
   renderSubmissionsList();
+
+  document.getElementById('reqExportBtn').addEventListener('click', () => {
+    // Exports exactly what the current filters show, not the whole table.
+    const contextName = filterCatId
+      ? (categories.find(c => c.id === filterCatId)?.name ?? 'Requests')
+      : 'All Forms';
+    const statusSel = document.getElementById('reqFilterStatus');
+    const statusName = filterStatus ? statusSel?.options[statusSel.selectedIndex]?.text : '';
+    if (!exportSubmissions(submissions, contextName, statusName)) {
+      showToast('Nothing to export with the current filters.', 'error');
+    }
+  });
 
   document.getElementById('reqFilterCat').addEventListener('change', async (e) => {
     filterCatId = e.target.value;
@@ -1020,7 +1090,12 @@ function renderSubmissionsList() {
   if (!list) return;
 
   if (!submissions.length) {
-    list.innerHTML = '<div class="empty-state"><p>No submissions found.</p></div>';
+    // Under the default "Open" filter an empty list means caught up, not
+    // empty — say so, and point at where the finished ones went. Applies
+    // whether or not a specific form is selected.
+    list.innerHTML = filterStatus === 'open'
+      ? `<div class="empty-state"><p>Nothing open ${filterCatId ? 'on this form' : 'right now'}. You're all caught up.<br>Switch to <strong>All Statuses</strong> to see resolved, completed, and denied submissions.</p></div>`
+      : '<div class="empty-state"><p>No submissions found.</p></div>';
     return;
   }
 
@@ -1135,6 +1210,7 @@ async function openSubDrawer(sub) {
     </div>
     <div style="margin-top:16px;display:flex;gap:8px;align-items:center;">
       <button class="btn btn-primary" id="reqSaveSubBtn" style="height:36px;">Save</button>
+      <button class="btn" id="reqExportSubBtn" style="height:36px;">Export CSV</button>
       <button class="btn" id="reqCancelSubBtn" style="height:36px;">Close</button>
     </div>
     <p id="reqSubError" style="color:#dc2626;font-size:13px;margin-top:8px;display:none;"></p>
@@ -1144,6 +1220,11 @@ async function openSubDrawer(sub) {
 
   document.getElementById('reqSaveSubBtn').addEventListener('click', () => saveSubmission(sub.id));
   document.getElementById('reqCancelSubBtn').addEventListener('click', handleCloseSubRequest);
+  document.getElementById('reqExportSubBtn').addEventListener('click', () => {
+    // The drawer fetches responses separately; the list row may predate any
+    // edits, so export the freshly loaded ones.
+    exportOneSubmission({ ...sub, staff_request_responses: responses ?? [] });
+  });
 }
 
 async function saveSubmission(requestId) {

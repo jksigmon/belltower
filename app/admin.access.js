@@ -47,7 +47,8 @@ const ACCESS_ROLE_PRESETS = {
     can_export_data: false,
     can_manage_licensure: false,
     can_manage_compliance: false,
-    can_manage_requests: false
+    can_manage_requests: false,
+    can_review_all_requests: false
   },
   office: {
     can_login: true,
@@ -78,7 +79,8 @@ const ACCESS_ROLE_PRESETS = {
     can_export_data: true,
     can_manage_licensure: false,
     can_manage_compliance: false,
-    can_manage_requests: false
+    can_manage_requests: false,
+    can_review_all_requests: false
   },
   admin: {
     can_login: true,
@@ -110,7 +112,8 @@ const ACCESS_ROLE_PRESETS = {
     can_export_data: true,
     can_manage_licensure: true,
     can_manage_compliance: true,
-    can_manage_requests: true
+    can_manage_requests: true,
+    can_review_all_requests: true
   }
 };
 
@@ -208,7 +211,7 @@ async function loadAccessProfile(profileId) {
       can_manage_carpools, can_manage_substitutes, can_manage_campuses,
       can_manage_calendar, can_manage_resource_docs, can_manage_reservations, can_manage_inventory,
       can_bulk_upload, can_export_data, can_manage_licensure, can_manage_compliance, can_manage_field_trips,
-      can_manage_requests
+      can_manage_requests, can_review_all_requests
     `)
     .eq('id', profileId)
     .single();

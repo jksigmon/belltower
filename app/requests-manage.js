@@ -1,12 +1,17 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
-import { esc, fmtShortDate } from './admin.shared.js?v=3';
+import { esc, fmtShortDate, showToast, fetchAllRows } from './admin.shared.js?v=3';
+import { exportSubmissions, exportOneSubmission } from './requests.export.js?v=1';
+
+const OPEN_STATUSES = ['pending', 'in_review'];
 
 let currentProfile = null;
 let managedCatIds  = [];
 let submissions    = [];
 let filterCatId    = '';
-let filterStatus   = '';
+// 'open' = pending + in_review. Default so finished work drops out of the
+// queue on its own; '' (All Statuses) is one click away.
+let filterStatus   = 'open';
 
 (async () => {
   currentProfile = await initPage({});
@@ -20,7 +25,7 @@ let filterStatus   = '';
   // Determine which categories this user manages
   await loadManagedCategories();
 
-  if (!managedCatIds.length && !currentProfile.is_superadmin && !currentProfile.can_access_admin) {
+  if (!managedCatIds.length && !hasOversight()) {
     document.getElementById('reqmListWrap').innerHTML =
       '<p style="color:#9ca3af;">You are not assigned as a manager for any request forms.</p>';
     return;
@@ -33,6 +38,18 @@ let filterStatus   = '';
   wireDrawer();
 })();
 
+// School-wide submission oversight. Matches sr_select in
+// 20260902000001_request_submission_visibility.sql. Note this is
+// can_review_all_requests, NOT can_manage_requests — building forms and
+// triaging what comes in are separate jobs. can_access_admin is deliberately
+// absent; it's granted for unrelated reasons (carline, facilities, front
+// desk). RLS is the real boundary; this just keeps the UI from showing an
+// empty page to people who can't see anything.
+function hasOversight() {
+  return currentProfile.is_superadmin === true
+      || currentProfile.can_review_all_requests === true;
+}
+
 async function loadManagedCategories() {
   const { data } = await supabase
     .from('request_category_managers')
@@ -41,40 +58,61 @@ async function loadManagedCategories() {
 
   managedCatIds = (data ?? []).map(r => r.category_id);
 
-  // Populate category filter dropdown
   const sel = document.getElementById('reqmFilterCat');
+  if (!sel) return;
+
+  // A school-wide reviewer may manage no forms at all, which would leave
+  // them filtering a full list by an empty dropdown. Offer every form
+  // instead. (Confidential forms they don't manage still return nothing —
+  // RLS decides, not this list.)
+  if (hasOversight()) {
+    sel.options[0].text = 'All Forms';
+    const { data: allCats } = await supabase
+      .from('request_categories')
+      .select('id, name')
+      .eq('school_id', currentProfile.school_id)
+      .eq('is_active', true)
+      .order('name');
+    (allCats ?? []).forEach(cat => sel.appendChild(new Option(cat.name, cat.id)));
+    return;
+  }
+
   (data ?? []).forEach(r => {
     const cat = r.request_categories;
     if (!cat) return;
-    const opt = new Option(cat.name, cat.id);
-    sel.appendChild(opt);
+    sel.appendChild(new Option(cat.name, cat.id));
   });
 }
 
 async function loadSubmissions() {
-  let q = supabase
-    .from('staff_requests')
-    .select(`
-      id, status, created_at, manager_notes,
-      request_categories ( name, resolved_label, allow_denial, denied_label, allow_completed ),
-      profiles!staff_requests_submitted_by_fkey ( display_name, email ),
-      staff_request_responses ( value, request_category_fields ( label, field_type, sort_order ) )
-    `)
-    .eq('school_id', currentProfile.school_id)
-    .order('created_at', { ascending: false });
+  // Paged: an unranged select stops at 1000 rows, which would silently drop
+  // the oldest submissions from both the list and the CSV export.
+  const { data, error } = await fetchAllRows(() => {
+    let q = supabase
+      .from('staff_requests')
+      .select(`
+        id, status, created_at, manager_notes,
+        request_categories ( name, resolved_label, allow_denial, denied_label, allow_completed ),
+        profiles!staff_requests_submitted_by_fkey ( display_name, email ),
+        staff_request_responses ( value, request_category_fields ( label, field_type, sort_order ) )
+      `)
+      .eq('school_id', currentProfile.school_id)
+      .order('created_at', { ascending: false });
 
-  // Non-admins: scope to managed categories, and within them only
-  // submissions routed to me or unrouted (broadcast). Routing is a
-  // workflow filter — admins still see everything.
-  if (!currentProfile.is_superadmin && !currentProfile.can_access_admin && managedCatIds.length) {
-    q = q.in('category_id', managedCatIds)
-         .or(`assigned_manager_id.is.null,assigned_manager_id.eq.${currentProfile.id}`);
-  }
+    // Without oversight: scope to managed categories, and within them only
+    // submissions routed to me or unrouted (broadcast). Routing is a
+    // workflow filter — oversight holders still see everything RLS allows.
+    if (!hasOversight() && managedCatIds.length) {
+      q = q.in('category_id', managedCatIds)
+           .or(`assigned_manager_id.is.null,assigned_manager_id.eq.${currentProfile.id}`);
+    }
 
-  if (filterCatId)  q = q.eq('category_id', filterCatId);
-  if (filterStatus) q = q.eq('status', filterStatus);
-
-  const { data } = await q;
+    if (filterCatId) q = q.eq('category_id', filterCatId);
+    if (filterStatus === 'open') q = q.in('status', OPEN_STATUSES);
+    else if (filterStatus)       q = q.eq('status', filterStatus);
+    return q;
+  });
+  if (error) console.error('loadSubmissions', error);
   submissions = data ?? [];
 }
 
@@ -83,7 +121,12 @@ function renderList() {
   if (!wrap) return;
 
   if (!submissions.length) {
-    wrap.innerHTML = '<div style="color:#9ca3af;padding:16px 0;">No submissions found.</div>';
+    // Under the default "Open" filter an empty list means caught up, not
+    // empty — say so, and point at where the finished ones went. Applies
+    // whether or not a specific form is selected.
+    wrap.innerHTML = filterStatus === 'open'
+      ? `<div style="color:#9ca3af;padding:16px 0;">Nothing open ${filterCatId ? 'on this form' : 'right now'}. You're all caught up. Switch to <strong>All Statuses</strong> to see resolved, completed, and denied submissions.</div>`
+      : '<div style="color:#9ca3af;padding:16px 0;">No submissions found.</div>';
     return;
   }
 
@@ -132,6 +175,18 @@ function wireFilters() {
     filterStatus = e.target.value;
     await loadSubmissions();
     renderList();
+  });
+  document.getElementById('reqmExportBtn').addEventListener('click', () => {
+    // Exports exactly what's on screen — same RLS scope, same filters.
+    const sel = document.getElementById('reqmFilterCat');
+    const contextName = filterCatId
+      ? (sel.options[sel.selectedIndex]?.text ?? 'Requests')
+      : 'All Forms';
+    const statusSel = document.getElementById('reqmFilterStatus');
+    const statusName = filterStatus ? statusSel?.options[statusSel.selectedIndex]?.text : '';
+    if (!exportSubmissions(submissions, contextName, statusName)) {
+      showToast('Nothing to export with the current filters.', 'error');
+    }
   });
 }
 
@@ -209,6 +264,14 @@ async function openDrawer(sub) {
   `;
 
   notesSnapshot = sub.manager_notes?.trim() ?? '';
+
+  // Rebound per open — the drawer is reused across submissions, so the
+  // handler has to close over the one currently shown.
+  const exportBtn = document.getElementById('reqmExportSubBtn');
+  if (exportBtn) {
+    exportBtn.onclick = () =>
+      exportOneSubmission({ ...sub, staff_request_responses: responses ?? [] });
+  }
 }
 
 async function saveRequest(requestId) {
