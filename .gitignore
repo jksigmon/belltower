@@ -34,3 +34,11 @@ ds-bundle/
 .design-sync/.cache/
 .design-sync/learnings/
 .design-sync/node_modules
+
+# Higgsfield CLI: vendored skills, reinstallable from skills-lock.json
+.agents/
+.claude/skills/higgsfield-*
+skills-lock.json
+
+# macOS
+.DS_Store

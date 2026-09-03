@@ -12,7 +12,7 @@
 <link rel="icon" href="/icons/favicon.ico">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.474.0/dist/umd/lucide.min.js"></script>
 <style>
 /* ============================================================
@@ -46,7 +46,7 @@
   --ease:     cubic-bezier(0.22, 1, 0.36, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --maxw:     1200px;
-  --display:  'Fraunces', Georgia, 'Times New Roman', serif;
+  --display:  'Bricolage Grotesque', 'Inter', ui-sans-serif, system-ui, sans-serif;
   --sans:     'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
@@ -200,6 +200,13 @@ header::after {
   flex-shrink: 0;
 }
 .eyebrow.on-dark { color: var(--sky-200); }
+.eyebrow.pill {
+  padding: 0.52rem 1.15rem;
+  border-radius: 100px;
+  background: var(--blue-tint);
+  border: 1px solid var(--blue-line);
+  letter-spacing: 0.14em;
+}
 
 /* ============================================================
    Buttons
@@ -255,13 +262,35 @@ header::after {
   background: var(--ink-900);
   isolation: isolate;
 }
+/* Cinematic hero background video */
+.hero-bg-video {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  filter: saturate(1) brightness(0.88) contrast(1.02);
+}
+/* Weighted left, where the copy sits — the right side of the frame stays
+   bright so the footage reads as footage, not as a dark texture. */
+.hero-bg-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    linear-gradient(100deg, rgba(3,7,12,0.9) 0%, rgba(3,7,12,0.66) 28%, rgba(3,7,12,0.3) 52%, rgba(3,7,12,0.1) 74%, rgba(3,7,12,0.16) 100%),
+    linear-gradient(0deg, rgba(3,7,12,0.42), transparent 34%);
+}
 /* Animated gradient mesh */
 .hero-mesh {
   position: absolute;
   inset: -20%;
-  z-index: 0;
+  z-index: 2;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.2;
   background:
     radial-gradient(40% 50% at 18% 28%, rgba(37,99,235,0.34), transparent 60%),
     radial-gradient(38% 46% at 80% 22%, rgba(56,189,248,0.22), transparent 60%),
@@ -270,31 +299,10 @@ header::after {
   filter: blur(30px);
   animation: meshDrift 22s ease-in-out infinite alternate;
 }
-/* Constellation motif — drifts above the mesh, below content */
-#constellation {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
 @keyframes meshDrift {
   0%   { transform: translate(0,0) scale(1); }
   50%  { transform: translate(2%,-2%) scale(1.06); }
   100% { transform: translate(-2%,1%) scale(1.03); }
-}
-/* Fine grid lines */
-.hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 30%, transparent 80%);
-  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, #000 30%, transparent 80%);
 }
 .hero-inner {
   position: relative;
@@ -302,59 +310,47 @@ header::after {
   max-width: var(--maxw);
   margin: auto;
   width: 100%;
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 3.5rem;
-  align-items: center;
 }
+.hero-copy {
+  max-width: 640px;
+}
+/* Eyebrow — rule-anchored label rather than a badge. The module list
+   lives in the ticker below; repeating it here would say it twice. */
 .hero-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 0.6rem;
+  padding: 0.18rem 0 0.18rem 0.9rem;
+  border-left: 2px solid var(--amber);
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--sky-200);
-  padding: 0.5rem 0.95rem;
-  border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 100px;
-  background: rgba(255,255,255,0.03);
-  margin-bottom: 1.6rem;
+  color: #fff;
+  margin-bottom: 1.9rem;
 }
-.hero-eyebrow .dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--amber);
-  box-shadow: 0 0 0 3px rgba(245,158,11,0.25);
-  animation: pulseDot 2.4s ease-in-out infinite;
-}
-@keyframes pulseDot {
-  0%,100% { box-shadow: 0 0 0 3px rgba(245,158,11,0.25); }
-  50% { box-shadow: 0 0 0 6px rgba(245,158,11,0.05); }
-}
+/* The type performs the line: "Less" set light and airy, "More" set
+   heavy and tight. Weight and tracking carry the meaning. */
 .hero h1 {
   font-family: var(--display);
   font-size: clamp(2.9rem, 6.4vw, 5.2rem);
-  font-weight: 600;
-  line-height: 0.98;
-  letter-spacing: -0.02em;
+  line-height: 0.94;
   color: #fff;
 }
 .hero h1 .lead {
+  font-size: 0.66em;
   font-weight: 300;
-  color: rgba(255,255,255,0.92);
+  letter-spacing: 0.006em;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 0.08em;
 }
 .hero h1 .accent {
-  font-style: italic;
-  font-weight: 500;
-  background: linear-gradient(100deg, var(--amber-300) 0%, var(--amber) 55%, #fff2d6 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  padding-bottom: 0.28em;
+  font-weight: 800;
+  letter-spacing: -0.026em;
+  color: var(--amber-300);
+  padding-bottom: 0.08em;
 }
 .hero-sub {
-  margin-top: 1.6rem;
+  margin-top: 1.7rem;
   font-size: 1.1rem;
   color: rgba(203,213,225,0.86);
   line-height: 1.65;
@@ -393,44 +389,9 @@ header::after {
 .kin { opacity: 0; transform: translateY(18px); animation: kinUp 0.9s var(--ease-out) forwards; }
 @keyframes kinUp { to { opacity: 1; transform: none; } }
 
-/* Hero product window */
-.hero-visual {
-  position: relative;
-  perspective: 1600px;
-  opacity: 0;
-  animation: kinUp 1s var(--ease-out) 0.5s forwards;
-}
-.hero-window {
-  position: relative;
-  transform: rotateY(-13deg) rotateX(6deg) rotate(0.4deg);
-  transform-style: preserve-3d;
-  border-radius: 18px;
-  background: linear-gradient(165deg, #0c1c30, #081320);
-  border: 1px solid rgba(255,255,255,0.1);
-  box-shadow: 0 50px 90px -30px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04);
-  overflow: hidden;
-  animation: floatWin 9s ease-in-out infinite;
-}
-@keyframes floatWin {
-  0%,100% { transform: rotateY(-13deg) rotateX(6deg) translateY(0); }
-  50% { transform: rotateY(-10deg) rotateX(4deg) translateY(-12px); }
-}
-.hero-window::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 18px;
-  padding: 1px;
-  background: linear-gradient(135deg, rgba(56,189,248,0.5), rgba(37,99,235,0.1) 40%, rgba(245,158,11,0.4));
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
 @keyframes live { 0% { box-shadow: 0 0 0 0 rgba(40,200,64,0.55); } 100% { box-shadow: 0 0 0 8px rgba(40,200,64,0); } }
 
-/* App dashboard mockup (inspired by the live Belltower admin) */
-.hero-window.app-mock { background: #fff; }
+/* App dashboard mockup (inspired by the live Belltower admin) — shared by the Features section */
 .am-top {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0.7rem 0.9rem;
@@ -438,80 +399,6 @@ header::after {
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 .am-brand { display: flex; align-items: center; gap: 0.5rem; color: #fff; font-weight: 800; font-size: 0.82rem; letter-spacing: -0.01em; }
-.am-logo { width: 23px; height: 23px; border-radius: 7px; background: linear-gradient(160deg, var(--sky), var(--blue)); display: flex; align-items: center; justify-content: center; color: #fff; }
-.am-logo svg { width: 13px; height: 13px; }
-.am-top-right { display: flex; align-items: center; gap: 0.5rem; }
-.am-weather { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.32rem 0.55rem; border-radius: 8px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: #fff; font-size: 0.7rem; font-weight: 700; }
-.am-weather svg { width: 13px; height: 13px; color: var(--amber-300); }
-.am-avatar { width: 27px; height: 27px; border-radius: 50%; background: linear-gradient(135deg, var(--amber), var(--amber-d)); display: flex; align-items: center; justify-content: center; color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,0.4); }
-.am-avatar svg { width: 14px; height: 14px; }
-.am-body { display: grid; grid-template-columns: 96px 1fr; background: var(--bg-soft); }
-.am-side { padding: 0.7rem 0.5rem; display: flex; flex-direction: column; gap: 0.12rem; border-right: 1px solid var(--border); background: #fff; }
-.am-nav { display: flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.5rem; border-radius: 8px; font-size: 0.64rem; font-weight: 600; color: var(--text-2); white-space: nowrap; }
-.am-nav svg { width: 13px; height: 13px; color: var(--muted); }
-.am-nav.active { background: var(--blue-tint); color: var(--blue-h); }
-.am-nav.active svg { color: var(--blue); }
-.am-sec { font-size: 0.5rem; font-weight: 700; letter-spacing: 0.12em; color: #aab4c3; padding: 0.5rem 0.5rem 0.2rem; }
-.am-main { padding: 0.8rem; display: flex; flex-direction: column; gap: 0.7rem; }
-.am-greet { position: relative; border-radius: 13px; padding: 0.9rem 1rem; overflow: hidden; background: linear-gradient(150deg, var(--navy) 0%, #0e3b66 55%, var(--ink-700) 100%); }
-.am-greet::after { content: ""; position: absolute; top: -30%; right: -10%; width: 130px; height: 130px; border-radius: 50%; background: radial-gradient(circle, rgba(56,189,248,0.22), transparent 70%); }
-.am-gtop { display: flex; align-items: flex-start; justify-content: space-between; position: relative; z-index: 1; }
-.am-greet small { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.56rem; letter-spacing: 0.18em; font-weight: 700; color: var(--sky-200); }
-.am-greet small .gdot { width: 5px; height: 5px; border-radius: 50%; background: var(--amber); }
-.am-date { text-align: right; color: rgba(255,255,255,0.7); }
-.am-date b { display: block; font-size: 0.62rem; font-weight: 700; color: #fff; }
-.am-date span { font-size: 0.54rem; }
-.am-name { font-family: var(--display); font-size: 1.3rem; font-weight: 600; color: #fff; line-height: 1; margin: 0.4rem 0 0.55rem; position: relative; z-index: 1; }
-.am-chips { display: flex; gap: 0.35rem; flex-wrap: wrap; position: relative; z-index: 1; }
-.am-chips span { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.58rem; font-weight: 600; color: rgba(255,255,255,0.82); padding: 0.26rem 0.55rem; border-radius: 100px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.14); }
-.am-chips span svg { width: 10px; height: 10px; }
-.am-label { font-size: 0.52rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
-.am-qa { display: flex; gap: 0.4rem; }
-.qa { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; font-size: 0.6rem; font-weight: 700; color: var(--text-2); padding: 0.5rem 0.3rem; border-radius: 9px; background: #fff; border: 1px solid var(--border); white-space: nowrap; }
-.qa svg { width: 12px; height: 12px; }
-.qa-amber { background: linear-gradient(135deg, var(--amber), var(--amber-d)); color: #fff; border-color: transparent; box-shadow: 0 4px 12px rgba(245,158,11,0.32); }
-.am-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem; }
-.am-stat { position: relative; background: #fff; border: 1px solid var(--border); border-radius: 11px; padding: 0.6rem 0.7rem; overflow: hidden; box-shadow: 0 1px 4px rgba(15,23,42,0.04); }
-.am-stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-.am-stat.red::before { background: #ef4444; }
-.am-stat.blue::before { background: var(--blue); }
-.am-stat.amber::before { background: var(--amber); }
-.am-stat .st-ico { width: 24px; height: 24px; border-radius: 7px; display: flex; align-items: center; justify-content: center; margin-bottom: 0.4rem; }
-.am-stat .st-ico svg { width: 13px; height: 13px; }
-.am-stat.red .st-ico { background: #fee2e2; color: #dc2626; }
-.am-stat.blue .st-ico { background: var(--blue-tint); color: var(--blue); }
-.am-stat.amber .st-ico { background: #fef3c7; color: var(--amber-d); }
-.am-stat .n { font-size: 1.3rem; font-weight: 800; color: var(--text); line-height: 1; }
-.am-stat.flag .n { color: #dc2626; }
-.am-stat .l { font-size: 0.52rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); margin-top: 0.3rem; line-height: 1.3; }
-
-/* Floating chips */
-.hero-chip {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.6rem 0.9rem;
-  border-radius: 12px;
-  background: rgba(8,19,32,0.78);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255,255,255,0.12);
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: #fff;
-  box-shadow: 0 18px 44px rgba(0,0,0,0.5);
-  z-index: 4;
-}
-.hero-chip svg { width: 16px; height: 16px; }
-.hero-chip.c1 { top: 4%; right: -6%; animation: floatChip 6s ease-in-out infinite; }
-.hero-chip.c2 { bottom: 8%; left: -9%; animation: floatChip 7s ease-in-out infinite 0.6s; }
-.hero-chip .ico-ok { color: #34d399; }
-.hero-chip .ico-bell { color: var(--amber-300); }
-@keyframes floatChip {
-  0%,100% { transform: translateY(0); }
-  50% { transform: translateY(-12px); }
-}
 
 /* Scroll hint */
 .hero-scroll {
@@ -613,22 +500,36 @@ section.soft {
 .modules-bento {
   margin-top: 3.2rem;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 168px;
-  gap: 1rem;
+  grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: minmax(228px, auto);
+  gap: 1.15rem;
 }
+/* Explicit placement — the bento reads as a composed layout rather than
+   whatever auto-flow happens to produce. */
+#bento .mod-bento:nth-child(1) { grid-column: 1 / 5;   grid-row: 1 / 3; }
+#bento .mod-bento:nth-child(2) { grid-column: 5 / 9;   grid-row: 1; }
+#bento .mod-bento:nth-child(3) { grid-column: 9 / 13;  grid-row: 1; }
+#bento .mod-bento:nth-child(4) { grid-column: 5 / 10;  grid-row: 2; }
+#bento .mod-bento:nth-child(5) { grid-column: 10 / 13; grid-row: 2; }
+#bento .mod-bento:nth-child(6) { grid-column: 1 / 5;   grid-row: 3; }
+#bento .mod-bento:nth-child(7) { grid-column: 5 / 9;   grid-row: 3; }
+#bento .mod-bento:nth-child(8) { grid-column: 9 / 13;  grid-row: 3; }
 .mod-bento {
-  background: #fff;
+  /* Soft wash rising from the illustration corner, so the art sits in the
+     card rather than on top of it. */
+  background:
+    radial-gradient(115% 85% at 100% 100%, rgba(37,99,235,0.06), transparent 58%),
+    #fff;
   border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 1.6rem;
+  border-radius: 22px;
+  padding: 1.85rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   position: relative;
   overflow: hidden;
   transition: transform 0.3s var(--ease), box-shadow 0.3s, border-color 0.3s;
-  box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+  box-shadow: 0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.14);
 }
 /* Cursor-follow glow */
 .mod-bento::after {
@@ -661,10 +562,8 @@ section.soft {
   z-index: 2;
 }
 .mod-bento:hover::before { opacity: 1; }
-/* Irregular spans */
-.mod-bento.wide { grid-column: span 2; }
-.mod-bento.tall { grid-row: span 2; justify-content: flex-start; gap: 1rem; }
 /* Featured dark */
+.mod-bento.feature { justify-content: flex-start; gap: 1rem; }
 .mod-bento.feature {
   background: linear-gradient(150deg, #0b2d4f 0%, #0e3b66 55%, #08182b 100%);
   border-color: rgba(255,255,255,0.1);
@@ -682,7 +581,12 @@ section.soft {
 .mod-bento.feature .mod-mini span:nth-child(2) { width: 28px; background: rgba(245,158,11,0.55); }
 .mod-bento.feature .mod-mini span:nth-child(3) { width: 36px; }
 /* Amber tinted alternates */
-.mod-bento.amber { background: #fffcf0; }
+.mod-bento.amber {
+  background:
+    radial-gradient(115% 85% at 100% 100%, rgba(245,158,11,0.13), transparent 60%),
+    #fffdf5;
+  border-color: #f4e6c4;
+}
 .mod-bento.amber .mod-ico { background: rgba(245,158,11,0.12); color: var(--amber-d); }
 .mod-ico {
   width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
@@ -694,13 +598,109 @@ section.soft {
 .mod-bento:hover .mod-ico { transform: scale(1.08) rotate(-3deg); }
 .mod-ico svg { width: 20px; height: 20px; }
 .mod-title {
-  font-size: 0.9rem;
+  font-size: 1.06rem;
   font-weight: 700;
   color: var(--text);
   line-height: 1.3;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   position: relative; z-index: 2;
 }
+/* Text block sits at the card's baseline; padding keeps it clear of the arrow */
+.mod-body { position: relative; z-index: 2; }
+/* Wide cards: hold the copy back so the illustration has room to read */
+#bento .mod-bento:nth-child(4) .mod-body { max-width: 42%; }
+#bento .mod-bento:nth-child(4) .mod-desc { padding-right: 0; }
+.mod-desc {
+  margin-top: 0.4rem;
+  font-size: 0.845rem;
+  line-height: 1.55;
+  color: var(--muted);
+  padding-right: 3.6rem;
+}
+.mod-bento.feature .mod-desc { padding-right: 0; }
+
+/* Line-art illustration layer — inline SVG so it inherits brand colour,
+   stays crisp at any size, and costs no extra request. */
+.mod-art {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 208px;
+  height: auto;
+  z-index: 0;
+  pointer-events: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--blue);
+  opacity: 0.32;
+  /* Dissolve toward the copy — density at the outer corner, nothing near the text */
+  -webkit-mask-image: linear-gradient(295deg, #000 22%, rgba(0,0,0,0.45) 52%, transparent 78%);
+  mask-image: linear-gradient(295deg, #000 22%, rgba(0,0,0,0.45) 52%, transparent 78%);
+}
+.mod-bento.amber .mod-art { color: var(--amber-d); opacity: 0.38; }
+.mod-bento.feature .mod-art { color: #9cc4ff; opacity: 0.3; width: 186px; }
+.mod-art.art-car { width: 330px; right: 4px; bottom: 14px; }
+.mod-art.art-peaks { width: 224px; }
+.mod-art.art-city  { width: 176px; right: 10px; bottom: 0; }
+.mod-art.art-shield,
+.mod-art.art-badge { width: 132px; right: 20px; bottom: -14px; }
+/* Pictorial art needs to stay legible, so it gets a much gentler falloff
+   than the contour fields, which are pure texture. */
+.mod-art.art-city,
+.mod-art.art-shield,
+.mod-art.art-badge {
+  -webkit-mask-image: linear-gradient(295deg, #000 58%, transparent 97%);
+  mask-image: linear-gradient(295deg, #000 58%, transparent 97%);
+}
+/* The car is a single readable object — fade only where it meets the copy,
+   otherwise the rear of the vehicle dissolves and it reads as half a car. */
+.mod-art.art-car {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 12%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 12%);
+}
+
+/* Arrow opens this module in the explorer below — a real control, not decoration */
+.mod-go {
+  position: absolute;
+  right: 1.3rem;
+  bottom: 1.3rem;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  cursor: pointer;
+  z-index: 3;
+  box-shadow: 0 2px 8px rgba(15,23,42,0.08);
+  transition: background 0.22s, color 0.22s, border-color 0.22s, transform 0.22s var(--ease);
+}
+.mod-go svg { width: 17px; height: 17px; }
+.mod-go:hover { background: var(--blue); border-color: var(--blue); color: #fff; transform: translateX(2px); }
+.mod-go:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+
+/* Feature card checklist */
+.mod-rule { height: 1px; background: rgba(255,255,255,0.15); position: relative; z-index: 2; }
+.mod-checks {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  position: relative; z-index: 2;
+}
+.mod-checks li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.83rem;
+  color: rgba(226,232,240,0.92);
+}
+.mod-checks svg { width: 16px; height: 16px; color: var(--sky); flex-shrink: 0; }
 .bento-cta { margin-top: 2rem; text-align: center; }
 
 /* ============================================================
@@ -994,17 +994,31 @@ section.soft {
    ============================================================ */
 .value-inner {
   display: grid;
-  grid-template-columns: 1fr 0.9fr;
-  gap: 4.5rem;
+  grid-template-columns: 1fr 1.08fr;
+  gap: 4rem;
   align-items: center;
 }
-.value-blocks { margin-top: 2.5rem; display: flex; flex-direction: column; gap: 1.9rem; }
-.value-block { padding-left: 1.5rem; position: relative; }
+/* One continuous hairline spine runs the full stack; each block marks its
+   place on it. Reads as structure rather than three repeated decorations. */
+.value-blocks {
+  margin-top: 2.5rem;
+  display: flex; flex-direction: column; gap: 1.9rem;
+  position: relative;
+  padding-left: 1.5rem;
+}
+.value-blocks::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0.35rem; bottom: 0.35rem;
+  width: 1px;
+  background: var(--border-2);
+}
+.value-block { position: relative; }
 .value-block::before {
   content: '';
   position: absolute;
-  left: 0; top: 0.15rem; bottom: 0.15rem;
-  width: 3px;
+  left: -1.5rem; top: 0.2rem;
+  width: 3px; height: 1.35rem;
   background: linear-gradient(180deg, var(--blue), var(--amber));
   border-radius: 2px;
 }
@@ -1018,19 +1032,31 @@ section.soft {
   overflow: hidden;
   border: 1px solid var(--border-2);
   box-shadow: 0 40px 80px -30px rgba(11,45,79,0.45);
-  aspect-ratio: 4 / 3.4;
+  /* Close to the clip's native 4:3 so the desk and atrium stay in frame */
+  aspect-ratio: 4 / 3.05;
 }
 .value-frame img { width: 100%; height: 100%; object-fit: cover; filter: saturate(1.05) contrast(1.02); }
+.value-loop-video {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  filter: saturate(1.05) contrast(1.02);
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+.value-loop-video.active { opacity: 1; }
 .value-frame::after {
   content: "";
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(7,28,47,0.05) 0%, rgba(7,28,47,0.42) 100%);
+  /* Kept low and late so the clip's warm light trace still reads */
+  background: linear-gradient(180deg, rgba(7,28,47,0) 55%, rgba(7,28,47,0.34) 100%);
 }
 .value-tag {
   position: absolute;
-  bottom: 1rem; left: 1rem; right: 1rem;
+  bottom: 1rem; left: 1rem;
   z-index: 2;
-  display: flex; align-items: center; gap: 0.7rem;
+  display: inline-flex; align-items: center; gap: 0.7rem;
+  width: fit-content; max-width: calc(100% - 2rem);
   padding: 0.85rem 1rem;
   border-radius: 14px;
   background: rgba(8,19,32,0.7);
@@ -1209,6 +1235,93 @@ footer {
 .stagger.visible > *:nth-child(8){transition-delay:.39s}
 
 /* ============================================================
+   Modules bento — "the platform assembles itself"
+   Tuning knobs live on #bento: per-card duration, stagger step,
+   lead-in delay, and the settle curve. Sweep timings are on the
+   .swept rules further down.
+   ============================================================ */
+#bento {
+  --mod-dur:    0.78s;   /* per-card travel time */
+  --mod-step:   0.085s;  /* gap between cards; 8 cards => ~1.4s total */
+  --mod-base:   0.1s;    /* lead-in after the heading */
+  --mod-spring: cubic-bezier(0.25, 0.9, 0.3, 1);
+  --sweep-step: 0.13s;   /* column-to-column sweep travel */
+  --sweep-dur:  0.5s;    /* brighten/decay per card */
+}
+/* The offset state is applied by JS, so the grid still renders
+   normally if the script never runs. */
+#bento.will-assemble .mod-bento {
+  opacity: 0;
+  transform: translate3d(var(--tx, 0px), var(--ty, 24px), 0)
+             rotate(var(--rot, 0deg)) scaleX(var(--sx, 1)) scale(var(--sc, 0.965));
+  will-change: transform, opacity;
+}
+#bento.assemble .mod-bento {
+  animation: modAssemble var(--mod-dur) var(--mod-spring) both;
+  animation-delay: calc(var(--mod-base) + var(--i, 0) * var(--mod-step));
+}
+@keyframes modAssemble {
+  0% {
+    opacity: 0;
+    transform: translate3d(var(--tx, 0px), var(--ty, 24px), 0)
+               rotate(var(--rot, 0deg)) scaleX(var(--sx, 1)) scale(var(--sc, 0.965));
+  }
+  55%  { opacity: 1; }
+  /* brief overshoot, then settle — the "spring" without the bounce */
+  72%  { transform: translate3d(0,0,0) rotate(0deg) scaleX(1) scale(1.012); }
+  100% { opacity: 1; transform: translate3d(0,0,0) rotate(0deg) scaleX(1) scale(1); }
+}
+/* Per-card entrance direction (--i = order, --sw = sweep column) */
+#bento .mod-bento:nth-child(1) { --i:0; --sw:0;   --tx:-64px; --ty:8px;   --rot:-3.2deg; }
+#bento .mod-bento:nth-child(2) { --i:1; --sw:1;   --ty:-58px; }
+#bento .mod-bento:nth-child(3) { --i:2; --sw:2;   --tx:52px;  --ty:-46px; --rot:1.6deg; }
+#bento .mod-bento:nth-child(4) { --i:3; --sw:1.5; --ty:14px;  --sx:0.94; }
+#bento .mod-bento:nth-child(5) { --i:4; --sw:3;   --tx:66px;  --ty:0px;   --rot:2.2deg; }
+#bento .mod-bento:nth-child(6) { --i:5; --sw:0;   --tx:-50px; --ty:52px;  --rot:-1.8deg; }
+#bento .mod-bento:nth-child(7) { --i:6; --sw:1;   --ty:60px; }
+#bento .mod-bento:nth-child(8) { --i:7; --sw:2;   --tx:48px;  --ty:52px;  --rot:1.6deg; }
+
+/* Connected-system sweep: lights the accent rule each card already has,
+   left to right, then removes itself so hover behaves normally again. */
+#bento.swept .mod-bento::before {
+  animation: sweepRule var(--sweep-dur) ease-out both;
+  animation-delay: calc(var(--sw, 0) * var(--sweep-step));
+}
+@keyframes sweepRule { 0%, 100% { opacity: 0; } 45% { opacity: 0.95; } }
+#bento.swept .mod-bento.feature::before {
+  animation: sweepRuleLit var(--sweep-dur) ease-out both;
+  animation-delay: calc(var(--sw, 0) * var(--sweep-step));
+}
+@keyframes sweepRuleLit {
+  0%, 100% { opacity: 1; filter: brightness(1); }
+  45%      { opacity: 1; filter: brightness(1.9); }
+}
+#bento.swept .mod-ico {
+  animation: sweepIco var(--sweep-dur) ease-out both;
+  animation-delay: calc(var(--sw, 0) * var(--sweep-step));
+}
+@keyframes sweepIco { 0%, 100% { filter: brightness(1); } 45% { filter: brightness(1.15); } }
+
+/* Heading resolves just ahead of the cards */
+.mod-head .eyebrow,
+.mod-head .section-title,
+.mod-head .section-sub {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+}
+.mod-head.visible .eyebrow      { opacity: 1; transform: none; transition-delay: 0.05s; }
+.mod-head.visible .section-title{ opacity: 1; transform: none; transition-delay: 0.14s; }
+.mod-head.visible .section-sub  { opacity: 1; transform: none; transition-delay: 0.40s; }
+.mod-head .section-title em {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
+}
+.mod-head.visible .section-title em { opacity: 1; transform: none; transition-delay: 0.28s; }
+
+/* ============================================================
    Reduced motion
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
@@ -1219,18 +1332,27 @@ footer {
     scroll-behavior: auto !important;
   }
   .ticker-track { animation: none; }
-  .hero-window { transform: rotateY(-8deg) rotateX(4deg); }
-  .kin-line > span, .kin, .hero-visual { opacity: 1; transform: none; }
+  .kin-line > span, .kin { opacity: 1; transform: none; }
+  /* Assembly + sweep are skipped in JS; this guarantees the resting state
+     even if the classes are already on the element. */
+  #bento.will-assemble .mod-bento,
+  #bento.assemble .mod-bento { opacity: 1 !important; transform: none !important; animation: none !important; }
+  #bento.swept .mod-bento::before,
+  #bento.swept .mod-bento.feature::before,
+  #bento.swept .mod-ico { animation: none !important; }
+  .mod-head .eyebrow,
+  .mod-head .section-title,
+  .mod-head .section-sub,
+  .mod-head .section-title em { opacity: 1 !important; transform: none !important; }
 }
 
 /* ============================================================
    Responsive
    ============================================================ */
 @media (max-width: 1024px) {
-  .hero-inner { grid-template-columns: 1fr; gap: 3rem; }
-  .hero-visual { max-width: 460px; }
-  .hero-chip.c1 { right: 2%; } .hero-chip.c2 { left: 2%; }
   .value-inner { grid-template-columns: 1fr; gap: 3rem; }
+  /* Stacked: cap the frame so it does not tower over the copy */
+  .value-media { max-width: 560px; margin: 0 auto; width: 100%; }
   .ft-layout { grid-template-columns: 1fr; gap: 1.4rem; margin-top: 2rem; scroll-margin-top: 74px; }
   /* Swap the tab column for a pinned prev/next stepper so every module is one tap away */
   .mod-tabs { display: none; }
@@ -1241,11 +1363,25 @@ footer {
   .ft-stage { position: static; order: 2; }
   .ft-stage-inner { min-height: 420px; }
 }
+/* Below 769px the video is never loaded, so the scrim sits over the
+   brighter poster instead — and the copy spans the full width. */
+@media (max-width: 768px) {
+  .hero-bg-scrim {
+    background: linear-gradient(180deg, rgba(3,7,12,0.86) 0%, rgba(3,7,12,0.7) 42%, rgba(3,7,12,0.9) 100%);
+  }
+}
 @media (max-width: 900px) {
   .nav-links a.text-link:not(.nav-login):not(.nav-cta-link) { display: none; }
-  .modules-bento { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 156px; }
-  .mod-bento.wide { grid-column: span 2; }
-  .mod-bento.tall { grid-row: span 1; }
+  /* Two per row; :nth-child(n) matches all and outranks the placement above */
+  .modules-bento { grid-template-columns: repeat(6, 1fr); grid-auto-rows: minmax(196px, auto); }
+  #bento .mod-bento:nth-child(n) { grid-column: auto / span 3; grid-row: auto; }
+  .mod-art.art-car { width: 210px; }
+  /* Two columns: shorter horizontal travel, gentler tilt */
+  #bento .mod-bento:nth-child(1) { --tx: -30px; --rot: -2.2deg; }
+  #bento .mod-bento:nth-child(3) { --tx: 26px; --ty: -34px; }
+  #bento .mod-bento:nth-child(5) { --tx: 30px; --rot: 1.6deg; }
+  #bento .mod-bento:nth-child(6) { --tx: -26px; --rot: -1.2deg; }
+  #bento .mod-bento:nth-child(8) { --tx: 24px; --rot: 1.2deg; }
   .footer-grid { grid-template-columns: 1fr; gap: 2rem; }
   .stats-inner { grid-template-columns: 1fr 1fr; gap: 1rem 0; }
   .stat-card:nth-child(2) { border-right: none; }
@@ -1259,14 +1395,31 @@ footer {
   .hero { padding: 120px 1.25rem 3.5rem; }
   .hero-eyebrow { font-size: 0.66rem; }
   .modules-bento { grid-template-columns: 1fr; grid-auto-rows: auto; }
-  .mod-bento { min-height: 132px; }
-  .mod-bento.wide { grid-column: span 1; }
+  .mod-bento { min-height: 168px; }
+  #bento .mod-bento:nth-child(n) { grid-column: 1 / -1; grid-row: auto; }
+  /* Single column: purely vertical — no sideways travel, no tilt */
+  #bento { --mod-step: 0.07s; }
+  #bento .mod-bento:nth-child(1),
+  #bento .mod-bento:nth-child(3),
+  #bento .mod-bento:nth-child(5),
+  #bento .mod-bento:nth-child(6),
+  #bento .mod-bento:nth-child(8) { --tx: 0px; --rot: 0deg; --ty: 34px; }
+  #bento .mod-bento:nth-child(2) { --ty: -34px; }
+  #bento .mod-bento:nth-child(4) { --ty: 30px; --sx: 0.97; }
+  #bento .mod-bento:nth-child(7) { --ty: 36px; }
+  /* Stacked: sweep runs top-to-bottom instead of left-to-right */
+  #bento .mod-bento:nth-child(1) { --sw: 0; }
+  #bento .mod-bento:nth-child(2) { --sw: 0.5; }
+  #bento .mod-bento:nth-child(3) { --sw: 1; }
+  #bento .mod-bento:nth-child(4) { --sw: 1.5; }
+  #bento .mod-bento:nth-child(5) { --sw: 2; }
+  #bento .mod-bento:nth-child(6) { --sw: 2.5; }
+  #bento .mod-bento:nth-child(7) { --sw: 3; }
+  #bento .mod-bento:nth-child(8) { --sw: 3.5; }
   .nav-cta span { display: none; }
   .nav-cta { padding: 0.6rem 0.8rem; }
   .ft-block { padding: 1.6rem; }
   .value-frame { aspect-ratio: 4 / 3; }
-  .am-body { grid-template-columns: 1fr; }
-  .am-side { display: none; }
 }
 </style>
 </head>
@@ -1298,11 +1451,12 @@ footer {
      Hero
      ============================================================ -->
 <section class="hero grain">
+  <video class="hero-bg-video" id="heroBgVideo" muted playsinline preload="none" poster="images/hero-belltower-wide.png" aria-hidden="true"></video>
+  <div class="hero-bg-scrim" aria-hidden="true"></div>
   <div class="hero-mesh" aria-hidden="true"></div>
-  <canvas id="constellation" aria-hidden="true"></canvas>
   <div class="hero-inner">
     <div class="hero-copy">
-      <p class="hero-eyebrow kin" style="animation-delay:.15s"><span class="dot"></span> School Operations Platform</p>
+      <p class="hero-eyebrow kin" style="animation-delay:.15s">School Operations Platform</p>
       <h1>
         <span class="kin-line"><span class="lead" style="animation-delay:.1s">Less logistics.</span></span>
         <span class="kin-line"><span class="accent" style="animation-delay:.22s">More learning.</span></span>
@@ -1323,63 +1477,6 @@ footer {
         <i data-lucide="lock"></i>
         <span>Role-based access &amp; audit trails, <b>built for K-12</b></span>
       </div>
-    </div>
-
-    <div class="hero-visual" aria-hidden="true">
-      <div class="hero-window app-mock">
-        <div class="am-top">
-          <div class="am-brand">
-            <img src="images/belltower-logo.png" alt="Belltower" style="height:22px;width:auto">
-          </div>
-          <div class="am-top-right">
-            <span class="am-weather"><i data-lucide="sun"></i> 71°</span>
-            <span class="am-avatar"><i data-lucide="user"></i></span>
-          </div>
-        </div>
-        <div class="am-body">
-          <aside class="am-side">
-            <span class="am-nav active"><i data-lucide="layout-dashboard"></i> Dashboard</span>
-            <span class="am-sec">OPERATIONS</span>
-            <span class="am-nav"><i data-lucide="calendar"></i> Leave</span>
-            <span class="am-nav"><i data-lucide="repeat-2"></i> Substitutes</span>
-            <span class="am-nav"><i data-lucide="car"></i> Carline</span>
-            <span class="am-nav"><i data-lucide="shield-check"></i> Compliance</span>
-            <span class="am-nav"><i data-lucide="map"></i> Field Trips</span>
-          </aside>
-          <main class="am-main">
-            <div class="am-greet">
-              <div class="am-gtop">
-                <small><span class="gdot"></span> GOOD MORNING</small>
-                <div class="am-date"><b>Monday</b><span>June 15, 2026</span></div>
-              </div>
-              <div class="am-name">Welcome back</div>
-              <div class="am-chips">
-                <span><i data-lucide="building-2"></i> Riverside Academy</span>
-                <span><i data-lucide="shield"></i> Administrator</span>
-              </div>
-            </div>
-            <div>
-              <div class="am-label">Quick Actions</div>
-              <div class="am-qa" style="margin-top:0.45rem">
-                <span class="qa qa-amber"><i data-lucide="car"></i> Start Carline</span>
-                <span class="qa"><i data-lucide="user-plus"></i> Add Staff</span>
-                <span class="qa"><i data-lucide="calendar-check"></i> Review Leave</span>
-              </div>
-            </div>
-            <div>
-              <div class="am-label">Needs Attention</div>
-              <div class="am-grid" style="margin-top:0.45rem">
-                <div class="am-stat red"><div class="st-ico"><i data-lucide="calendar-clock"></i></div><div class="n">0</div><div class="l">Pending Leave</div></div>
-                <div class="am-stat blue"><div class="st-ico"><i data-lucide="user-minus"></i></div><div class="n">0</div><div class="l">Staff Out Today</div></div>
-                <div class="am-stat amber"><div class="st-ico"><i data-lucide="badge-alert"></i></div><div class="n">0</div><div class="l">Licenses Expiring</div></div>
-                <div class="am-stat red flag"><div class="st-ico"><i data-lucide="user-check"></i></div><div class="n">2</div><div class="l">Pending BG Checks</div></div>
-              </div>
-            </div>
-          </main>
-        </div>
-      </div>
-      <div class="hero-chip c1"><i data-lucide="check-circle-2" class="ico-ok"></i> Leave approved</div>
-      <div class="hero-chip c2"><i data-lucide="car" class="ico-bell"></i> Carline started</div>
     </div>
   </div>
 
@@ -1419,47 +1516,96 @@ footer {
      ============================================================ -->
 <section class="block soft">
   <div class="shell">
-    <div class="section-head center reveal">
-      <span class="eyebrow"><span class="dot"></span> One platform. Every operation.</span>
-      <h2 class="section-title">Eight modules that work <em>as one</em></h2>
-      <p class="section-sub">Purpose-built for school workflows, from staff leave requests to daily carline dismissal.</p>
+    <div class="section-head center reveal mod-head">
+      <span class="eyebrow pill">One connected platform</span>
+      <h2 class="section-title">Eight modules that work <em>as one</em>.</h2>
+      <p class="section-sub">Purpose-built for K&#8211;12 school operations. Everything connects. Everything works together.</p>
     </div>
-    <div class="modules-bento stagger" id="bento">
-      <div class="mod-bento feature tall">
+    <div class="modules-bento" id="bento">
+      <div class="mod-bento feature">
+        <svg class="mod-art art-flow" viewBox="0 0 200 160" aria-hidden="true"><path d="M-8 168 q54 -30 108 -8 t108 -20"/><path d="M-8 155 q54 -30 108 -8 t108 -20"/><path d="M-8 142 q54 -30 108 -8 t108 -20"/><path d="M-8 129 q54 -30 108 -8 t108 -20"/><path d="M-8 116 q54 -30 108 -8 t108 -20"/><path d="M-8 103 q54 -30 108 -8 t108 -20"/><path d="M-8 90 q54 -30 108 -8 t108 -20"/><path d="M-8 77 q54 -30 108 -8 t108 -20"/><path d="M-8 64 q54 -30 108 -8 t108 -20"/><path d="M-8 51 q54 -30 108 -8 t108 -20"/><path d="M-8 38 q54 -30 108 -8 t108 -20"/></svg>
         <span class="mod-ico"><i data-lucide="calendar"></i></span>
-        <div>
+        <div class="mod-body">
           <div class="mod-title">Leave Management</div>
-          <p class="mod-desc">One-click approvals, automatic balance tracking, and a full audit trail.</p>
+          <p class="mod-desc">One-click approvals, automatic balance tracking, and full audit trails.</p>
         </div>
+        <div class="mod-rule"></div>
+        <ul class="mod-checks">
+          <li><i data-lucide="check-circle-2"></i> Custom approval flows</li>
+          <li><i data-lucide="check-circle-2"></i> Live balances</li>
+          <li><i data-lucide="check-circle-2"></i> Complete audit history</li>
+        </ul>
         <div class="mod-mini"><span></span><span></span><span></span></div>
       </div>
+
       <div class="mod-bento amber">
-        <span class="mod-ico"><i data-lucide="repeat-2"></i></span>
-        <div class="mod-title">Substitute Assignment</div>
+        <svg class="mod-art art-flow" viewBox="0 0 200 150" aria-hidden="true"><path d="M-8 156 q54 -30 108 -8 t108 -20"/><path d="M-8 143 q54 -30 108 -8 t108 -20"/><path d="M-8 130 q54 -30 108 -8 t108 -20"/><path d="M-8 117 q54 -30 108 -8 t108 -20"/><path d="M-8 104 q54 -30 108 -8 t108 -20"/><path d="M-8 91 q54 -30 108 -8 t108 -20"/><path d="M-8 78 q54 -30 108 -8 t108 -20"/><path d="M-8 65 q54 -30 108 -8 t108 -20"/><path d="M-8 52 q54 -30 108 -8 t108 -20"/><path d="M-8 39 q54 -30 108 -8 t108 -20"/></svg>
+        <span class="mod-ico"><i data-lucide="user-plus"></i></span>
+        <div class="mod-body">
+          <div class="mod-title">Substitute Assignment</div>
+          <p class="mod-desc">Find the right substitute faster and keep classrooms covered.</p>
+        </div>
+        <button class="mod-go" data-goto="1" aria-label="View Substitute Assignment details"><i data-lucide="arrow-right"></i></button>
       </div>
+
       <div class="mod-bento">
+        <svg class="mod-art art-dots" viewBox="0 0 200 150" aria-hidden="true"><path stroke-dasharray="0.5 5.5" d="M-8 158 q54 -30 108 -8 t108 -20"/><path stroke-dasharray="0.5 5.5" d="M-8 146 q54 -30 108 -8 t108 -20"/><path stroke-dasharray="0.5 5.5" d="M-8 134 q54 -30 108 -8 t108 -20"/><path stroke-dasharray="0.5 5.5" d="M-8 122 q54 -30 108 -8 t108 -20"/><path stroke-dasharray="0.5 5.5" d="M-8 110 q54 -30 108 -8 t108 -20"/><path stroke-dasharray="0.5 5.5" d="M-8 98 q54 -30 108 -8 t108 -20"/><path stroke-dasharray="0.5 5.5" d="M-8 86 q54 -30 108 -8 t108 -20"/><path stroke-dasharray="0.5 5.5" d="M-8 74 q54 -30 108 -8 t108 -20"/><path stroke-dasharray="0.5 5.5" d="M-8 62 q54 -30 108 -8 t108 -20"/><path stroke-dasharray="0.5 5.5" d="M-8 50 q54 -30 108 -8 t108 -20"/><path stroke-dasharray="0.5 5.5" d="M-8 38 q54 -30 108 -8 t108 -20"/></svg>
         <span class="mod-ico"><i data-lucide="layout-dashboard"></i></span>
-        <div class="mod-title">School Administration</div>
+        <div class="mod-body">
+          <div class="mod-title">School Administration</div>
+          <p class="mod-desc">Centralize records, streamline workflows, and stay organized.</p>
+        </div>
+        <button class="mod-go" data-goto="4" aria-label="View School Administration details"><i data-lucide="arrow-right"></i></button>
       </div>
-      <div class="mod-bento wide">
+
+      <div class="mod-bento">
+        <svg class="mod-art art-car" viewBox="0 0 440 210" aria-hidden="true"><path d="M8 198 C70 202 76 178 126 174 C168 171 178 198 226 196 C284 194 320 172 356 158" stroke-dasharray="5 8"/><ellipse fill="currentColor" fill-opacity="0.08" cx="205" cy="188" rx="128" ry="9" stroke="none"/><path fill="currentColor" fill-opacity="0.09" d="M87 134 C87 125 93 118 101 116 L86 120 C77 123 73 130 73 138 L73 165 C73 171 76 175 81 176 L92 177 C88 176 87 172 87 166 Z"/><path fill="currentColor" fill-opacity="0.13" d="M92 177 L104 177 A26 26 0 0 1 156 177 L246 177 A24 24 0 0 1 294 177 L318 177 C326 177 332 171 332 163 L332 143 C332 133 326 126 316 123 L292 117 L256 79 C250 75 243 73 235 73 L169 73 C161 73 153 76 148 82 L124 111 L102 117 C93 119 87 126 87 135 L87 167 C87 173 89 177 92 177 Z"/><path fill="currentColor" fill-opacity="0.22" d="M130 109 L152 81 C154 79 157 78 161 78 L184 78 L181 109 Z"/><path fill="currentColor" fill-opacity="0.22" d="M191 109 L188 78 L238 78 C244 78 249 80 253 85 L276 109 Z"/><path d="M215 78 L217 109"/><path fill="currentColor" fill-opacity="0.09" d="M78 129 L96 124 L98 135 L78 139 Z"/><path fill="currentColor" fill-opacity="0.09" d="M76 147 L98 142 L100 155 L76 159 Z"/><path d="M74 164 L100 159"/><path d="M197 113 L201 173"/><path fill="currentColor" fill-opacity="0.09" d="M187 105 L176 101 L174 107 L185 110 Z"/><circle fill="currentColor" fill-opacity="0.17" cx="130" cy="172" r="26"/><circle cx="130" cy="172" r="18"/><circle fill="currentColor" fill-opacity="0.32" cx="130" cy="172" r="10"/><circle fill="currentColor" fill-opacity="0.17" cx="270" cy="172" r="24"/><circle cx="270" cy="172" r="16"/><circle fill="currentColor" fill-opacity="0.32" cx="270" cy="172" r="9"/><ellipse cx="390" cy="152" rx="32" ry="9"/><ellipse fill="currentColor" fill-opacity="0.08" cx="390" cy="152" rx="17" ry="5" stroke="none"/><path fill="currentColor" fill-opacity="0.85" d="M373 96 a17 17 0 1 1 34 0 c0 13-17 34-17 34 s-17-21-17-34z" stroke="none"/><circle cx="390" cy="96" r="6" fill="#fff" stroke="none"/></svg>
         <span class="mod-ico"><i data-lucide="car"></i></span>
-        <div class="mod-title">Carline Dismissal</div>
+        <div class="mod-body">
+          <div class="mod-title">Carline Dismissal</div>
+          <p class="mod-desc">Safer dismissals, shorter lines, and real-time visibility.</p>
+        </div>
+        <button class="mod-go" data-goto="3" aria-label="View Carline Dismissal details"><i data-lucide="arrow-right"></i></button>
       </div>
+
       <div class="mod-bento amber">
+        <svg class="mod-art art-peaks" viewBox="0 0 220 160" aria-hidden="true"><path d="M-10 170 L48 74 L88 108 L138 54 L220 170"/><path d="M-10 170 L48 87 L88 121 L138 67 L220 170"/><path d="M-10 170 L48 100 L88 134 L138 80 L220 170"/><path d="M-10 170 L48 113 L88 147 L138 93 L220 170"/><path d="M-10 170 L48 126 L88 160 L138 106 L220 170"/><path d="M-10 170 L48 139 L88 173 L138 119 L220 170"/></svg>
         <span class="mod-ico"><i data-lucide="map"></i></span>
-        <div class="mod-title">Field Trip Management</div>
+        <div class="mod-body">
+          <div class="mod-title">Field Trip Management</div>
+          <p class="mod-desc">Manage every detail so students can focus on the experience.</p>
+        </div>
+        <button class="mod-go" data-goto="2" aria-label="View Field Trip Management details"><i data-lucide="arrow-right"></i></button>
       </div>
+
       <div class="mod-bento">
+        <svg class="mod-art art-city" viewBox="0 0 220 160" aria-hidden="true"><defs><pattern id="btWin" width="13" height="15" patternUnits="userSpaceOnUse"><rect x="3" y="3" width="7" height="8" fill="currentColor" fill-opacity="0.32"/></pattern></defs><path d="M4 158 h214"/><path fill="currentColor" fill-opacity="0.09" d="M26 158 V70 h46 v88z"/><rect x="26" y="70" width="46" height="88" fill="url(#btWin)" stroke="none"/><path fill="currentColor" fill-opacity="0.09" d="M72 158 V28 h56 v130z"/><rect x="72" y="28" width="56" height="130" fill="url(#btWin)" stroke="none"/><path fill="currentColor" fill-opacity="0.09" d="M128 158 V82 h44 v76z"/><rect x="128" y="82" width="44" height="76" fill="url(#btWin)" stroke="none"/><path d="M100 28 V12"/><path d="M92 12 h16"/></svg>
         <span class="mod-ico"><i data-lucide="building-2"></i></span>
-        <div class="mod-title">Multi-Campus Support</div>
+        <div class="mod-body">
+          <div class="mod-title">Multi-Campus Support</div>
+          <p class="mod-desc">One platform for all your schools and programs.</p>
+        </div>
+        <button class="mod-go" data-goto="7" aria-label="View Multi-Campus Support details"><i data-lucide="arrow-right"></i></button>
       </div>
+
       <div class="mod-bento amber">
+        <svg class="mod-art art-shield" viewBox="0 0 156 172" aria-hidden="true"><path fill="currentColor" fill-opacity="0.09" d="M78 6 l68 25v57c0 37-29 58-68 69 -39-11-68-32-68-69V31z"/><path fill="currentColor" fill-opacity="0.09" d="M78 20 l55 20v46c0 30-23 47-55 56 -32-9-55-26-55-56V40z"/><path fill="currentColor" fill-opacity="0.14" d="M78 34 l42 15v35c0 23-18 36-42 43 -24-7-42-20-42-43V49z"/><path d="M53 76 l16 17 34-36"/></svg>
         <span class="mod-ico"><i data-lucide="shield-check"></i></span>
-        <div class="mod-title">Volunteer Compliance</div>
+        <div class="mod-body">
+          <div class="mod-title">Volunteer Compliance</div>
+          <p class="mod-desc">Ensure every volunteer meets requirements.</p>
+        </div>
+        <button class="mod-go" data-goto="5" aria-label="View Volunteer Compliance details"><i data-lucide="arrow-right"></i></button>
       </div>
+
       <div class="mod-bento">
+        <svg class="mod-art art-badge" viewBox="0 0 156 178" aria-hidden="true"><path fill="currentColor" fill-opacity="0.09" d="M56 112 l-20 58 30-15 17 20 13-46z"/><path fill="currentColor" fill-opacity="0.09" d="M100 112 l20 58 -30-15z"/><circle cx="78" cy="66" r="56" stroke-width="5" stroke-dasharray="0.5 9" stroke-linecap="round"/><circle fill="currentColor" fill-opacity="0.09" cx="78" cy="66" r="46"/><circle fill="currentColor" fill-opacity="0.09" cx="78" cy="66" r="36"/><circle fill="currentColor" fill-opacity="0.14" cx="78" cy="66" r="26"/><path d="M62.5 66.5 l10 11 21-23"/></svg>
         <span class="mod-ico"><i data-lucide="badge-check"></i></span>
-        <div class="mod-title">Licensure Tracking</div>
+        <div class="mod-body">
+          <div class="mod-title">Licensure Tracking</div>
+          <p class="mod-desc">Track certifications, expirations, and CEUs with confidence.</p>
+        </div>
+        <button class="mod-go" data-goto="6" aria-label="View Licensure Tracking details"><i data-lucide="arrow-right"></i></button>
       </div>
     </div>
     <div class="bento-cta reveal">
@@ -1901,6 +2047,8 @@ footer {
     <div class="value-media reveal">
       <div class="value-frame">
         <img src="images/hero-belltower-wide.png" alt="A bright, modern K-12 school commons" loading="lazy">
+        <video id="whyLoopVideoA" class="value-loop-video" muted playsinline aria-hidden="true"></video>
+        <video id="whyLoopVideoB" class="value-loop-video" muted playsinline aria-hidden="true"></video>
         <div class="value-tag">
           <span class="vt-ico"><i data-lucide="building-2"></i></span>
           <div>
@@ -2095,122 +2243,89 @@ window.addEventListener('scroll', () => {
   header.classList.toggle('scrolled', scrollY > 60);
 }, { passive: true });
 
-// ---- Constellation motif (hero background) -------------------------
+// ---- Hero background video (skipped on small/mobile viewports to save
+// bandwidth and battery on a purely decorative background) ----------
 (function () {
-  const canvas = document.getElementById('constellation');
-  if (!canvas) return;
-  const hero = canvas.closest('.hero');
-  const ctx = canvas.getContext('2d');
-  const LINK = 132, MOUSE_LINK = 170;
-  let W = 0, H = 0, pts = [], ripples = [], mouse = { x: -9999, y: -9999 }, running = false;
+  const video = document.getElementById('heroBgVideo');
+  if (!video) return;
+  if (!window.matchMedia('(min-width: 769px)').matches) return;
+  const source = document.createElement('source');
+  source.src = 'videos/hero-belltower.mp4';
+  source.type = 'video/mp4';
+  video.appendChild(source);
+  video.load();
+  video.play().catch(() => {});
+})();
 
-  const palette = i => (i % 7 === 0) ? [251,191,36] : (i % 3 === 0 ? [56,189,248] : [147,197,253]);
+// ---- Why Belltower hallway video crossfade loop. Plays on mobile too
+// (a 316KB cut is served there); skipped only for reduced motion or
+// Save-Data. Loads and starts once the section scrolls into view. ----
+(function () {
+  if (reduceMotion) return;
+  if (navigator.connection && navigator.connection.saveData) return;
+  const a = document.getElementById('whyLoopVideoA');
+  const b = document.getElementById('whyLoopVideoB');
+  const frame = document.querySelector('#why .value-frame');
+  if (!a || !b || !frame) return;
 
-  function build() {
-    const rect = canvas.getBoundingClientRect();
-    W = rect.width; H = rect.height;
-    // Re-read devicePixelRatio on every rebuild rather than freezing it once
-    // at load — it can change independently of the window's CSS size (e.g.
-    // dragging the window to a display with a different pixel density), and
-    // a stale value here is exactly what makes the drawn points drift out
-    // of sync with the cursor: the canvas's CSS box resizes to match, but
-    // its drawing buffer stays at the old resolution and gets stretched.
-    const DPR = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = W * DPR; canvas.height = H * DPR;
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    const density = Math.min(150, Math.round(W * H / 10000));
-    pts = [];
-    for (let i = 0; i < density; i++) {
-      pts.push({
-        x: Math.random() * W, y: Math.random() * H,
-        vx: (Math.random() - 0.5) * 0.18, vy: (Math.random() - 0.5) * 0.18,
-        r: Math.random() * 1.3 + 0.5, c: palette(i), tw: Math.random() * Math.PI * 2
-      });
-    }
-  }
-  function ring() {
-    if (!running || !pts.length) return;
-    const p = pts[Math.floor(Math.random() * pts.length)];
-    ripples.push({ x: p.x, y: p.y, r: 0, life: 1 });
-  }
-  function frame() {
-    ctx.clearRect(0, 0, W, H);
-    for (let i = 0; i < pts.length; i++) {
-      const a = pts[i];
-      for (let j = i + 1; j < pts.length; j++) {
-        const b = pts[j];
-        const d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (d < LINK) {
-          ctx.strokeStyle = `rgba(120,170,235,${(1 - d / LINK) * 0.22})`;
-          ctx.lineWidth = 0.6;
-          ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-        }
+  const SRC = window.matchMedia('(min-width: 769px)').matches
+    ? 'videos/why-belltower-hallway.mp4'
+    : 'videos/why-belltower-hallway-720.mp4';
+  const FADE = 1; // seconds, matches .value-loop-video opacity transition
+
+  let current = a, next = b;
+
+  function armCrossfade(video) {
+    video.addEventListener('timeupdate', function handler() {
+      if (video.duration && video.currentTime >= video.duration - FADE) {
+        video.removeEventListener('timeupdate', handler);
+        crossfade();
       }
-      const mdx = a.x - mouse.x, mdy = a.y - mouse.y, md = Math.hypot(mdx, mdy);
-      if (md < MOUSE_LINK) {
-        ctx.strokeStyle = `rgba(245,200,120,${(1 - md / MOUSE_LINK) * 0.5})`;
-        ctx.lineWidth = 0.8;
-        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(mouse.x, mouse.y); ctx.stroke();
-        const f = (1 - md / MOUSE_LINK) * 0.02;   // gentle pull toward the cursor
-        a.vx -= (mdx / (md || 1)) * f; a.vy -= (mdy / (md || 1)) * f;
-      }
-    }
-    for (const a of pts) {
-      const near = Math.hypot(a.x - mouse.x, a.y - mouse.y) < MOUSE_LINK;
-      const glow = near ? 1 : (0.6 + 0.4 * Math.sin(a.tw));
-      ctx.beginPath();
-      ctx.fillStyle = `rgba(${a.c[0]},${a.c[1]},${a.c[2]},${0.35 + 0.5 * glow})`;
-      ctx.arc(a.x, a.y, a.r * (near ? 1.6 : 1), 0, Math.PI * 2); ctx.fill();
-    }
-    for (let k = ripples.length - 1; k >= 0; k--) {
-      const rp = ripples[k];
-      rp.r += 1.6; rp.life -= 0.012;
-      if (rp.life <= 0) { ripples.splice(k, 1); continue; }
-      ctx.strokeStyle = `rgba(251,191,36,${rp.life * 0.4})`;
-      ctx.lineWidth = 1.2;
-      ctx.beginPath(); ctx.arc(rp.x, rp.y, rp.r, 0, Math.PI * 2); ctx.stroke();
-    }
-  }
-  function step() {
-    if (!running) return;
-    for (const a of pts) {
-      a.x += a.vx; a.y += a.vy; a.tw += 0.02;
-      a.vx *= 0.992; a.vy *= 0.992;                          // ease velocity after a cursor pull
-      if (Math.abs(a.vx) < 0.05) a.vx += (Math.random() - 0.5) * 0.04;  // keep a gentle drift alive
-      if (Math.abs(a.vy) < 0.05) a.vy += (Math.random() - 0.5) * 0.04;
-      if (a.x < -20) a.x = W + 20; else if (a.x > W + 20) a.x = -20;
-      if (a.y < -20) a.y = H + 20; else if (a.y > H + 20) a.y = -20;
-    }
-    frame();
-    requestAnimationFrame(step);
-  }
-
-  window.addEventListener('resize', build);
-  // Catches any change to the canvas's rendered box — a window resize, a
-  // display/DPR change, a web-font swap reflowing the hero — not just the
-  // window resizing, so the drawing buffer never drifts out of sync with
-  // where the browser reports the cursor to be.
-  if ('ResizeObserver' in window) {
-    new ResizeObserver(build).observe(canvas);
-  }
-  if (hero) {
-    hero.addEventListener('pointermove', e => {
-      const r = canvas.getBoundingClientRect();
-      mouse.x = e.clientX - r.left; mouse.y = e.clientY - r.top;
-    }, { passive: true });
-    hero.addEventListener('pointerleave', () => { mouse.x = -9999; mouse.y = -9999; });
-  }
-  // Pause the loop when the hero scrolls out of view
-  const io = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      if (e.isIntersecting && !reduceMotion) { if (!running) { running = true; requestAnimationFrame(step); } }
-      else { running = false; }
     });
-  }, { threshold: 0 });
+  }
 
-  build();
-  if (reduceMotion) { frame(); }        // static field, no animation
-  else { io.observe(canvas); setInterval(ring, 7000); }
+  function crossfade() {
+    attach(next); // no-op if already loaded; covers a blocked first play
+    next.currentTime = 0;
+    next.play().catch(() => {});
+    next.classList.add('active');
+    current.classList.remove('active');
+    const prevCurrent = current;
+    current = next;
+    next = prevCurrent;
+    armCrossfade(current);
+    setTimeout(() => next.pause(), FADE * 1000 + 150);
+  }
+
+  function attach(v) {
+    if (v.dataset.attached) return;
+    v.dataset.attached = '1';
+    const source = document.createElement('source');
+    source.src = SRC;
+    source.type = 'video/mp4';
+    v.appendChild(source);
+    v.load();
+  }
+
+  function start() {
+    // Load the second element only once the first is playing, so it is
+    // served from cache instead of racing the same file over the wire.
+    attach(a);
+    a.addEventListener('playing', () => attach(b), { once: true });
+    current.classList.add('active');
+    current.play().catch(() => {});
+    armCrossfade(current);
+  }
+
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        start();
+        io.disconnect();
+      }
+    });
+  }, { threshold: 0.15 });
+  io.observe(frame);
 })();
 
 // ---- Module explorer (click-driven + mobile stepper) ---------------
@@ -2253,6 +2368,16 @@ if (modTotal) {
   if (msNext) msNext.addEventListener('click', () => stepFeature(1));
 }
 
+// ---- Bento arrows open that module in the explorer ------------------
+document.querySelectorAll('#bento .mod-go').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const i = Number(btn.dataset.goto);
+    if (!Number.isInteger(i) || !modTotal) return;
+    setFeature(i);
+    if (ftLayout) ftLayout.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+  });
+});
+
 // ---- Stat count-up --------------------------------------------------
 function countUp(el) {
   const target = parseInt(el.dataset.target, 10);
@@ -2280,6 +2405,33 @@ if (statsBand) {
   }, { threshold: 0.4 });
   statObserver.observe(statsBand);
 }
+
+// ---- Bento assembly + one-time accent sweep ------------------------
+// Runs once per page load. All classes are stripped once the sweep ends
+// so the grid is completely static afterwards and hover is untouched.
+(function () {
+  const bento = document.getElementById('bento');
+  if (!bento || reduceMotion) return;   // reduced motion: leave it at rest
+
+  const CARDS = 8, CARD_MS = 780, STEP_MS = 85, BASE_MS = 100;
+  const SETTLE_MS = BASE_MS + (CARDS - 1) * STEP_MS + CARD_MS;  // ~1475ms
+  const SWEEP_GAP_MS = 300, SWEEP_MS = 900;
+
+  bento.classList.add('will-assemble');
+
+  const io = new IntersectionObserver((entries, obs) => {
+    entries.forEach(e => {
+      if (!e.isIntersecting) return;
+      obs.unobserve(e.target);
+      bento.classList.add('assemble');
+      setTimeout(() => bento.classList.add('swept'), SETTLE_MS + SWEEP_GAP_MS);
+      setTimeout(() => {
+        bento.classList.remove('will-assemble', 'assemble', 'swept');
+      }, SETTLE_MS + SWEEP_GAP_MS + SWEEP_MS);
+    });
+  }, { threshold: 0.3 });
+  io.observe(bento);
+})();
 
 // ---- Bento cursor-follow glow --------------------------------------
 document.querySelectorAll('#bento .mod-bento').forEach(cell => {
