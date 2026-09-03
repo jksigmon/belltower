@@ -45,15 +45,15 @@ export const VOLUNTEER_ROLES = {
   // volunteer roster tells an admin nothing at all.
   'Other': {
     label: 'Other',
-    description: 'BG check required — describe the role in the notes',
+    description: 'BG check + a note describing the role',
     requires: ['bg'],
     requiresDetails: true,
     icon: '<circle cx="12" cy="12" r="10" /><path d="M17 12h.01" /><path d="M12 12h.01" /><path d="M7 12h.01" />',
   },
 };
 
-export const DETAIL_ROLE_HINT = 'Tell us what this person will be doing — required when “Other” is selected.';
-export const DETAIL_ROLE_ERROR = 'Add a note describing the role — required when “Other” is selected.';
+export const DETAIL_ROLE_HINT = 'Tell us what this person will be doing. Required when "Other" is selected.';
+export const DETAIL_ROLE_ERROR = 'Add a note describing the role. This is required when "Other" is selected.';
 
 export function rolesRequireDetails(roles) {
   return (roles ?? []).some(r => VOLUNTEER_ROLES[r]?.requiresDetails);
@@ -151,7 +151,7 @@ export function wireRoleDetailsRequirement({ inputName, notesEl, showWhenRequire
     const required = rolesRequireDetails(checkedRoles(inputName, root));
     showWhenRequired.filter(Boolean).forEach(el => { el.style.display = required ? '' : 'none'; });
     hideWhenRequired.filter(Boolean).forEach(el => { el.style.display = required ? 'none' : ''; });
-    if (notesEl) notesEl.placeholder = required ? 'Required — what will this person be doing?' : basePlaceholder;
+    if (notesEl) notesEl.placeholder = required ? 'What will this person be doing?' : basePlaceholder;
     return required;
   };
 

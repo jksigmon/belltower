@@ -668,7 +668,7 @@ async function openResolveDrawer(id) {
     ${!row.reason && rolesRequireDetails(row.volunteer_roles) ? `
     <div class="bg-detail-field">
       <span class="bg-detail-label">Role details (Other)</span>
-      <span class="bg-detail-value status-danger">No description on file — check with the requester before clearing.</span>
+      <span class="bg-detail-value status-danger">No description on file. Check with the requester before clearing.</span>
     </div>` : ''}
   `;
 

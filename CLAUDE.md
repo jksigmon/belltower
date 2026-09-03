@@ -123,6 +123,7 @@ All functions use the Deno runtime and `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS
 - **`TECH_DEBT.md`** — Audit of known issues and their resolution status. One open item: `supabase/functions/.env` contains a live service-role key committed to git (deferred — requires key rotation + `git filter-repo`).
 
 ## Development Notes
+- **No em dashes:** never use em dashes (—) or en dashes (–) in anything you write: UI copy, help/onboarding docs, placeholders, error messages, commit messages, comments. They read as AI-generated. Rewrite with a period, comma, colon, or parentheses instead. (Older code still contains them; leave those alone unless you're already editing that line.)
 - **Multi-school:** always scope data queries by `school_id`, never return cross-school data
 - **Vanilla JS:** avoid introducing framework dependencies unless explicitly discussed
 - **Module-based design:** new features should be built as self-contained modules
