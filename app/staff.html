@@ -5288,18 +5288,28 @@ function applyModuleNavVisibility() {
 // directly, so a section-only teacher (5th-7th grade Core/Block, no
 // homeroom of their own) gets the tab too. is_current_year keeps a
 // leftover board from a prior year from lighting this up after rollover.
+//
+// Existence check via limit(1), never count: 'exact'. student_schedule is
+// a security_invoker view whose homeroom branch runs a correlated lateral
+// (plus that lateral's RLS subquery) once per active student, and
+// is_current_year is a computed expression so it cannot be pushed down.
+// An exact count has to build the whole view before it can answer, which
+// is what blew the statement timeout on these two gates. limit(1) lets
+// the planner stop at the first matching row. Same applies to
+// showStudentLookupNavIfScheduleExists below.
 async function showMyRosterNavIfHomeroomTeacher() {
   const link = document.getElementById('navMyRoster');
   if (!link) return;
 
-  const { count } = await supabase
+  const { data } = await supabase
     .from('student_schedule')
-    .select('session_id', { count: 'exact', head: true })
+    .select('session_id')
     .eq('school_id', currentProfile.school_id)
     .eq('teacher_id', currentProfile.employee_id)
-    .eq('is_current_year', true);
+    .eq('is_current_year', true)
+    .limit(1);
 
-  if (count) link.style.display = 'flex';
+  if (data?.length) link.style.display = 'flex';
 }
 
 // Student Lookup and Class Rosters are both school-wide, not scoped to
@@ -5308,18 +5318,20 @@ async function showMyRosterNavIfHomeroomTeacher() {
 // anything to find. Hidden until the school has published or committed
 // at least one live board this year, so neither sits in the nav as a
 // dead end before admin has set anything up. One query gates both.
+// limit(1) rather than an exact count, for the reason above.
 async function showStudentLookupNavIfScheduleExists() {
   const slLink = document.getElementById('navStudentLookup');
   const crLink = document.getElementById('navClassRosters');
   if (!slLink && !crLink) return;
 
-  const { count } = await supabase
+  const { data } = await supabase
     .from('student_schedule')
-    .select('session_id', { count: 'exact', head: true })
+    .select('session_id')
     .eq('school_id', currentProfile.school_id)
-    .eq('is_current_year', true);
+    .eq('is_current_year', true)
+    .limit(1);
 
-  if (count) {
+  if (data?.length) {
     if (slLink) slLink.style.display = 'flex';
     if (crLink) crLink.style.display = 'flex';
   }
