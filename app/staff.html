@@ -22,6 +22,12 @@
 <!-- FullCalendar v6 bundles its CSS inside the JS — no separate stylesheet exists -->
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
 <link rel="stylesheet" href="/admin-ui.css" />
+<!-- Dashboard hero photo. #dashboard starts display:none, so without this
+     the browser doesn't discover the background until the section is shown
+     and the banner flashes flat navy. AVIF only: browsers that can't decode
+     it skip the preload on the type hint and fall back to the JPEG that
+     .dash-banner's image-set() resolves for them. -->
+<link rel="preload" as="image" href="/images/portal-desk-hero.avif" type="image/avif" />
   <style>
 
 /* ─── Resource viewer: print only the document, nothing else ───

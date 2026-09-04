@@ -7,6 +7,10 @@
   <title>School Admin Portal</title>
   <link rel="stylesheet" href="admin-ui.css">
   <link rel="preload" as="image" href="/images/belltower-logo.png">
+  <!-- Dashboard hero photo. AVIF only: browsers that can't decode it skip
+       the preload on the type hint and fall back to the JPEG that
+       .dash-banner's image-set() resolves for them. -->
+  <link rel="preload" as="image" href="/images/portal-desk-hero.avif" type="image/avif">
   <link rel="modulepreload" href="/app/admin.supabase.js">
   <link rel="modulepreload" href="/app/admin.shared.js">
   <link rel="modulepreload" href="/app/admin.staff.js">

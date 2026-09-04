@@ -2074,7 +2074,10 @@ select {
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   gap: 16px;
   align-items: stretch;
-  margin-top: 22px;
+  /* Collapses against .dash-banner's own margin-bottom, so this is the
+     hero-to-Quick-Actions gap. Kept tight on purpose: the banner and the
+     Quick Actions bar read as one introduction block. */
+  margin-top: 18px;
 }
 #dashGrid.loaded,
 #staffDashGrid.loaded {
@@ -3156,13 +3159,40 @@ nav a[data-cap-group] {
 
 /* ── Dashboard ─────────────────────────────────────────────── */
 
-/* Banner */
+/* Banner
+   Photograph of a teacher's desk under a navy scrim. The scrim is what
+   keeps this reading as Belltower rather than as a stock-photo header:
+   near-opaque on the left where the greeting sits, fading right so the
+   plant, books and mug stay legible. Two background-image declarations
+   rather than one — the first is the JPEG every browser understands,
+   the second overrides it with image-set() where AVIF is available.
+   Browsers that don't parse image-set() drop the whole second
+   declaration and keep the JPEG. */
 .dash-banner {
+  /* Belltower navy, as channels, so the scrim stops below can vary
+     only in alpha. Matches the #0b2d4f this banner used before. */
+  --hero-navy: 11, 45, 79;
+
   position: relative;
-  background: linear-gradient(135deg, #0b2d4f 0%, #1a3a5c 55%, #0e3660 100%);
+  display: flex;
+  align-items: center;
+  min-height: 184px;
+  background-color: rgb(var(--hero-navy));
+  background-image: url('/images/portal-desk-hero.jpg');
+  background-image: image-set(
+    url('/images/portal-desk-hero.avif') type('image/avif'),
+    url('/images/portal-desk-hero.jpg') type('image/jpeg'));
+  /* Wider than it is tall at every real dashboard width, so cover scales
+     to the width and only ever crops vertically. The y offset is the only
+     control that matters. 64% keeps the leaf crown in frame along with
+     the pot, the mug and the top of the book stack; going much past 70%
+     pushes the plant out of the top edge entirely. */
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: 100% 64%;
   border-radius: 18px;
-  padding: 26px 32px;
-  margin-bottom: 26px;
+  padding: 28px 32px;
+  margin-bottom: 18px;
   box-shadow: 0 14px 40px rgba(11, 45, 79, 0.28);
   overflow: hidden;
 }
@@ -3172,14 +3202,61 @@ nav a[data-cap-group] {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(420px 200px at 88% -20%, rgba(245,158,11,0.18), transparent 70%),
-    radial-gradient(360px 220px at 12% 120%, rgba(37,99,235,0.22), transparent 70%);
+    /* Warm pass, in the same amber this banner already uses for the
+       greeting dot. Sits low and right over the desk and books, where the
+       window light falls, and counteracts the cool cast the navy leaves. */
+    radial-gradient(760px 340px at 86% 76%,
+      rgba(245, 158, 11, 0.14), transparent 70%),
+    /* The date sits over the window, the brightest part of the frame.
+       A soft pool of navy in that corner buys it contrast without
+       putting a visible surface behind the text. */
+    radial-gradient(520px 220px at 100% 0%,
+      rgba(var(--hero-navy), 0.28), transparent 72%),
+    /* Vertical pass: a little weight top and bottom so the date
+       and the chip rows hold up wherever the photo is brightest. */
+    linear-gradient(180deg,
+      rgba(var(--hero-navy), 0.10) 0%,
+      rgba(var(--hero-navy), 0) 42%,
+      rgba(var(--hero-navy), 0.12) 100%),
+    /* Deliberately light, and clear by 60%. The photograph's own wall is
+       already a dark blue-grey behind the greeting, so it does most of the
+       work of holding the name; piling navy on top of navy only flattened
+       the wall texture and cooled the whole frame. */
+    linear-gradient(90deg,
+      rgba(var(--hero-navy), 0.66) 0%,
+      rgba(var(--hero-navy), 0.40) 24%,
+      rgba(var(--hero-navy), 0.06) 46%,
+      rgba(var(--hero-navy), 0) 60%);
   pointer-events: none;
+}
+
+/* Between the phone layout and a full-width desktop the sidebar takes a
+   fixed bite out of the banner, so the same percentage stops land much
+   closer to the greeting. Push the fade right to keep the left half
+   readable without burying the photo. */
+@media (min-width: 768px) and (max-width: 1180px) {
+  .dash-banner::before {
+    background:
+      radial-gradient(560px 300px at 86% 76%,
+        rgba(245, 158, 11, 0.14), transparent 70%),
+      radial-gradient(420px 220px at 100% 0%,
+        rgba(var(--hero-navy), 0.28), transparent 72%),
+      linear-gradient(180deg,
+        rgba(var(--hero-navy), 0.10) 0%,
+        rgba(var(--hero-navy), 0) 42%,
+        rgba(var(--hero-navy), 0.12) 100%),
+      linear-gradient(90deg,
+        rgba(var(--hero-navy), 0.78) 0%,
+        rgba(var(--hero-navy), 0.58) 40%,
+        rgba(var(--hero-navy), 0.24) 68%,
+        rgba(var(--hero-navy), 0.05) 88%,
+        rgba(var(--hero-navy), 0) 100%);
+  }
 }
 
 .dash-banner-inner {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
@@ -3196,7 +3273,9 @@ nav a[data-cap-group] {
   font-weight: 700;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: #93c5fd;
+  /* Was a light blue. Over a photograph, white holds contrast in every
+     crop; the gold dot beside it carries the accent instead. */
+  color: rgba(255, 255, 255, 0.82);
   margin-bottom: 8px;
 }
 
@@ -3215,6 +3294,7 @@ nav a[data-cap-group] {
   color: #ffffff;
   line-height: 1.05;
   letter-spacing: -0.01em;
+  text-shadow: 0 1px 14px rgba(4, 17, 32, 0.45);
 }
 
 .dash-banner-school {
@@ -3235,11 +3315,15 @@ nav a[data-cap-group] {
   gap: 7px;
   font-size: 0.8rem;
   font-weight: 500;
-  color: rgba(255,255,255,0.78);
+  color: rgba(255,255,255,0.88);
   padding: 5px 12px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.14);
+  /* Tinted navy rather than plain white-on-transparent: over a photo the
+     old 8% white wash picked up whatever was behind it. */
+  background: rgba(9, 31, 54, 0.38);
+  border: 1px solid rgba(255,255,255,0.20);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .dash-banner-chip:empty { display: none; }
@@ -3248,13 +3332,17 @@ nav a[data-cap-group] {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  justify-content: center;
+  gap: 12px;
   flex-shrink: 0;
 }
 
 .dash-banner-date {
   text-align: right;
   pointer-events: none;
+  /* Sits over the brightest part of the photo (window light), so the
+     date carries its own shadow instead of a surface. */
+  text-shadow: 0 1px 12px rgba(4, 17, 32, 0.65);
 }
 .dash-banner-date-day {
   display: block;
@@ -3266,7 +3354,7 @@ nav a[data-cap-group] {
 .dash-banner-date-full {
   display: block;
   font-size: 0.75rem;
-  color: rgba(255,255,255,0.6);
+  color: rgba(255,255,255,0.78);
   margin-top: 3px;
   white-space: nowrap;
 }
@@ -4596,7 +4684,25 @@ a.staff-dash-request-row:hover {
   /* --- Welcome banner: auto-height and compact on mobile --- */
   .dash-banner {
     height: auto;
+    min-height: 0;
     padding: 14px 20px;
+    /* Pull the crop left and down. The desk edge and the darker wall
+       carry a short banner better than the bright window does, and the
+       greeting is the only thing that has to survive here. */
+    background-position: 68% 72%;
+  }
+
+  /* No room left of the greeting for the photo to breathe, so the scrim
+     stays heavy the whole way across rather than fading. */
+  .dash-banner::before {
+    background:
+      radial-gradient(320px 200px at 88% 80%,
+        rgba(245, 158, 11, 0.12), transparent 70%),
+      linear-gradient(90deg,
+        rgba(var(--hero-navy), 0.86) 0%,
+        rgba(var(--hero-navy), 0.76) 45%,
+        rgba(var(--hero-navy), 0.50) 75%,
+        rgba(var(--hero-navy), 0.30) 100%);
   }
 
   .dash-banner-inner {
@@ -8226,10 +8332,14 @@ select.admin-input {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  margin-top: 10px;
-  padding: 5px 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  /* .dash-banner-right supplies the gap now that the banner is a photo
+     and the chip needs to sit as a deliberate surface, not a hanging tag. */
+  margin-top: 0;
+  padding: 6px 12px;
+  background: rgba(9, 31, 54, 0.52);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 999px;
   cursor: pointer;
   font-size: 0.8rem;
@@ -8238,14 +8348,14 @@ select.admin-input {
   font-family: inherit;
   -webkit-appearance: none;
   appearance: none;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.90);
   white-space: nowrap;
   transition: background 0.15s;
   max-width: 240px;
   overflow: hidden;
 }
-.cal-chip:hover { background: rgba(255, 255, 255, 0.15); }
-.cal-chip-icon  { flex-shrink: 0; opacity: 0.7; }
+.cal-chip:hover { background: rgba(9, 31, 54, 0.68); }
+.cal-chip-icon  { flex-shrink: 0; opacity: 0.75; }
 .cal-chip-text  {
   flex: 1;
   overflow: hidden;
@@ -8255,7 +8365,7 @@ select.admin-input {
 .cal-chip-badge {
   font-size: 0.68rem;
   font-weight: 600;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.18);
   border-radius: 999px;
   padding: 1px 7px;
   flex-shrink: 0;
