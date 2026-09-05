@@ -58,15 +58,24 @@ function mergeAdminNote(existing, addition) {
   return existing ? `${existing}\n${addition}` : addition;
 }
 
+// Paged for the same reason the guardians lookup in
+// computeGuardianMatchCandidates() is: an unbounded select stops at
+// Supabase's 1000-row cap, and every volunteer past it would silently
+// stop matching once a school's roster grew large enough.
 async function loadVolunteerIndex() {
   if (volunteerIndex) return volunteerIndex;
-  const { data } = await supabase
-    .from('compliance_volunteers')
-    .select('id, first_name, last_name, guardian_id, email')
-    .eq('school_id', _profile.school_id)
-    .is('archived_at', null);
   volunteerIndex = new Map();
-  (data ?? []).forEach(v => volunteerIndex.set(matchKey(v.first_name, v.last_name), v));
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('compliance_volunteers')
+      .select('id, first_name, last_name, guardian_id, email')
+      .eq('school_id', _profile.school_id)
+      .is('archived_at', null)
+      .range(from, from + 999);
+    if (error) break;
+    (data ?? []).forEach(v => volunteerIndex.set(matchKey(v.first_name, v.last_name), v));
+    if (!data || data.length < 1000) break;
+  }
   return volunteerIndex;
 }
 
@@ -249,6 +258,40 @@ async function exportRequestsCSV() {
 // elsewhere in this module (see admin.compliance.forms.js).
 let guardianMatchCandidates = [];
 
+// Sentinel for "found candidates but couldn't tell them apart", which is a
+// different outcome from "found nobody" and gets counted separately.
+const AMBIGUOUS = Symbol('ambiguous');
+
+const normMatch = s => (s ?? '').trim().toLowerCase();
+const guardianNameKey = (first, last) => `${normMatch(last)}|${normMatch(first)}`;
+
+const MATCH_BASIS_LABEL = {
+  email: 'Email match',
+  'email+name': 'Email + name match',
+  name: 'Name match',
+};
+
+// Picks the one guardian a request refers to, given everyone who shares its
+// email and everyone who shares its name.
+//
+// Households routinely share a single email address, so an email hit on its
+// own is only decisive when nobody else uses that address. When several do,
+// the name breaks the tie: a request from Kelly Gibson at an address also
+// used by Travis Gibson is still unmistakably Kelly. Only a tie the name
+// can't break is genuinely ambiguous.
+function pickGuardianMatch(request, emailCandidates, nameCandidates) {
+  if (emailCandidates.length === 1) return { guardian: emailCandidates[0], basis: 'email' };
+
+  if (emailCandidates.length > 1) {
+    const wanted = guardianNameKey(request.subject_first_name, request.subject_last_name);
+    const narrowed = emailCandidates.filter(g => guardianNameKey(g.first_name, g.last_name) === wanted);
+    return narrowed.length === 1 ? { guardian: narrowed[0], basis: 'email+name' } : AMBIGUOUS;
+  }
+
+  if (nameCandidates.length === 1) return { guardian: nameCandidates[0], basis: 'name' };
+  return nameCandidates.length > 1 ? AMBIGUOUS : null;
+}
+
 async function openGuardianMatchReview() {
   const btn = document.getElementById('reqAutoMatchBtn');
   if (btn) { btn.disabled = true; btn.textContent = 'Matching…'; }
@@ -311,30 +354,35 @@ async function computeGuardianMatchCandidates() {
     if (!page || page.length < 1000) break;
   }
 
-  const norm = s => (s ?? '').trim().toLowerCase();
+  // Buckets hold every guardian sharing a key rather than collapsing to a
+  // single record, so a shared household email stays resolvable instead of
+  // being written off as ambiguous.
   const byEmail = new Map();
   const byName = new Map();
   (guardians ?? []).forEach(g => {
     if (g.email) {
-      const key = norm(g.email);
-      byEmail.set(key, byEmail.has(key) ? null : g); // null marks an ambiguous duplicate
+      const key = normMatch(g.email);
+      byEmail.set(key, [...(byEmail.get(key) ?? []), g]);
     }
-    const nameKey = `${norm(g.last_name)}|${norm(g.first_name)}`;
-    byName.set(nameKey, byName.has(nameKey) ? null : g);
+    const nameKey = guardianNameKey(g.first_name, g.last_name);
+    byName.set(nameKey, [...(byName.get(nameKey) ?? []), g]);
   });
 
   const matches = [];
   const unmatched = [];
   let ambiguous = 0;
   candidates.forEach(r => {
-    let basis = 'email';
-    let g = r.subject_email ? byEmail.get(norm(r.subject_email)) : undefined;
-    if (g === undefined) { basis = 'name'; g = byName.get(`${norm(r.subject_last_name)}|${norm(r.subject_first_name)}`); }
-    if (g === null) { ambiguous++; return; }
-    if (!g) {
+    const picked = pickGuardianMatch(
+      r,
+      r.subject_email ? byEmail.get(normMatch(r.subject_email)) ?? [] : [],
+      byName.get(guardianNameKey(r.subject_first_name, r.subject_last_name)) ?? [],
+    );
+    if (picked === AMBIGUOUS) { ambiguous++; return; }
+    if (!picked) {
       unmatched.push({ name: `${r.subject_first_name} ${r.subject_last_name}`, email: r.subject_email });
       return;
     }
+    const { guardian: g, basis } = picked;
     matches.push({
       requestId:       r.id,
       volunteerId:     r.volunteer_id || null,
@@ -376,7 +424,7 @@ function renderGuardianMatchReview(matches, ambiguous, unmatched) {
         <div style="font-size:13px;"><strong>${esc(m.requestName)}</strong>${m.requestEmail ? ` <span class="muted">${esc(m.requestEmail)}</span>` : ''}</div>
         <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
           → matched to <strong>${esc(m.guardianName)}</strong>${m.guardianEmail ? ` <span class="muted">${esc(m.guardianEmail)}</span>` : ''}
-          <span class="bg-status-pill bg-status-pending" style="margin-left:6px;">${m.basis === 'email' ? 'Email match' : 'Name match'}</span>
+          <span class="bg-status-pill bg-status-pending" style="margin-left:6px;">${esc(MATCH_BASIS_LABEL[m.basis] ?? 'Match')}</span>
         </div>
       </div>
     </div>
@@ -690,7 +738,7 @@ async function openResolveDrawer(id) {
     suggested = (await loadVolunteerIndex()).get(matchKey(row.subject_first_name, row.subject_last_name)) ?? null;
   }
   setResolvedVolunteer(suggested, suggested ? (row.volunteer_id ? 'Already linked.' : 'Suggested match — change it below if this is wrong.') : 'No roster match found — a new volunteer record will be created.');
-  await refreshGuardianForVolunteer(suggested);
+  await refreshGuardianForVolunteer(suggested, row);
 
   openDrawer('resolve');
 }
@@ -700,13 +748,56 @@ async function openResolveDrawer(id) {
 // admin manually swaps the matched volunteer in the Roster Match box,
 // so the Guardian record card never shows a stale link left over from
 // a previous match.
-async function refreshGuardianForVolunteer(volunteer) {
-  let guardian = null;
+//
+// With nothing linked yet, falls back to suggesting the guardian the
+// request itself points at. Nothing is written until the admin hits Save
+// Link, so this only saves them retyping a name they can already see.
+async function refreshGuardianForVolunteer(volunteer, request) {
   if (volunteer?.guardian_id) {
     const { data } = await supabase.from('guardians').select('id, first_name, last_name, email').eq('id', volunteer.guardian_id).maybeSingle();
-    guardian = data;
+    if (data) { setResolvedGuardian(data, 'Already linked.'); return; }
   }
-  setResolvedGuardian(guardian, guardian ? 'Already linked.' : 'No guardian linked — search below to link one.');
+
+  const picked = request ? await suggestGuardianForRequest(request) : null;
+  if (picked) {
+    setResolvedGuardian(picked.guardian, `${MATCH_BASIS_LABEL[picked.basis]} on this request. Save Link to confirm, or search below to change it.`);
+    return;
+  }
+  setResolvedGuardian(null, 'No guardian linked. Search below to link one.');
+}
+
+// `_` and `%` are wildcards to ilike, so a name or address containing one
+// would quietly widen the search past an exact comparison.
+const escLike = s => s.replace(/[\\%_]/g, m => `\\${m}`);
+
+// Single-request version of the bulk matcher, resolving the same way on the
+// same rules so the drawer and Auto-Match Guardians never disagree about
+// who a request belongs to.
+async function suggestGuardianForRequest(request) {
+  const base = () => supabase
+    .from('guardians')
+    .select('id, first_name, last_name, email')
+    .eq('school_id', _profile.school_id)
+    .eq('active', true);
+
+  let emailCandidates = [];
+  const email = normMatch(request.subject_email);
+  if (email) {
+    const { data } = await base().ilike('email', escLike(email)).limit(20);
+    emailCandidates = data ?? [];
+  }
+
+  let nameCandidates = [];
+  const first = normMatch(request.subject_first_name);
+  const last  = normMatch(request.subject_last_name);
+  // Only worth a second round trip when the email didn't already decide it.
+  if (first && last && emailCandidates.length !== 1) {
+    const { data } = await base().ilike('first_name', escLike(first)).ilike('last_name', escLike(last)).limit(20);
+    nameCandidates = data ?? [];
+  }
+
+  const picked = pickGuardianMatch(request, emailCandidates, nameCandidates);
+  return picked && picked !== AMBIGUOUS ? picked : null;
 }
 
 function setResolvedVolunteer(volunteer, hint) {
@@ -752,7 +843,7 @@ async function searchResolveVolunteers() {
     item.addEventListener('mousedown', e => {
       e.preventDefault();
       setResolvedVolunteer(v, 'Manually selected.');
-      refreshGuardianForVolunteer(v);
+      refreshGuardianForVolunteer(v, activeRequest);
       document.getElementById('resolveVolunteerSearch').value = '';
       resultsEl.style.display = 'none';
     });
