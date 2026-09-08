@@ -7,14 +7,22 @@ import { debounce, esc, showToast, fetchAllRows } from './admin.shared.js?v=3';
 ───────────────────────────────────────────────────── */
 let currentProfile = null;
 let campusLookup   = {};
-let employeeLookup = {};  // id → "Last, First"
+let employeeLookup = {};  // active employees only, id → "Last, First"
+// Every employee including inactive ones. Audit rows deliberately outlive the
+// license, CEU and employee records they describe, so the audit log resolves
+// names through this map instead: the active-only one would render a
+// deactivated staff member's history as a table of dashes, and searching for
+// them by name would come back empty.
+let allEmployeeLookup = {};
 let allLicenses    = [];  // cached for export
 let editingId      = null;
 let currentFilesByLicense = {};  // license id → current { file_path, file_name }
 
 const PAGE_SIZE = 50;
 let licPage  = 0;
-let auditPage = 0;
+
+const AUDIT_PAGE_SIZE = 50;
+let auditPage = 0;  // zero-based
 
 let allCeus               = [];   // cached for CEUs tab export
 let editingCeuId          = null;
@@ -26,9 +34,11 @@ let currentEditingLicense = null; // full license row while the license drawer i
 let ceuLicensesForStaff   = {};   // employee id → cached staff_licenses rows, for the CEU drawer's license select
 
 /* Flatpickr instances */
-let fpIssue   = null;
-let fpExp     = null;
-let fpCeuDate = null;
+let fpIssue     = null;
+let fpExp       = null;
+let fpCeuDate   = null;
+let fpAuditFrom = null;
+let fpAuditTo   = null;
 
 /* ─────────────────────────────────────────────────────
    CEU CATEGORY TARGETS (NC: 8 CEUs / 80 clock hours per
@@ -123,14 +133,16 @@ async function loadCampuses() {
 async function loadEmployees() {
   const { data } = await fetchAllRows(() => supabase
     .from('employees')
-    .select('id, first_name, last_name')
+    .select('id, first_name, last_name, active')
     .eq('school_id', currentProfile.school_id)
-    .eq('active', true)
     .order('last_name'));
 
   employeeLookup = {};
+  allEmployeeLookup = {};
   (data || []).forEach(e => {
-    employeeLookup[e.id] = `${e.last_name}, ${e.first_name}`;
+    const name = `${e.last_name}, ${e.first_name}`;
+    allEmployeeLookup[e.id] = name;
+    if (e.active) employeeLookup[e.id] = name;
   });
 }
 
@@ -312,7 +324,7 @@ function renderOverviewRows(containerId, rows, today, isAttention) {
 }
 
 function initialsFor(employeeId) {
-  const nameParts = (employeeLookup[employeeId] ?? '').split(',');
+  const nameParts = (allEmployeeLookup[employeeId] ?? '').split(',');
   return [nameParts[1]?.trim()[0], nameParts[0]?.trim()[0]].filter(Boolean).join('').toUpperCase() || '?';
 }
 
@@ -320,7 +332,7 @@ async function loadRecentActivity() {
   const container = document.getElementById('recentActivityList');
   if (!container) return;
 
-  const rows = await fetchMergedAuditRows(3);
+  const { rows } = await fetchAuditRows({ limit: 3 });
   if (!rows.length) {
     container.innerHTML = '<div class="lic-empty">No activity yet.</div>';
     return;
@@ -335,7 +347,7 @@ async function loadRecentActivity() {
         <span class="lic-activity-dot" style="background:${dotColor[r.change_type] ?? '#94a3b8'};"></span>
         <div class="lic-card-av lic-activity-av">${esc(initialsFor(r.employee_id))}</div>
         <div class="lic-activity-body">
-          <span class="lic-activity-name">${esc(employeeLookup[r.employee_id] ?? '—')}</span>
+          <span class="lic-activity-name">${esc(allEmployeeLookup[r.employee_id] ?? '—')}</span>
           <span class="lic-activity-action">${recordWord} ${esc(r.change_type)}</span>
         </div>
         <span class="lic-activity-time">${formatRelativeShort(r.changed_at)}</span>
@@ -351,32 +363,67 @@ function formatRelativeShort(ts) {
 }
 
 // Shared by loadAuditLog() (full table) and loadRecentActivity() (Overview
-// preview) so the two-table merge/sort logic only lives in one place.
-async function fetchMergedAuditRows(limit) {
-  const [licRes, ceuRes] = await Promise.all([
-    supabase
-      .from('staff_license_history')
-      .select('id, employee_id, changed_at, change_type, field_changes, changed_by')
-      .eq('school_id', currentProfile.school_id)
-      .order('changed_at', { ascending: false })
-      .limit(limit),
-    supabase
-      .from('staff_license_ceu_history')
-      .select('id, employee_id, changed_at, change_type, field_changes, changed_by')
-      .eq('school_id', currentProfile.school_id)
-      .order('changed_at', { ascending: false })
-      .limit(limit),
-  ]);
+// preview). Both read staff_license_audit_log, a UNION ALL view over the
+// license and CEU history tables, so paging, filtering and the total count
+// all happen in Postgres. The previous version pulled a fixed limit from each
+// table and merged them in JS, which meant the tab could never show or search
+// past its newest 200 entries and gave no hint that older ones existed.
+const AUDIT_COLUMNS = 'id, record_type, employee_id, changed_at, change_type, field_changes, changed_by';
 
-  if (licRes.error || ceuRes.error) {
-    console.error(licRes.error || ceuRes.error);
-    return [];
+async function fetchAuditRows({ limit, offset = 0, search = '', dateFrom = '', dateTo = '', withCount = false } = {}) {
+  let q = supabase
+    .from('staff_license_audit_log')
+    .select(AUDIT_COLUMNS, withCount ? { count: 'exact' } : {})
+    .eq('school_id', currentProfile.school_id)
+    // id breaks ties so paging is stable: changed_at is a transaction
+    // timestamp, so a license edit and its CEU rows share it exactly.
+    .order('changed_at', { ascending: false })
+    .order('id', { ascending: false });
+
+  // Date inputs are Y-m-d in the viewer's timezone; widen to that whole local
+  // day so a to-date of "today" includes changes made later today.
+  if (dateFrom) q = q.gte('changed_at', new Date(`${dateFrom}T00:00:00`).toISOString());
+  if (dateTo)   q = q.lte('changed_at', new Date(`${dateTo}T23:59:59.999`).toISOString());
+
+  if (search) {
+    const term = search.toLowerCase();
+
+    // The view stores ids, not names, so resolve the term against the names
+    // we already have and filter on the resulting id sets.
+    const employeeIds = Object.entries(allEmployeeLookup)
+      .filter(([, name]) => name.toLowerCase().includes(term))
+      .map(([id]) => id);
+
+    // changed_by is a profiles.user_id, which is a different id space from
+    // employee_id, so it needs its own lookup.
+    const { data: matchedProfiles } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('school_id', currentProfile.school_id)
+      .ilike('display_name', `%${term}%`);
+    const changerIds = (matchedProfiles ?? []).map(p => p.user_id);
+
+    const clauses = [`change_type.ilike."*${pgrstQuote(term)}*"`];
+    if (employeeIds.length) clauses.push(`employee_id.in.(${employeeIds.join(',')})`);
+    if (changerIds.length)  clauses.push(`changed_by.in.(${changerIds.join(',')})`);
+    q = q.or(clauses.join(','));
   }
 
-  return [
-    ...(licRes.data || []).map(r => ({ ...r, record_type: 'license' })),
-    ...(ceuRes.data || []).map(r => ({ ...r, record_type: 'ceu' })),
-  ].sort((a, b) => new Date(b.changed_at) - new Date(a.changed_at)).slice(0, limit);
+  if (limit) q = q.range(offset, offset + limit - 1);
+
+  const { data, error, count } = await q;
+  if (error) {
+    console.error(error);
+    return { rows: [], count: 0, error };
+  }
+  return { rows: data || [], count: count ?? (data || []).length, error: null };
+}
+
+// PostgREST filter values are quoted with double quotes; escaping backslashes
+// and quotes keeps a search term containing a comma or a paren from being
+// parsed as more filter grammar.
+function pgrstQuote(value) {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 /* ─────────────────────────────────────────────────────
@@ -559,13 +606,47 @@ async function openLicenseAttachment(licenseId) {
    AUDIT LOG TAB
 ───────────────────────────────────────────────────── */
 async function loadAuditLog() {
-  const search = document.getElementById('auditSearch')?.value.trim().toLowerCase() ?? '';
+  const tbody = document.getElementById('auditTableBody');
+  if (!tbody) return;
 
-  let rows = await fetchMergedAuditRows(200);
+  const search   = document.getElementById('auditSearch')?.value.trim() ?? '';
+  const dateFrom = document.getElementById('auditFrom')?.value.trim() ?? '';
+  const dateTo   = document.getElementById('auditTo')?.value.trim() ?? '';
+  const filtered = !!(search || dateFrom || dateTo);
+
+  tbody.innerHTML = '<tr><td colspan="6" class="lic-empty">Loading…</td></tr>';
+
+  const { rows, count, error } = await fetchAuditRows({
+    limit:  AUDIT_PAGE_SIZE,
+    offset: auditPage * AUDIT_PAGE_SIZE,
+    search, dateFrom, dateTo,
+    withCount: true,
+  });
+
+  if (error) {
+    tbody.innerHTML = '<tr><td colspan="6" class="lic-empty" style="color:#dc2626;">Failed to load the audit log. Please try again.</td></tr>';
+    renderAuditPagination(0);
+    return;
+  }
+
+  // Narrowing a filter can leave auditPage past the end of the new result
+  // set, which would otherwise read as "no matches" on a non-empty search.
+  // Only retry when the clamp actually moves us, so a count that disagrees
+  // with the page (rows the count saw but RLS filtered out, say) falls
+  // through to the empty state instead of looping.
+  if (!rows.length && count > 0 && auditPage > 0) {
+    const lastPage = Math.max(0, Math.ceil(count / AUDIT_PAGE_SIZE) - 1);
+    if (lastPage !== auditPage) {
+      auditPage = lastPage;
+      return loadAuditLog();
+    }
+  }
 
   if (!rows.length) {
-    const tbody = document.getElementById('auditTableBody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="lic-empty">No audit history yet.</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="6" class="lic-empty">${
+      filtered ? 'No audit entries match those filters.' : 'No audit history yet.'
+    }</td></tr>`;
+    renderAuditPagination(0);
     return;
   }
 
@@ -600,21 +681,6 @@ async function loadAuditLog() {
     });
   }
 
-  const tbody = document.getElementById('auditTableBody');
-
-  if (search) {
-    rows = rows.filter(r => {
-      const name = (employeeLookup[r.employee_id] ?? '').toLowerCase();
-      const changer = (changerLookup[r.changed_by] ?? '').toLowerCase();
-      return name.includes(search) || r.change_type.toLowerCase().includes(search) || changer.includes(search);
-    });
-  }
-
-  if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="lic-empty">No audit history yet.</td></tr>';
-    return;
-  }
-
   tbody.innerHTML = '';
   rows.forEach(r => {
     const changerProfile = changerLookup[r.changed_by] ?? '—';
@@ -627,7 +693,7 @@ async function loadAuditLog() {
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${formatDateTime(r.changed_at)}</td>
-      <td>${esc(employeeLookup[r.employee_id] ?? '—')}</td>
+      <td>${esc(allEmployeeLookup[r.employee_id] ?? '—')}</td>
       <td>${r.record_type === 'ceu' ? 'CEU' : 'License'}</td>
       <td><span class="badge badge-${changeTypeBadge(r.change_type)}">${esc(r.change_type)}</span></td>
       <td>${esc(changerProfile)}</td>
@@ -635,6 +701,74 @@ async function loadAuditLog() {
     `;
     tbody.appendChild(tr);
   });
+
+  renderAuditPagination(count);
+}
+
+// Mirrors the pagination markup createDirectory() emits (admin.directory.js)
+// so it picks up the same .pagination-* styles from admin-ui.css. The audit
+// log can't use createDirectory itself because it reads a union of two
+// tables rather than a single one.
+function renderAuditPagination(totalCount) {
+  const container = document.getElementById('auditPagination');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const totalPages = Math.ceil(totalCount / AUDIT_PAGE_SIZE);
+  const from = Math.min(auditPage * AUDIT_PAGE_SIZE + 1, totalCount);
+  const to   = Math.min((auditPage + 1) * AUDIT_PAGE_SIZE, totalCount);
+
+  const info = document.createElement('span');
+  info.className = 'pagination-info';
+  info.textContent = totalCount === 0
+    ? 'No entries'
+    : totalPages <= 1
+      ? `${totalCount} ${totalCount === 1 ? 'entry' : 'entries'}`
+      : `${from}-${to} of ${totalCount}`;
+  container.appendChild(info);
+
+  if (totalPages <= 1) return;
+
+  const controls = document.createElement('div');
+  controls.className = 'pagination-controls';
+
+  // page is zero-based here; the button labels are one-based.
+  function makeBtn(label, page, disabled = false, ariaLabel = '') {
+    const btn = document.createElement('button');
+    btn.innerHTML = label;
+    btn.className = 'pagination-btn' + (page === auditPage ? ' pagination-active' : '');
+    btn.disabled = disabled;
+    if (ariaLabel) btn.setAttribute('aria-label', ariaLabel);
+    if (!disabled && page !== auditPage) {
+      btn.onclick = async () => {
+        auditPage = page;
+        await loadAuditLog();
+        document.getElementById('audit')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      };
+    }
+    return btn;
+  }
+
+  controls.appendChild(makeBtn('&#8249;', auditPage - 1, auditPage === 0, 'Previous page'));
+  auditPageRange(auditPage + 1, totalPages).forEach(p => {
+    if (p === '…') {
+      const el = document.createElement('span');
+      el.className = 'pagination-ellipsis';
+      el.textContent = '…';
+      controls.appendChild(el);
+    } else {
+      controls.appendChild(makeBtn(String(p), p - 1));
+    }
+  });
+  controls.appendChild(makeBtn('&#8250;', auditPage + 1, auditPage === totalPages - 1, 'Next page'));
+  container.appendChild(controls);
+}
+
+function auditPageRange(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, '…', total];
+  if (current >= total - 3) return [1, '…', total - 4, total - 3, total - 2, total - 1, total];
+  return [1, '…', current - 1, current, current + 1, '…', total];
 }
 
 /* ─────────────────────────────────────────────────────
@@ -1568,6 +1702,17 @@ function initDatePickers() {
   fpIssue   = flatpickr('#licIssueDate',      { dateFormat: 'Y-m-d', allowInput: true });
   fpExp     = flatpickr('#licExpDate',        { dateFormat: 'Y-m-d', allowInput: true });
   fpCeuDate = flatpickr('#ceuCompletedDate',  { dateFormat: 'Y-m-d', allowInput: true, maxDate: 'today' });
+
+  // Audit log range. onChange rather than a 'change' listener in wireEvents()
+  // because clear() below is also expected to trigger a reload.
+  const auditRangeOpts = {
+    dateFormat: 'Y-m-d',
+    allowInput: true,
+    maxDate: 'today',
+    onChange: () => { auditPage = 0; loadAuditLog(); },
+  };
+  fpAuditFrom = flatpickr('#auditFrom', auditRangeOpts);
+  fpAuditTo   = flatpickr('#auditTo',   auditRangeOpts);
 }
 
 /* ─────────────────────────────────────────────────────
@@ -1662,9 +1807,21 @@ function wireEvents() {
   ['licSearch','licStatusFilter','licTypeFilter','licCampusFilter','licExpiryFilter']
     .forEach(id => document.getElementById(id)?.addEventListener('input', debounced));
 
+  // Any filter change invalidates the current page number: page 4 of the
+  // unfiltered log has nothing to do with page 4 of a search result.
   document.getElementById('auditSearch')?.addEventListener('input',
-    debounce(() => loadAuditLog(), 300)
+    debounce(() => { auditPage = 0; loadAuditLog(); }, 300)
   );
+
+  document.getElementById('auditClearBtn')?.addEventListener('click', () => {
+    const searchEl = document.getElementById('auditSearch');
+    if (searchEl) searchEl.value = '';
+    // clear(false) so the pickers' onChange doesn't fire two extra reloads.
+    fpAuditFrom?.clear(false);
+    fpAuditTo?.clear(false);
+    auditPage = 0;
+    loadAuditLog();
+  });
 
   // ── CEUs ──
   document.getElementById('addCeuBtn')?.addEventListener('click', () => openAddCeuModal());
