@@ -842,6 +842,29 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   border-width: 2px !important;
 }
 
+/* New Reservation modal: four date/time fields in one row of a 440px-wide
+   modal gave each column about 90px, which clipped the native date and time
+   controls. Stack them 2x2 (start on top, end below) so each one fits. */
+#resBookDatetimeRow {
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+}
+
+#resBookDatetimeRow input,
+#resBookBlockRow input {
+  width: 100%;
+}
+
+/* .compact.two reserves a trailing auto column for a button this row
+   does not have, which steals a gap's worth of width. */
+#resBookBlockRow {
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 430px) {
+  #resBookDatetimeRow { grid-template-columns: 1fr; }
+}
+
 /* ── My Licenses: CEU progress (read-only mirror of the admin drawer panel) ── */
 .ceu-license-card {
   background: #fff;
@@ -1728,7 +1751,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <label><span id="resBookTitleLabelText">Title</span> <span class="required">*</span></label>
         <input id="resBookTitle" class="form-input" placeholder="e.g. Staff meeting" />
       </div>
-      <div class="admin-form-row compact" style="gap:8px;" id="resBookDatetimeRow">
+      <div class="admin-form-row compact" style="gap:12px 8px;" id="resBookDatetimeRow">
         <div class="drawer-field" style="margin:0;">
           <label>Start date</label>
           <input id="resBookStartDate" type="date" class="form-input" />
