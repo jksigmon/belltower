@@ -656,6 +656,7 @@ td strong { color: #111827; }
       <tr><td><code>can_manage_carline</code></td><td>Operate the carline input screen — call students, record loads.</td></tr>
       <tr><td><code>can_manage_licensure</code></td><td>Licensure tab — add/edit/track staff licenses, certifications, and CEU (continuing education) records toward renewal.</td></tr>
       <tr><td><code>can_manage_compliance</code></td><td>Compliance tab — background checks, form templates, agreements.</td></tr>
+      <tr><td><code>can_manage_chaperone_credentials</code></td><td>Chaperone Credentials standalone tool &mdash; narrower than <code>can_manage_compliance</code>: can only enter DL/insurance expiration dates for volunteers already on the roster. No access to background checks, MVR, agreements, or the rest of the Compliance tab. Same standalone-tool pattern as <code>can_manage_placement</code> below &mdash; the link appears in both navs without needing full admin access.</td></tr>
       <tr><td><code>can_manage_field_trips</code></td><td>Admin-level field trip access — see <em>all</em> school trips. Without this, staff only see trips they are managing teachers on.</td></tr>
       <tr><td><code>can_manage_reservations</code></td><td>Reservations tab — manage the reservable resource catalog (conference room, van, gym, etc.) and approve or deny pending bookings.</td></tr>
       <tr><td><code>can_manage_inventory</code></td><td>Inventory tab — view and edit <em>every</em> teacher's checkout lists across the school. Without this, staff only see their own lists in the staff portal.</td></tr>
@@ -702,8 +703,8 @@ td strong { color: #111827; }
       </tr>
       <tr>
         <td><code>compliance</code></td>
-        <td>Compliance tab (admin + staff portal link), chaperone compliance on field trips</td>
-        <td>can_manage_compliance</td>
+        <td>Compliance tab (admin + staff portal link), chaperone compliance on field trips, Chaperone Credentials standalone tool</td>
+        <td>can_manage_compliance (Compliance tab); can_manage_compliance or can_manage_chaperone_credentials (Chaperone Credentials tool)</td>
       </tr>
       <tr>
         <td><code>field_trips</code></td>

@@ -89,6 +89,7 @@
         <a href="#requests" data-cap="can_manage_requests" data-cap-alt="can_review_all_requests" data-module="requests"><i data-lucide="inbox"></i> Requests</a>
         <a href="/app/licensure.html" data-cap="can_manage_licensure" data-module="licensure"><i data-lucide="badge-check"></i> Licensure</a>
         <a href="/app/compliance.html" data-cap="can_manage_compliance" data-module="compliance"><i data-lucide="shield-check"></i> Compliance</a>
+        <a href="/app/chaperone-credentials.html" data-cap="can_manage_chaperone_credentials" data-cap-alt="can_manage_compliance" data-module="compliance"><i data-lucide="car-front"></i> Chaperone Credentials</a>
         <a href="/app/field-trips.html" data-cap="can_manage_field_trips" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
         <a href="/app/placement.html" data-cap="can_manage_placement"><i data-lucide="layout-grid"></i> Class Placement</a>
         <a href="#promotion" data-cap="can_manage_placement"><i data-lucide="graduation-cap"></i> Year-End Promotion</a>
@@ -492,6 +493,7 @@
           <label><input type="checkbox" data-field="can_export_data"><span class="perm-name">Export data</span><span class="perm-desc">Can export student, staff, and other records to spreadsheets.</span></label>
           <label data-module="licensure"><input type="checkbox" data-field="can_manage_licensure"><span class="perm-name">Manage licensure</span><span class="perm-desc">Can view and update staff license records and expiry notifications.</span></label>
           <label data-module="compliance"><input type="checkbox" data-field="can_manage_compliance"><span class="perm-name">Manage compliance</span><span class="perm-desc">Can manage volunteer agreement forms and background check tracking.</span></label>
+          <label data-module="compliance"><input type="checkbox" data-field="can_manage_chaperone_credentials"><span class="perm-name">Manage chaperone credentials</span><span class="perm-desc">Narrow version of Manage compliance: can only enter driver's license and insurance expiration dates for existing volunteers. No access to background checks, MVR, agreements, or requests. Not needed if Manage compliance is already checked.</span></label>
           <label data-module="field_trips"><input type="checkbox" data-field="can_manage_field_trips"><span class="perm-name">Manage field trips</span><span class="perm-desc">Can create and manage all field trips across the school.</span></label>
           <label data-module="reservations"><input type="checkbox" data-field="can_manage_reservations"><span class="perm-name">Manage reservations</span><span class="perm-desc">Can manage the reservable resource catalog and approve or deny pending bookings.</span></label>
           <label data-module="inventory"><input type="checkbox" data-field="can_manage_inventory"><span class="perm-name">Manage inventory (all classrooms)</span><span class="perm-desc">Can view and edit every teacher's inventory checkout lists across the school, not just their own.</span></label>

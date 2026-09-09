@@ -1002,6 +1002,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="/app/requests-manage.html" id="navRequestManager" style="display:none;"><i data-lucide="clipboard-check"></i> Request Manager</a>
   <a href="/app/field-trips.html" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
   <a href="/app/placement.html" id="navPlacement" style="display:none;"><i data-lucide="layout-grid"></i> Class Placement</a>
+  <a href="/app/chaperone-credentials.html" id="navChaperoneCredentials" style="display:none;"><i data-lucide="car-front"></i> Chaperone Credentials</a>
   <a href="#data-collection"><i data-lucide="link"></i> Form Links</a>
   <a href="#resources" data-module="resource_docs"><i data-lucide="folder-open"></i> Resources</a>
   <a href="#reservations" data-module="reservations"><i data-lucide="calendar-clock"></i> Reservations</a>
@@ -5302,6 +5303,17 @@ function applyModuleNavVisibility() {
   if (navPlacement) {
     navPlacement.style.display =
       (currentProfile?.can_manage_placement || currentProfile?.is_superadmin) ? 'flex' : 'none';
+  }
+
+  // Chaperone Credentials: permission-gated like Class Placement above,
+  // but still needs the compliance module on (its data lives in
+  // compliance_volunteers, which doesn't exist as a concept for schools
+  // without the module enabled).
+  const navChaperoneCredentials = document.getElementById('navChaperoneCredentials');
+  if (navChaperoneCredentials) {
+    const hasCap = currentProfile?.can_manage_chaperone_credentials || currentProfile?.can_manage_compliance || currentProfile?.is_superadmin;
+    navChaperoneCredentials.style.display =
+      (hasCap && window.staffModules?.compliance === true) ? 'flex' : 'none';
   }
 
   // Hide "Request Access" for superadmins and anyone who already has admin access
