@@ -28,6 +28,26 @@ export function resetRequestsView() {
   reqSelection.clear();
 }
 
+// "Requested by" has three distinct states that all used to collapse into
+// a bare dash, which made a missing name impossible to diagnose from the
+// screen:
+//   - requestor_id null: nobody submitted it through the staff portal. It
+//     was logged here via + Add Record, or came in on the historical bulk
+//     import. There is no name to show and never will be.
+//   - requestor_id set, embed resolved: show the name (or the email when
+//     the profile has no display_name). Note || rather than ??, so a
+//     profile row carrying an empty-string display_name falls through to
+//     the email instead of rendering an empty cell.
+//   - requestor_id set, embed came back null: the profiles row exists but
+//     RLS hid it from this viewer, so the join silently dropped it. Say
+//     so rather than implying the request has no requester.
+function requestedByLabel(row) {
+  if (!row.requestor_id) return { text: 'Logged by admin', muted: true };
+  const name = row.requestor?.display_name || row.requestor?.email;
+  if (name) return { text: name, muted: false };
+  return { text: 'Not visible to you', muted: true };
+}
+
 // Mirrors public.compliance_volunteer_match_key() closely enough for a
 // client-side suggestion -- strips "(...)" nickname annotations, keys
 // off the first *word* of the first name. Not used for anything that
@@ -114,7 +134,7 @@ export async function loadRequests(profile) {
   const filters = reqFilters();
   let query = supabase
     .from('compliance_bg_check_requests')
-    .select('id, subject_first_name, subject_last_name, subject_email, reason, status, requested_at, volunteer_roles, volunteer_id, requestor:profiles!requestor_id(display_name, email)', { count: 'exact' })
+    .select('id, subject_first_name, subject_last_name, subject_email, reason, status, requested_at, volunteer_roles, volunteer_id, requestor_id, requestor:profiles!requestor_id(display_name, email)', { count: 'exact' })
     .eq('school_id', _profile.school_id)
     .is('archived_at', null);
 
@@ -147,6 +167,7 @@ export async function loadRequests(profile) {
     const match = row.volunteer_id ? null : volunteerIndex.get(matchKey(row.subject_first_name, row.subject_last_name));
     const name = `${row.subject_first_name} ${row.subject_last_name}`;
     const initials = ((row.subject_first_name?.[0] ?? '') + (row.subject_last_name?.[0] ?? '')).toUpperCase();
+    const requestedBy = requestedByLabel(row);
     tr.innerHTML = `
       <td>
         <div style="display:flex;align-items:center;gap:8px;">
@@ -154,7 +175,7 @@ export async function loadRequests(profile) {
           <div><strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>${row.subject_email ? `<br><span class="muted" style="font-size:12px;">${esc(row.subject_email)}</span>` : ''}</div>
         </div>
       </td>
-      <td>${esc(row.requestor?.display_name ?? row.requestor?.email ?? '—')}</td>
+      <td>${requestedBy.muted ? `<span class="muted">${esc(requestedBy.text)}</span>` : esc(requestedBy.text)}</td>
       <td style="max-width:160px;white-space:normal;">${(row.volunteer_roles ?? []).map(r => `<span style="background:#eff6ff;color:#1d4ed8;border-radius:999px;font-size:10px;font-weight:700;padding:2px 7px;display:inline-block;margin:1px;">${esc(VOLUNTEER_ROLES[r]?.label ?? r)}</span>`).join('') || '<span class="muted">—</span>'}</td>
       <td style="max-width:160px;white-space:normal;">${row.reason ? esc(row.reason) : '<span class="muted">—</span>'}</td>
       <td>${row.volunteer_id ? '<span class="bg-status-pill bg-status-cleared">Linked</span>' : match ? `<span class="bg-status-pill bg-status-pending">Matches ${esc(match.first_name)} ${esc(match.last_name)}</span> <button class="btn btn-sm" data-link="${esc(row.id)}" style="margin-left:2px;">Link</button>` : '<span class="muted">No match</span>'}</td>
@@ -691,7 +712,7 @@ async function openResolveDrawer(id) {
 
   const name = `${row.subject_first_name} ${row.subject_last_name}`;
   const initials = ((row.subject_first_name?.[0] ?? '') + (row.subject_last_name?.[0] ?? '')).toUpperCase();
-  const requestedBy = row.requestor?.display_name ?? row.requestor?.email ?? '—';
+  const requestedBy = requestedByLabel(row).text;
 
   document.getElementById('resolveRequestInfo').innerHTML = `
     <div class="req-detail-header">
