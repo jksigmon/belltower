@@ -1332,7 +1332,11 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
           <span class="pto-field-label">Email address</span>
           <input type="email" id="bgEmail" placeholder="Email address" autocomplete="off">
           <span style="display:block;font-size:12px;color:#b45309;margin-top:6px;padding:6px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;">A request cannot be made without an email address. It also helps match this person to an existing guardian record.</span>
-          <span id="bgDedupWarning" style="display:none;font-size:12px;color:#b45309;margin-top:6px;padding:6px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;"></span>
+          <span id="bgDedupWarning" class="bg-dedup-alert" style="display:none;"></span>
+          <label id="bgDedupConfirmWrap" style="display:none;align-items:flex-start;gap:6px;margin-top:8px;font-size:12px;color:#991b1b;font-weight:600;cursor:pointer;">
+            <input type="checkbox" id="bgDedupConfirm" style="margin-top:2px;">
+            I checked with my compliance manager and this is a different person, or a request that still needs to be filed.
+          </label>
         </div>
 
         <div class="bg-step-header"><span class="bg-step-num">2</span><span class="bg-step-label">Select role(s) <span style="color:#dc2626;">*</span></span><span class="bg-step-sub">Choose all that apply.</span></div>
@@ -5651,6 +5655,13 @@ function wireSubCoverageUI() {
 
 let bgDedupTimer = null;
 
+// True only when the last dedup check matched on an exact email hit
+// (compliance_bg_check_lookup's match_basis) rather than a name-only
+// match -- a common name colliding is a false positive that shouldn't
+// block anyone, but an exact email match is a real duplicate and gates
+// submission until the confirm checkbox is checked.
+let bgDedupEmailMatch = false;
+
 function scheduleBgDedupCheck() {
   clearTimeout(bgDedupTimer);
   bgDedupTimer = setTimeout(runBgDedupCheck, 500);
@@ -5671,13 +5682,21 @@ function fmtBgLookupDate(d) {
 // in-flight request before submitting a duplicate. Matches by email
 // first, falling back to first+last name, so this still catches
 // duplicates when the teacher doesn't know the parent's email.
+function hideBgDedupConfirm() {
+  bgDedupEmailMatch = false;
+  const wrap = document.getElementById('bgDedupConfirmWrap');
+  const confirmBox = document.getElementById('bgDedupConfirm');
+  wrap.style.display = 'none';
+  confirmBox.checked = false;
+}
+
 async function runBgDedupCheck() {
   const warningEl = document.getElementById('bgDedupWarning');
   const firstName = document.getElementById('bgFirstName')?.value.trim();
   const lastName  = document.getElementById('bgLastName')?.value.trim();
   const email     = document.getElementById('bgEmail')?.value.trim();
 
-  if (!firstName || !lastName || !currentProfile) { warningEl.style.display = 'none'; return; }
+  if (!firstName || !lastName || !currentProfile) { warningEl.style.display = 'none'; hideBgDedupConfirm(); return; }
 
   const { data, error } = await supabase.rpc('compliance_bg_check_lookup', {
     p_first_name: firstName,
@@ -5685,10 +5704,19 @@ async function runBgDedupCheck() {
     p_email:      email || null,
   });
 
-  if (error || !data?.length) { warningEl.style.display = 'none'; return; }
+  if (error || !data?.length) { warningEl.style.display = 'none'; hideBgDedupConfirm(); return; }
 
   const match = data[0];
   const name = `${match.subject_first_name} ${match.subject_last_name}`;
+
+  // Reset any stale confirmation whenever the underlying match changes,
+  // so checking the box for one duplicate doesn't silently carry over
+  // and wave through submission of a genuinely different duplicate.
+  hideBgDedupConfirm();
+  if (match.match_basis === 'email') {
+    bgDedupEmailMatch = true;
+    document.getElementById('bgDedupConfirmWrap').style.display = 'flex';
+  }
 
   if (match.match_source === 'volunteer') {
     const parts = [];
@@ -5807,6 +5835,15 @@ document.getElementById('bgSubmitBtn')?.addEventListener('click', async () => {
     document.getElementById('bgNotes')?.focus();
     return;
   }
+  // An exact email match against an existing volunteer or in-flight
+  // request is a real duplicate, not a coincidence -- block submission
+  // until the requester actively confirms they've checked with their
+  // compliance manager, rather than letting the warning above (however
+  // visible) go unread.
+  if (bgDedupEmailMatch && !document.getElementById('bgDedupConfirm')?.checked) {
+    msgEl.textContent = 'This email already has a request or volunteer record on file. Check the confirmation box above to submit anyway.';
+    return;
+  }
   msgEl.textContent = '';
 
   const btn      = document.getElementById('bgSubmitBtn');
@@ -5840,6 +5877,7 @@ document.getElementById('bgSubmitBtn')?.addEventListener('click', async () => {
   document.querySelectorAll('input[name="bgRole"]').forEach(cb => { cb.checked = false; });
   document.getElementById('bgNotes').value     = '';
   document.getElementById('bgDedupWarning').style.display = 'none';
+  hideBgDedupConfirm();
   syncBgNotesRequirement(); // clearing checkboxes in JS fires no 'change'
 
   showToast('Background check request submitted');

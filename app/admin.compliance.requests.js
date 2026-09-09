@@ -14,6 +14,7 @@ let _profile        = null;
 let reqPage          = 1;
 let reqPageRows      = new Map(); // id -> row, current page only
 let volunteerIndex   = null;      // matchKey -> { id, first_name, last_name } for the whole school
+let dupEmailIndex    = null;      // lower(subject_email) -> [{ id, name }] across all open requests
 let activeRequest    = null;      // request row currently open in the resolve drawer
 let resolvedVolunteer = null;     // the volunteer the resolve drawer will link to
 let resolvedGuardian  = null;     // the guardian record to stamp onto that volunteer, if any
@@ -25,6 +26,7 @@ let resolvedGuardian  = null;     // the guardian record to stamp onto that volu
 export function resetRequestsView() {
   reqPage = 1;
   volunteerIndex = null;
+  dupEmailIndex = null;
   reqSelection.clear();
 }
 
@@ -99,6 +101,37 @@ async function loadVolunteerIndex() {
   return volunteerIndex;
 }
 
+// Same email spelled/matched differently by name doesn't collapse to one
+// compliance_volunteers row (matchKey() only keys off last name + the first
+// word of the first name -- "Camila" and "Cami" don't collide), so two
+// requesters can each submit for the same real person and both sail past
+// the name-based Roster Match column looking unrelated. This indexes every
+// open request by email instead, independent of name spelling, so the
+// table can flag the pair regardless of which name variant either used.
+async function loadDupEmailIndex() {
+  if (dupEmailIndex) return dupEmailIndex;
+  dupEmailIndex = new Map();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('compliance_bg_check_requests')
+      .select('id, subject_first_name, subject_last_name, subject_email')
+      .eq('school_id', _profile.school_id)
+      .is('archived_at', null)
+      .in('status', ['pending', 'submitted'])
+      .not('subject_email', 'is', null)
+      .range(from, from + 999);
+    if (error) break;
+    (data ?? []).forEach(r => {
+      const key = r.subject_email.trim().toLowerCase();
+      if (!key) return;
+      const name = `${r.subject_first_name} ${r.subject_last_name}`;
+      dupEmailIndex.set(key, [...(dupEmailIndex.get(key) ?? []), { id: r.id, name }]);
+    });
+    if (!data || data.length < 1000) break;
+  }
+  return dupEmailIndex;
+}
+
 function reqFilters() {
   return {
     search: document.getElementById('reqSearch')?.value.trim() || '',
@@ -130,6 +163,7 @@ export async function loadRequests(profile) {
   tbody.innerHTML = '<tr><td colspan="9" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>';
 
   await loadVolunteerIndex();
+  await loadDupEmailIndex();
 
   const filters = reqFilters();
   let query = supabase
@@ -168,11 +202,17 @@ export async function loadRequests(profile) {
     const name = `${row.subject_first_name} ${row.subject_last_name}`;
     const initials = ((row.subject_first_name?.[0] ?? '') + (row.subject_last_name?.[0] ?? '')).toUpperCase();
     const requestedBy = requestedByLabel(row);
+    const dupes = row.subject_email
+      ? (dupEmailIndex.get(row.subject_email.trim().toLowerCase()) ?? []).filter(d => d.id !== row.id)
+      : [];
+    const dupFlag = dupes.length
+      ? `<span class="req-dup-email-flag" title="Same email as: ${esc(dupes.map(d => d.name).join(', '))}">⚠ Duplicate email</span>`
+      : '';
     tr.innerHTML = `
       <td>
         <div style="display:flex;align-items:center;gap:8px;">
           <div class="admin-table-avatar" style="background:${getAvatarColor(name)};">${esc(initials)}</div>
-          <div><strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>${row.subject_email ? `<br><span class="muted" style="font-size:12px;">${esc(row.subject_email)}</span>` : ''}</div>
+          <div><strong>${esc(row.subject_first_name)} ${esc(row.subject_last_name)}</strong>${row.subject_email ? `<br><span class="muted" style="font-size:12px;">${esc(row.subject_email)}</span>${dupFlag}` : ''}</div>
         </div>
       </td>
       <td>${requestedBy.muted ? `<span class="muted">${esc(requestedBy.text)}</span>` : esc(requestedBy.text)}</td>
@@ -607,6 +647,7 @@ async function declineRequest(id) {
     .eq('school_id', _profile.school_id);
   if (error) { dbError(error, 'Failed'); return; }
   showToast('Request declined');
+  dupEmailIndex = null; // this request left the open set
   await loadRequests();
 }
 
@@ -637,6 +678,7 @@ async function restoreRequest(id) {
     .eq('school_id', _profile.school_id);
   if (error) { dbError(error, 'Failed'); return; }
   showToast('Request restored');
+  dupEmailIndex = null; // this request re-entered the open set
   await loadRequests();
 }
 
@@ -700,6 +742,7 @@ export async function saveAddRequest() {
 
   closeDrawer('reqAdd');
   showToast('Request logged');
+  dupEmailIndex = null; // a new request just entered the open set
   await loadRequests();
 }
 
@@ -1147,5 +1190,6 @@ export async function saveResolve() {
   activeRequest = null;
   resolvedGuardian = null;
   volunteerIndex = null; // the roster just changed
+  dupEmailIndex = null; // this request left the open set
   await loadRequests();
 }

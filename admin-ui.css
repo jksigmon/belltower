@@ -9064,6 +9064,48 @@ select.admin-input {
   margin-left: 10px;
 }
 
+/* ── BG Check duplicate-request alert (staff.html) ──
+   Deliberately red/pulsing and visually distinct from the plain
+   amber "email is required" hint next to it, so a real duplicate
+   match doesn't blend in with routine field guidance. */
+@keyframes bg-dedup-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.35); }
+  50%      { box-shadow: 0 0 0 7px rgba(220, 38, 38, 0); }
+}
+
+.bg-dedup-alert {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #991b1b;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border: 1.5px solid #f87171;
+  border-radius: 6px;
+  animation: bg-dedup-pulse 1.8s ease-in-out infinite;
+}
+
+/* ── Requests inbox: same-email duplicate flag (compliance.html) ──
+   Same red language as .bg-dedup-alert above, sized down into an inline
+   badge -- flags two open requests sharing a subject email even when the
+   submitted names don't match closely enough for the Roster Match column
+   to catch it (nickname/spelling variants of the same person). */
+.req-dup-email-flag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  padding: 1px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #f87171;
+  border-radius: 999px;
+  white-space: nowrap;
+  cursor: help;
+}
+
 /* ── BG Check "My Requests" list rows (staff.html) ── */
 .bg-req-row {
   display: flex;

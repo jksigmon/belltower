@@ -3,7 +3,7 @@ import { supabase } from './admin.supabase.js?v=2';
 import { esc, fmtShortDate, dbError, todayISO } from './admin.shared.js?v=3';
 import {
   openDrawer, closeDrawer, showToast, renderPagination,
-  createBulkSelection, applyVolunteerStatusFilters, PAGE_SIZE,
+  createBulkSelection, applyVolunteerStatusFilters, closeOpenRequestsForVolunteers, PAGE_SIZE,
 } from './admin.compliance.utils.js';
 import { VOLUNTEER_ROLES, credentialStatus } from './compliance.roles.js?v=3';
 import { openVolunteerDrawerForRow, populateVolunteerRoleFilters, downloadCSV } from './admin.compliance.volunteers.js';
@@ -265,6 +265,13 @@ export async function saveRenew() {
   saveBtn.disabled = false; saveBtn.textContent = 'Apply';
 
   if (error) { msgEl.textContent = `Failed: ${esc(error.message)}`; return; }
+
+  // Same reasoning as the Volunteers drawer's save: a renewal applied
+  // straight to compliance_volunteers needs to close out any request still
+  // waiting on the Requests screen for these same people.
+  await closeOpenRequestsForVolunteers(_profile.school_id, ids, {
+    clearedAt: clearedAt, expiresAt: expiresAt, mvrClearedAt: clearedAt, mvrExpiresAt: expiresAt,
+  });
 
   closeDrawer('attRenew');
   showToast(`${ids.length} volunteer${ids.length === 1 ? '' : 's'} marked renewed`);

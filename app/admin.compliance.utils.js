@@ -1,4 +1,6 @@
 
+import { supabase } from './admin.supabase.js?v=2';
+
 export const VOLUNTEER_BASE = `${window.location.origin}/volunteer.html?form=`;
 export const PAGE_SIZE = 25;
 
@@ -165,6 +167,30 @@ export function applyVolunteerStatusFilters(query, { search, role, status, crede
   if (credential === 'insurance') query = query.eq('insurance_expired', true);
 
   return query;
+}
+
+// Closes out any request still sitting on the Requests screen for the given
+// volunteer(s), the same way "Mark Cleared" in the Resolve drawer does.
+// Anywhere a volunteer's own cleared dates get set directly -- the
+// Volunteers drawer, or Needs Attention's bulk renew -- the linked request
+// needs the same treatment, otherwise it stays parked on pending/submitted
+// forever even though the roster already shows the credential as current.
+export async function closeOpenRequestsForVolunteers(schoolId, volunteerIds, dates) {
+  const ids = (Array.isArray(volunteerIds) ? volunteerIds : [volunteerIds]).filter(Boolean);
+  if (!ids.length || !dates.clearedAt) return;
+
+  await supabase
+    .from('compliance_bg_check_requests')
+    .update({
+      status: 'cleared',
+      cleared_at: dates.clearedAt,
+      expires_at: dates.expiresAt ?? null,
+      mvr_cleared_at: dates.mvrClearedAt ?? null,
+      mvr_expires_at: dates.mvrExpiresAt ?? null,
+    })
+    .in('volunteer_id', ids)
+    .eq('school_id', schoolId)
+    .in('status', ['pending', 'submitted']);
 }
 
 export function showToast(msg) {

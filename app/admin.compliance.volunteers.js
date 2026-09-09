@@ -3,7 +3,7 @@ import { supabase } from './admin.supabase.js?v=2';
 import { esc, fmtShortDate, dbError, downloadCSV } from './admin.shared.js?v=3';
 import {
   openDrawer, closeDrawer, showToast, renderPagination,
-  createBulkSelection, applyVolunteerStatusFilters, PAGE_SIZE,
+  createBulkSelection, applyVolunteerStatusFilters, closeOpenRequestsForVolunteers, PAGE_SIZE,
 } from './admin.compliance.utils.js';
 import {
   VOLUNTEER_ROLES, roleCheckboxGridHTML, credentialStatus,
@@ -436,6 +436,20 @@ export async function saveVolunteer() {
       ? 'A volunteer with this name already exists. Edit their existing record instead.'
       : `Save failed: ${esc(error.message)}`;
     return;
+  }
+
+  // Entering the BG cleared date here is functionally the same action as
+  // "Mark Cleared" in the Requests screen's Resolve drawer -- it just
+  // starts from the volunteer's own record instead of the request. Without
+  // this, a request tied to this volunteer stayed stuck on
+  // pending/submitted forever even though the roster now shows them cleared.
+  if (activeVolunteer && payload.bg_cleared_at) {
+    await closeOpenRequestsForVolunteers(_profile.school_id, activeVolunteer.id, {
+      clearedAt: payload.bg_cleared_at,
+      expiresAt: payload.bg_expires_at,
+      mvrClearedAt: payload.mvr_cleared_at,
+      mvrExpiresAt: payload.mvr_expires_at,
+    });
   }
 
   // Keep the linked guardian's own DL/insurance/chaperone/drive columns in
