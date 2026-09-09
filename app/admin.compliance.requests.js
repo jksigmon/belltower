@@ -83,8 +83,24 @@ function reqFilters() {
   return {
     search: document.getElementById('reqSearch')?.value.trim() || '',
     status: document.getElementById('reqStatusFilter')?.value || '',
+    link: document.getElementById('reqLinkFilter')?.value || '',
     sort: document.getElementById('reqSortSelect')?.value || 'newest',
   };
+}
+
+// Shared by the table and the CSV export so both always see the same set.
+// The roster filter keys off volunteer_id, which is exactly what the
+// "Linked" pill in the Roster match column reflects; "Not linked" therefore
+// covers both the name-match suggestions and the outright "No match" rows.
+function applyReqFilters(query, filters) {
+  query = filters.status ? query.eq('status', filters.status) : query.in('status', ['pending', 'submitted']);
+  if (filters.link === 'linked') query = query.not('volunteer_id', 'is', null);
+  else if (filters.link === 'unlinked') query = query.is('volunteer_id', null);
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    query = query.or(`subject_first_name.ilike.${term},subject_last_name.ilike.${term},subject_email.ilike.${term}`);
+  }
+  return query;
 }
 
 export async function loadRequests(profile) {
@@ -102,11 +118,7 @@ export async function loadRequests(profile) {
     .eq('school_id', _profile.school_id)
     .is('archived_at', null);
 
-  query = filters.status ? query.eq('status', filters.status) : query.in('status', ['pending', 'submitted']);
-  if (filters.search) {
-    const term = `%${filters.search}%`;
-    query = query.or(`subject_first_name.ilike.${term},subject_last_name.ilike.${term},subject_email.ilike.${term}`);
-  }
+  query = applyReqFilters(query, filters);
 
   query = query.order('requested_at', { ascending: filters.sort === 'oldest' })
     .range((reqPage - 1) * PAGE_SIZE, reqPage * PAGE_SIZE - 1);
@@ -179,6 +191,7 @@ export function wireRequestFilters() {
   const reset = debounce(() => { reqPage = 1; loadRequests(); }, 250);
   document.getElementById('reqSearch')?.addEventListener('input', reset);
   document.getElementById('reqStatusFilter')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
+  document.getElementById('reqLinkFilter')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
   document.getElementById('reqSortSelect')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
   document.getElementById('reqAddRecordBtn')?.addEventListener('click', openAddRequestDrawer);
   document.getElementById('reqAutoMatchBtn')?.addEventListener('click', openGuardianMatchReview);
@@ -213,11 +226,7 @@ async function exportRequestsCSV() {
     .order('subject_first_name', { ascending: true })
     .limit(5000);
 
-  query = filters.status ? query.eq('status', filters.status) : query.in('status', ['pending', 'submitted']);
-  if (filters.search) {
-    const term = `%${filters.search}%`;
-    query = query.or(`subject_first_name.ilike.${term},subject_last_name.ilike.${term},subject_email.ilike.${term}`);
-  }
+  query = applyReqFilters(query, filters);
 
   const { data, error } = await query;
   if (error) { dbError(error, 'Export failed'); return; }
