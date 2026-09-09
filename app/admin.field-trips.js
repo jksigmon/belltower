@@ -1935,13 +1935,16 @@ async function saveTrip() {
 async function loadManagers(tripId) {
   const { data: rows, error: rpcErr } = await supabase.rpc('get_trip_managers', { trip_id: tripId });
   if (rpcErr) { console.error('get_trip_managers failed:', rpcErr); currentManagers = []; renderManagerChips(); return; }
-  const ids = (rows ?? []).map(r => r.profile_id).filter(Boolean);
-  if (!ids.length) { currentManagers = []; renderManagerChips(); return; }
-  const { data: profs } = await supabase.from('profiles').select('id, display_name, email').in('id', ids);
-  currentManagers = ids.map(pid => {
-    const prof = (profs ?? []).find(p => p.id === pid) ?? {};
-    return { profile_id: pid, name: prof.display_name ?? prof.email ?? '', email: prof.email ?? '' };
-  });
+  // Names come from the RPC, not a direct profiles read: profiles SELECT is
+  // RLS-gated to admins and your own row, so a plain teacher resolving her
+  // co-managers that way gets blank chips for everyone but herself.
+  currentManagers = (rows ?? [])
+    .filter(r => r.profile_id)
+    .map(r => ({
+      profile_id: r.profile_id,
+      name: r.display_name || r.email || 'Unknown staff',
+      email: r.email ?? '',
+    }));
   renderManagerChips();
 }
 
