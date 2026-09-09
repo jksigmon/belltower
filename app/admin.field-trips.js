@@ -2002,7 +2002,7 @@ async function searchStaffProfiles(val) {
     const p = (profs ?? []).find(pr => pr.employee_id === emp.id);
     const name = [emp.first_name, emp.last_name].filter(Boolean).join(' ') || emp.email;
     if (p?.can_login) {
-      assignable.push({ id: p.id, name, email: p.email ?? emp.email ?? '' });
+      assignable.push({ id: p.profile_id, name, email: p.email ?? emp.email ?? '' });
     } else {
       noLogin.push({ name, email: emp.email ?? '' });
     }
