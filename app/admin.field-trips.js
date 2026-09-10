@@ -664,7 +664,7 @@ function getMissingForms(guardian) {
   return forms.filter(t => !signed.has(t.id));
 }
 
-function computeComplianceStatus(guardian, volunteer, tripDate, isDriver) {
+function computeComplianceStatus(guardian, volunteer, tripDate, isDriver, { includeForms = true } = {}) {
   if (!volunteer) return { status: 'blocked', detail: '' };
 
   const trip  = new Date(tripDate + 'T12:00:00');
@@ -693,9 +693,11 @@ function computeComplianceStatus(guardian, volunteer, tripDate, isDriver) {
   }
   if (volunteer.can_chaperone === false) return { status: 'action', detail: 'Flagged as not allowed to chaperone' };
 
-  const missingForms = getMissingForms(guardian);
-  if (missingForms.length) {
-    return { status: 'action', detail: `Missing: ${missingForms.map(t => t.title).join(', ')}` };
+  if (includeForms) {
+    const missingForms = getMissingForms(guardian);
+    if (missingForms.length) {
+      return { status: 'action', detail: `Missing: ${missingForms.map(t => t.title).join(', ')}` };
+    }
   }
 
   return { status: 'cleared', detail: '' };
@@ -744,12 +746,21 @@ function renderChaperoneTable() {
   }
 
   tbody.innerHTML = '';
-  chaperoneList.forEach(chap => {
+  const sortedChaperones = [...chaperoneList].sort((a, b) => {
+    const pa = a.employee_id ? (a.employee ?? {}) : (a.guardian ?? {});
+    const pb = b.employee_id ? (b.employee ?? {}) : (b.guardian ?? {});
+    const nameA = `${pa.last_name ?? ''} ${pa.first_name ?? ''}`.trim().toLowerCase();
+    const nameB = `${pb.last_name ?? ''} ${pb.first_name ?? ''}`.trim().toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+  sortedChaperones.forEach(chap => {
     const isStaff = !!chap.employee_id;
     const g       = chap.guardian ?? {};
     const person  = isStaff ? (chap.employee ?? {}) : g;
     const volunteer          = isStaff ? null : getVolunteer(g);
-    const { status, detail } = isStaff ? { status: 'staff', detail: '' } : computeComplianceStatus(g, volunteer, tripDate, chap.is_driver);
+    // Forms are shown in their own column -- don't let a missing-forms-only
+    // gap flip the Background Check chip to "Action needed" too.
+    const { status, detail } = isStaff ? { status: 'staff', detail: '' } : computeComplianceStatus(g, volunteer, tripDate, chap.is_driver, { includeForms: false });
 
     const students = isStaff
       ? '<span class="muted">—</span>'
