@@ -571,6 +571,27 @@
   </div>
 </div>
 
+<!-- ══ EDIT CHAPERONE MODAL ══════════════════════════════════════════ -->
+<div id="ftEditChapModal" class="ft-modal-overlay">
+  <div class="ft-modal-card">
+    <h3 id="ftEditChapModalTitle" style="margin:0 0 18px 0;font-size:16px;font-weight:800;color:#0b2d4f;"></h3>
+    <div class="drawer-field" style="margin-bottom:14px;">
+      <label class="drawer-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="ftEditChapIsDriver" style="width:16px;height:16px;">
+        Driving (will check MVR clearance)
+      </label>
+    </div>
+    <div id="ftEditChapCapacityWrap" class="drawer-field" style="display:none;padding-left:20px;margin-bottom:8px;">
+      <label class="drawer-label" for="ftEditChapCapacity">Vehicle capacity (seats)</label>
+      <input type="number" id="ftEditChapCapacity" min="1" max="99" placeholder="e.g. 7" class="admin-input" style="width:100%;">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <button class="btn" id="ftEditChapModalCancel">Cancel</button>
+      <button class="btn btn-primary" id="ftEditChapModalSave">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ DAY-OF SHEET MODAL ═══════════════════════════════════════════ -->
 <div id="ftDayOfOverlay" class="ft-modal-overlay" style="z-index:600;">
   <div class="ft-modal-card" style="width:640px;max-width:calc(100vw - 32px);max-height:85vh;overflow-y:auto;">
@@ -756,6 +777,7 @@
       <div class="ft-chap-type-toggle" id="ftChapTypeToggle">
         <button type="button" class="ft-toggle-btn active" data-chap-type="guardian">Parent/Guardian</button>
         <button type="button" class="ft-toggle-btn" data-chap-type="staff">Staff</button>
+        <button type="button" class="ft-toggle-btn" data-chap-type="volunteer">Volunteer</button>
       </div>
     </div>
 
@@ -765,6 +787,7 @@
         <input type="text" id="ftChapSearch" class="admin-input" placeholder="Name or email..." style="width:100%;">
         <div id="ftChapResults" class="ft-typeahead-results" style="display:none;"></div>
       </div>
+      <small style="font-size:11px;color:#9ca3af;">Not a parent/guardian or staff member? Search here once they're in Compliance &rarr; Volunteers, or if they've already submitted a background check request (even a pending one).</small>
     </div>
 
     <div id="ftChapSelected" style="display:none;margin-bottom:16px;">

@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
-import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, todayISO, dbError, showToast, getAvatarColor } from './admin.shared.js?v=3';
+import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, fmtShortDate, todayISO, dbError, showToast, getAvatarColor } from './admin.shared.js?v=3';
 
 let profile = null;
 let schoolConfig = null;
@@ -33,7 +33,8 @@ let volunteerByNameKey    = new Map(); // "last|firstword" (lower, parens stripp
 let requiredFormTemplates = [];        // school-level, loaded once on init
 let agreementsMap        = new Map(); // email (lower) -> Set<templateId>
 let agreementsGuardianMap = new Map(); // guardian_id -> Set<templateId> (fallback when guardian has no email)
-let selectedGuardian     = null;
+let pendingRequestByVolunteerId = new Map(); // volunteer_id -> open compliance_bg_check_requests row
+let selectedCandidate    = null;
 let activeTab            = 'chaperones';
 let drawerManagers       = [];   // { profile_id, name, email } — pending in drawer
 let currentManagers      = [];   // loaded from DB for current trip
@@ -496,13 +497,17 @@ async function loadChaperones() {
   const { data, error } = await supabase
     .from('field_trip_chaperones')
     .select(`
-      id, guardian_id, employee_id, is_driver, added_at,
+      id, guardian_id, employee_id, volunteer_id, is_driver, vehicle_capacity, added_at,
       guardian:guardians(id, first_name, last_name, email, phone,
         family:families(family_name,
           students(id, first_name, last_name, grade_level)
         )
       ),
-      employee:employees(id, first_name, last_name, email)
+      employee:employees(id, first_name, last_name, email),
+      volunteer:compliance_volunteers(id, first_name, last_name, email, guardian_id,
+        bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at,
+        dl_expires_at, insurance_expires_at, can_chaperone, can_drive
+      )
     `)
     .eq('field_trip_id', currentTrip.id)
     .is('removed_at', null)
@@ -519,6 +524,7 @@ async function loadChaperones() {
   await Promise.all([
     loadVolunteerCompliance(chaperoneList),
     loadAgreements(chaperoneList),
+    loadPendingRequests(chaperoneList),
   ]);
 
   renderChaperoneTable();
@@ -574,7 +580,7 @@ async function loadAgreements(chaperones) {
   if (!chaperones.length || !requiredFormTemplates.length) return;
 
   const templateIds  = requiredFormTemplates.map(t => t.id);
-  const emails       = chaperones.map(c => (c.guardian?.email ?? '').toLowerCase()).filter(Boolean);
+  const emails       = chaperones.map(c => (c.guardian?.email ?? c.volunteer?.email ?? '').toLowerCase()).filter(Boolean);
   const guardianIds  = chaperones.map(c => c.guardian?.id).filter(Boolean);
 
   const queries = [];
@@ -644,6 +650,25 @@ async function loadVolunteerCompliance(chaperones) {
   });
 }
 
+// Lets the BG chip distinguish "requested, still waiting on results" from
+// a flat "nothing on file" for volunteer-linked chaperones claimed off a
+// still-open request (see claim_chaperone_for_bg_request).
+async function loadPendingRequests(chaperones) {
+  pendingRequestByVolunteerId.clear();
+  const volIds = chaperones.map(c => c.volunteer_id).filter(Boolean);
+  if (!volIds.length) return;
+
+  const { data } = await supabase
+    .from('compliance_bg_check_requests')
+    .select('volunteer_id, status, requested_at')
+    .eq('school_id', profile.school_id)
+    .in('volunteer_id', volIds)
+    .in('status', ['pending', 'submitted'])
+    .is('archived_at', null);
+
+  (data ?? []).forEach(r => { if (r.volunteer_id) pendingRequestByVolunteerId.set(r.volunteer_id, r); });
+}
+
 function getVolunteer(guardian) {
   if (!guardian) return null;
   // Trust a direct guardian_id link over a name guess -- it's the
@@ -703,14 +728,20 @@ function computeComplianceStatus(guardian, volunteer, tripDate, isDriver, { incl
   return { status: 'cleared', detail: '' };
 }
 
-function renderBgChip(status, volunteer, tripDate, isDriver, detail = '') {
-  const labels = { cleared: 'Cleared', action: 'Action needed', blocked: 'Blocked', unknown: 'No record' };
-  const cls    = { cleared: 'comp-cleared', action: 'comp-action', blocked: 'comp-blocked', unknown: 'comp-unknown' };
-  const s = volunteer ? status : 'unknown';
+function renderBgChip(status, volunteer, tripDate, isDriver, detail = '', pendingRequest = null) {
+  const labels = { cleared: 'Cleared', action: 'Action needed', blocked: 'Blocked', unknown: 'No record', pending: 'BG Pending' };
+  const cls    = { cleared: 'comp-cleared', action: 'comp-action', blocked: 'comp-blocked', unknown: 'comp-unknown', pending: 'comp-action' };
+  let s = volunteer ? status : 'unknown';
 
   let tooltip = detail;
   if (!volunteer) {
     tooltip = 'No matching volunteer record found. Check that this guardian\'s name matches an entry in Compliance → Volunteers, or link them from a request.';
+  } else if (s === 'blocked' && !volunteer.bg_cleared_at && pendingRequest) {
+    // Claimed off a still-open BG request (see claim_chaperone_for_bg_request)
+    // -- distinguish "already requested, awaiting results" from a flat
+    // "nothing on file" so the teacher isn't left wondering if anyone acted.
+    s = 'pending';
+    tooltip = `Background check requested ${fmtShortDate(pendingRequest.requested_at)} — awaiting results.`;
   } else if (s === 'blocked') {
     const bgExp = volunteer.bg_expires_at ? new Date(volunteer.bg_expires_at + 'T12:00:00') : null;
     const trip  = new Date(tripDate + 'T12:00:00');
@@ -746,23 +777,30 @@ function renderChaperoneTable() {
   }
 
   tbody.innerHTML = '';
+  const chapPerson = c => c.employee_id ? (c.employee ?? {}) : c.volunteer_id ? (c.volunteer ?? {}) : (c.guardian ?? {});
   const sortedChaperones = [...chaperoneList].sort((a, b) => {
-    const pa = a.employee_id ? (a.employee ?? {}) : (a.guardian ?? {});
-    const pb = b.employee_id ? (b.employee ?? {}) : (b.guardian ?? {});
+    const pa = chapPerson(a);
+    const pb = chapPerson(b);
     const nameA = `${pa.last_name ?? ''} ${pa.first_name ?? ''}`.trim().toLowerCase();
     const nameB = `${pb.last_name ?? ''} ${pb.first_name ?? ''}`.trim().toLowerCase();
     return nameA.localeCompare(nameB);
   });
   sortedChaperones.forEach(chap => {
-    const isStaff = !!chap.employee_id;
+    const isStaff     = !!chap.employee_id;
+    const isVolunteer = !!chap.volunteer_id;
     const g       = chap.guardian ?? {};
-    const person  = isStaff ? (chap.employee ?? {}) : g;
-    const volunteer          = isStaff ? null : getVolunteer(g);
+    const person  = isStaff ? (chap.employee ?? {}) : isVolunteer ? (chap.volunteer ?? {}) : g;
+    // A directly-linked volunteer record IS the compliance record -- no
+    // name-matching lookup needed the way guardians require.
+    const volunteer = isStaff ? null : isVolunteer ? (chap.volunteer ?? null) : getVolunteer(g);
+    // getMissingForms() only reads .email/.id off this, so the volunteer
+    // record itself stands in fine for a guardian here.
+    const formsPerson = isVolunteer ? (chap.volunteer ?? {}) : g;
     // Forms are shown in their own column -- don't let a missing-forms-only
     // gap flip the Background Check chip to "Action needed" too.
-    const { status, detail } = isStaff ? { status: 'staff', detail: '' } : computeComplianceStatus(g, volunteer, tripDate, chap.is_driver, { includeForms: false });
+    const { status, detail } = isStaff ? { status: 'staff', detail: '' } : computeComplianceStatus(formsPerson, volunteer, tripDate, chap.is_driver, { includeForms: false });
 
-    const students = isStaff
+    const students = (isStaff || isVolunteer)
       ? '<span class="muted">—</span>'
       : (g.family?.students ?? []).map(s => esc(s.first_name)).join(', ') || '<span class="muted">—</span>';
 
@@ -787,12 +825,13 @@ function renderChaperoneTable() {
     }
 
     const formsCell = formsRequired
-      ? `<td>${isStaff ? '<span class="muted" style="font-size:12px;">N/A</span>' : renderFormsChip(g)}</td>`
+      ? `<td>${isStaff ? '<span class="muted" style="font-size:12px;">N/A</span>' : renderFormsChip(formsPerson)}</td>`
       : '';
 
+    const pendingRequest = isVolunteer ? pendingRequestByVolunteerId.get(chap.volunteer_id) : null;
     const bgCell = isStaff
       ? `<span class="chap-staff-badge" title="Staff members aren't tracked through volunteer compliance — background checks are handled through employment records.">Staff</span>`
-      : renderBgChip(status, volunteer, tripDate, chap.is_driver, detail);
+      : renderBgChip(status, volunteer, tripDate, chap.is_driver, detail, pendingRequest);
 
     const fullName = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
     const initials = `${person.first_name?.[0] ?? ''}${person.last_name?.[0] ?? ''}`.toUpperCase();
@@ -812,9 +851,13 @@ function renderChaperoneTable() {
       ${mvrCell}
       ${formsCell}
       <td>${chap.is_driver ? '<span class="comp-chip comp-action">Driver</span>' : '<span class="muted" style="font-size:12px;">No</span>'}</td>
-      <td><button class="btn btn-sm btn-danger" data-chap-id="${esc(chap.id)}" style="font-size:11px;">Remove</button></td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn btn-sm" data-edit-chap-id="${esc(chap.id)}" style="font-size:11px;">Edit</button>
+        <button class="btn btn-sm btn-danger" data-chap-id="${esc(chap.id)}" style="font-size:11px;">Remove</button>
+      </td>
     `;
     tr.querySelector('button[data-chap-id]').addEventListener('click', () => removeChaperone(chap.id));
+    tr.querySelector('button[data-edit-chap-id]').addEventListener('click', () => openEditChapModal(chap));
     tbody.appendChild(tr);
   });
 }
@@ -826,9 +869,11 @@ function renderComplianceStats() {
   let cleared = 0, action = 0, blocked = 0;
   chaperoneList.forEach(chap => {
     if (chap.employee_id) { cleared++; return; } // staff aren't compliance-tracked; don't flag them as blocked
+    const isVolunteer = !!chap.volunteer_id;
     const g  = chap.guardian ?? {};
-    const volunteer = getVolunteer(g);
-    const { status: s } = computeComplianceStatus(g, volunteer, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
+    const formsPerson = isVolunteer ? (chap.volunteer ?? {}) : g;
+    const volunteer = isVolunteer ? (chap.volunteer ?? null) : getVolunteer(g);
+    const { status: s } = computeComplianceStatus(formsPerson, volunteer, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
     if (s === 'cleared')  cleared++;
     else if (s === 'action') action++;
     else blocked++;
@@ -1338,7 +1383,8 @@ function wireChapDrawer() {
     if (!btn) return;
     chapType = btn.dataset.chapType;
     document.querySelectorAll('#ftChapTypeToggle .ft-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
-    document.getElementById('ftChapSearchLabel').textContent = chapType === 'staff' ? 'Search staff' : 'Search guardians';
+    document.getElementById('ftChapSearchLabel').textContent =
+      chapType === 'staff' ? 'Search staff' : chapType === 'volunteer' ? 'Search volunteers' : 'Search guardians';
     clearChapSelection();
     document.getElementById('ftChapSearch').value = '';
     document.getElementById('ftChapResults').style.display = 'none';
@@ -1358,6 +1404,15 @@ function wireChapDrawer() {
 
   document.getElementById('ftChapIsDriver')?.addEventListener('change', e => {
     document.getElementById('ftChapCapacityWrap').style.display = e.target.checked ? '' : 'none';
+  });
+
+  document.getElementById('ftEditChapIsDriver')?.addEventListener('change', e => {
+    document.getElementById('ftEditChapCapacityWrap').style.display = e.target.checked ? '' : 'none';
+  });
+  document.getElementById('ftEditChapModalCancel')?.addEventListener('click', closeEditChapModal);
+  document.getElementById('ftEditChapModalSave')?.addEventListener('click', saveEditChap);
+  document.getElementById('ftEditChapModal')?.addEventListener('click', e => {
+    if (e.target.id === 'ftEditChapModal') closeEditChapModal();
   });
 }
 
@@ -1387,13 +1442,14 @@ function closeChapDrawer() {
 }
 
 function clearChapSelection() {
-  selectedGuardian = null;
+  selectedCandidate = null;
   document.getElementById('ftChapSelected').style.display = 'none';
   document.getElementById('ftSaveChapBtn').disabled = true;
 }
 
 async function searchChaperoneCandidates() {
   if (chapType === 'staff') return searchStaffCandidates();
+  if (chapType === 'volunteer') return searchVolunteers();
   return searchGuardians();
 }
 
@@ -1432,7 +1488,7 @@ async function searchGuardians() {
     const item = document.createElement('div');
     item.className = 'ft-typeahead-item';
     item.innerHTML = `<strong>${esc(g.first_name)} ${esc(g.last_name)}</strong><span>${esc(g.email ?? '')}</span>`;
-    item.addEventListener('mousedown', e => { e.preventDefault(); selectGuardian(g); });
+    item.addEventListener('mousedown', e => { e.preventDefault(); selectChapCandidate(g); });
     results.appendChild(item);
   });
 }
@@ -1471,23 +1527,92 @@ async function searchStaffCandidates() {
     const item = document.createElement('div');
     item.className = 'ft-typeahead-item';
     item.innerHTML = `<strong>${esc(p.first_name)} ${esc(p.last_name)}</strong><span>${esc(p.email ?? '')}</span>`;
-    item.addEventListener('mousedown', e => { e.preventDefault(); selectGuardian(p); });
+    item.addEventListener('mousedown', e => { e.preventDefault(); selectChapCandidate(p); });
     results.appendChild(item);
   });
 }
 
-function selectGuardian(g) {
-  selectedGuardian = g;
+// Outside/community volunteers -- tracked in Compliance -> Volunteers with
+// no guardian_id link (see compliance_volunteers.guardian_id, nullable).
+// Volunteers already linked to a guardian should be added via the
+// Parent/Guardian search instead, so this only surfaces unlinked ones.
+//
+// Also surfaces people whose BG check request is still pending/submitted
+// -- compliance hasn't resolved them into a roster row yet, but a teacher
+// shouldn't have to wait on that to claim the chaperone slot. Picking one
+// of these claims the request via claim_chaperone_for_bg_request() in
+// saveChaperone() below, which creates the placeholder roster row (no
+// clearance dates yet -- reads as Blocked/Pending until compliance clears
+// it) and links it back onto the request so Resolve reuses the same row.
+async function searchVolunteers() {
+  const val = document.getElementById('ftChapSearch').value.trim();
+  const results = document.getElementById('ftChapResults');
+  if (val.length < 2) { results.style.display = 'none'; return; }
+
+  results.innerHTML = `<div class="ft-typeahead-empty">Searching...</div>`;
+  results.style.display = '';
+
+  const orFilter    = `first_name.ilike.%${val}%,last_name.ilike.%${val}%,email.ilike.%${val}%`;
+  const reqOrFilter = `subject_first_name.ilike.%${val}%,subject_last_name.ilike.%${val}%,subject_email.ilike.%${val}%`;
+
+  const [{ data: volData }, { data: reqData }] = await Promise.all([
+    supabase.from('compliance_volunteers')
+      .select('id, first_name, last_name, email')
+      .eq('school_id', profile.school_id)
+      .is('archived_at', null)
+      .is('guardian_id', null)
+      .or(orFilter)
+      .limit(8),
+    supabase.from('compliance_bg_check_requests')
+      .select('id, subject_first_name, subject_last_name, subject_email')
+      .eq('school_id', profile.school_id)
+      .in('status', ['pending', 'submitted'])
+      .is('volunteer_id', null)
+      .is('archived_at', null)
+      .or(reqOrFilter)
+      .limit(8),
+  ]);
+
+  const existingVolunteerIds = new Set(chaperoneList.map(c => c.volunteer_id));
+  const volunteerCandidates = (volData ?? [])
+    .filter(v => !existingVolunteerIds.has(v.id))
+    .map(v => ({ kind: 'volunteer', id: v.id, first_name: v.first_name, last_name: v.last_name, email: v.email }));
+  const requestCandidates = (reqData ?? [])
+    .map(r => ({ kind: 'request', id: r.id, first_name: r.subject_first_name, last_name: r.subject_last_name, email: r.subject_email }));
+
+  const candidates = [...volunteerCandidates, ...requestCandidates];
+
+  if (!candidates.length) {
+    results.innerHTML = `<div class="ft-typeahead-empty">No volunteers or pending BG requests found. Add them in Compliance &rarr; Volunteers, or have them submit a request first.</div>`;
+    return;
+  }
+
+  results.innerHTML = '';
+  candidates.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'ft-typeahead-item';
+    const pendingTag = c.kind === 'request'
+      ? ' <span style="color:#b45309;font-weight:700;">BG check pending</span>'
+      : '';
+    item.innerHTML = `<strong>${esc(c.first_name)} ${esc(c.last_name)}</strong><span>${esc(c.email ?? '')}${pendingTag}</span>`;
+    item.addEventListener('mousedown', e => { e.preventDefault(); selectChapCandidate(c); });
+    results.appendChild(item);
+  });
+}
+
+function selectChapCandidate(g) {
+  selectedCandidate = g;
   document.getElementById('ftChapResults').style.display = 'none';
   document.getElementById('ftChapSearch').value = '';
   document.getElementById('ftChapSelectedName').textContent  = `${g.first_name} ${g.last_name}`;
-  document.getElementById('ftChapSelectedEmail').textContent = g.email ?? '';
+  document.getElementById('ftChapSelectedEmail').textContent =
+    (g.email ?? '') + (g.kind === 'request' ? '  •  BG check pending — will show as Pending until compliance clears it' : '');
   document.getElementById('ftChapSelected').style.display = '';
   document.getElementById('ftSaveChapBtn').disabled = false;
 }
 
 async function saveChaperone() {
-  if (!selectedGuardian || !currentTrip) return;
+  if (!selectedCandidate || !currentTrip) return;
 
   if (currentTrip.max_chaperones && chaperoneList.length >= currentTrip.max_chaperones) {
     showToast(`This trip is capped at ${currentTrip.max_chaperones} chaperones.`, 'warn');
@@ -1507,8 +1632,26 @@ async function saveChaperone() {
     vehicle_capacity:    vehicleCap,
     added_by_profile_id: profile.id,
   };
-  if (chapType === 'staff') payload.employee_id = selectedGuardian.id;
-  else                      payload.guardian_id = selectedGuardian.id;
+  if (chapType === 'staff') {
+    payload.employee_id = selectedCandidate.id;
+  } else if (chapType === 'volunteer') {
+    if (selectedCandidate.kind === 'request') {
+      const { data: claimed, error: claimErr } = await supabase.rpc('claim_chaperone_for_bg_request', {
+        p_request_id: selectedCandidate.id,
+        p_field_trip_id: currentTrip.id,
+      });
+      if (claimErr || !claimed?.length) {
+        showToast('Failed to claim this pending request -- it may have just been resolved. Try searching again.', 'error');
+        btn.disabled = false;
+        return;
+      }
+      payload.volunteer_id = claimed[0].volunteer_id;
+    } else {
+      payload.volunteer_id = selectedCandidate.id;
+    }
+  } else {
+    payload.guardian_id = selectedCandidate.id;
+  }
 
   const { error } = await supabase.from('field_trip_chaperones').insert(payload);
 
@@ -1521,6 +1664,54 @@ async function saveChaperone() {
   closeChapDrawer();
   await loadChaperones();
   loadChaperoneCounts([currentTrip.id]);
+}
+
+// ── Edit Chaperone modal ────────────────────────────────────────────────
+let pendingEditChapId = null;
+
+function openEditChapModal(chap) {
+  pendingEditChapId = chap.id;
+  const isStaff     = !!chap.employee_id;
+  const isVolunteer = !!chap.volunteer_id;
+  const person = isStaff ? (chap.employee ?? {}) : isVolunteer ? (chap.volunteer ?? {}) : (chap.guardian ?? {});
+  document.getElementById('ftEditChapModalTitle').textContent = `Edit ${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
+  document.getElementById('ftEditChapIsDriver').checked = !!chap.is_driver;
+  document.getElementById('ftEditChapCapacity').value   = chap.vehicle_capacity ?? '';
+  document.getElementById('ftEditChapCapacityWrap').style.display = chap.is_driver ? '' : 'none';
+  document.getElementById('ftEditChapModal').classList.add('open');
+}
+
+function closeEditChapModal() {
+  document.getElementById('ftEditChapModal').classList.remove('open');
+  pendingEditChapId = null;
+}
+
+async function saveEditChap() {
+  if (!pendingEditChapId) return;
+
+  const btn = document.getElementById('ftEditChapModalSave');
+  btn.disabled = true;
+
+  const isDriver   = document.getElementById('ftEditChapIsDriver').checked;
+  const capInput   = document.getElementById('ftEditChapCapacity').value;
+  const vehicleCap = isDriver && capInput ? (parseInt(capInput, 10) || null) : null;
+
+  const { error } = await supabase
+    .from('field_trip_chaperones')
+    .update({ is_driver: isDriver, vehicle_capacity: vehicleCap })
+    .eq('id', pendingEditChapId);
+
+  btn.disabled = false;
+  if (error) { dbError(error, 'Failed to update chaperone'); return; }
+
+  const chap = chaperoneList.find(c => c.id === pendingEditChapId);
+  if (chap) { chap.is_driver = isDriver; chap.vehicle_capacity = vehicleCap; }
+
+  closeEditChapModal();
+  renderChaperoneTable();
+  renderComplianceStats();
+  const planBtn = document.getElementById('ftPlanVehiclesBtn');
+  if (planBtn) planBtn.style.display = chaperoneList.some(c => c.is_driver) ? '' : 'none';
 }
 
 // ── CSV Export ───────────────────────────────────────────────────────────
@@ -1540,9 +1731,10 @@ function exportChaperoneCSV() {
   headers.push('Overall compliance');
 
   const rows = chaperoneList.map(chap => {
-    const isStaff = !!chap.employee_id;
+    const isStaff     = !!chap.employee_id;
+    const isVolunteer = !!chap.volunteer_id;
     const g       = chap.guardian ?? {};
-    const person  = isStaff ? (chap.employee ?? {}) : g;
+    const person  = isStaff ? (chap.employee ?? {}) : isVolunteer ? (chap.volunteer ?? {}) : g;
 
     if (isStaff) {
       const row = [
@@ -1562,13 +1754,15 @@ function exportChaperoneCSV() {
       return row;
     }
 
-    const volunteer = getVolunteer(g);
-    const { status: s } = computeComplianceStatus(g, volunteer, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
-    const kids  = (g.family?.students ?? []).map(k => `${k.first_name} ${k.last_name}`).join('; ');
-    const bgStatus = !volunteer ? 'No record' : !volunteer.bg_cleared_at ? 'Missing' : 'On file';
+    const formsPerson = isVolunteer ? (chap.volunteer ?? {}) : g;
+    const volunteer = isVolunteer ? (chap.volunteer ?? null) : getVolunteer(g);
+    const { status: s } = computeComplianceStatus(formsPerson, volunteer, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
+    const kids  = isVolunteer ? '' : (g.family?.students ?? []).map(k => `${k.first_name} ${k.last_name}`).join('; ');
+    const pendingReq = isVolunteer ? pendingRequestByVolunteerId.get(chap.volunteer_id) : null;
+    const bgStatus = !volunteer ? 'No record' : !volunteer.bg_cleared_at ? (pendingReq ? 'Pending' : 'Missing') : 'On file';
     const row = [
-      `${g.last_name ?? ''}, ${g.first_name ?? ''}`,
-      g.email ?? '',
+      `${person.last_name ?? ''}, ${person.first_name ?? ''}`,
+      person.email ?? '',
       chap.is_driver ? 'Yes' : 'No',
       kids,
       bgStatus,
@@ -1582,7 +1776,7 @@ function exportChaperoneCSV() {
       );
     }
     if (forms.length) {
-      const missing = getMissingForms(g);
+      const missing = getMissingForms(formsPerson);
       const signed  = new Set(forms.map(t => t.id).filter(id => !missing.find(m => m.id === id)));
       forms.forEach(t => row.push(signed.has(t.id) ? 'Signed' : 'Not signed'));
       row.push(missing.map(t => t.title).join('; ') || 'None');
@@ -2524,7 +2718,7 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap) {
   if (hasAssignments) {
     const drivers = chaperoneList.filter(c => c.is_driver);
     drivers.forEach(d => {
-      const person = d.guardian ?? d.employee ?? {};
+      const person = d.guardian ?? d.employee ?? d.volunteer ?? {};
       const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim() || 'Driver';
       const studs = students.filter(s => assignMap.get(s.id) === d.id).sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
       rosterHtml += `<div class="dayof-group-title">${esc(name)} (${studs.length})</div>`;
@@ -2551,10 +2745,11 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap) {
 
   const chapHtml = chaperoneList.length
     ? chaperoneList.map(c => {
-        const isStaff = !!c.employee_id;
-        const person  = isStaff ? (c.employee ?? {}) : (c.guardian ?? {});
+        const isStaff     = !!c.employee_id;
+        const isVolunteer = !!c.volunteer_id;
+        const person  = isStaff ? (c.employee ?? {}) : isVolunteer ? (c.volunteer ?? {}) : (c.guardian ?? {});
         const name    = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
-        const contact = isStaff ? (person.email ?? '') : (c.guardian?.phone ?? c.guardian?.email ?? '');
+        const contact = isStaff ? (person.email ?? '') : isVolunteer ? (c.volunteer?.email ?? '') : (c.guardian?.phone ?? c.guardian?.email ?? '');
         return `<div class="dayof-row"><span class="name">${esc(name)}${c.is_driver ? ' <span style="color:#d97706;font-weight:700;font-size:11px;">DRIVER</span>' : ''}</span><span class="meta">${esc(contact) || '<span class="muted">No contact on file</span>'}</span></div>`;
       }).join('')
     : '<p class="muted" style="font-size:13px;">No chaperones added.</p>';
