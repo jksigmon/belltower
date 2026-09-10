@@ -165,6 +165,7 @@ async function searchGrantTeachers() {
     .select('id, first_name, last_name')
     .eq('school_id', _profile.school_id)
     .eq('active', true)
+    .eq('is_teacher', true)
     .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%`)
     .order('last_name')
     .limit(20);

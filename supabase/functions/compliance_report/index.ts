@@ -112,6 +112,7 @@ serve(async (req) => {
         .select("id, first_name, last_name")
         .eq("school_id", schoolId)
         .eq("active", true)
+        .eq("is_teacher", true)
         .order("last_name");
       if (allowedTeacherIds !== null) q = q.in("id", allowedTeacherIds);
       return q;
@@ -139,21 +140,34 @@ serve(async (req) => {
       students.map((s: { family_id: string | null }) => s.family_id).filter(Boolean) as string[]
     )];
 
-    const guardiansByFamily = new Map<string, { id: string; name: string; email: string; can_chaperone: boolean; can_drive: boolean }[]>();
+    const guardiansByFamily = new Map<string, { id: string; name: string; email: string; first_name: string; last_name: string }[]>();
 
     if (familyIds.length) {
       const { data: guardians } = await fetchAllRows(() => supabaseService
         .from("guardians")
-        .select("id, family_id, first_name, last_name, email, can_chaperone, can_drive")
+        .select("id, family_id, first_name, last_name, email")
         .eq("school_id", schoolId)
         .eq("active", true)
-        .in("family_id", familyIds));
+        .in("family_id", familyIds)
+        .order("last_name"));
 
-      (guardians ?? []).forEach((g: { id: string; family_id: string; first_name: string; last_name: string; email: string; can_chaperone: boolean; can_drive: boolean }) => {
+      (guardians ?? []).forEach((g: { id: string; family_id: string; first_name: string; last_name: string; email: string }) => {
         const list = guardiansByFamily.get(g.family_id) ?? [];
-        list.push({ id: g.id, name: `${g.first_name} ${g.last_name}`, email: g.email, can_chaperone: g.can_chaperone ?? true, can_drive: g.can_drive ?? true });
+        list.push({ id: g.id, name: `${g.first_name} ${g.last_name}`, email: g.email, first_name: g.first_name, last_name: g.last_name });
         guardiansByFamily.set(g.family_id, list);
       });
+    }
+
+    // Mirrors public.compliance_volunteer_match_key() -- strips "(...)" nickname
+    // annotations and keys off the first *word* of the first name. Same fallback
+    // Field Trips' chaperone tab and the staff BG-request dedup check already use
+    // to find a compliance_volunteers row that was never linked by guardian_id
+    // or matched by email (e.g. entered with a different email on the BG request).
+    function volunteerMatchKey(firstName: string, lastName: string): string {
+      const norm = (s: string) => (s ?? "").replace(/\s*\([^)]*\)\s*/g, " ").trim();
+      const last = norm(lastName).toLowerCase();
+      const first = norm(firstName).toLowerCase().split(" ")[0] ?? "";
+      return `${last}|${first}`;
     }
 
     // ── Fetch compliance agreements ───────────────────────────────────
@@ -226,60 +240,166 @@ serve(async (req) => {
       }
     });
 
+    // ── Fetch volunteer compliance records (BG/MVR/DL/insurance) ──────
+    // Same guardian_id + email dual-fetch pattern as agreements above, and
+    // read through supabaseService (not exposed to the client directly) so
+    // a TA with only a compliance_report_grants row -- who has no RLS
+    // access to compliance_volunteers itself -- still gets this data back
+    // through the edge function's own authorization check.
+    type VolunteerRow = {
+      id: string; guardian_id: string | null; email: string | null; match_key: string | null;
+      bg_cleared_at: string | null; bg_expires_at: string | null;
+      mvr_cleared_at: string | null; mvr_expires_at: string | null;
+      dl_expires_at: string | null; insurance_expires_at: string | null;
+      can_chaperone: boolean; can_drive: boolean;
+    };
+
+    let volunteers: VolunteerRow[] = [];
+    const volSelect = `id, guardian_id, email, match_key, bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at, dl_expires_at, insurance_expires_at, can_chaperone, can_drive`;
+
+    if (allGuardianIds.length) {
+      const { data } = await fetchAllRows<VolunteerRow>(() => supabaseService
+        .from("compliance_volunteers")
+        .select(volSelect)
+        .eq("school_id", schoolId)
+        .is("archived_at", null)
+        .in("guardian_id", allGuardianIds));
+      volunteers.push(...(data ?? []));
+    }
+
+    if (allGuardianEmails.length) {
+      const { data } = await fetchAllRows<VolunteerRow>(() => supabaseService
+        .from("compliance_volunteers")
+        .select(volSelect)
+        .eq("school_id", schoolId)
+        .is("archived_at", null)
+        .in("email", allGuardianEmails));
+      const seen = new Set(volunteers.map((v: VolunteerRow) => v.id));
+      (data ?? []).forEach((v: VolunteerRow) => { if (!seen.has(v.id)) volunteers.push(v); });
+    }
+
+    // Third pass: name-key match, for roster entries that were never linked to
+    // a guardian_id and were entered with an email that doesn't match what's
+    // on file for the guardian (or no email at all).
+    const allGuardianMatchKeys = [...new Set(allGuardians.map(g => volunteerMatchKey(g.first_name, g.last_name)))];
+    if (allGuardianMatchKeys.length) {
+      const { data } = await fetchAllRows<VolunteerRow>(() => supabaseService
+        .from("compliance_volunteers")
+        .select(volSelect)
+        .eq("school_id", schoolId)
+        .is("archived_at", null)
+        .in("match_key", allGuardianMatchKeys));
+      const seen = new Set(volunteers.map((v: VolunteerRow) => v.id));
+      (data ?? []).forEach((v: VolunteerRow) => { if (!seen.has(v.id)) volunteers.push(v); });
+    }
+
+    const volByGuardian = new Map<string, VolunteerRow>();
+    const volByEmail    = new Map<string, VolunteerRow>();
+    const volByNameKey  = new Map<string, VolunteerRow>();
+    volunteers.forEach(v => {
+      if (v.guardian_id) volByGuardian.set(v.guardian_id, v);
+      if (v.email) volByEmail.set(v.email.toLowerCase(), v);
+      if (v.match_key) volByNameKey.set(v.match_key, v);
+    });
+
+    function getVolunteer(guardian: { id: string; email: string; first_name: string; last_name: string }): VolunteerRow | null {
+      return volByGuardian.get(guardian.id)
+        ?? (guardian.email ? volByEmail.get(guardian.email.toLowerCase()) : undefined)
+        ?? volByNameKey.get(volunteerMatchKey(guardian.first_name, guardian.last_name))
+        ?? null;
+    }
+
+    const sixtyOut = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    // BG is treated as "missing" whenever there's no clearance on file at all --
+    // it's the one credential every chaperone-eligible guardian needs. MVR/DL/
+    // insurance are only relevant to guardians who actually drive, so absence
+    // of any record there is reported as neutral "not on file" rather than a gap.
+    function credentialStatus(clearedAt: string | null, expiresAt: string | null, requiresClearance: boolean) {
+      if (requiresClearance && !clearedAt) return { status: "missing", date: null as string | null };
+      if (!clearedAt && !expiresAt) return { status: "not_on_file", date: null as string | null };
+      if (expiresAt && expiresAt < today) return { status: "expired", date: expiresAt };
+      if (expiresAt && expiresAt <= sixtyOut) return { status: "expiring", date: expiresAt };
+      return { status: "cleared", date: expiresAt };
+    }
+
+    function expiryStatus(expiresAt: string | null) {
+      if (!expiresAt) return { status: "not_on_file", date: null as string | null };
+      if (expiresAt < today) return { status: "expired", date: expiresAt };
+      if (expiresAt <= sixtyOut) return { status: "expiring", date: expiresAt };
+      return { status: "ok", date: expiresAt };
+    }
+
     // ── Fetch templates ───────────────────────────────────────────────
     const { data: templates } = await fetchTemplates(schoolId, template_ids);
 
     // ── Build report rows ─────────────────────────────────────────────
-    const rows = students.map((student: {
+    // One row per (student, guardian) -- BG/MVR clearance is a fact about a
+    // specific person, not the family, so rolling multiple guardians into a
+    // single student row would hide which parent actually needs what.
+    type GuardianInfo = { id: string; name: string; email: string; first_name: string; last_name: string };
+    const rows: Record<string, unknown>[] = [];
+
+    students.forEach((student: {
       id: string; first_name: string; last_name: string;
       grade_level: string | null; homeroom_teacher_id: string; family_id: string | null;
     }) => {
-      const guardians = student.family_id ? (guardiansByFamily.get(student.family_id) ?? []) : [];
-      const teacher   = teachers.find((t: { id: string }) => t.id === student.homeroom_teacher_id);
+      const guardians: GuardianInfo[] = student.family_id ? (guardiansByFamily.get(student.family_id) ?? []) : [];
+      const teacher = teachers.find((t: { id: string }) => t.id === student.homeroom_teacher_id) as
+        { first_name: string; last_name: string } | undefined;
+      const teacherName = teacher ? `${teacher.first_name} ${teacher.last_name}` : "—";
 
-      const compliance: Record<string, {
-        agreement_id: string | null; signed_at: string | null;
-        expires_at: string | null; status: string;
-      }> = {};
+      const guardianList: (GuardianInfo | null)[] = guardians.length ? guardians : [null];
 
-      (templates ?? []).forEach((tmpl: { id: string; title: string }) => {
-        let best = { agreement_id: null as string | null, signed_at: null as string | null, expires_at: null as string | null, status: "missing" };
+      guardianList.forEach((guardian) => {
+        const compliance: Record<string, {
+          agreement_id: string | null; signed_at: string | null;
+          expires_at: string | null; status: string;
+        }> = {};
 
-        for (const guardian of guardians) {
-          const agrs = [
-            ...(agrByGuardian.get(guardian.id) ?? []),
-            ...(agrByEmail.get(guardian.email?.toLowerCase()) ?? []),
-          ].filter(a => a.template_id === tmpl.id);
+        (templates ?? []).forEach((tmpl: { id: string; title: string }) => {
+          let best = { agreement_id: null as string | null, signed_at: null as string | null, expires_at: null as string | null, status: "missing" };
 
-          for (const agr of agrs) {
-            const expired = agr.expires_at && agr.expires_at < today;
-            if (!expired) {
-              best = { agreement_id: agr.id, signed_at: agr.signed_at, expires_at: agr.expires_at, status: "signed" };
-              break;
-            } else if (best.status === "missing") {
-              best = { agreement_id: agr.id, signed_at: agr.signed_at, expires_at: agr.expires_at, status: "expired" };
+          if (guardian) {
+            const agrs = [
+              ...(agrByGuardian.get(guardian.id) ?? []),
+              ...(agrByEmail.get(guardian.email?.toLowerCase()) ?? []),
+            ].filter(a => a.template_id === tmpl.id);
+
+            for (const agr of agrs) {
+              const expired = agr.expires_at && agr.expires_at < today;
+              if (!expired) {
+                best = { agreement_id: agr.id, signed_at: agr.signed_at, expires_at: agr.expires_at, status: "signed" };
+                break;
+              } else if (best.status === "missing") {
+                best = { agreement_id: agr.id, signed_at: agr.signed_at, expires_at: agr.expires_at, status: "expired" };
+              }
             }
           }
-          if (best.status === "signed") break;
-        }
 
-        compliance[tmpl.id] = best;
+          compliance[tmpl.id] = best;
+        });
+
+        const volunteer = guardian ? getVolunteer(guardian) : null;
+
+        rows.push({
+          student_id:   student.id,
+          student_name: `${student.first_name} ${student.last_name}`,
+          grade_level:  student.grade_level ?? null,
+          teacher_id:   student.homeroom_teacher_id,
+          teacher_name: teacherName,
+          guardian_id:    guardian?.id ?? null,
+          guardian_name:  guardian?.name ?? null,
+          guardian_email: guardian?.email ?? null,
+          bg:        credentialStatus(volunteer?.bg_cleared_at ?? null, volunteer?.bg_expires_at ?? null, true),
+          mvr:       credentialStatus(volunteer?.mvr_cleared_at ?? null, volunteer?.mvr_expires_at ?? null, false),
+          dl:        expiryStatus(volunteer?.dl_expires_at ?? null),
+          insurance: expiryStatus(volunteer?.insurance_expires_at ?? null),
+          can_chaperone: guardian ? (volunteer?.can_chaperone ?? true) : null,
+          can_drive:     guardian ? (volunteer?.can_drive ?? true) : null,
+          compliance,
+        });
       });
-
-      const restrictions = guardians
-        .filter((g) => g.can_chaperone === false || g.can_drive === false)
-        .map((g) => ({ guardian_name: g.name, can_chaperone: g.can_chaperone, can_drive: g.can_drive }));
-
-      return {
-        student_id:   student.id,
-        student_name: `${student.first_name} ${student.last_name}`,
-        grade_level:  student.grade_level ?? null,
-        teacher_id:   student.homeroom_teacher_id,
-        teacher_name: teacher ? `${(teacher as { first_name: string; last_name: string }).first_name} ${(teacher as { first_name: string; last_name: string }).last_name}` : "—",
-        guardians,
-        compliance,
-        restrictions,
-      };
     });
 
     return json({ teachers, templates: templates ?? [], rows }, 200);
