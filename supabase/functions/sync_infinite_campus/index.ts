@@ -137,12 +137,39 @@ async function bulkInsert(
 }
 
 // Bulk-updates rows (each must include its `id`) via upsert keyed on primary key,
-// chunked the same way as bulkInsert.
-async function bulkUpdate(table: string, rows: Record<string, unknown>[], chunkSize = 100) {
+// chunked the same way as bulkInsert. If labelForRow is given, a chunk that fails
+// falls back to per-row upserts and any row hitting a unique-violation (23505) is
+// skipped and logged rather than aborting the whole run (e.g. two IC guardian
+// records that collapse onto the same name+email within a family). Returns the
+// count of rows actually applied.
+async function bulkUpdate(
+  table: string,
+  rows: Record<string, unknown>[],
+  chunkSize = 100,
+  labelForRow?: (row: Record<string, unknown>) => string
+): Promise<number> {
+  let updated = 0;
   for (const batch of chunk(rows, chunkSize)) {
     const { error } = await supabase.from(table).upsert(batch, { onConflict: "id" });
-    if (error) throw error;
+    if (!error) {
+      updated += batch.length;
+      continue;
+    }
+    if (!labelForRow) throw error;
+    // Chunk failed — retry rows individually so we can isolate and skip just the bad one(s).
+    for (const row of batch) {
+      const { error: rowErr } = await supabase.from(table).upsert(row, { onConflict: "id" });
+      if (rowErr) {
+        if (rowErr.code === "23505") {
+          console.warn(`Skipping duplicate ${table} update (${labelForRow(row)}):`, rowErr.message);
+          continue;
+        }
+        throw rowErr;
+      }
+      updated++;
+    }
   }
+  return updated;
 }
 
 // Opens/refreshes gap rows (school_id+entity_type+entity_id+field must be unique) —
@@ -1504,8 +1531,12 @@ async function executePlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
       ...(await bulkInsert("guardians", guardiansToInsert, (r) => `${r.first_name} ${r.last_name}`))
     );
     const guardiansCreated = createdGuardianIds.length;
-    await bulkUpdate("guardians", guardiansToUpdate);
-    const guardiansUpdated = guardiansToUpdate.length;
+    const guardiansUpdated = await bulkUpdate(
+      "guardians",
+      guardiansToUpdate,
+      100,
+      (r) => `${r.first_name} ${r.last_name}`
+    );
 
     /* ---- Students ---- */
     const studentsToInsert: Record<string, unknown>[] = [];
