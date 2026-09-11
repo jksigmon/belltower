@@ -1561,8 +1561,6 @@ async function searchVolunteers() {
   const orFilter    = `first_name.ilike.%${val}%,last_name.ilike.%${val}%,email.ilike.%${val}%`;
   const reqOrFilter = `subject_first_name.ilike.%${val}%,subject_last_name.ilike.%${val}%,subject_email.ilike.%${val}%`;
 
-  console.debug('searchVolunteers query', { val, school_id: profile?.school_id, orFilter, reqOrFilter });
-
   const [volRes, reqRes] = await Promise.all([
     supabase.from('compliance_volunteers')
       .select('id, first_name, last_name, email, guardian_id')
@@ -1587,7 +1585,6 @@ async function searchVolunteers() {
 
   const volData = volRes.data;
   const reqData = reqRes.data;
-  console.debug('searchVolunteers results', { volData, reqData });
 
   // For requests already linked to a roster row, pull that row's own
   // guardian_id/archived_at -- a request can be linked to a roster row
@@ -1629,16 +1626,23 @@ async function searchVolunteers() {
   const existingGuardianIds  = new Set(chaperoneList.map(c => c.guardian_id));
   const seen = new Set();
   const candidates = [];
+  // Tracks whether a real match existed but got filtered out for already
+  // being on this trip -- lets the empty state say "already added" instead
+  // of a flat "not found" that reads as if nothing matched at all.
+  let hadExistingMatch = false;
 
   const pushVolunteer = (volId, guardianId, firstName, lastName, email) => {
     if (guardianId) {
       const g = guardianById.get(guardianId);
-      if (!g || existingGuardianIds.has(g.id) || seen.has(`guardian:${g.id}`)) return;
+      if (!g) return;
+      if (existingGuardianIds.has(g.id)) { hadExistingMatch = true; return; }
+      if (seen.has(`guardian:${g.id}`)) return;
       seen.add(`guardian:${g.id}`);
       candidates.push({ kind: 'guardian', id: g.id, first_name: firstName, last_name: lastName, email: email ?? g.email, guardianName: `${g.first_name} ${g.last_name}` });
       return;
     }
-    if (existingVolunteerIds.has(volId) || seen.has(`volunteer:${volId}`)) return;
+    if (existingVolunteerIds.has(volId)) { hadExistingMatch = true; return; }
+    if (seen.has(`volunteer:${volId}`)) return;
     seen.add(`volunteer:${volId}`);
     candidates.push({ kind: 'volunteer', id: volId, first_name: firstName, last_name: lastName, email });
   };
@@ -1655,15 +1659,10 @@ async function searchVolunteers() {
     }
   });
 
-  console.debug('searchVolunteers final state', {
-    guardianIds: [...guardianIds],
-    guardianById: [...guardianById.entries()],
-    linkedVolunteers: [...linkedVolunteers.entries()],
-    candidates,
-  });
-
   if (!candidates.length) {
-    results.innerHTML = `<div class="ft-typeahead-empty">No volunteers or pending BG requests found. Add them in Compliance &rarr; Volunteers, or have them submit a request first.</div>`;
+    results.innerHTML = hadExistingMatch
+      ? `<div class="ft-typeahead-empty">Matches "${esc(val)}" but they're already added as a chaperone on this trip.</div>`
+      : `<div class="ft-typeahead-empty">No volunteers or pending BG requests found. Add them in Compliance &rarr; Volunteers, or have them submit a request first.</div>`;
     return;
   }
 
