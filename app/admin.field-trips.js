@@ -1561,7 +1561,9 @@ async function searchVolunteers() {
   const orFilter    = `first_name.ilike.%${val}%,last_name.ilike.%${val}%,email.ilike.%${val}%`;
   const reqOrFilter = `subject_first_name.ilike.%${val}%,subject_last_name.ilike.%${val}%,subject_email.ilike.%${val}%`;
 
-  const [{ data: volData }, { data: reqData }] = await Promise.all([
+  console.debug('searchVolunteers query', { val, school_id: profile?.school_id, orFilter, reqOrFilter });
+
+  const [volRes, reqRes] = await Promise.all([
     supabase.from('compliance_volunteers')
       .select('id, first_name, last_name, email, guardian_id')
       .eq('school_id', profile.school_id)
@@ -1577,6 +1579,16 @@ async function searchVolunteers() {
       .limit(8),
   ]);
 
+  if (volRes.error || reqRes.error) {
+    console.error('searchVolunteers failed', { volError: volRes.error, reqError: reqRes.error });
+    results.innerHTML = `<div class="ft-typeahead-empty" style="color:#b91c1c;">Search failed: ${esc(volRes.error?.message ?? reqRes.error?.message ?? 'unknown error')} (check browser console for details)</div>`;
+    return;
+  }
+
+  const volData = volRes.data;
+  const reqData = reqRes.data;
+  console.debug('searchVolunteers results', { volData, reqData });
+
   // For requests already linked to a roster row, pull that row's own
   // guardian_id/archived_at -- a request can be linked to a roster row
   // filed under yet another name (maiden name, "goes by" name), and that
@@ -1588,10 +1600,11 @@ async function searchVolunteers() {
   const linkedVolIds = [...new Set((reqData ?? []).map(r => r.volunteer_id).filter(Boolean))];
   const linkedVolunteers = new Map();
   if (linkedVolIds.length) {
-    const { data: linkedData } = await supabase
+    const { data: linkedData, error: linkedErr } = await supabase
       .from('compliance_volunteers')
       .select('id, guardian_id, archived_at')
       .in('id', linkedVolIds);
+    if (linkedErr) console.error('searchVolunteers: linked-roster lookup failed', linkedErr);
     (linkedData ?? []).forEach(v => linkedVolunteers.set(v.id, v));
   }
 
@@ -1604,10 +1617,11 @@ async function searchVolunteers() {
   linkedVolunteers.forEach(v => { if (v.guardian_id) guardianIds.add(v.guardian_id); });
   const guardianById = new Map();
   if (guardianIds.size) {
-    const { data: gData } = await supabase
+    const { data: gData, error: gErr } = await supabase
       .from('guardians')
       .select('id, first_name, last_name, email')
       .in('id', [...guardianIds]);
+    if (gErr) console.error('searchVolunteers: guardian lookup failed', gErr);
     (gData ?? []).forEach(g => guardianById.set(g.id, g));
   }
 
