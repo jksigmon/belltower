@@ -24,20 +24,75 @@
       top: 0;
       z-index: 10;
     }
+    .veh-trip-name-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+    }
     .veh-trip-name {
       font-size: 15px;
       font-weight: 800;
       color: #0b2d4f;
-      flex: 1;
       min-width: 0;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .veh-save-status { font-size: 12px; color: #9ca3af; transition: color 0.2s; }
-    .veh-save-status.saving { color: #d97706; }
-    .veh-save-status.saved  { color: #15803d; }
-    .veh-save-status.error  { color: #dc2626; }
+    .veh-trip-date {
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      background: #eef2f7;
+      border: 1px solid #dbe3ec;
+      border-radius: 999px;
+      padding: 3px 10px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .veh-save-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #f1f5f9;
+      color: #6b7280;
+      white-space: nowrap;
+      transition: background 0.2s, color 0.2s;
+    }
+    .veh-save-status.saving { background: #fef3c7; color: #92400e; }
+    .veh-save-status.saved  { background: #dcfce7; color: #15803d; }
+    .veh-save-status.error  { background: #fee2e2; color: #dc2626; }
+
+    /* ── Search ── */
+    .veh-search-wrap { position: relative; flex-shrink: 0; }
+    .veh-search {
+      height: 30px;
+      font-size: 13px;
+      padding: 0 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      width: 170px;
+      flex-shrink: 0;
+    }
+    .veh-search-wrap .veh-search { padding-right: 32px; width: 170px; }
+    .veh-kbd {
+      position: absolute;
+      right: 7px;
+      top: 50%;
+      transform: translateY(-50%);
+      font: 700 10px/1 inherit;
+      color: #9ca3af;
+      background: #f1f5f9;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      padding: 2px 5px;
+      pointer-events: none;
+    }
 
     /* ── Board ──
        Unassigned is pinned as a tall sidebar (it's the one column that can
@@ -47,16 +102,55 @@
     .veh-board {
       display: flex;
       flex-wrap: wrap;
-      gap: 14px;
+      gap: 18px;
       padding: 18px 20px 40px;
       align-items: flex-start;
       min-height: calc(100vh - 58px);
     }
+
+    /* ── Unassigned sidebar ── */
     .veh-unassigned-wrap {
-      flex: 0 0 240px;
+      flex: 0 0 260px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      display: flex;
+      flex-direction: column;
+      max-height: calc(100vh - 90px);
     }
-    .veh-vehicle-grid {
+    .veh-unassigned-header { padding: 14px 14px 10px; flex-shrink: 0; }
+    .veh-unassigned-title { font-size: 14px; font-weight: 800; color: #0b2d4f; }
+    .veh-unassigned-count { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .veh-unassigned-search-wrap { padding: 0 14px 10px; flex-shrink: 0; }
+    .veh-unassigned-search-wrap .veh-search { width: 100%; }
+    .veh-unassigned-list {
       flex: 1;
+      overflow-y: auto;
+      padding: 0 10px;
+      min-height: 60px;
+    }
+    .veh-unassigned-list.drag-over { background: rgba(59,130,246,0.06); }
+    .veh-unassigned-footer {
+      flex-shrink: 0;
+      padding: 8px 14px;
+      border-top: 1px solid #eef1f5;
+      font-size: 11px;
+      color: #9ca3af;
+      text-align: center;
+    }
+
+    /* ── Vehicle grid ── */
+    .veh-vehicle-section { flex: 1; min-width: 260px; display: flex; flex-direction: column; }
+    .veh-vehicle-section-header {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .veh-vehicle-section-title { font-size: 16px; font-weight: 800; color: #0b2d4f; }
+    .veh-vehicle-section-stats { font-size: 13px; color: #6b7280; }
+    .veh-vehicle-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
       gap: 12px;
@@ -64,21 +158,19 @@
       align-content: start;
     }
     .veh-col {
-      background: #f8fafc;
+      background: #fff;
       border: 1px solid #e2e8f0;
       border-radius: 14px;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
       display: flex;
       flex-direction: column;
       width: 100%;
-      max-height: calc(100vh - 90px);
+      max-height: 340px;
     }
-    .veh-col--vehicle { max-height: 340px; }
-    .veh-col-unassigned { border-color: #d1d5db; }
-    .veh-col-unassigned .veh-col-header { background: #f1f5f9; border-radius: 13px 13px 0 0; }
 
     .veh-col-header {
       padding: 12px 14px 10px;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid #f1f5f9;
       flex-shrink: 0;
     }
     .veh-col-title {
@@ -115,21 +207,74 @@
     .veh-cap-badge.at-cap   { background: #fef3c7; color: #92400e; border-color: #fde68a; }
     .veh-cap-badge.over-cap { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
 
+    .veh-progress {
+      height: 4px;
+      background: #f1f5f9;
+      margin: 0 14px 10px;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .veh-progress-fill { height: 100%; border-radius: 999px; transition: width 0.15s, background 0.15s; }
+
     .veh-col-body {
       flex: 1;
-      padding: 10px;
+      padding: 0 10px 10px;
       overflow-y: auto;
-      min-height: 80px;
+      min-height: 60px;
+      display: flex;
+      flex-direction: column;
     }
     .veh-col-body.drag-over { background: rgba(59,130,246,0.07); border-radius: 0 0 13px 13px; }
+    .veh-cards { flex: 1; }
 
-    /* ── Student cards ── */
+    /* ── Empty-state / add affordance ── */
+    .veh-empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      text-align: center;
+      border: 1.5px dashed #d1d5db;
+      border-radius: 10px;
+      padding: 16px 10px;
+      cursor: pointer;
+    }
+    .veh-empty-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1.5px solid #93c5fd;
+      color: #2563eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      background: #fff;
+    }
+    .veh-empty-title { font-size: 12px; font-weight: 700; color: #2563eb; }
+    .veh-empty-hint { font-size: 11px; color: #9ca3af; line-height: 1.4; }
+    .veh-add-link {
+      flex-shrink: 0;
+      font-size: 12px;
+      font-weight: 700;
+      color: #2563eb;
+      padding: 6px 4px 2px;
+      cursor: pointer;
+    }
+    .veh-add-link:hover { text-decoration: underline; }
+
+    /* ── Student rows (shared by vehicle cards + unassigned sidebar) ── */
     .veh-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       background: #fff;
       border: 1px solid #e5e7eb;
-      border-left: 4px solid #94a3b8;
       border-radius: 8px;
-      padding: 8px 10px;
+      padding: 6px 8px;
       margin-bottom: 6px;
       cursor: grab;
       user-select: none;
@@ -138,32 +283,58 @@
     .veh-card:active { cursor: grabbing; }
     .veh-card:hover  { box-shadow: 0 2px 8px rgba(0,0,0,0.10); }
     .veh-card.dragging { opacity: 0.45; }
-    .veh-card-name  { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.2; }
-    .veh-card-grade { font-size: 11px; color: #6b7280; margin-top: 2px; }
     .veh-card.selected {
       outline: 2px solid #2563eb;
       outline-offset: -1px;
       background: #eff6ff;
     }
+    .veh-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .veh-card-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #0f172a;
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .veh-card-grade {
+      font-size: 10px;
+      font-weight: 700;
+      color: #6b7280;
+      background: #f1f5f9;
+      border-radius: 999px;
+      padding: 1px 7px;
+      flex-shrink: 0;
+    }
 
     /* ── Selection / click-to-move ── */
-    .veh-col.click-target { box-shadow: 0 0 0 2px rgba(37,99,235,0.28); border-radius: 14px; }
-    .veh-col.click-target .veh-col-body { cursor: pointer; }
+    .veh-col.click-target,
+    .veh-unassigned-wrap.click-target {
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.28);
+    }
+    .veh-col.click-target .veh-col-body,
+    .veh-unassigned-wrap.click-target .veh-unassigned-list {
+      cursor: pointer;
+    }
     .veh-selection-badge {
       font-size: 12px;
       font-weight: 700;
       color: #2563eb;
       white-space: nowrap;
       cursor: pointer;
-    }
-    .veh-search {
-      height: 30px;
-      font-size: 13px;
-      padding: 0 8px;
-      border: 1px solid #d1d5db;
-      border-radius: 6px;
-      width: 160px;
-      flex-shrink: 0;
     }
 
     /* ── Touch/mobile advisory ── */
@@ -236,16 +407,29 @@
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
     Field Trips
   </a>
-  <div class="veh-trip-name" id="vehTripName">Loading…</div>
-  <input type="search" id="vehSearch" class="veh-search" placeholder="Search students…">
+  <div class="veh-trip-name-wrap">
+    <div class="veh-trip-name" id="vehTripName">Loading…</div>
+    <span class="veh-trip-date" id="vehTripDate" hidden></span>
+  </div>
+  <div class="veh-search-wrap">
+    <input type="search" id="vehSearch" class="veh-search" placeholder="Search students…">
+    <kbd class="veh-kbd">⌘K</kbd>
+  </div>
   <span class="veh-selection-badge" id="vehSelectionBadge" title="Click to cancel selection" hidden></span>
   <span class="veh-save-status" id="vehSaveStatus"></span>
   <button class="btn btn-sm" id="vehUndoBtn" style="flex-shrink:0;" title="Undo last move (Ctrl+Z)" disabled>
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/></svg>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+    Undo
   </button>
-  <button class="btn btn-sm" id="vehAutoAssignBtn" style="flex-shrink:0;">Auto-assign</button>
+  <button class="btn btn-primary btn-sm" id="vehAutoAssignBtn" style="flex-shrink:0;">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 6.4L20 10l-6.4 1.6L12 18l-1.6-6.4L4 10l6.4-1.6L12 2z"/></svg>
+    Auto-assign
+  </button>
   <button class="btn btn-sm" id="vehClearBtn" style="flex-shrink:0;">Clear All</button>
-  <button class="btn btn-sm" id="vehPrintBtn" style="flex-shrink:0;">Print Roster</button>
+  <button class="btn btn-sm" id="vehPrintBtn" style="flex-shrink:0;">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+    Print Roster
+  </button>
   <!-- Hidden elements for auth layer -->
   <span id="userInitials" style="display:none;"></span>
   <span id="userDropdownName" style="display:none;"></span>

@@ -8,6 +8,12 @@ const GRADE_COLORS = [
   '#14b8a6','#a855f7',
 ];
 
+const SAVE_ICONS = {
+  saving: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
+  saved:  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
+  error:  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>',
+};
+
 let profile      = null;
 let tripId       = null;
 let trip         = null;
@@ -21,7 +27,8 @@ let dirty        = new Set();
 let saveTimer    = null;
 let selected     = new Set();  // student ids selected for click-to-move
 let undoStack    = [];         // array of [{ studentId, fromChaperoneId }, ...] groups
-let searchTerm   = '';
+let searchTerm   = '';         // toolbar search — applies board-wide
+let unassignedSearchTerm = ''; // sidebar-local search — Unassigned list only
 
 // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -50,6 +57,20 @@ async function init() {
   trip = tripData;
   document.getElementById('vehTripName').textContent = trip.name;
   document.title = `Vehicles – ${trip.name}`;
+
+  const dateEl = document.getElementById('vehTripDate');
+  if (dateEl && trip.start_date) {
+    dateEl.textContent = new Date(trip.start_date + 'T12:00:00').toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric',
+    });
+    dateEl.hidden = false;
+  }
+
+  if (!(trip.grade_levels ?? []).length) {
+    document.getElementById('vehBoard').innerHTML =
+      '<div style="padding:60px 40px;color:#b45309;font-size:14px;max-width:480px;margin:0 auto;text-align:center;">No grade levels set on this trip — edit the trip to specify grades before planning vehicles.</div>';
+    return;
+  }
 
   const [driversRes, studList, assignRes] = await Promise.all([
     supabase.from('field_trip_chaperones')
@@ -82,6 +103,11 @@ async function init() {
   wireActions();
 
   document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      document.getElementById('vehSearch')?.focus();
+      return;
+    }
     if (e.key === 'Escape' && selected.size) clearSelection();
     if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
       e.preventDefault();
@@ -123,6 +149,10 @@ function buildGradeColorMap(studs) {
   return map;
 }
 
+function getInitials(first, last) {
+  return (`${(first || '').charAt(0)}${(last || '').charAt(0)}`.toUpperCase()) || '?';
+}
+
 // ── Board ─────────────────────────────────────────────────────────────────
 
 function buildBoard() {
@@ -138,29 +168,33 @@ function buildBoard() {
     return;
   }
 
-  board.innerHTML = `
-    <div class="veh-unassigned-wrap" id="vehUnassignedWrap"></div>
+  // Unassigned pool — pinned sidebar, can run long
+  const unassigned = students.filter(s => !assignments.get(s.id));
+  board.appendChild(buildUnassignedPanel(unassigned));
+
+  // Vehicle grid — each vehicle only holds a handful of students, so wrapping
+  // into a grid uses screen space far better than one tall column per driver
+  const section = document.createElement('div');
+  section.className = 'veh-vehicle-section';
+  section.innerHTML = `
+    <div class="veh-vehicle-section-header">
+      <div class="veh-vehicle-section-title">Chaperones</div>
+      <div class="veh-vehicle-section-stats" id="vehStats"></div>
+    </div>
     <div class="veh-vehicle-grid" id="vehVehicleGrid"></div>
   `;
-  const unassignedWrap = document.getElementById('vehUnassignedWrap');
-  const grid           = document.getElementById('vehVehicleGrid');
+  board.appendChild(section);
+  const grid = section.querySelector('#vehVehicleGrid');
 
-  // Unassigned column — pinned sidebar, can run long
-  const unassigned = students.filter(s => !assignments.get(s.id));
-  unassignedWrap.appendChild(buildColumn(null, 'Unassigned', unassigned));
-
-  // One column per driver, wrapped into a grid — each vehicle only holds a
-  // handful of students, so a tall single-file layout wastes space
   drivers.forEach(driver => {
     const name    = driverName(driver);
     const assigned = students.filter(s => assignments.get(s.id) === driver.id);
-    const col = buildColumn(driver, name, assigned);
-    col.classList.add('veh-col--vehicle');
-    grid.appendChild(col);
+    grid.appendChild(buildColumn(driver, name, assigned));
   });
 
   applySearchFilter();
   updateSelectionUI();
+  setSaveStatus('saved');
 }
 
 function driverName(driver) {
@@ -168,13 +202,64 @@ function driverName(driver) {
   return `${person?.first_name ?? ''} ${person?.last_name ?? ''}`.trim() || 'Driver';
 }
 
+// ── Unassigned sidebar ───────────────────────────────────────────────────
+
+function buildUnassignedPanel(studs) {
+  const wrap = document.createElement('div');
+  wrap.className = 'veh-unassigned-wrap';
+  wrap.dataset.chaperoneId = 'unassigned';
+  wrap.innerHTML = `
+    <div class="veh-unassigned-header">
+      <div class="veh-unassigned-title">Unassigned Students</div>
+      <div class="veh-unassigned-count" id="vehUnassignedCount">${countLabel(studs.length, studs.length)}</div>
+    </div>
+    <div class="veh-unassigned-search-wrap">
+      <input type="search" id="vehUnassignedSearch" class="veh-search" placeholder="Search students…">
+    </div>
+    <div class="veh-unassigned-list" id="veh-cards-unassigned"></div>
+    <div class="veh-unassigned-footer" id="vehUnassignedFooter"></div>
+  `;
+
+  const list = wrap.querySelector('#veh-cards-unassigned');
+  studs.forEach(s => list.appendChild(buildCard(s)));
+
+  const searchInput = wrap.querySelector('#vehUnassignedSearch');
+  searchInput.value = unassignedSearchTerm;
+  searchInput.addEventListener('input', e => {
+    unassignedSearchTerm = e.target.value.trim().toLowerCase();
+    applySearchFilter();
+  });
+
+  list.addEventListener('dragover', e => {
+    e.preventDefault();
+    list.classList.add('drag-over');
+  });
+  list.addEventListener('dragleave', () => list.classList.remove('drag-over'));
+  list.addEventListener('drop', e => {
+    e.preventDefault();
+    list.classList.remove('drag-over');
+    const ids = e.dataTransfer.getData('text/plain').split(',').filter(Boolean);
+    moveStudents(ids, null);
+  });
+
+  wrap.addEventListener('click', e => {
+    if (e.target.closest('#vehUnassignedSearch')) return;
+    if (!selected.size) return;
+    moveStudents([...selected], null);
+  });
+
+  return wrap;
+}
+
+// ── Vehicle columns ──────────────────────────────────────────────────────
+
 function buildColumn(driver, name, studs) {
-  const chaperoneId = driver?.id ?? 'unassigned';
+  const chaperoneId = driver.id;
   const col = document.createElement('div');
-  col.className = 'veh-col' + (driver == null ? ' veh-col-unassigned' : '');
+  col.className = 'veh-col';
   col.dataset.chaperoneId = chaperoneId;
 
-  const cap   = driver ? (capacities.get(driver.id) ?? null) : null;
+  const cap   = capacities.get(driver.id) ?? null;
   const count = studs.length;
 
   col.innerHTML = `
@@ -182,14 +267,24 @@ function buildColumn(driver, name, studs) {
       <div class="veh-col-title">${esc(name)}</div>
       <div class="veh-col-meta">
         <span id="veh-count-${esc(chaperoneId)}">${countLabel(count, count)}</span>
-        ${driver ? capBadgeHtml(driver.id, count, cap) : ''}
+        ${capPillHtml(chaperoneId, count, cap)}
       </div>
     </div>
-    <div class="veh-col-body" id="veh-body-${esc(chaperoneId)}"></div>
+    ${progressBarHtml(chaperoneId, count, cap)}
+    <div class="veh-col-body" id="veh-body-${esc(chaperoneId)}">
+      <div class="veh-cards" id="veh-cards-${esc(chaperoneId)}"></div>
+      <div class="veh-empty-state" id="veh-empty-${esc(chaperoneId)}" title="Select student(s) in Unassigned, then click here to add them">
+        <span class="veh-empty-icon">+</span>
+        <span class="veh-empty-title">Add students</span>
+        <span class="veh-empty-hint">Drag students here<br>or use auto-assign</span>
+      </div>
+      <div class="veh-add-link" id="veh-addlink-${esc(chaperoneId)}" title="Select student(s) in Unassigned, then click here to add them">+ Add students</div>
+    </div>
   `;
 
-  const body = col.querySelector('.veh-col-body');
-  studs.forEach(s => body.appendChild(buildCard(s)));
+  const body    = col.querySelector('.veh-col-body');
+  const cardsEl = col.querySelector('.veh-cards');
+  studs.forEach(s => cardsEl.appendChild(buildCard(s)));
 
   body.addEventListener('dragover', e => {
     e.preventDefault();
@@ -200,22 +295,18 @@ function buildColumn(driver, name, studs) {
     e.preventDefault();
     body.classList.remove('drag-over');
     const ids = e.dataTransfer.getData('text/plain').split(',').filter(Boolean);
-    const targetChapId = driver?.id ?? null;
-    moveStudents(ids, targetChapId);
+    moveStudents(ids, driver.id);
   });
 
-  const targetChapId = driver?.id ?? null;
   col.addEventListener('click', () => {
     if (!selected.size) return;
-    moveStudents([...selected], targetChapId);
+    moveStudents([...selected], driver.id);
   });
 
-  if (driver) {
-    col.querySelector('.veh-cap-badge')?.addEventListener('click', e => {
-      e.stopPropagation();
-      editCapacity(driver.id, name);
-    });
-  }
+  col.querySelector('.veh-cap-badge')?.addEventListener('click', e => {
+    e.stopPropagation();
+    editCapacity(driver.id, name);
+  });
 
   return col;
 }
@@ -225,10 +316,11 @@ function buildCard(student) {
   card.className   = 'veh-card' + (selected.has(student.id) ? ' selected' : '');
   card.draggable   = true;
   card.dataset.sid = student.id;
-  card.style.borderLeftColor = gradeColors.get(student.grade_level) ?? '#94a3b8';
+  const avatarColor = gradeColors.get(student.grade_level) ?? '#94a3b8';
   card.innerHTML = `
-    <div class="veh-card-name">${esc(student.last_name)}, ${esc(student.first_name)}</div>
-    ${student.grade_level ? `<div class="veh-card-grade">${esc(student.grade_level)}</div>` : ''}
+    <span class="veh-avatar" style="background:${avatarColor}">${esc(getInitials(student.first_name, student.last_name))}</span>
+    <span class="veh-card-name">${esc(student.last_name)}, ${esc(student.first_name)}</span>
+    ${student.grade_level ? `<span class="veh-card-grade">${esc(student.grade_level)}</span>` : ''}
   `;
   card.addEventListener('dragstart', e => {
     const ids = selected.has(student.id) && selected.size > 1 ? [...selected] : [student.id];
@@ -272,8 +364,8 @@ function updateSelectionUI() {
   document.querySelectorAll('.veh-card').forEach(card => {
     card.classList.toggle('selected', selected.has(card.dataset.sid));
   });
-  document.querySelectorAll('.veh-col').forEach(col => {
-    col.classList.toggle('click-target', selected.size > 0);
+  document.querySelectorAll('.veh-col, .veh-unassigned-wrap').forEach(el => {
+    el.classList.toggle('click-target', selected.size > 0);
   });
   const badge = document.getElementById('vehSelectionBadge');
   if (badge) {
@@ -282,24 +374,57 @@ function updateSelectionUI() {
   }
 }
 
-// ── Capacity badge ────────────────────────────────────────────────────────
+// ── Capacity pill / progress bar ────────────────────────────────────────
 
-function capBadgeHtml(chaperoneId, count, cap) {
-  const cls  = cap == null ? '' : count > cap ? ' over-cap' : count === cap ? ' at-cap' : '';
-  const text = cap == null ? 'Set capacity' : `${count}/${cap}`;
-  const tip  = cap == null ? 'Click to set vehicle capacity' : 'Click to edit capacity';
-  return `<span class="veh-cap-badge${cls}" id="veh-cap-${esc(chaperoneId)}" title="${tip}">${text}</span>`;
+function capPillHtml(chaperoneId, count, cap) {
+  if (cap == null) {
+    return `<span class="veh-cap-badge" id="veh-cap-${esc(chaperoneId)}" title="Click to set vehicle capacity">Set capacity</span>`;
+  }
+  const remain = cap - count;
+  const cls  = remain < 0 ? ' over-cap' : remain === 0 ? ' at-cap' : '';
+  const text = remain < 0 ? 'Over capacity' : remain === 0 ? 'Full' : `${remain} seat${remain !== 1 ? 's' : ''} left`;
+  return `<span class="veh-cap-badge${cls}" id="veh-cap-${esc(chaperoneId)}" title="Click to edit capacity">${text}</span>`;
 }
 
-function updateCapBadge(chaperoneId) {
+function updateCapBadge(chaperoneId, count) {
   const badge = document.getElementById(`veh-cap-${chaperoneId}`);
   if (!badge) return;
-  const body  = document.getElementById(`veh-body-${chaperoneId}`);
-  const count = body ? body.querySelectorAll('.veh-card').length : 0;
-  const cap   = capacities.get(chaperoneId) ?? null;
-  badge.className = 'veh-cap-badge' + (cap == null ? '' : count > cap ? ' over-cap' : count === cap ? ' at-cap' : '');
-  badge.textContent = cap == null ? 'Set capacity' : `${count}/${cap}`;
-  badge.title = cap == null ? 'Click to set vehicle capacity' : 'Click to edit capacity';
+  const cap = capacities.get(chaperoneId) ?? null;
+  if (cap == null) {
+    badge.className = 'veh-cap-badge';
+    badge.textContent = 'Set capacity';
+    badge.title = 'Click to set vehicle capacity';
+    return;
+  }
+  const remain = cap - count;
+  badge.className = 'veh-cap-badge' + (remain < 0 ? ' over-cap' : remain === 0 ? ' at-cap' : '');
+  badge.textContent = remain < 0 ? 'Over capacity' : remain === 0 ? 'Full' : `${remain} seat${remain !== 1 ? 's' : ''} left`;
+  badge.title = 'Click to edit capacity';
+}
+
+function progressBarHtml(chaperoneId, count, cap) {
+  const pct   = cap ? Math.min(100, Math.round((count / cap) * 100)) : 0;
+  const color = cap == null ? '#e2e8f0' : count > cap ? '#ef4444' : count === cap ? '#f59e0b' : '#2563eb';
+  return `<div class="veh-progress"><div class="veh-progress-fill" id="veh-bar-${esc(chaperoneId)}" style="width:${pct}%;background:${color};"></div></div>`;
+}
+
+function updateProgressBar(chaperoneId, count) {
+  const fill = document.getElementById(`veh-bar-${chaperoneId}`);
+  if (!fill) return;
+  const cap = capacities.get(chaperoneId) ?? null;
+  const pct = cap ? Math.min(100, Math.round((count / cap) * 100)) : 0;
+  fill.style.width = pct + '%';
+  fill.style.background = cap == null ? '#e2e8f0' : count > cap ? '#ef4444' : count === cap ? '#f59e0b' : '#2563eb';
+}
+
+function refreshColumnFooter(chaperoneId, count) {
+  const emptyEl = document.getElementById(`veh-empty-${chaperoneId}`);
+  const linkEl  = document.getElementById(`veh-addlink-${chaperoneId}`);
+  if (!emptyEl || !linkEl) return;
+  const cap  = capacities.get(chaperoneId) ?? null;
+  const full = cap != null && count >= cap;
+  emptyEl.style.display = count === 0 ? '' : 'none';
+  linkEl.style.display  = (count > 0 && !full) ? '' : 'none';
 }
 
 function countLabel(visible, total) {
@@ -310,25 +435,62 @@ function countLabel(visible, total) {
 function updateColumnCounts() {
   document.querySelectorAll('.veh-col').forEach(col => {
     const chaperoneId = col.dataset.chaperoneId;
-    const body  = document.getElementById(`veh-body-${chaperoneId}`);
-    if (!body) return;
-    const cards   = [...body.querySelectorAll('.veh-card')];
+    const cardsEl = document.getElementById(`veh-cards-${chaperoneId}`);
+    if (!cardsEl) return;
+    const cards   = [...cardsEl.querySelectorAll('.veh-card')];
     const total   = cards.length;
     const visible = cards.filter(c => c.style.display !== 'none').length;
     const countEl = document.getElementById(`veh-count-${chaperoneId}`);
     if (countEl) countEl.textContent = countLabel(visible, total);
-    if (chaperoneId !== 'unassigned') updateCapBadge(chaperoneId);
+    updateCapBadge(chaperoneId, total);
+    updateProgressBar(chaperoneId, total);
+    refreshColumnFooter(chaperoneId, total);
   });
+  updateUnassignedMeta();
+  updateAggregateStats();
+}
+
+function updateUnassignedMeta() {
+  const list = document.getElementById('veh-cards-unassigned');
+  if (!list) return;
+  const cards   = [...list.querySelectorAll('.veh-card')];
+  const total   = cards.length;
+  const visible = cards.filter(c => c.style.display !== 'none').length;
+  const countEl = document.getElementById('vehUnassignedCount');
+  if (countEl) countEl.textContent = countLabel(total, total);
+  const footerEl = document.getElementById('vehUnassignedFooter');
+  if (footerEl) {
+    footerEl.textContent = visible === total
+      ? `Showing ${total} student${total !== 1 ? 's' : ''}`
+      : `Showing ${visible} of ${total} students`;
+  }
+}
+
+function updateAggregateStats() {
+  const el = document.getElementById('vehStats');
+  if (!el) return;
+  let totalCap = 0, hasCap = false, totalAssigned = 0;
+  drivers.forEach(d => {
+    const cap = capacities.get(d.id);
+    if (cap != null) { totalCap += cap; hasCap = true; }
+    totalAssigned += students.filter(s => assignments.get(s.id) === d.id).length;
+  });
+  const seatsPart = hasCap
+    ? `${totalAssigned} of ${totalCap} seats filled${totalCap > 0 ? ` (${Math.round((totalAssigned / totalCap) * 100)}%)` : ''}`
+    : `${totalAssigned} student${totalAssigned !== 1 ? 's' : ''} assigned`;
+  el.textContent = `${drivers.length} chaperone${drivers.length !== 1 ? 's' : ''} • ${seatsPart}`;
 }
 
 // ── Search ────────────────────────────────────────────────────────────────
 
 function applySearchFilter() {
   document.querySelectorAll('.veh-card').forEach(card => {
-    if (!searchTerm) { card.style.display = ''; return; }
     const student = students.find(s => s.id === card.dataset.sid);
     const full = `${student?.first_name ?? ''} ${student?.last_name ?? ''}`.toLowerCase();
-    card.style.display = full.includes(searchTerm) ? '' : 'none';
+    const inUnassigned = card.closest('#veh-cards-unassigned') != null;
+    const matchesGlobal = !searchTerm || full.includes(searchTerm);
+    const matchesLocal  = !inUnassigned || !unassignedSearchTerm || full.includes(unassignedSearchTerm);
+    card.style.display = (matchesGlobal && matchesLocal) ? '' : 'none';
   });
   updateColumnCounts();
 }
@@ -352,6 +514,10 @@ async function editCapacity(chaperoneId, name) {
 
 // ── Drag / click / move ──────────────────────────────────────────────────
 
+function cardsContainerId(chaperoneId) {
+  return chaperoneId ? `veh-cards-${chaperoneId}` : 'veh-cards-unassigned';
+}
+
 function moveStudents(studentIds, targetChaperoneId) {
   const ids = (Array.isArray(studentIds) ? studentIds : [studentIds]).filter(Boolean);
   const group = ids
@@ -368,10 +534,7 @@ function moveStudents(studentIds, targetChaperoneId) {
     assignments.set(studentId, targetChaperoneId);
     dirty.add(studentId);
     const card = document.querySelector(`[data-sid="${studentId}"]`);
-    if (card) {
-      const targetBodyId = targetChaperoneId ? `veh-body-${targetChaperoneId}` : 'veh-body-unassigned';
-      document.getElementById(targetBodyId)?.appendChild(card);
-    }
+    if (card) document.getElementById(cardsContainerId(targetChaperoneId))?.appendChild(card);
   });
 
   applySearchFilter();
@@ -388,10 +551,7 @@ function undoLastMove() {
     assignments.set(studentId, fromChaperoneId);
     dirty.add(studentId);
     const card = document.querySelector(`[data-sid="${studentId}"]`);
-    if (card) {
-      const targetBodyId = fromChaperoneId ? `veh-body-${fromChaperoneId}` : 'veh-body-unassigned';
-      document.getElementById(targetBodyId)?.appendChild(card);
-    }
+    if (card) document.getElementById(cardsContainerId(fromChaperoneId))?.appendChild(card);
   });
 
   clearSelection();
@@ -464,9 +624,10 @@ function setSaveStatus(status) {
   const el = document.getElementById('vehSaveStatus');
   if (!el) return;
   el.className = `veh-save-status ${status}`;
-  el.textContent = status === 'saving' ? 'Saving…'
+  const text = status === 'saving' ? 'Saving…'
     : status === 'saved'  ? 'All changes saved'
     : 'Save failed — try again';
+  el.innerHTML = `${SAVE_ICONS[status] ?? ''}<span>${text}</span>`;
 }
 
 // ── Clear all assignments ─────────────────────────────────────────────────
