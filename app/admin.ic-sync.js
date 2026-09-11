@@ -240,13 +240,16 @@ async function loadReviewQueue() {
 
   wrap.innerHTML = `
     ${bulkBar}
-    <table class="admin-table">
+    <table class="admin-table ic-review-table">
       <thead>
         <tr>
           <th style="width:32px;"><input type="checkbox" id="icSelectAllCheckbox"></th>
-          <th>Type</th>
-          <th colspan="2">Existing → Incoming from Infinite Campus (changed fields highlighted)</th>
-          <th>Actions</th>
+          <th style="width:130px;">Type</th>
+          <th style="width:130px;">Field</th>
+          <th>Belltower (current)</th>
+          <th style="width:24px;"></th>
+          <th>Infinite Campus (incoming)</th>
+          <th style="width:170px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -343,33 +346,58 @@ const GUARDIAN_COMPARE_FIELDS = [
 // record specifically, independent of the global Field Sync Settings.
 const fieldOverrideSelections = new Map();
 
-function compareFieldsHtml(candidateId, existing, proposed, fields) {
+// One field row per entry in `fields`, plus one more if the "check a box to pull
+// in IC's value" hint is going to render — the rowspan on this candidate's
+// checkbox/Type/Actions cells has to cover that hint row too, or the table
+// desyncs by one row for every candidate that has an overridable field.
+function compareRowCount(existing, proposed, fields) {
+  const anyOverridable = fields.some(([, get, key]) => key && get(existing) !== get(proposed));
+  return fields.length + (anyOverridable ? 1 : 0);
+}
+
+// Renders one candidate's field-by-field diff as real rows in the outer review
+// table (not a nested table) so every candidate's Belltower/Infinite Campus
+// columns line up at the same x-position, page-wide — a per-row nested table
+// sizes its own columns from its own content and can't guarantee that on its own.
+// leadCellsHtml (checkbox + Type) and tailCellsHtml (Actions) are rowspan'd across
+// every field row, so they're only emitted on the first physical <tr> — later rows
+// must omit those columns entirely rather than pad them with empty cells.
+function compareRowsHtml(candidateId, existing, proposed, fields, leadCellsHtml, tailCellsHtml) {
   const selected = fieldOverrideSelections.get(candidateId) ?? new Set();
-  return `
-    <table class="ic-compare-table">
-      ${fields
-        .map(([label, get, fieldKey]) => {
-          const existingVal = get(existing);
-          const proposedVal = get(proposed);
-          const changed = existingVal !== proposedVal;
-          const checkbox =
-            changed && fieldKey
-              ? `<input type="checkbox" data-field-override="${candidateId}" data-field-key="${fieldKey}" ${selected.has(fieldKey) ? 'checked' : ''} style="margin-right:4px;" title="Pull in Infinite Campus's value for this field on this record only">`
-              : '';
-          return `
-            <tr>
-              <td style="padding-right:4px;">${checkbox}</td>
-              <td class="muted" style="padding-right:8px;white-space:nowrap;">${esc(label)}</td>
-              <td style="${changed ? 'color:var(--primary);font-weight:600;' : ''}">${esc(String(existingVal))}</td>
-              <td style="padding:0 6px;">→</td>
-              <td style="${changed ? 'color:var(--primary);font-weight:600;' : ''}">${esc(String(proposedVal))}</td>
-            </tr>
-          `;
-        })
-        .join('')}
-    </table>
-    ${fields.some(([, get, key], i) => key && get(existing) !== get(proposed)) ? '<p class="muted" style="font-size:11px;margin:4px 0 0;">Check a highlighted field to pull in IC\'s value for this record only — leaves everyone else and the global setting untouched.</p>' : ''}
-  `;
+  const anyOverridable = fields.some(([, get, key]) => key && get(existing) !== get(proposed));
+
+  const fieldRows = fields
+    .map(([label, get, fieldKey], i) => {
+      const existingVal = get(existing);
+      const proposedVal = get(proposed);
+      const changed = existingVal !== proposedVal;
+      const changedStyle = changed ? 'color:var(--primary);font-weight:600;' : '';
+      const checkbox =
+        changed && fieldKey
+          ? `<input type="checkbox" data-field-override="${candidateId}" data-field-key="${fieldKey}" ${selected.has(fieldKey) ? 'checked' : ''} style="margin-right:6px;" title="Pull in Infinite Campus's value for this field on this record only">`
+          : '';
+      return `
+        <tr class="ic-diff-row${i === 0 ? ' ic-diff-row-first' : ''}">
+          ${i === 0 ? leadCellsHtml : ''}
+          <td class="muted">${checkbox}${esc(label)}</td>
+          <td style="${changedStyle}">${esc(String(existingVal))}</td>
+          <td class="ic-diff-arrow">→</td>
+          <td style="${changedStyle}">${esc(String(proposedVal))}</td>
+          ${i === 0 ? tailCellsHtml : ''}
+        </tr>
+      `;
+    })
+    .join('');
+
+  const hint = anyOverridable
+    ? `
+      <tr class="ic-diff-row">
+        <td colspan="4" class="muted" style="font-size:11px;">Check a highlighted field to pull in IC's value for this record only — leaves everyone else and the global setting untouched.</td>
+      </tr>
+    `
+    : '';
+
+  return fieldRows + hint;
 }
 
 // candidateId -> family id chosen as an override for the auto-suggested match
@@ -401,7 +429,7 @@ function familyRowHtml(c, mode) {
     <tr>
       <td><input type="checkbox" data-select-id="${c.id}"></td>
       <td>Family</td>
-      <td colspan="2">
+      <td colspan="4">
         <div style="font-size:13px;margin-bottom:6px;"><strong>Existing:</strong> ${existingLine}</div>
         <div style="font-size:13px;margin-bottom:8px;"><strong>Incoming:</strong> ${proposedLine}</div>
         <button class="btn btn-sm btn-outline" data-change-target="${c.id}">Change target family…</button>
@@ -428,7 +456,7 @@ function newRecordRowHtml(c, mode) {
     <tr>
       <td><input type="checkbox" data-select-id="${c.id}"></td>
       <td style="text-transform:capitalize;">${esc(c.entity_type)} <span class="muted" style="font-size:11px;">(new)</span></td>
-      <td colspan="2" style="font-size:13px;">New in Infinite Campus, not yet in Belltower: ${esc(summary)}</td>
+      <td colspan="4" style="font-size:13px;">New in Infinite Campus, not yet in Belltower: ${esc(summary)}</td>
       <td style="white-space:nowrap;">
         ${actionCellHtml(c, mode, 'Accept', "Don't add")}
       </td>
@@ -444,7 +472,7 @@ function deactivateRowHtml(c, mode) {
     <tr>
       <td><input type="checkbox" data-select-id="${c.id}"></td>
       <td>Student <span class="muted" style="font-size:11px;">(deactivate?)</span></td>
-      <td colspan="2" style="font-size:13px;">
+      <td colspan="4" style="font-size:13px;">
         <strong>${esc(name)}</strong> is no longer in Infinite Campus's roster. Approve to mark inactive in Belltower; reject to keep active (e.g. if this looks like a data glitch on IC's side).
       </td>
       <td style="white-space:nowrap;">
@@ -463,17 +491,15 @@ function candidateRowHtml(c, mode = 'pending') {
   const proposed = c.proposed_data || {};
   const isStudent = c.entity_type === 'student';
   const fields = isStudent ? STUDENT_COMPARE_FIELDS : GUARDIAN_COMPARE_FIELDS;
+  const rowCount = compareRowCount(existing, proposed, fields);
 
-  return `
-    <tr>
-      <td><input type="checkbox" data-select-id="${c.id}"></td>
-      <td style="text-transform:capitalize;">${esc(c.entity_type)}</td>
-      <td colspan="2">${compareFieldsHtml(c.id, existing, proposed, fields)}</td>
-      <td style="white-space:nowrap;">
-        ${actionCellHtml(c, mode, 'Approve', 'Reject')}
-      </td>
-    </tr>
+  const leadCellsHtml = `
+    <td rowspan="${rowCount}"><input type="checkbox" data-select-id="${c.id}"></td>
+    <td rowspan="${rowCount}" style="text-transform:capitalize;">${esc(c.entity_type)}</td>
   `;
+  const tailCellsHtml = `<td rowspan="${rowCount}" style="white-space:nowrap;">${actionCellHtml(c, mode, 'Approve', 'Reject')}</td>`;
+
+  return compareRowsHtml(c.id, existing, proposed, fields, leadCellsHtml, tailCellsHtml);
 }
 
 function wireFamilyOverrideControls(wrap) {

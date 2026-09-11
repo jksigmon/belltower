@@ -625,11 +625,30 @@ async function linkStudentToFamily(studentId) {
   reloadFamilies();
 }
 
-function confirmDeleteFamily() {
+async function confirmDeleteFamily() {
   if (!editingFamilyId) return;
   const name = document.getElementById('efName').value || '(Unnamed)';
-  document.getElementById('deleteFamilyMsg').textContent =
-    `Are you sure you want to delete ${name}? This cannot be undone.`;
+
+  // Deleting a family hard-deletes its guardians (family_id is NOT NULL on
+  // guardians) and orphans its students (family_id just goes null) rather than
+  // reassigning anyone. For a household still linked to Infinite Campus, the next
+  // sync will re-pull it as a new household on top of that, and the orphaned
+  // student won't automatically rejoin. Warn before this trap gets sprung, and
+  // point at the actual way to permanently drop a household.
+  const [studentsRes, guardiansRes] = await Promise.all([
+    supabase.from('students').select('id', { count: 'exact', head: true })
+      .eq('family_id', editingFamilyId).not('ic_sourced_id', 'is', null),
+    supabase.from('guardians').select('id', { count: 'exact', head: true })
+      .eq('family_id', editingFamilyId).not('ic_sourced_id', 'is', null),
+  ]);
+  const icLinkedCount = (studentsRes.count || 0) + (guardiansRes.count || 0);
+
+  document.getElementById('deleteFamilyMsg').textContent = icLinkedCount
+    ? `${name} has ${icLinkedCount} student(s)/guardian(s) synced from Infinite Campus. Deleting the family ` +
+      `hard-deletes those guardians and leaves any student without a family, and Infinite Campus can still ` +
+      `resync this household afterward. Use the Infinite Campus Sync review queue to reject this household ` +
+      `instead if you want it gone for good. Delete ${name} anyway?`
+    : `Are you sure you want to delete ${name}? This cannot be undone.`;
   document.getElementById('deleteFamilyModal').hidden = false;
 }
 

@@ -106,23 +106,29 @@ function chunk<T>(items: T[], size: number): T[][] {
 // constraint other than the one we're already upserting on), falls back to inserting
 // that chunk's rows one at a time so a single bad row doesn't sink ~100 good ones.
 // Rows failing with a unique-violation (23505) in the per-row fallback are skipped and
-// logged rather than aborting the run. Returns the ids of every row actually created.
+// logged rather than aborting the run. Returns id + ic_sourced_id for every row actually
+// created (every table this is called against has an ic_sourced_id column), so callers
+// can correlate a created row back to the sync-time record that produced it.
 async function bulkInsert(
   table: string,
   rows: Record<string, unknown>[],
   labelForRow: (row: Record<string, unknown>) => string,
   chunkSize = 100
-): Promise<string[]> {
-  const createdIds: string[] = [];
+): Promise<{ id: string; ic_sourced_id: string | null }[]> {
+  const created: { id: string; ic_sourced_id: string | null }[] = [];
   for (const batch of chunk(rows, chunkSize)) {
-    const { data, error } = await supabase.from(table).insert(batch).select("id");
+    const { data, error } = await supabase.from(table).insert(batch).select("id, ic_sourced_id");
     if (!error) {
-      createdIds.push(...(data ?? []).map((r: { id: string }) => r.id));
+      created.push(...(data ?? []));
       continue;
     }
     // Chunk failed — retry rows individually so we can isolate and skip just the bad one(s).
     for (const row of batch) {
-      const { data: single, error: rowErr } = await supabase.from(table).insert(row).select("id").single();
+      const { data: single, error: rowErr } = await supabase
+        .from(table)
+        .insert(row)
+        .select("id, ic_sourced_id")
+        .single();
       if (rowErr) {
         if (rowErr.code === "23505") {
           console.warn(`Skipping duplicate ${table} row (${labelForRow(row)}):`, rowErr.message);
@@ -130,10 +136,10 @@ async function bulkInsert(
         }
         throw rowErr;
       }
-      createdIds.push(single.id);
+      created.push(single);
     }
   }
-  return createdIds;
+  return created;
 }
 
 // Bulk-updates rows (each must include its `id`) via upsert keyed on primary key,
@@ -459,7 +465,8 @@ class UnionFind {
 type Classification =
   | { kind: "linked" | "pending" | "needs_staging"; existing: any }
   | { kind: "approved"; existing: any; fieldOverrides: string[] }
-  | { kind: "rejected" | "new_approved" | "new_pending" | "new_rejected" | "new_needs_staging" };
+  | { kind: "new_approved"; candidateId: string }
+  | { kind: "rejected" | "new_pending" | "new_rejected" | "new_needs_staging" };
 
 async function buildPlan() {
   const token = await getAccessToken();
@@ -590,11 +597,16 @@ async function buildPlan() {
     const cand = candidateByKey.get(`student:${student.sourcedId}`);
     if (cand) {
       if (cand.status === "approved") {
-        if (!cand.existing_record_id) return { kind: "new_approved" };
+        if (!cand.existing_record_id) return { kind: "new_approved", candidateId: cand.id };
         const existing = allStudentsById.get(cand.existing_record_id);
+        // existing_record_id is only ever set once this candidate resolved to a real
+        // row (backfilled right after creation, or matched to a manual record). If
+        // that row is gone now, it was deliberately deleted in Belltower — respect
+        // that and never recreate it, rather than treating a failed lookup as "this
+        // was never actually made" and materializing it all over again.
         return existing
           ? { kind: "approved", existing, fieldOverrides: Array.isArray(cand.field_overrides) ? cand.field_overrides : [] }
-          : { kind: "new_approved" };
+          : { kind: "new_rejected" };
       }
       if (cand.status === "rejected") {
         return cand.existing_record_id ? { kind: "rejected" } : { kind: "new_rejected" };
@@ -637,11 +649,14 @@ async function buildPlan() {
     const cand = candidateByKey.get(`guardian:${sourcedId}`);
     if (cand) {
       if (cand.status === "approved") {
-        if (!cand.existing_record_id) return { kind: "new_approved" };
+        if (!cand.existing_record_id) return { kind: "new_approved", candidateId: cand.id };
         const existing = allGuardiansById.get(cand.existing_record_id);
+        // See the matching comment in classifyStudent: a set-but-unresolvable
+        // existing_record_id means this guardian was already created once and has
+        // since been deleted in Belltower on purpose — don't recreate it forever.
         return existing
           ? { kind: "approved", existing, fieldOverrides: Array.isArray(cand.field_overrides) ? cand.field_overrides : [] }
-          : { kind: "new_approved" };
+          : { kind: "new_rejected" };
       }
       if (cand.status === "rejected") {
         return cand.existing_record_id ? { kind: "rejected" } : { kind: "new_rejected" };
@@ -880,6 +895,7 @@ async function buildPlan() {
     record: Record<string, unknown>;
     familyKey: string | null;
     label: string;
+    newRecordCandidateId: string | null;
   }[] = [];
   const guardianCandidatesToStage: Record<string, unknown>[] = [];
 
@@ -1014,6 +1030,7 @@ async function buildPlan() {
       familyKey,
       label,
       record,
+      newRecordCandidateId: cls.kind === "new_approved" ? cls.candidateId : null,
     });
   }
 
@@ -1026,6 +1043,7 @@ async function buildPlan() {
     familyKey: string | null;
     label: string;
     record: Record<string, unknown>;
+    newRecordCandidateId: string | null;
   }[] = [];
   const studentCandidatesToStage: Record<string, unknown>[] = [];
 
@@ -1238,6 +1256,7 @@ async function buildPlan() {
       familyKey,
       label: `${student.givenName ?? ""} ${student.familyName ?? ""}`.trim(),
       record,
+      newRecordCandidateId: cls.kind === "new_approved" ? cls.candidateId : null,
     });
   }
 
@@ -1512,14 +1531,27 @@ async function executePlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
     }
     const familiesCreated = createdFamilyIds.length;
 
+    // Correlates a just-created row's ic_sourced_id back to (a) the family-group key
+    // it belongs to, so a family that ends up with zero actual members this run can
+    // be cleaned up instead of left as an empty shell, and (b) the reconciliation
+    // candidate that authorized its creation, so that candidate's existing_record_id
+    // gets backfilled — without it, a later deletion of this row can never be told
+    // apart from "not created yet" and the sync recreates it forever.
+    const familyKeysWithNewMember = new Set<string>();
+    const candidateBackfills: { id: string; existing_record_id: string }[] = [];
+
     /* ---- Guardians ---- */
     const guardiansToInsert: Record<string, unknown>[] = [];
     const guardiansToUpdate: Record<string, unknown>[] = [];
+    const guardianFamilyKeyBySourcedId = new Map<string, string>();
+    const guardianCandidateIdBySourcedId = new Map<string, string>();
     for (const g of guardianPlans) {
       const familyId = g.familyKey ? realFamilyIdByKey.get(g.familyKey) ?? null : null;
       if (g.isNew) {
         if (!familyId) continue; // orphan guardian with no linked student — skip
         guardiansToInsert.push({ ...g.record, family_id: familyId });
+        if (g.familyKey) guardianFamilyKeyBySourcedId.set(g.sourcedId, g.familyKey);
+        if (g.newRecordCandidateId) guardianCandidateIdBySourcedId.set(g.sourcedId, g.newRecordCandidateId);
       } else {
         // family_id is NOT NULL on guardians; upsert needs it even though we're not
         // changing it — preserve the existing assignment rather than reassigning
@@ -1527,9 +1559,14 @@ async function executePlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
         guardiansToUpdate.push({ ...g.record, id: g.existingId, family_id: g.existingFamilyId });
       }
     }
-    createdGuardianIds.push(
-      ...(await bulkInsert("guardians", guardiansToInsert, (r) => `${r.first_name} ${r.last_name}`))
-    );
+    const createdGuardians = await bulkInsert("guardians", guardiansToInsert, (r) => `${r.first_name} ${r.last_name}`);
+    for (const row of createdGuardians) {
+      createdGuardianIds.push(row.id);
+      const key = row.ic_sourced_id ? guardianFamilyKeyBySourcedId.get(row.ic_sourced_id) : null;
+      if (key) familyKeysWithNewMember.add(key);
+      const candidateId = row.ic_sourced_id ? guardianCandidateIdBySourcedId.get(row.ic_sourced_id) : null;
+      if (candidateId) candidateBackfills.push({ id: candidateId, existing_record_id: row.id });
+    }
     const guardiansCreated = createdGuardianIds.length;
     const guardiansUpdated = await bulkUpdate(
       "guardians",
@@ -1541,10 +1578,14 @@ async function executePlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
     /* ---- Students ---- */
     const studentsToInsert: Record<string, unknown>[] = [];
     const studentsToUpdate: Record<string, unknown>[] = [];
+    const studentFamilyKeyBySourcedId = new Map<string, string>();
+    const studentCandidateIdBySourcedId = new Map<string, string>();
     for (const s of studentPlans) {
       if (s.isNew) {
         const familyId = s.familyKey ? realFamilyIdByKey.get(s.familyKey) ?? null : null;
         studentsToInsert.push({ ...s.record, family_id: familyId });
+        if (s.familyKey) studentFamilyKeyBySourcedId.set(s.sourcedId, s.familyKey);
+        if (s.newRecordCandidateId) studentCandidateIdBySourcedId.set(s.sourcedId, s.newRecordCandidateId);
       } else {
         // Preserve the student's existing family assignment on updates rather than
         // recomputing from this run's grouping — a household should only ever change
@@ -1552,10 +1593,52 @@ async function executePlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
         studentsToUpdate.push({ ...s.record, id: s.existingId, family_id: s.existingFamilyId });
       }
     }
-    createdStudentIds.push(
-      ...(await bulkInsert("students", studentsToInsert, (r) => `${r.first_name} ${r.last_name}`))
-    );
+    const createdStudents = await bulkInsert("students", studentsToInsert, (r) => `${r.first_name} ${r.last_name}`);
+    for (const row of createdStudents) {
+      createdStudentIds.push(row.id);
+      const key = row.ic_sourced_id ? studentFamilyKeyBySourcedId.get(row.ic_sourced_id) : null;
+      if (key) familyKeysWithNewMember.add(key);
+      const candidateId = row.ic_sourced_id ? studentCandidateIdBySourcedId.get(row.ic_sourced_id) : null;
+      if (candidateId) candidateBackfills.push({ id: candidateId, existing_record_id: row.id });
+    }
     const studentsCreated = createdStudentIds.length;
+
+    // Backfill existing_record_id on every candidate whose new record actually landed,
+    // so a future deletion of that record can be recognized as intentional (see the
+    // classifyStudent/classifyGuardian comments) instead of recreated every run.
+    await Promise.all(
+      candidateBackfills.map(async (b) => {
+        const { error: backfillErr } = await supabase
+          .from("ic_reconciliation_candidates")
+          .update({ existing_record_id: b.existing_record_id })
+          .eq("id", b.id);
+        if (backfillErr) console.error(`Failed to backfill candidate ${b.id}:`, backfillErr);
+      })
+    );
+
+    // A family created for this run's group but that ended up with no guardian or
+    // student actually inserted (e.g. every member hit a duplicate-key skip in
+    // bulkInsert) is a dead shell — delete it rather than leaving an empty
+    // "(Unnamed)" family behind.
+    const emptyFamilyIds = keysNeedingNewFamily
+      .filter((key) => !familyKeysWithNewMember.has(key))
+      .map((key) => realFamilyIdByKey.get(key))
+      .filter((id): id is string => !!id);
+    let familiesCreatedFinal = familiesCreated;
+    if (emptyFamilyIds.length) {
+      const { error: emptyErr } = await supabase.from("families").delete().in("id", emptyFamilyIds);
+      if (emptyErr) {
+        console.error("Failed to clean up empty placeholder families:", emptyErr);
+      } else {
+        familiesCreatedFinal = familiesCreated - emptyFamilyIds.length;
+        const emptySet = new Set(emptyFamilyIds);
+        for (const id of emptyFamilyIds) createdFamilyIds.splice(createdFamilyIds.indexOf(id), 1);
+        for (const key of keysNeedingNewFamily) {
+          const id = realFamilyIdByKey.get(key);
+          if (id && emptySet.has(id)) realFamilyIdByKey.delete(key);
+        }
+      }
+    }
     await bulkUpdate("students", studentsToUpdate);
     const studentsUpdated = studentsToUpdate.length;
 
@@ -1574,7 +1657,7 @@ async function executePlan(plan: Awaited<ReturnType<typeof buildPlan>>) {
     }
 
     return {
-      families_created: familiesCreated,
+      families_created: familiesCreatedFinal,
       students_created: studentsCreated,
       students_updated: studentsUpdated,
       students_deactivated: studentsDeactivated,

@@ -35,14 +35,24 @@
       font-size: 13px;
       margin-top: 6px;
     }
-    .ic-compare-table {
-      font-size: 12px;
-      border-collapse: collapse;
-      margin: 4px 0;
+    /* Field-diff candidates render one <tr> per field directly in the review
+       table (not a nested table), so every candidate's Belltower/Infinite Campus
+       values line up in the same two columns all the way down the page. */
+    .ic-review-table {
+      table-layout: fixed;
     }
-    .ic-compare-table td {
-      padding: 2px 0;
-      border: none;
+    .ic-review-table .ic-diff-row td {
+      font-size: 13px;
+    }
+    .ic-review-table .ic-diff-row-first td {
+      border-top: 2px solid var(--border);
+    }
+    .ic-review-table td[rowspan] {
+      vertical-align: middle;
+    }
+    .ic-diff-arrow {
+      text-align: center;
+      color: var(--text-muted, #6b7280);
     }
   </style>
 </head>
