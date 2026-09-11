@@ -39,25 +39,40 @@
     .veh-save-status.saved  { color: #15803d; }
     .veh-save-status.error  { color: #dc2626; }
 
-    /* ── Board ── */
+    /* ── Board ──
+       Unassigned is pinned as a tall sidebar (it's the one column that can
+       genuinely run long); driver/vehicle columns wrap into a grid since each
+       vehicle only holds a handful of students — a single row of 20+ skinny
+       columns wastes most of their height and forces horizontal scrolling. */
     .veh-board {
       display: flex;
+      flex-wrap: wrap;
       gap: 14px;
       padding: 18px 20px 40px;
-      overflow-x: auto;
-      min-height: calc(100vh - 58px);
       align-items: flex-start;
+      min-height: calc(100vh - 58px);
+    }
+    .veh-unassigned-wrap {
+      flex: 0 0 240px;
+    }
+    .veh-vehicle-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
+      gap: 12px;
+      align-items: start;
+      align-content: start;
     }
     .veh-col {
-      flex: 0 0 220px;
-      min-width: 220px;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 14px;
       display: flex;
       flex-direction: column;
+      width: 100%;
       max-height: calc(100vh - 90px);
     }
+    .veh-col--vehicle { max-height: 340px; }
     .veh-col-unassigned { border-color: #d1d5db; }
     .veh-col-unassigned .veh-col-header { background: #f1f5f9; border-radius: 13px 13px 0 0; }
 
@@ -125,6 +140,60 @@
     .veh-card.dragging { opacity: 0.45; }
     .veh-card-name  { font-size: 13px; font-weight: 700; color: #0f172a; line-height: 1.2; }
     .veh-card-grade { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .veh-card.selected {
+      outline: 2px solid #2563eb;
+      outline-offset: -1px;
+      background: #eff6ff;
+    }
+
+    /* ── Selection / click-to-move ── */
+    .veh-col.click-target { box-shadow: 0 0 0 2px rgba(37,99,235,0.28); border-radius: 14px; }
+    .veh-col.click-target .veh-col-body { cursor: pointer; }
+    .veh-selection-badge {
+      font-size: 12px;
+      font-weight: 700;
+      color: #2563eb;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+    .veh-search {
+      height: 30px;
+      font-size: 13px;
+      padding: 0 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      width: 160px;
+      flex-shrink: 0;
+    }
+
+    /* ── Touch/mobile advisory ── */
+    .veh-mobile-notice {
+      display: none;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 12px 20px 0;
+    }
+    .veh-mobile-notice button {
+      flex-shrink: 0;
+      background: none;
+      border: none;
+      color: inherit;
+      font-size: 15px;
+      cursor: pointer;
+      padding: 2px 4px;
+      line-height: 1;
+    }
+    @media (max-width: 767px) {
+      .veh-mobile-notice { display: flex; }
+    }
 
     /* ── Print ── */
     @media print {
@@ -133,7 +202,7 @@
         overflow: visible !important;
         background: #fff !important;
       }
-      .veh-toolbar, .veh-board { display: none !important; }
+      .veh-toolbar, .veh-board, .veh-mobile-notice { display: none !important; }
       .print-roster { display: block !important; }
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
@@ -168,13 +237,24 @@
     Field Trips
   </a>
   <div class="veh-trip-name" id="vehTripName">Loading…</div>
+  <input type="search" id="vehSearch" class="veh-search" placeholder="Search students…">
+  <span class="veh-selection-badge" id="vehSelectionBadge" title="Click to cancel selection" hidden></span>
   <span class="veh-save-status" id="vehSaveStatus"></span>
+  <button class="btn btn-sm" id="vehUndoBtn" style="flex-shrink:0;" title="Undo last move (Ctrl+Z)" disabled>
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M3 13a9 9 0 1 0 3-7.7L3 7"/></svg>
+  </button>
   <button class="btn btn-sm" id="vehAutoAssignBtn" style="flex-shrink:0;">Auto-assign</button>
   <button class="btn btn-sm" id="vehClearBtn" style="flex-shrink:0;">Clear All</button>
   <button class="btn btn-sm" id="vehPrintBtn" style="flex-shrink:0;">Print Roster</button>
   <!-- Hidden elements for auth layer -->
   <span id="userInitials" style="display:none;"></span>
   <span id="userDropdownName" style="display:none;"></span>
+</div>
+
+<!-- Touch/mobile advisory: drag-and-drop needs a mouse/trackpad, but tap-to-select works everywhere -->
+<div class="veh-mobile-notice" id="vehMobileNotice">
+  <span>On a touch device, dragging cards may not work. Tap a student to select them (tap more to add to the selection), then tap a vehicle to move them there.</span>
+  <button type="button" aria-label="Dismiss" onclick="document.getElementById('vehMobileNotice').remove()">&#10005;</button>
 </div>
 
 <!-- ── Board ── -->

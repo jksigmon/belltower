@@ -19,6 +19,9 @@ let capacities   = new Map(); // chaperone_id → vehicle_capacity int
 let gradeColors  = new Map(); // grade_level → color hex
 let dirty        = new Set();
 let saveTimer    = null;
+let selected     = new Set();  // student ids selected for click-to-move
+let undoStack    = [];         // array of [{ studentId, fromChaperoneId }, ...] groups
+let searchTerm   = '';
 
 // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -77,6 +80,17 @@ async function init() {
 
   buildBoard();
   wireActions();
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && selected.size) clearSelection();
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      undoLastMove();
+    }
+  });
+  document.addEventListener('click', e => {
+    if (selected.size && !e.target.closest('#vehBoard')) clearSelection();
+  });
 }
 
 // ── Data helpers ──────────────────────────────────────────────────────────
@@ -124,16 +138,29 @@ function buildBoard() {
     return;
   }
 
-  // Unassigned column
-  const unassigned = students.filter(s => !assignments.get(s.id));
-  board.appendChild(buildColumn(null, 'Unassigned', unassigned));
+  board.innerHTML = `
+    <div class="veh-unassigned-wrap" id="vehUnassignedWrap"></div>
+    <div class="veh-vehicle-grid" id="vehVehicleGrid"></div>
+  `;
+  const unassignedWrap = document.getElementById('vehUnassignedWrap');
+  const grid           = document.getElementById('vehVehicleGrid');
 
-  // One column per driver
+  // Unassigned column — pinned sidebar, can run long
+  const unassigned = students.filter(s => !assignments.get(s.id));
+  unassignedWrap.appendChild(buildColumn(null, 'Unassigned', unassigned));
+
+  // One column per driver, wrapped into a grid — each vehicle only holds a
+  // handful of students, so a tall single-file layout wastes space
   drivers.forEach(driver => {
     const name    = driverName(driver);
     const assigned = students.filter(s => assignments.get(s.id) === driver.id);
-    board.appendChild(buildColumn(driver, name, assigned));
+    const col = buildColumn(driver, name, assigned);
+    col.classList.add('veh-col--vehicle');
+    grid.appendChild(col);
   });
+
+  applySearchFilter();
+  updateSelectionUI();
 }
 
 function driverName(driver) {
@@ -154,7 +181,7 @@ function buildColumn(driver, name, studs) {
     <div class="veh-col-header">
       <div class="veh-col-title">${esc(name)}</div>
       <div class="veh-col-meta">
-        <span id="veh-count-${esc(chaperoneId)}">${countLabel(count)}</span>
+        <span id="veh-count-${esc(chaperoneId)}">${countLabel(count, count)}</span>
         ${driver ? capBadgeHtml(driver.id, count, cap) : ''}
       </div>
     </div>
@@ -172,13 +199,22 @@ function buildColumn(driver, name, studs) {
   body.addEventListener('drop', e => {
     e.preventDefault();
     body.classList.remove('drag-over');
-    const studentId   = e.dataTransfer.getData('text/plain');
+    const ids = e.dataTransfer.getData('text/plain').split(',').filter(Boolean);
     const targetChapId = driver?.id ?? null;
-    moveStudent(studentId, targetChapId);
+    moveStudents(ids, targetChapId);
+  });
+
+  const targetChapId = driver?.id ?? null;
+  col.addEventListener('click', () => {
+    if (!selected.size) return;
+    moveStudents([...selected], targetChapId);
   });
 
   if (driver) {
-    col.querySelector('.veh-cap-badge')?.addEventListener('click', () => editCapacity(driver.id, name));
+    col.querySelector('.veh-cap-badge')?.addEventListener('click', e => {
+      e.stopPropagation();
+      editCapacity(driver.id, name);
+    });
   }
 
   return col;
@@ -186,7 +222,7 @@ function buildColumn(driver, name, studs) {
 
 function buildCard(student) {
   const card = document.createElement('div');
-  card.className   = 'veh-card';
+  card.className   = 'veh-card' + (selected.has(student.id) ? ' selected' : '');
   card.draggable   = true;
   card.dataset.sid = student.id;
   card.style.borderLeftColor = gradeColors.get(student.grade_level) ?? '#94a3b8';
@@ -195,11 +231,55 @@ function buildCard(student) {
     ${student.grade_level ? `<div class="veh-card-grade">${esc(student.grade_level)}</div>` : ''}
   `;
   card.addEventListener('dragstart', e => {
-    e.dataTransfer.setData('text/plain', student.id);
+    const ids = selected.has(student.id) && selected.size > 1 ? [...selected] : [student.id];
+    e.dataTransfer.setData('text/plain', ids.join(','));
+    e.dataTransfer.effectAllowed = 'move';
     card.classList.add('dragging');
+    clearSelection();
   });
   card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  card.addEventListener('click', e => {
+    e.stopPropagation();
+    const multi = e.ctrlKey || e.metaKey || e.shiftKey;
+    if (!multi && selected.has(student.id) && selected.size === 1) {
+      clearSelection();
+    } else {
+      selectCard(student.id, multi);
+    }
+  });
   return card;
+}
+
+// ── Selection ─────────────────────────────────────────────────────────────
+
+function selectCard(studentId, addToSelection = false) {
+  if (addToSelection) {
+    if (selected.has(studentId)) selected.delete(studentId);
+    else selected.add(studentId);
+  } else {
+    selected.clear();
+    selected.add(studentId);
+  }
+  updateSelectionUI();
+}
+
+function clearSelection() {
+  selected.clear();
+  updateSelectionUI();
+}
+
+function updateSelectionUI() {
+  document.querySelectorAll('.veh-card').forEach(card => {
+    card.classList.toggle('selected', selected.has(card.dataset.sid));
+  });
+  document.querySelectorAll('.veh-col').forEach(col => {
+    col.classList.toggle('click-target', selected.size > 0);
+  });
+  const badge = document.getElementById('vehSelectionBadge');
+  if (badge) {
+    badge.hidden = selected.size === 0;
+    badge.textContent = `${selected.size} selected — click a vehicle to move`;
+  }
 }
 
 // ── Capacity badge ────────────────────────────────────────────────────────
@@ -222,8 +302,9 @@ function updateCapBadge(chaperoneId) {
   badge.title = cap == null ? 'Click to set vehicle capacity' : 'Click to edit capacity';
 }
 
-function countLabel(n) {
-  return `${n} student${n !== 1 ? 's' : ''}`;
+function countLabel(visible, total) {
+  if (visible === total) return `${total} student${total !== 1 ? 's' : ''}`;
+  return `${visible}/${total} students`;
 }
 
 function updateColumnCounts() {
@@ -231,11 +312,25 @@ function updateColumnCounts() {
     const chaperoneId = col.dataset.chaperoneId;
     const body  = document.getElementById(`veh-body-${chaperoneId}`);
     if (!body) return;
-    const count = body.querySelectorAll('.veh-card').length;
+    const cards   = [...body.querySelectorAll('.veh-card')];
+    const total   = cards.length;
+    const visible = cards.filter(c => c.style.display !== 'none').length;
     const countEl = document.getElementById(`veh-count-${chaperoneId}`);
-    if (countEl) countEl.textContent = countLabel(count);
+    if (countEl) countEl.textContent = countLabel(visible, total);
     if (chaperoneId !== 'unassigned') updateCapBadge(chaperoneId);
   });
+}
+
+// ── Search ────────────────────────────────────────────────────────────────
+
+function applySearchFilter() {
+  document.querySelectorAll('.veh-card').forEach(card => {
+    if (!searchTerm) { card.style.display = ''; return; }
+    const student = students.find(s => s.id === card.dataset.sid);
+    const full = `${student?.first_name ?? ''} ${student?.last_name ?? ''}`.toLowerCase();
+    card.style.display = full.includes(searchTerm) ? '' : 'none';
+  });
+  updateColumnCounts();
 }
 
 async function editCapacity(chaperoneId, name) {
@@ -255,24 +350,60 @@ async function editCapacity(chaperoneId, name) {
   updateColumnCounts();
 }
 
-// ── Drag / move ───────────────────────────────────────────────────────────
+// ── Drag / click / move ──────────────────────────────────────────────────
 
-function moveStudent(studentId, targetChaperoneId) {
-  if (!studentId) return;
-  const prevChaperoneId = assignments.get(studentId) ?? null;
-  if (prevChaperoneId === targetChaperoneId) return;
+function moveStudents(studentIds, targetChaperoneId) {
+  const ids = (Array.isArray(studentIds) ? studentIds : [studentIds]).filter(Boolean);
+  const group = ids
+    .map(id => ({ studentId: id, fromChaperoneId: assignments.get(id) ?? null }))
+    .filter(g => g.fromChaperoneId !== targetChaperoneId);
 
-  assignments.set(studentId, targetChaperoneId);
-  dirty.add(studentId);
+  clearSelection();
+  if (!group.length) return;
 
-  const card = document.querySelector(`[data-sid="${studentId}"]`);
-  if (card) {
-    const targetBodyId = targetChaperoneId ? `veh-body-${targetChaperoneId}` : 'veh-body-unassigned';
-    document.getElementById(targetBodyId)?.appendChild(card);
-  }
+  undoStack.push(group);
+  if (undoStack.length > 30) undoStack.shift();
 
+  group.forEach(({ studentId }) => {
+    assignments.set(studentId, targetChaperoneId);
+    dirty.add(studentId);
+    const card = document.querySelector(`[data-sid="${studentId}"]`);
+    if (card) {
+      const targetBodyId = targetChaperoneId ? `veh-body-${targetChaperoneId}` : 'veh-body-unassigned';
+      document.getElementById(targetBodyId)?.appendChild(card);
+    }
+  });
+
+  applySearchFilter();
   updateColumnCounts();
   scheduleSave();
+  updateUndoBtn();
+}
+
+function undoLastMove() {
+  const group = undoStack.pop();
+  if (!group) return;
+
+  group.forEach(({ studentId, fromChaperoneId }) => {
+    assignments.set(studentId, fromChaperoneId);
+    dirty.add(studentId);
+    const card = document.querySelector(`[data-sid="${studentId}"]`);
+    if (card) {
+      const targetBodyId = fromChaperoneId ? `veh-body-${fromChaperoneId}` : 'veh-body-unassigned';
+      document.getElementById(targetBodyId)?.appendChild(card);
+    }
+  });
+
+  clearSelection();
+  applySearchFilter();
+  updateColumnCounts();
+  scheduleSave();
+  updateUndoBtn();
+}
+
+function updateUndoBtn() {
+  const btn = document.getElementById('vehUndoBtn');
+  if (btn) btn.disabled = undoStack.length === 0;
 }
 
 // ── Save ──────────────────────────────────────────────────────────────────
@@ -350,6 +481,8 @@ function clearAssignments() {
     dirty.add(s.id);
   });
 
+  undoStack = [];
+  updateUndoBtn();
   buildBoard();
   scheduleSave();
 }
@@ -387,6 +520,8 @@ function autoAssign() {
     dirty.add(student.id);
   });
 
+  undoStack = [];
+  updateUndoBtn();
   buildBoard();
   scheduleSave();
 }
@@ -455,6 +590,12 @@ function wireActions() {
   document.getElementById('vehPrintBtn')?.addEventListener('click', () => {
     preparePrintRoster();
     window.print();
+  });
+  document.getElementById('vehUndoBtn')?.addEventListener('click', undoLastMove);
+  document.getElementById('vehSelectionBadge')?.addEventListener('click', clearSelection);
+  document.getElementById('vehSearch')?.addEventListener('input', e => {
+    searchTerm = e.target.value.trim().toLowerCase();
+    applySearchFilter();
   });
 }
 
