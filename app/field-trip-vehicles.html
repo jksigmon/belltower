@@ -94,6 +94,16 @@
       pointer-events: none;
     }
 
+    /* ── Main scroll region ──
+       body.admin-page pins the page itself (height:100vh; overflow:hidden)
+       and expects one child to scroll internally. The vehicle grid can wrap
+       into more rows than fit on screen, so .veh-main — not the page — has
+       to be the thing that scrolls. */
+    .veh-main {
+      overflow-y: auto;
+      min-height: 0;
+    }
+
     /* ── Board ──
        Unassigned is pinned as a tall sidebar (it's the one column that can
        genuinely run long); driver/vehicle columns wrap into a grid since each
@@ -105,7 +115,6 @@
       gap: 18px;
       padding: 18px 20px 40px;
       align-items: flex-start;
-      min-height: calc(100vh - 58px);
     }
 
     /* ── Unassigned sidebar ── */
@@ -117,6 +126,8 @@
       display: flex;
       flex-direction: column;
       max-height: calc(100vh - 90px);
+      position: sticky;
+      top: 18px;
     }
     .veh-unassigned-header { padding: 14px 14px 10px; flex-shrink: 0; }
     .veh-unassigned-title { font-size: 14px; font-weight: 800; color: #0b2d4f; }
@@ -373,7 +384,7 @@
         overflow: visible !important;
         background: #fff !important;
       }
-      .veh-toolbar, .veh-board, .veh-mobile-notice { display: none !important; }
+      .veh-toolbar, .veh-main { display: none !important; }
       .print-roster { display: block !important; }
       * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
@@ -435,15 +446,19 @@
   <span id="userDropdownName" style="display:none;"></span>
 </div>
 
-<!-- Touch/mobile advisory: drag-and-drop needs a mouse/trackpad, but tap-to-select works everywhere -->
-<div class="veh-mobile-notice" id="vehMobileNotice">
-  <span>On a touch device, dragging cards may not work. Tap a student to select them (tap more to add to the selection), then tap a vehicle to move them there.</span>
-  <button type="button" aria-label="Dismiss" onclick="document.getElementById('vehMobileNotice').remove()">&#10005;</button>
-</div>
+<!-- Scrollable region: body.admin-page pins the page itself, so this div
+     (not the page) is what scrolls when the vehicle grid runs tall. -->
+<div class="veh-main">
+  <!-- Touch/mobile advisory: drag-and-drop needs a mouse/trackpad, but tap-to-select works everywhere -->
+  <div class="veh-mobile-notice" id="vehMobileNotice">
+    <span>On a touch device, dragging cards may not work. Tap a student to select them (tap more to add to the selection), then tap a vehicle to move them there.</span>
+    <button type="button" aria-label="Dismiss" onclick="document.getElementById('vehMobileNotice').remove()">&#10005;</button>
+  </div>
 
-<!-- ── Board ── -->
-<div class="veh-board" id="vehBoard">
-  <div style="padding:60px 40px;color:#9ca3af;font-size:14px;">Loading…</div>
+  <!-- ── Board ── -->
+  <div class="veh-board" id="vehBoard">
+    <div style="padding:60px 40px;color:#9ca3af;font-size:14px;">Loading…</div>
+  </div>
 </div>
 
 <!-- ── Print roster (hidden on screen) ── -->
