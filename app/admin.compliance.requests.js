@@ -271,6 +271,15 @@ function showReqDiagOverlay() {
     const r = e.getBoundingClientRect();
     return `top:${Math.round(r.top)} left:${Math.round(r.left)} h:${Math.round(r.height)} w:${Math.round(r.width)}`;
   };
+  // Every direct child of <body>, in order -- shows exactly what's sitting
+  // in the gap above .wrap (an oversized header vs. an extra injected
+  // element are two very different bugs and this tells them apart).
+  const children = [...document.body.children].map(c => {
+    const r = c.getBoundingClientRect();
+    const id = c.id ? `#${c.id}` : '';
+    const cls = c.className ? `.${String(c.className).trim().replace(/\s+/g, '.')}` : '';
+    return `  ${c.tagName.toLowerCase()}${id}${cls} -> top:${Math.round(r.top)} h:${Math.round(r.height)}`;
+  }).join('\n');
   el.textContent =
 `Screenshot this box and send it over
 window: ${window.innerWidth}x${window.innerHeight}  DPR:${window.devicePixelRatio}
@@ -279,7 +288,9 @@ scrollY: ${window.scrollY}  page height: ${document.body.scrollHeight}
 body: ${rect('body')}
 .wrap: ${rect('.wrap')}
 nav:   ${rect('nav')}
-main:  ${rect('main')}`;
+main:  ${rect('main')}
+body children:
+${children}`;
 }
 
 export function wireRequestFilters() {
