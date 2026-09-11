@@ -851,9 +851,11 @@ function renderChaperoneTable() {
       ${mvrCell}
       ${formsCell}
       <td>${chap.is_driver ? '<span class="comp-chip comp-action">Driver</span>' : '<span class="muted" style="font-size:12px;">No</span>'}</td>
-      <td style="display:flex;gap:6px;">
-        <button class="btn btn-sm" data-edit-chap-id="${esc(chap.id)}" style="font-size:11px;">Edit</button>
-        <button class="btn btn-sm btn-danger" data-chap-id="${esc(chap.id)}" style="font-size:11px;">Remove</button>
+      <td>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" data-edit-chap-id="${esc(chap.id)}" style="font-size:11px;">Edit</button>
+          <button class="btn btn-sm btn-danger" data-chap-id="${esc(chap.id)}" style="font-size:11px;">Remove</button>
+        </div>
       </td>
     `;
     tr.querySelector('button[data-chap-id]').addEventListener('click', () => removeChaperone(chap.id));
