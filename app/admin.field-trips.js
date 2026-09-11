@@ -1655,6 +1655,13 @@ async function searchVolunteers() {
     }
   });
 
+  console.debug('searchVolunteers final state', {
+    guardianIds: [...guardianIds],
+    guardianById: [...guardianById.entries()],
+    linkedVolunteers: [...linkedVolunteers.entries()],
+    candidates,
+  });
+
   if (!candidates.length) {
     results.innerHTML = `<div class="ft-typeahead-empty">No volunteers or pending BG requests found. Add them in Compliance &rarr; Volunteers, or have them submit a request first.</div>`;
     return;
