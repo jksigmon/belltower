@@ -248,9 +248,43 @@ export async function loadRequests(profile) {
   );
 }
 
+// TEMPORARY DIAGNOSTIC — for tracking down a reported layout jump on this
+// screen that only reproduces on one user's machine. Renders on-page (not
+// just DevTools) so it can be screenshotted directly. Remove once root-caused.
+function showReqDiagOverlay() {
+  let el = document.getElementById('reqDiagOverlay');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'reqDiagOverlay';
+    el.style.cssText = `
+      position:fixed;bottom:12px;right:12px;z-index:99999;
+      background:#111827;color:#f9fafb;font:12px/1.5 -apple-system,monospace;
+      padding:10px 12px;border-radius:8px;max-width:360px;
+      box-shadow:0 4px 16px rgba(0,0,0,.35);white-space:pre-wrap;
+    `;
+    document.body.appendChild(el);
+  }
+  const vv = window.visualViewport;
+  const rect = sel => {
+    const e = document.querySelector(sel);
+    if (!e) return 'not found';
+    const r = e.getBoundingClientRect();
+    return `top:${Math.round(r.top)} left:${Math.round(r.left)} h:${Math.round(r.height)} w:${Math.round(r.width)}`;
+  };
+  el.textContent =
+`Screenshot this box and send it over
+window: ${window.innerWidth}x${window.innerHeight}  DPR:${window.devicePixelRatio}
+visualViewport: ${vv ? `${Math.round(vv.width)}x${Math.round(vv.height)} scale:${vv.scale}` : 'not available'}
+scrollY: ${window.scrollY}  page height: ${document.body.scrollHeight}
+body: ${rect('body')}
+.wrap: ${rect('.wrap')}
+nav:   ${rect('nav')}
+main:  ${rect('main')}`;
+}
+
 export function wireRequestFilters() {
   const reset = debounce(() => { reqPage = 1; loadRequests(); }, 250);
-  document.getElementById('reqSearch')?.addEventListener('input', reset);
+  document.getElementById('reqSearch')?.addEventListener('input', () => { reset(); showReqDiagOverlay(); });
   document.getElementById('reqStatusFilter')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
   document.getElementById('reqLinkFilter')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
   document.getElementById('reqSortSelect')?.addEventListener('change', () => { reqPage = 1; loadRequests(); });
