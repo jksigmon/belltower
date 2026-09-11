@@ -1563,10 +1563,9 @@ async function searchVolunteers() {
 
   const [{ data: volData }, { data: reqData }] = await Promise.all([
     supabase.from('compliance_volunteers')
-      .select('id, first_name, last_name, email')
+      .select('id, first_name, last_name, email, guardian_id')
       .eq('school_id', profile.school_id)
       .is('archived_at', null)
-      .is('guardian_id', null)
       .or(orFilter)
       .limit(8),
     supabase.from('compliance_bg_check_requests')
@@ -1579,10 +1578,13 @@ async function searchVolunteers() {
   ]);
 
   // For requests already linked to a roster row, pull that row's own
-  // guardian_id/archived_at so the same exclusions applied to the plain
-  // roster search above apply here too -- a request-name match shouldn't
-  // surface someone who's actually a real linked guardian, or whose
-  // roster row has since been archived.
+  // guardian_id/archived_at -- a request can be linked to a roster row
+  // filed under yet another name (maiden name, "goes by" name), and that
+  // roster row can itself be linked to a real guardian record under a
+  // *third* name. Resolving the whole chain here means the teacher can
+  // add the person from whatever name they actually searched, instead of
+  // being silently told "not found" and left to guess which of three
+  // names to try under which of three tabs.
   const linkedVolIds = [...new Set((reqData ?? []).map(r => r.volunteer_id).filter(Boolean))];
   const linkedVolunteers = new Map();
   if (linkedVolIds.length) {
@@ -1593,23 +1595,47 @@ async function searchVolunteers() {
     (linkedData ?? []).forEach(v => linkedVolunteers.set(v.id, v));
   }
 
+  // A roster row's guardian_id, when present, points to a real guardian
+  // record -- fetch names so a guardian-linked match can be resolved and
+  // added directly (as a guardian chaperone) instead of just pointing the
+  // teacher at a different tab/name to re-search under.
+  const guardianIds = new Set();
+  (volData ?? []).forEach(v => { if (v.guardian_id) guardianIds.add(v.guardian_id); });
+  linkedVolunteers.forEach(v => { if (v.guardian_id) guardianIds.add(v.guardian_id); });
+  const guardianById = new Map();
+  if (guardianIds.size) {
+    const { data: gData } = await supabase
+      .from('guardians')
+      .select('id, first_name, last_name, email')
+      .in('id', [...guardianIds]);
+    (gData ?? []).forEach(g => guardianById.set(g.id, g));
+  }
+
   const existingVolunteerIds = new Set(chaperoneList.map(c => c.volunteer_id));
-  const seenVolunteerIds = new Set();
+  const existingGuardianIds  = new Set(chaperoneList.map(c => c.guardian_id));
+  const seen = new Set();
   const candidates = [];
 
-  (volData ?? []).forEach(v => {
-    if (existingVolunteerIds.has(v.id) || seenVolunteerIds.has(v.id)) return;
-    seenVolunteerIds.add(v.id);
-    candidates.push({ kind: 'volunteer', id: v.id, first_name: v.first_name, last_name: v.last_name, email: v.email });
-  });
+  const pushVolunteer = (volId, guardianId, firstName, lastName, email) => {
+    if (guardianId) {
+      const g = guardianById.get(guardianId);
+      if (!g || existingGuardianIds.has(g.id) || seen.has(`guardian:${g.id}`)) return;
+      seen.add(`guardian:${g.id}`);
+      candidates.push({ kind: 'guardian', id: g.id, first_name: firstName, last_name: lastName, email: email ?? g.email, guardianName: `${g.first_name} ${g.last_name}` });
+      return;
+    }
+    if (existingVolunteerIds.has(volId) || seen.has(`volunteer:${volId}`)) return;
+    seen.add(`volunteer:${volId}`);
+    candidates.push({ kind: 'volunteer', id: volId, first_name: firstName, last_name: lastName, email });
+  };
+
+  (volData ?? []).forEach(v => pushVolunteer(v.id, v.guardian_id, v.first_name, v.last_name, v.email));
 
   (reqData ?? []).forEach(r => {
     if (r.volunteer_id) {
       const v = linkedVolunteers.get(r.volunteer_id);
-      if (!v || v.archived_at || v.guardian_id) return;
-      if (existingVolunteerIds.has(v.id) || seenVolunteerIds.has(v.id)) return;
-      seenVolunteerIds.add(v.id);
-      candidates.push({ kind: 'volunteer', id: v.id, first_name: r.subject_first_name, last_name: r.subject_last_name, email: r.subject_email });
+      if (!v || v.archived_at) return;
+      pushVolunteer(v.id, v.guardian_id, r.subject_first_name, r.subject_last_name, r.subject_email);
     } else {
       candidates.push({ kind: 'request', id: r.id, first_name: r.subject_first_name, last_name: r.subject_last_name, email: r.subject_email });
     }
@@ -1624,10 +1650,10 @@ async function searchVolunteers() {
   candidates.forEach(c => {
     const item = document.createElement('div');
     item.className = 'ft-typeahead-item';
-    const pendingTag = c.kind === 'request'
-      ? ' <span style="color:#b45309;font-weight:700;">BG check pending</span>'
-      : '';
-    item.innerHTML = `<strong>${esc(c.first_name)} ${esc(c.last_name)}</strong><span>${esc(c.email ?? '')}${pendingTag}</span>`;
+    let tag = '';
+    if (c.kind === 'request') tag = ' <span style="color:#b45309;font-weight:700;">BG check pending</span>';
+    else if (c.kind === 'guardian') tag = ` <span style="color:#6b7280;">(linked guardian: ${esc(c.guardianName)})</span>`;
+    item.innerHTML = `<strong>${esc(c.first_name)} ${esc(c.last_name)}</strong><span>${esc(c.email ?? '')}${tag}</span>`;
     item.addEventListener('mousedown', e => { e.preventDefault(); selectChapCandidate(c); });
     results.appendChild(item);
   });
@@ -1638,8 +1664,10 @@ function selectChapCandidate(g) {
   document.getElementById('ftChapResults').style.display = 'none';
   document.getElementById('ftChapSearch').value = '';
   document.getElementById('ftChapSelectedName').textContent  = `${g.first_name} ${g.last_name}`;
-  document.getElementById('ftChapSelectedEmail').textContent =
-    (g.email ?? '') + (g.kind === 'request' ? '  •  BG check pending — will show as Pending until compliance clears it' : '');
+  let hint = '';
+  if (g.kind === 'request') hint = '  •  BG check pending — will show as Pending until compliance clears it';
+  else if (g.kind === 'guardian') hint = `  •  Linked guardian record: ${g.guardianName}`;
+  document.getElementById('ftChapSelectedEmail').textContent = (g.email ?? '') + hint;
   document.getElementById('ftChapSelected').style.display = '';
   document.getElementById('ftSaveChapBtn').disabled = false;
 }
@@ -1679,6 +1707,8 @@ async function saveChaperone() {
         return;
       }
       payload.volunteer_id = claimed[0].volunteer_id;
+    } else if (selectedCandidate.kind === 'guardian') {
+      payload.guardian_id = selectedCandidate.id;
     } else {
       payload.volunteer_id = selectedCandidate.id;
     }
