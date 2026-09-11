@@ -1537,13 +1537,19 @@ async function searchStaffCandidates() {
 // Volunteers already linked to a guardian should be added via the
 // Parent/Guardian search instead, so this only surfaces unlinked ones.
 //
-// Also surfaces people whose BG check request is still pending/submitted
-// -- compliance hasn't resolved them into a roster row yet, but a teacher
-// shouldn't have to wait on that to claim the chaperone slot. Picking one
-// of these claims the request via claim_chaperone_for_bg_request() in
-// saveChaperone() below, which creates the placeholder roster row (no
-// clearance dates yet -- reads as Blocked/Pending until compliance clears
-// it) and links it back onto the request so Resolve reuses the same row.
+// Also searches open (pending/submitted, not archived) BG check requests
+// by the *subject* name/email on the request -- not just the roster name.
+// A request can already be "Linked" (compliance_bg_check_requests.
+// volunteer_id set) to a roster row filed under a different name --
+// maiden name, a "goes by" name noted on the request, a matching
+// suggestion an admin manually confirmed -- so searching the roster alone
+// can miss someone the teacher knows only by the name on their request.
+// When a match's request is still unlinked, picking it claims the request
+// via claim_chaperone_for_bg_request() in saveChaperone() below (creates
+// the placeholder roster row -- no clearance dates yet, reads as
+// Blocked/Pending -- and links it back onto the request so Resolve reuses
+// the same row). When it's already linked, the existing roster id is used
+// directly, no claim needed.
 async function searchVolunteers() {
   const val = document.getElementById('ftChapSearch').value.trim();
   const results = document.getElementById('ftChapResults');
@@ -1564,23 +1570,50 @@ async function searchVolunteers() {
       .or(orFilter)
       .limit(8),
     supabase.from('compliance_bg_check_requests')
-      .select('id, subject_first_name, subject_last_name, subject_email')
+      .select('id, subject_first_name, subject_last_name, subject_email, volunteer_id')
       .eq('school_id', profile.school_id)
       .in('status', ['pending', 'submitted'])
-      .is('volunteer_id', null)
       .is('archived_at', null)
       .or(reqOrFilter)
       .limit(8),
   ]);
 
-  const existingVolunteerIds = new Set(chaperoneList.map(c => c.volunteer_id));
-  const volunteerCandidates = (volData ?? [])
-    .filter(v => !existingVolunteerIds.has(v.id))
-    .map(v => ({ kind: 'volunteer', id: v.id, first_name: v.first_name, last_name: v.last_name, email: v.email }));
-  const requestCandidates = (reqData ?? [])
-    .map(r => ({ kind: 'request', id: r.id, first_name: r.subject_first_name, last_name: r.subject_last_name, email: r.subject_email }));
+  // For requests already linked to a roster row, pull that row's own
+  // guardian_id/archived_at so the same exclusions applied to the plain
+  // roster search above apply here too -- a request-name match shouldn't
+  // surface someone who's actually a real linked guardian, or whose
+  // roster row has since been archived.
+  const linkedVolIds = [...new Set((reqData ?? []).map(r => r.volunteer_id).filter(Boolean))];
+  const linkedVolunteers = new Map();
+  if (linkedVolIds.length) {
+    const { data: linkedData } = await supabase
+      .from('compliance_volunteers')
+      .select('id, guardian_id, archived_at')
+      .in('id', linkedVolIds);
+    (linkedData ?? []).forEach(v => linkedVolunteers.set(v.id, v));
+  }
 
-  const candidates = [...volunteerCandidates, ...requestCandidates];
+  const existingVolunteerIds = new Set(chaperoneList.map(c => c.volunteer_id));
+  const seenVolunteerIds = new Set();
+  const candidates = [];
+
+  (volData ?? []).forEach(v => {
+    if (existingVolunteerIds.has(v.id) || seenVolunteerIds.has(v.id)) return;
+    seenVolunteerIds.add(v.id);
+    candidates.push({ kind: 'volunteer', id: v.id, first_name: v.first_name, last_name: v.last_name, email: v.email });
+  });
+
+  (reqData ?? []).forEach(r => {
+    if (r.volunteer_id) {
+      const v = linkedVolunteers.get(r.volunteer_id);
+      if (!v || v.archived_at || v.guardian_id) return;
+      if (existingVolunteerIds.has(v.id) || seenVolunteerIds.has(v.id)) return;
+      seenVolunteerIds.add(v.id);
+      candidates.push({ kind: 'volunteer', id: v.id, first_name: r.subject_first_name, last_name: r.subject_last_name, email: r.subject_email });
+    } else {
+      candidates.push({ kind: 'request', id: r.id, first_name: r.subject_first_name, last_name: r.subject_last_name, email: r.subject_email });
+    }
+  });
 
   if (!candidates.length) {
     results.innerHTML = `<div class="ft-typeahead-empty">No volunteers or pending BG requests found. Add them in Compliance &rarr; Volunteers, or have them submit a request first.</div>`;
