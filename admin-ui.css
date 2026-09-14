@@ -1980,6 +1980,36 @@ select {
   gap: 10px;
 }
 
+/* Currently-attached file, shown above the choose-file row so replacing or
+   removing an attachment starts from seeing what is already there. Shared
+   for the same reason as .lic-file-choose-row above: licensure.html's
+   license and CEU drawers and staff.html's CEU modal all use it. */
+.lic-file-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+.lic-file-current a { color: #15803d; font-weight: 500; text-decoration: none; }
+.lic-file-current a:hover { text-decoration: underline; }
+.lic-file-current svg { flex-shrink: 0; color: #16a34a; }
+.lic-file-current-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  font-size: 0.78rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.lic-file-current-remove:hover { color: #dc2626; background: #fef2f2; }
+
 /* Hours + Minutes duration pair for CEU entry (both fields additive, not
    either/or) -- same sharing rationale as .lic-file-choose-row above. */
 .lic-hours-input-row {

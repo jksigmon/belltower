@@ -930,12 +930,19 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 .ceu-entry-ceus { font-weight: 600; color: #0f172a; white-space: nowrap; }
 .ceu-entry-date { color: #9ca3af; white-space: nowrap; }
 .verified-check { color: #16a34a; font-weight: 700; }
+.ceu-entry-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.ceu-entry-edit-btn,
 .ceu-entry-delete-btn {
   background: none; border: none; cursor: pointer;
   color: #9ca3af; font-size: 0.8rem; line-height: 1; padding: 2px 4px;
   border-radius: 4px;
 }
+.ceu-entry-edit-btn:hover { color: #0b2d4f; background: #f1f5f9; }
 .ceu-entry-delete-btn:hover { color: #dc2626; background: #fef2f2; }
+.ceu-entry-edit-btn svg { display: block; }
+/* Paperclip on an entry whose certificate is already attached, so "did my
+   file actually make it?" is answerable without opening the entry. */
+.ceu-entry-clip { color: #16a34a; display: flex; flex-shrink: 0; }
 
   </style>
  </head>
@@ -1999,11 +2006,11 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
     </div>
   </div>
 
-  <!-- ── Add CEU Entry modal (My Licenses) ── -->
+  <!-- ── Add / Edit CEU Entry modal (My Licenses) ── -->
   <div id="staffCeuModal" class="modal modal-sm">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Add CEU Entry</h3>
+        <h3 id="staffCeuModalTitle">Add CEU Entry</h3>
         <span class="modal-close" id="staffCeuModalClose">&times;</span>
       </div>
       <p class="muted" style="font-size:0.82rem;margin:0 0 12px;">
@@ -2062,6 +2069,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       </div>
       <div class="drawer-field">
         <label>Attachment <span class="muted" style="font-weight:400;">(optional)</span></label>
+        <div id="staffCeuCurrentFile" class="lic-file-current" hidden></div>
         <div class="lic-file-choose-row">
           <input type="file" id="staffCeuFileInput" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,application/pdf,image/*" style="display:none;">
           <button type="button" class="btn btn-sm" id="staffCeuFileChooseBtn">Choose File</button>
@@ -4003,6 +4011,13 @@ const CEU_CATEGORY_LABELS = {
 const CEU_TOTAL_TARGET = 8;
 
 let myLicensesById = {}; // license id → row, populated by loadMyLicenses() for the Add CEU modal
+let myCeusById     = {}; // CEU id → row, same source, used to prefill the modal in edit mode
+
+// Wider than what the progress cards display: the trailing fields exist so
+// the edit modal can prefill from the cache instead of re-fetching the row.
+const MY_CEU_COLUMNS = 'id, license_id, category, title, completed_date, ceu_amount, verified, file_path, provider, source_type, hours, notes, file_name';
+let editingMyCeu   = null; // the CEU row being edited, or null when adding
+let removeMyCeuFile = false; // edit mode: user cleared the existing attachment without picking a new one
 
 function ceuTargetProfile(lic) {
   if (lic.category === 'admin')   return { administration: 3, general_other: 3, digital_learning: 2 };
@@ -4025,6 +4040,34 @@ function ceuCycleStartDate(expirationDate) {
   const d = new Date(expirationDate);
   d.setFullYear(d.getFullYear() - 5);
   return d.toISOString().slice(0, 10);
+}
+
+// One row renderer for both the per-license cards and the General CEUs card
+// below them -- the two used to carry byte-identical copies of this markup,
+// which is how the edit affordance would have ended up on one list and not
+// the other.
+const CEU_PENCIL_SVG = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>';
+const CEU_CLIP_SVG   = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
+// Same mark the admin drawer puts on a current attachment (FILE_ICON_SVG in
+// admin.licensure.js), so the two views of the same file agree.
+const CEU_FILE_SVG   = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+
+function myCeuEntryRow(c) {
+  const actions = c.verified
+    ? '<span class="verified-check" title="Verified by an administrator. Contact them to change it.">✓</span>'
+    : `<span class="ceu-entry-actions">
+         <button type="button" class="ceu-entry-edit-btn staffEditCeuBtn" data-id="${esc(c.id)}" title="Edit (pending verification)">${CEU_PENCIL_SVG}</button>
+         <button type="button" class="ceu-entry-delete-btn staffDeleteCeuBtn" data-id="${esc(c.id)}" data-file="${esc(c.file_path ?? '')}" title="Delete (pending verification)">✕</button>
+       </span>`;
+  return `
+    <div class="ceu-entry-row">
+      <span class="ceu-cat ceu-cat-${esc(c.category)}">${esc(CEU_CATEGORY_LABELS[c.category] ?? c.category)}</span>
+      <span class="ceu-entry-title">${esc(c.title)}</span>
+      ${c.file_path ? `<span class="ceu-entry-clip" title="Certificate attached">${CEU_CLIP_SVG}</span>` : ''}
+      <span class="ceu-entry-date">${fmtShortDate(c.completed_date)}</span>
+      <span class="ceu-entry-ceus">${Number(c.ceu_amount).toFixed(3)} CEU</span>
+      ${actions}
+    </div>`;
 }
 
 function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
@@ -4069,16 +4112,7 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
     }
 
     if (inCycle.length) {
-      html += '<div class="ceu-entry-list">' + inCycle.map(c => `
-        <div class="ceu-entry-row">
-          <span class="ceu-cat ceu-cat-${esc(c.category)}">${esc(CEU_CATEGORY_LABELS[c.category] ?? c.category)}</span>
-          <span class="ceu-entry-title">${esc(c.title)}</span>
-          <span class="ceu-entry-date">${fmtShortDate(c.completed_date)}</span>
-          <span class="ceu-entry-ceus">${Number(c.ceu_amount).toFixed(3)} CEU</span>
-          ${c.verified
-            ? '<span class="verified-check" title="Verified">✓</span>'
-            : `<button type="button" class="ceu-entry-delete-btn staffDeleteCeuBtn" data-id="${esc(c.id)}" data-file="${esc(c.file_path ?? '')}" title="Delete (pending verification)">✕</button>`}
-        </div>`).join('') + '</div>';
+      html += '<div class="ceu-entry-list">' + inCycle.map(myCeuEntryRow).join('') + '</div>';
     } else {
       html += '<div class="ceu-no-profile">No CEU entries logged yet for this cycle.</div>';
     }
@@ -4095,16 +4129,7 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
     </div>
     <div class="ceu-progress-total">Total <span>${generalTotal.toFixed(3)} CEU${generalTotal === 1 ? '' : 's'}</span></div>
     ${generalCeus.length
-      ? '<div class="ceu-entry-list">' + generalCeus.map(c => `
-          <div class="ceu-entry-row">
-            <span class="ceu-cat ceu-cat-${esc(c.category)}">${esc(CEU_CATEGORY_LABELS[c.category] ?? c.category)}</span>
-            <span class="ceu-entry-title">${esc(c.title)}</span>
-            <span class="ceu-entry-date">${fmtShortDate(c.completed_date)}</span>
-            <span class="ceu-entry-ceus">${Number(c.ceu_amount).toFixed(3)} CEU</span>
-            ${c.verified
-              ? '<span class="verified-check" title="Verified">✓</span>'
-              : `<button type="button" class="ceu-entry-delete-btn staffDeleteCeuBtn" data-id="${esc(c.id)}" data-file="${esc(c.file_path ?? '')}" title="Delete (pending verification)">✕</button>`}
-          </div>`).join('') + '</div>'
+      ? '<div class="ceu-entry-list">' + generalCeus.map(myCeuEntryRow).join('') + '</div>'
       : '<div class="ceu-no-profile">No general CEU entries logged yet.</div>'}
   </div>`;
 
@@ -4121,6 +4146,12 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
   });
   container.querySelectorAll('.staffDeleteCeuBtn').forEach(btn => {
     btn.addEventListener('click', () => deleteMyCeuEntry(btn.dataset.id, btn.dataset.file || null));
+  });
+  container.querySelectorAll('.staffEditCeuBtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const entry = myCeusById[btn.dataset.id];
+      if (entry) openStaffCeuModal(null, entry);
+    });
   });
 }
 
@@ -4276,13 +4307,14 @@ async function deleteMyLicense(id) {
 ───────────────────────────────────────────────────── */
 // Mirrors writeCeuHistory() in admin.licensure.js -- see writeMyLicenseHistory()
 // above for why this exists.
-async function writeMyCeuHistory(ceuId, changeType) {
+async function writeMyCeuHistory(ceuId, changeType, fieldChanges = null) {
   const { error } = await supabase.from('staff_license_ceu_history').insert({
-    ceu_id:      ceuId,
-    employee_id: currentProfile.employee_id,
-    school_id:   currentProfile.school_id,
-    changed_by:  currentProfile.user_id,
-    change_type: changeType,
+    ceu_id:        ceuId,
+    employee_id:   currentProfile.employee_id,
+    school_id:     currentProfile.school_id,
+    changed_by:    currentProfile.user_id,
+    change_type:   changeType,
+    field_changes: fieldChanges,
   });
   if (error) console.error('CEU history write failed', error);
 }
@@ -4343,23 +4375,83 @@ document.getElementById('staffCeuLicenseSelect')?.addEventListener('change', e =
   document.getElementById('staffCeuCategory').value = lic ? suggestedStaffCeuCategory(lic) : 'general_other';
 });
 
-function openStaffCeuModal(license = null) {
-  populateStaffCeuLicenseSelect(license ? license.id : '');
-  document.getElementById('staffCeuTitle').value       = '';
-  document.getElementById('staffCeuProvider').value    = '';
-  document.getElementById('staffCeuCategory').value    = license ? suggestedStaffCeuCategory(license) : 'general_other';
-  document.getElementById('staffCeuSourceType').value  = 'lea_inservice';
-  document.getElementById('staffCeuHours').value       = '';
-  document.getElementById('staffCeuMinutes').value     = '';
-  document.getElementById('staffCeuCompletedDate').value = toLocalISODate(new Date());
-  document.getElementById('staffCeuNotes').value       = '';
-  document.getElementById('staffCeuFileInput').value   = '';
-  document.getElementById('staffCeuFileNameLabel').textContent = 'No file chosen';
+// Add mode: pass the license the "+ Add CEU" button belongs to (or null for
+// a general entry). Edit mode: pass the existing CEU row as `entry`. Only
+// still-unverified entries reach edit mode -- the row renderer shows a
+// checkmark instead of the buttons once an admin has verified one, and the
+// RLS policy enforces the same boundary server-side.
+async function openStaffCeuModal(license = null, entry = null) {
+  editingMyCeu    = entry;
+  removeMyCeuFile = false;
+
+  document.getElementById('staffCeuModalTitle').textContent = entry ? 'Edit CEU Entry' : 'Add CEU Entry';
+  document.getElementById('staffCeuSaveBtn').textContent    = entry ? 'Update Entry' : 'Save Entry';
+
+  populateStaffCeuLicenseSelect(entry ? (entry.license_id ?? '') : (license ? license.id : ''));
+  document.getElementById('staffCeuTitle').value       = entry?.title ?? '';
+  document.getElementById('staffCeuProvider').value    = entry?.provider ?? '';
+  document.getElementById('staffCeuCategory').value    = entry
+    ? entry.category
+    : (license ? suggestedStaffCeuCategory(license) : 'general_other');
+  document.getElementById('staffCeuSourceType').value  = entry?.source_type ?? 'lea_inservice';
+
+  // Only the combined decimal hours value is stored, so the original
+  // Hours/Minutes split is gone -- re-derive a sensible one. College credit
+  // has no minutes concept, so it goes back into the Hours field whole
+  // rather than rounding a fractional credit into a hidden minutes
+  // remainder. Mirrors openEditCeuModal() in admin.licensure.js.
+  if (entry && entry.source_type === 'college_credit') {
+    document.getElementById('staffCeuHours').value   = entry.hours;
+    document.getElementById('staffCeuMinutes').value = '';
+  } else if (entry) {
+    const wholeHours = Math.floor(entry.hours);
+    document.getElementById('staffCeuHours').value   = wholeHours || '';
+    document.getElementById('staffCeuMinutes').value = Math.round((entry.hours - wholeHours) * 60) || '';
+  } else {
+    document.getElementById('staffCeuHours').value   = '';
+    document.getElementById('staffCeuMinutes').value = '';
+  }
+
+  document.getElementById('staffCeuCompletedDate').value = entry?.completed_date ?? toLocalISODate(new Date());
+  document.getElementById('staffCeuNotes').value       = entry?.notes ?? '';
   document.getElementById('staffCeuError').style.display = 'none';
+  resetStaffCeuFileSection();
   updateStaffCeuHoursLabel();
 
   document.getElementById('staffCeuModal').classList.add('open');
   document.body.classList.add('modal-open');
+
+  // Signed URL after the modal is already up: the attachment is the reason
+  // most people open this, and a round-trip to storage shouldn't delay it.
+  if (entry?.file_path) await showStaffCeuCurrentFile(entry);
+}
+
+function resetStaffCeuFileSection() {
+  document.getElementById('staffCeuFileInput').value = '';
+  document.getElementById('staffCeuFileNameLabel').textContent = 'No file chosen';
+  const current = document.getElementById('staffCeuCurrentFile');
+  current.hidden = true;
+  current.innerHTML = '';
+}
+
+async function showStaffCeuCurrentFile(entry) {
+  const current = document.getElementById('staffCeuCurrentFile');
+  if (!current) return;
+  const { data: signed } = await supabase.storage.from('ceu-files').createSignedUrl(entry.file_path, 3600);
+  // Re-checked after the await, not just before it: closing the modal or
+  // opening a different entry while the signed URL is in flight would
+  // otherwise paint the previous entry's attachment into the open form.
+  if (editingMyCeu?.id !== entry.id) return;
+  current.hidden = false;
+  current.innerHTML =
+    CEU_FILE_SVG +
+    `<a href="${esc(signed?.signedUrl ?? '#')}" target="_blank" rel="noopener">${esc(entry.file_name ?? 'Attached file')}</a>` +
+    '<button type="button" class="lic-file-current-remove" id="staffCeuRemoveFileBtn" title="Remove this attachment">Remove</button>';
+  document.getElementById('staffCeuRemoveFileBtn').addEventListener('click', () => {
+    removeMyCeuFile = true;
+    resetStaffCeuFileSection();
+    document.getElementById('staffCeuFileNameLabel').textContent = 'Attachment will be removed when you save';
+  });
 }
 
 function suggestedStaffCeuCategory(lic) {
@@ -4370,6 +4462,8 @@ function suggestedStaffCeuCategory(lic) {
 function closeStaffCeuModal() {
   document.getElementById('staffCeuModal').classList.remove('open');
   document.body.classList.remove('modal-open');
+  editingMyCeu    = null;
+  removeMyCeuFile = false;
 }
 
 document.getElementById('staffCeuCancelBtn')?.addEventListener('click', closeStaffCeuModal);
@@ -4382,12 +4476,67 @@ document.getElementById('staffCeuFileInput')?.addEventListener('change', e => {
   const file = e.target.files?.[0];
   const label = document.getElementById('staffCeuFileNameLabel');
   if (label) label.textContent = file ? file.name : 'No file chosen';
+  // Picking a replacement supersedes a pending Remove: the old file still
+  // gets deleted from storage, but the row ends up pointing at the new one
+  // rather than at nothing.
+  if (file) removeMyCeuFile = false;
 });
+
+// Uploads the attachment and links it to the entry. Returns the stored
+// file_name on success, or null if either half failed (both halves report
+// their own toast -- the entry itself is already saved by this point, so a
+// file problem is worth surfacing without discarding the rest of the work).
+// oldPath, when given, is the attachment being replaced: deleted only after
+// the row points at the new file, so a failure can't leave the entry
+// pointing at an object that no longer exists.
+async function uploadMyCeuFile(ceuId, file, oldPath = null) {
+  const ts       = Date.now();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path     = `${currentProfile.school_id}/${ceuId}/${ts}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage.from('ceu-files').upload(path, file, { upsert: false });
+  if (uploadError) {
+    console.error('CEU file upload failed', uploadError);
+    showToast('The entry was saved, but the file upload failed: ' + uploadError.message);
+    return null;
+  }
+
+  const { error: linkError } = await supabase.from('staff_license_ceus')
+    .update({ file_path: path, file_name: file.name })
+    .eq('id', ceuId);
+  if (linkError) {
+    console.error('CEU file link failed', linkError);
+    showToast('The entry was saved and the file uploaded, but attaching it to the entry failed: ' + linkError.message);
+    return null;
+  }
+
+  if (oldPath) await supabase.storage.from('ceu-files').remove([oldPath]);
+  return file.name;
+}
+
+// Mirrors diffCeuObjects() in admin.licensure.js so both sides of the module
+// write the same shape of audit-log diff. file_name is included here (it
+// isn't on the admin side) because attaching a forgotten certificate after
+// the fact is the main reason staff edit an entry at all -- without it the
+// most common edit would leave no trace in the Audit Log.
+function diffMyCeu(oldRow, newRow) {
+  const changes = {};
+  ['license_id','category','title','provider','source_type','hours','completed_date','notes','file_name'].forEach(k => {
+    const oldVal = oldRow[k] ?? null;
+    const newVal = newRow[k] ?? null;
+    const same = (k === 'hours')
+      ? Number(oldVal) === Number(newVal)
+      : JSON.stringify(oldVal) === JSON.stringify(newVal);
+    if (!same) changes[k] = { old: oldVal, new: newVal };
+  });
+  return changes;
+}
 
 document.getElementById('staffCeuSaveBtn')?.addEventListener('click', async () => {
   const errorEl = document.getElementById('staffCeuError');
   errorEl.style.display = 'none';
 
+  const editing   = editingMyCeu;
   const licenseId = document.getElementById('staffCeuLicenseSelect').value || null;
 
   const title = document.getElementById('staffCeuTitle').value.trim();
@@ -4403,9 +4552,7 @@ document.getElementById('staffCeuSaveBtn')?.addEventListener('click', async () =
   saveBtn.disabled = true;
 
   const payload = {
-    school_id:      currentProfile.school_id,
     license_id:     licenseId,
-    employee_id:    currentProfile.employee_id,
     category:       document.getElementById('staffCeuCategory').value,
     title,
     provider:       document.getElementById('staffCeuProvider').value.trim() || null,
@@ -4414,48 +4561,104 @@ document.getElementById('staffCeuSaveBtn')?.addEventListener('click', async () =
     completed_date: completedDate,
     verified:       false,
     notes:          document.getElementById('staffCeuNotes').value.trim() || null,
-    created_by:     currentProfile.user_id,
   };
 
-  const { data, error } = await supabase.from('staff_license_ceus').insert(payload).select().single();
-  if (error) {
-    console.error(error);
-    errorEl.textContent = 'Failed to save CEU entry. Please try again.';
-    errorEl.style.display = 'block';
-    saveBtn.disabled = false;
-    return;
+  const fileInput = document.getElementById('staffCeuFileInput');
+  const newFile   = fileInput?.files?.[0] ?? null;
+  let ceuId;
+
+  if (editing) {
+    // No .select() row coming back means RLS filtered the update out, and
+    // the only way that happens for an entry the UI just offered an edit
+    // button on is an admin verifying it in the meantime -- PostgREST
+    // reports that as a success with zero rows, not as an error, so the
+    // count is the only signal there is.
+    const { data: updated, error } = await supabase
+      .from('staff_license_ceus')
+      .update(payload)
+      .eq('id', editing.id)
+      .select('id');
+
+    if (error) {
+      console.error(error);
+      errorEl.textContent = 'Failed to update CEU entry. Please try again.';
+      errorEl.style.display = 'block';
+      saveBtn.disabled = false;
+      return;
+    }
+    if (!updated?.length) {
+      saveBtn.disabled = false;
+      closeStaffCeuModal();
+      showToast('That entry was just verified by an administrator, so your changes were not saved. Contact them to make a change.');
+      await loadMyLicenses();
+      return;
+    }
+    ceuId = editing.id;
+  } else {
+    const { data, error } = await supabase
+      .from('staff_license_ceus')
+      .insert({
+        ...payload,
+        school_id:   currentProfile.school_id,
+        employee_id: currentProfile.employee_id,
+        created_by:  currentProfile.user_id,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      errorEl.textContent = 'Failed to save CEU entry. Please try again.';
+      errorEl.style.display = 'block';
+      saveBtn.disabled = false;
+      return;
+    }
+    ceuId = data.id;
   }
 
-  const fileInput = document.getElementById('staffCeuFileInput');
-  if (fileInput?.files?.length) {
-    const file    = fileInput.files[0];
-    const ts      = Date.now();
-    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const path    = `${currentProfile.school_id}/${data.id}/${ts}-${safeName}`;
-
-    const { error: uploadError } = await supabase.storage.from('ceu-files').upload(path, file, { upsert: false });
-    if (uploadError) {
-      console.error('CEU file upload failed', uploadError);
-      showToast('Entry saved, but the file upload failed: ' + uploadError.message);
+  let savedFileName = editing?.file_name ?? null;
+  if (newFile) {
+    // A failed upload leaves the row pointing at whatever it had before, so
+    // the audit diff below has to keep reporting the old name rather than
+    // claiming an attachment that isn't there.
+    const uploadedName = await uploadMyCeuFile(ceuId, newFile, editing?.file_path ?? null);
+    if (uploadedName) savedFileName = uploadedName;
+  } else if (editing && removeMyCeuFile && editing.file_path) {
+    const { error: clearError } = await supabase.from('staff_license_ceus')
+      .update({ file_path: null, file_name: null })
+      .eq('id', ceuId);
+    if (clearError) {
+      console.error('CEU file removal failed', clearError);
+      showToast('Entry updated, but removing the attachment failed: ' + clearError.message);
     } else {
-      const { error: linkError } = await supabase.from('staff_license_ceus').update({ file_path: path, file_name: file.name }).eq('id', data.id);
-      if (linkError) {
-        console.error('CEU file link failed', linkError);
-        showToast('Entry saved and file uploaded, but attaching it to the entry failed: ' + linkError.message);
-      }
+      await supabase.storage.from('ceu-files').remove([editing.file_path]);
+      savedFileName = null;
     }
   }
 
-  await writeMyCeuHistory(data.id, 'created');
+  if (editing) {
+    const changes = diffMyCeu(editing, { ...payload, file_name: savedFileName });
+    if (Object.keys(changes).length) await writeMyCeuHistory(ceuId, 'updated', changes);
+  } else {
+    await writeMyCeuHistory(ceuId, 'created');
+  }
 
   saveBtn.disabled = false;
   closeStaffCeuModal();
-  showToast('CEU entry saved — pending admin verification.');
+  showToast(editing
+    ? 'CEU entry updated. Still pending admin verification.'
+    : 'CEU entry saved, pending admin verification.');
   await loadMyLicenses();
 
-  supabase.functions.invoke('send_license_submission_notification', {
-    body: { record_type: 'ceu', record_id: data.id }
-  }).catch(err => console.error('submission notification failed', err));
+  // Only new submissions notify the licensure admins. An edit lands on an
+  // entry that is still sitting unverified in their queue, which they review
+  // in its current state anyway, so re-mailing them on every typo fix would
+  // be noise.
+  if (!editing) {
+    supabase.functions.invoke('send_license_submission_notification', {
+      body: { record_type: 'ceu', record_id: ceuId }
+    }).catch(err => console.error('submission notification failed', err));
+  }
 });
 
 async function deleteMyCeuEntry(id, filePath) {
@@ -4490,16 +4693,19 @@ async function loadMyLicenses() {
 
   const licenses = data || [];
   myLicensesById = {};
+  myCeusById     = {};
   licenses.forEach(lic => { myLicensesById[lic.id] = lic; });
 
   // CEUs not linked to any license — fetched regardless of whether the
   // employee has license records on file, so the entry point always shows.
   const { data: generalCeus } = await supabase
     .from('staff_license_ceus')
-    .select('id, category, title, completed_date, ceu_amount, verified, file_path')
+    .select(MY_CEU_COLUMNS)
     .eq('employee_id', currentProfile.employee_id)
     .is('license_id', null)
     .order('completed_date', { ascending: false });
+
+  (generalCeus ?? []).forEach(c => { myCeusById[c.id] = c; });
 
   if (error || !licenses.length) {
     container.innerHTML = `
@@ -4524,12 +4730,13 @@ async function loadMyLicenses() {
 
   const { data: ceus } = await supabase
     .from('staff_license_ceus')
-    .select('id, license_id, category, title, completed_date, ceu_amount, verified, file_path')
+    .select(MY_CEU_COLUMNS)
     .in('license_id', licenses.map(lic => lic.id))
     .order('completed_date', { ascending: false });
 
   const ceusByLicense = {};
   (ceus ?? []).forEach(c => {
+    myCeusById[c.id] = c;
     (ceusByLicense[c.license_id] ??= []).push(c);
   });
   renderMyCeuProgress(licenses, ceusByLicense, generalCeus || []);
