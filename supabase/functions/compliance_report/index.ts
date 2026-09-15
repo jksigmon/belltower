@@ -309,13 +309,63 @@ serve(async (req) => {
         ?? null;
     }
 
+    // ── Fetch open (pending/submitted) BG check requests ──────────────
+    // Lets a guardian with no clearance yet show "Submitted" instead of a
+    // flat "Missing" when a request is already in flight -- whether it was
+    // filed by this teacher, another teacher, or the front office. Matching
+    // is guardian_id -> email -> name key, same fallback as compliance_
+    // volunteers above, so it's still scoped to guardians already on this
+    // roster (via family_id) -- a subject with no linked guardian anywhere
+    // on the school's rosters (e.g. a grandparent never entered as an
+    // official guardian) has nothing here to attach a status to; that's
+    // only discoverable today via the Requests dedup check or Field Trips'
+    // school-wide volunteer search. No match_key column exists on this
+    // table, so the name-key fallback is computed client-side against the
+    // full open set rather than filtered in the query.
+    type RequestRow = {
+      id: string; guardian_id: string | null; subject_email: string | null;
+      subject_first_name: string; subject_last_name: string;
+      requested_at: string; submitted_at: string | null;
+    };
+
+    const { data: openRequestsData } = await fetchAllRows<RequestRow>(() => supabaseService
+      .from("compliance_bg_check_requests")
+      .select("id, guardian_id, subject_email, subject_first_name, subject_last_name, requested_at, submitted_at")
+      .eq("school_id", schoolId)
+      .in("status", ["pending", "submitted"])
+      .is("archived_at", null));
+    const openRequests = openRequestsData ?? [];
+
+    const reqByGuardian = new Map<string, RequestRow>();
+    const reqByEmail    = new Map<string, RequestRow>();
+    const reqByNameKey  = new Map<string, RequestRow>();
+    function upsertNewest(map: Map<string, RequestRow>, key: string, row: RequestRow) {
+      const existing = map.get(key);
+      if (!existing || new Date(row.requested_at) > new Date(existing.requested_at)) map.set(key, row);
+    }
+    openRequests.forEach(r => {
+      if (r.guardian_id) upsertNewest(reqByGuardian, r.guardian_id, r);
+      if (r.subject_email) upsertNewest(reqByEmail, r.subject_email.toLowerCase(), r);
+      upsertNewest(reqByNameKey, volunteerMatchKey(r.subject_first_name, r.subject_last_name), r);
+    });
+
+    function getPendingRequest(guardian: { id: string; email: string; first_name: string; last_name: string }): RequestRow | null {
+      return reqByGuardian.get(guardian.id)
+        ?? (guardian.email ? reqByEmail.get(guardian.email.toLowerCase()) : undefined)
+        ?? reqByNameKey.get(volunteerMatchKey(guardian.first_name, guardian.last_name))
+        ?? null;
+    }
+
     const sixtyOut = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
     // BG is treated as "missing" whenever there's no clearance on file at all --
     // it's the one credential every chaperone-eligible guardian needs. MVR/DL/
     // insurance are only relevant to guardians who actually drive, so absence
     // of any record there is reported as neutral "not on file" rather than a gap.
-    function credentialStatus(clearedAt: string | null, expiresAt: string | null, requiresClearance: boolean) {
+    function credentialStatus(clearedAt: string | null, expiresAt: string | null, requiresClearance: boolean, pendingRequest: RequestRow | null) {
+      if (!clearedAt && pendingRequest) {
+        return { status: "submitted", date: (pendingRequest.submitted_at ?? pendingRequest.requested_at).slice(0, 10) };
+      }
       if (requiresClearance && !clearedAt) return { status: "missing", date: null as string | null };
       if (!clearedAt && !expiresAt) return { status: "not_on_file", date: null as string | null };
       if (expiresAt && expiresAt < today) return { status: "expired", date: expiresAt };
@@ -381,6 +431,7 @@ serve(async (req) => {
         });
 
         const volunteer = guardian ? getVolunteer(guardian) : null;
+        const pendingRequest = guardian ? getPendingRequest(guardian) : null;
 
         rows.push({
           student_id:   student.id,
@@ -391,8 +442,8 @@ serve(async (req) => {
           guardian_id:    guardian?.id ?? null,
           guardian_name:  guardian?.name ?? null,
           guardian_email: guardian?.email ?? null,
-          bg:        credentialStatus(volunteer?.bg_cleared_at ?? null, volunteer?.bg_expires_at ?? null, true),
-          mvr:       credentialStatus(volunteer?.mvr_cleared_at ?? null, volunteer?.mvr_expires_at ?? null, false),
+          bg:        credentialStatus(volunteer?.bg_cleared_at ?? null, volunteer?.bg_expires_at ?? null, true, pendingRequest),
+          mvr:       credentialStatus(volunteer?.mvr_cleared_at ?? null, volunteer?.mvr_expires_at ?? null, false, pendingRequest),
           dl:        expiryStatus(volunteer?.dl_expires_at ?? null),
           insurance: expiryStatus(volunteer?.insurance_expires_at ?? null),
           can_chaperone: guardian ? (volunteer?.can_chaperone ?? true) : null,
