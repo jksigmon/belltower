@@ -310,14 +310,19 @@ serve(async (req) => {
     }
 
     // ── Fetch open (pending/submitted) BG check requests ──────────────
-    // Lets a guardian with no clearance yet show "Submitted" instead of a
-    // flat "Missing" when a request is already in flight -- whether it was
-    // filed by this teacher, another teacher, or the front office. Matching
-    // is guardian_id -> email -> name key, same fallback as compliance_
-    // volunteers above, so it's still scoped to guardians already on this
-    // roster (via family_id) -- a subject with no linked guardian anywhere
-    // on the school's rosters (e.g. a grandparent never entered as an
-    // official guardian) has nothing here to attach a status to; that's
+    // Lets a guardian with no clearance yet show "Pending" or "Submitted"
+    // instead of a flat "Missing" when a request is already in flight --
+    // whether it was filed by this teacher, another teacher, or the front
+    // office. "pending" means the request is sitting with the compliance
+    // manager, not yet sent to the background-check vendor; "submitted"
+    // means the manager has sent it on ("Mark Sent" in the Requests queue,
+    // admin.compliance.requests.js) and it's awaiting the vendor's result --
+    // distinct enough stages that teachers asked to see them separately.
+    // Matching is guardian_id -> email -> name key, same fallback as
+    // compliance_volunteers above, so it's still scoped to guardians already
+    // on this roster (via family_id) -- a subject with no linked guardian
+    // anywhere on the school's rosters (e.g. a grandparent never entered as
+    // an official guardian) has nothing here to attach a status to; that's
     // only discoverable today via the Requests dedup check or Field Trips'
     // school-wide volunteer search. No match_key column exists on this
     // table, so the name-key fallback is computed client-side against the
@@ -325,12 +330,12 @@ serve(async (req) => {
     type RequestRow = {
       id: string; guardian_id: string | null; subject_email: string | null;
       subject_first_name: string; subject_last_name: string;
-      requested_at: string; submitted_at: string | null;
+      status: "pending" | "submitted"; requested_at: string; submitted_at: string | null;
     };
 
     const { data: openRequestsData } = await fetchAllRows<RequestRow>(() => supabaseService
       .from("compliance_bg_check_requests")
-      .select("id, guardian_id, subject_email, subject_first_name, subject_last_name, requested_at, submitted_at")
+      .select("id, guardian_id, subject_email, subject_first_name, subject_last_name, status, requested_at, submitted_at")
       .eq("school_id", schoolId)
       .in("status", ["pending", "submitted"])
       .is("archived_at", null));
@@ -364,7 +369,10 @@ serve(async (req) => {
     // of any record there is reported as neutral "not on file" rather than a gap.
     function credentialStatus(clearedAt: string | null, expiresAt: string | null, requiresClearance: boolean, pendingRequest: RequestRow | null) {
       if (!clearedAt && pendingRequest) {
-        return { status: "submitted", date: (pendingRequest.submitted_at ?? pendingRequest.requested_at).slice(0, 10) };
+        const date = pendingRequest.status === "submitted"
+          ? (pendingRequest.submitted_at ?? pendingRequest.requested_at)
+          : pendingRequest.requested_at;
+        return { status: pendingRequest.status, date: date.slice(0, 10) };
       }
       if (requiresClearance && !clearedAt) return { status: "missing", date: null as string | null };
       if (!clearedAt && !expiresAt) return { status: "not_on_file", date: null as string | null };
