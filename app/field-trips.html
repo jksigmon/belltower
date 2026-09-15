@@ -148,6 +148,45 @@
     .drawer-row { display: flex; gap: 12px; }
     .drawer-row .drawer-field { flex: 1; }
 
+    /* ── Hero banner ── */
+    .ft-hero {
+      position: relative;
+      background: linear-gradient(135deg, #eaf2ff 0%, #f5f9ff 55%, #ffffff 100%);
+      border: 1px solid #e0ebfd;
+      border-radius: 16px;
+      padding: 20px 28px;
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+    .ft-hero-text  { position: relative; z-index: 1; max-width: 56%; }
+    .ft-hero-eyebrow {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--primary, #2563eb);
+      margin-bottom: 6px;
+    }
+    .ft-hero-title { font-size: 24px; font-weight: 800; color: #0b2d4f; line-height: 1.15; margin: 0 0 4px; }
+    .ft-hero-sub   { font-size: 13px; color: var(--text-muted, #64748b); margin: 0; }
+    /* Sized off the bar's own height so the sky never gets clipped by
+       overflow:hidden; width follows from the viewBox ratio. */
+    .ft-hero-art   {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      z-index: 0;
+      height: 100%;
+      width: auto;
+      aspect-ratio: 700 / 118;
+      max-width: 72%;
+      pointer-events: none;
+    }
+    @media (max-width: 720px) {
+      .ft-hero-art  { display: none; }
+      .ft-hero-text { max-width: 100%; }
+    }
+
     /* ── Stat summary strip ── */
     .ft-stat-row {
       display: flex;
@@ -163,10 +202,25 @@
       flex: 1;
       min-width: 90px;
     }
+    .ft-stat-card.has-icon { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+    .ft-stat-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      flex-shrink: 0;
+      background: #eaf2ff;
+      color: var(--primary, #2563eb);
+    }
+    .ft-stat-icon i { width: 18px; height: 18px; }
     .ft-stat-val   { font-size: 22px; font-weight: 800; color: #0b2d4f; line-height: 1; }
     .ft-stat-label { font-size: 11px; color: var(--text-muted,#9ca3af); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
     .ft-stat-warn .ft-stat-val  { color: #d97706; }
     .ft-stat-alert .ft-stat-val { color: #dc2626; }
+    .ft-stat-warn .ft-stat-icon  { background: #fef3c7; color: #d97706; }
+    .ft-stat-alert .ft-stat-icon { background: #fee2e2; color: #dc2626; }
 
     /* ── Grade level pills ── */
     .grade-pill {
@@ -334,18 +388,96 @@
 
       <!-- List view -->
       <div id="ftListView">
+        <div class="ft-hero">
+          <div class="ft-hero-text">
+            <div class="ft-hero-eyebrow">Field Trips</div>
+            <h1 class="ft-hero-title">Plan and manage every trip</h1>
+            <p class="ft-hero-sub">Chaperones, vehicles, and payments, all in one place.</p>
+          </div>
+          <svg class="ft-hero-art" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" preserveAspectRatio="xMaxYMax meet">
+            <defs>
+              <!-- Lets the scenery emerge out of the sky instead of starting
+                   on a hard vertical edge mid-bar. -->
+              <linearGradient id="ftFade" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+                <stop offset="0.14" stop-color="#ffffff" stop-opacity="1"/>
+              </linearGradient>
+              <mask id="ftFadeMask">
+                <rect width="700" height="118" fill="url(#ftFade)"/>
+              </mask>
+              <!-- Two silhouettes, scaled non-uniformly below, so the treeline
+                   isn't one shape repeated at different sizes. -->
+              <path id="ftFirA" d="M0 -40C3.8 -21 7.6 -10.8 12 0L-12 0C-7.6 -10.8 -3.8 -21 0 -40Z"/>
+              <path id="ftFirB" d="M0 -40L5 -26L2.5 -26L8 -14L4.5 -14L12.5 0L-12.5 0L-4.5 -14L-8 -14L-2.5 -26L-5 -26Z"/>
+              <path id="ftCloud" d="M4 18Q0 18 0 14Q0 10 5 10Q6 3 13 3Q17 -2 24 1Q30 -3 36 2Q43 1 45 7Q52 7 52 12Q52 18 47 18Z"/>
+            </defs>
+
+            <g mask="url(#ftFadeMask)">
+              <circle cx="648" cy="24" r="15" fill="#f2cf6c"/>
+
+              <g fill="#ffffff" opacity="0.7">
+                <use href="#ftCloud" transform="translate(110,34) scale(1)"/>
+                <use href="#ftCloud" transform="translate(250,14) scale(0.8)"/>
+                <use href="#ftCloud" transform="translate(392,18) scale(0.9)"/>
+              </g>
+
+              <!-- Ridges, far to near: dusty blue distance, then four sage
+                   layers. Crests are staggered left-to-right and each layer
+                   runs further left than the one behind it. They climb well
+                   into the upper half of the bar, which is clear of the text,
+                   so each band has room to read at this height. -->
+              <path d="M300 118C356 94 396 46 462 32C500 24 534 44 578 50C620 56 664 62 700 60L700 118Z" fill="#c6d6e9"/>
+              <path d="M250 118C310 100 356 62 424 52C466 46 500 64 546 68C596 72 650 78 700 76L700 118Z" fill="#acc0da"/>
+              <path d="M30 118C100 108 156 72 236 62C296 55 346 76 404 82C466 88 520 78 574 82C626 86 670 92 700 90L700 118Z" fill="#dae8d6"/>
+              <path d="M110 118C180 110 232 82 306 74C362 68 408 88 462 92C516 96 562 88 610 92C650 95 680 99 700 98L700 118Z" fill="#c3ddc2"/>
+              <path d="M210 118C278 110 328 90 394 85C444 81 486 96 532 98C578 100 626 94 700 97L700 118Z" fill="#a8cfad"/>
+              <path d="M330 118C392 112 436 102 490 100C538 98 590 105 700 102L700 118Z" fill="#8fbe99"/>
+
+              <!-- Overlapping on purpose: reads as a treeline rather than a
+                   row of separate trees. -->
+              <g>
+                <use href="#ftFirA" transform="translate(434,119) scale(0.62,0.8)" fill="#bcd9c0"/>
+                <use href="#ftFirA" transform="translate(452,119) scale(0.85,1.15)" fill="#a0c6a8"/>
+                <use href="#ftFirB" transform="translate(470,119) scale(0.55,0.72)" fill="#c4ddc8"/>
+                <g transform="translate(488,119)">
+                  <rect x="-1.8" y="-16" width="3.6" height="16" rx="1.6" fill="#a08f76"/>
+                  <ellipse cx="0" cy="-30" rx="14" ry="15" fill="#c2dcbe"/>
+                </g>
+                <use href="#ftFirA" transform="translate(516,119) scale(1,1.35)" fill="#92bb9e"/>
+                <use href="#ftFirB" transform="translate(534,119) scale(0.7,0.95)" fill="#b0d1b6"/>
+                <use href="#ftFirA" transform="translate(553,119) scale(1.15,1.55)" fill="#85b392"/>
+                <use href="#ftFirA" transform="translate(572,119) scale(0.85,1.1)" fill="#a5c9ad"/>
+                <use href="#ftFirB" transform="translate(591,119) scale(1,1.4)" fill="#94bd9f"/>
+                <use href="#ftFirA" transform="translate(611,119) scale(1.25,1.7)" fill="#7aa888"/>
+                <use href="#ftFirA" transform="translate(631,119) scale(0.9,1.2)" fill="#9bc2a4"/>
+                <use href="#ftFirB" transform="translate(650,119) scale(1.1,1.5)" fill="#88b695"/>
+                <use href="#ftFirA" transform="translate(670,119) scale(0.78,1)" fill="#abceb3"/>
+                <use href="#ftFirA" transform="translate(689,119) scale(1,1.35)" fill="#92bb9e"/>
+              </g>
+            </g>
+          </svg>
+        </div>
         <div class="ft-stat-row" id="ftListStats" style="display:none;">
-          <div class="ft-stat-card">
-            <div class="ft-stat-val" id="ftListStatTotal">0</div>
-            <div class="ft-stat-label">Upcoming trips</div>
+          <div class="ft-stat-card has-icon">
+            <div class="ft-stat-icon"><i data-lucide="calendar-days"></i></div>
+            <div>
+              <div class="ft-stat-val" id="ftListStatTotal">0</div>
+              <div class="ft-stat-label">Upcoming trips</div>
+            </div>
           </div>
-          <div class="ft-stat-card ft-stat-warn" id="ftListStatNoChapCard">
-            <div class="ft-stat-val" id="ftListStatNoChap">0</div>
-            <div class="ft-stat-label">No chaperones yet</div>
+          <div class="ft-stat-card has-icon ft-stat-warn" id="ftListStatNoChapCard">
+            <div class="ft-stat-icon"><i data-lucide="users"></i></div>
+            <div>
+              <div class="ft-stat-val" id="ftListStatNoChap">0</div>
+              <div class="ft-stat-label">No chaperones yet</div>
+            </div>
           </div>
-          <div class="ft-stat-card ft-stat-alert" id="ftListStatOverdueCard">
-            <div class="ft-stat-val" id="ftListStatOverdue">0</div>
-            <div class="ft-stat-label">Payments overdue</div>
+          <div class="ft-stat-card has-icon ft-stat-alert" id="ftListStatOverdueCard">
+            <div class="ft-stat-icon"><i data-lucide="credit-card"></i></div>
+            <div>
+              <div class="ft-stat-val" id="ftListStatOverdue">0</div>
+              <div class="ft-stat-label">Payments overdue</div>
+            </div>
           </div>
         </div>
         <div class="panel">
