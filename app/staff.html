@@ -839,6 +839,17 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   .comp-filter-actions { flex-wrap: wrap; }
 }
 
+.cr-stat-row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+.cr-stat-card { flex:1; min-width:140px; display:flex; align-items:center; gap:12px; background:#fff; border:1px solid var(--border,#e5e7eb); border-radius:10px; padding:12px 16px; }
+.cr-stat-icon { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:10px; flex-shrink:0; }
+.cr-stat-icon svg { width:18px; height:18px; }
+.cr-stat-val { font-size:22px; font-weight:800; color:#0b2d4f; line-height:1; }
+.cr-stat-label { font-size:11px; color:#9ca3af; text-transform:uppercase; letter-spacing:0.06em; margin-top:2px; }
+.cr-stat-card--students  .cr-stat-icon { background:#eff6ff; color:#2563eb; }
+.cr-stat-card--guardians .cr-stat-icon { background:#f5f3ff; color:#7c3aed; }
+
+.cr-student-guardian-count { display:block; font-size:12px; color:#9ca3af; font-weight:400; margin-top:1px; }
+
 /* Pending reservations on the calendar: dashed border as a second visual
    cue beyond amber color alone (colorblind users, grayscale print) —
    same convention as .pto-cal-pending in pto.html */
@@ -1391,7 +1402,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <div class="comp-report-panel-header">
           <div>
             <h3 style="margin:0 0 3px;">Compliance Report</h3>
-            <p class="muted" style="margin:0;font-size:13px;">View each guardian's background check, MVR, and signed-form status for students in your homeroom. Select filters, then generate.</p>
+            <p class="muted" style="margin:0;font-size:13px;">View each guardian's background check, MVR, and signed-form status for students in your homeroom. Select homeroom, then Generate Report.</p>
           </div>
         </div>
 
@@ -1417,10 +1428,12 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       </div>
 
       <div id="compReportResultWrap" style="margin-top:12px;display:none;">
+        <div id="compReportSummary" class="cr-stat-row"></div>
+
         <div class="panel">
-          <div class="comp-report-result-header">
-            <h4 style="margin:0;" id="compReportResultTitle">Results</h4>
-            <div id="compReportSummary" class="comp-summary-chips"></div>
+          <div class="staff-search-wrap" style="max-width:420px;margin:0 0 14px;">
+            <svg class="staff-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="compReportSearch" placeholder="Search students, guardians, or emails…">
           </div>
           <div class="table-wrap">
             <table class="admin-table" id="compReportTable">
@@ -7028,6 +7041,7 @@ async function initComplianceReport() {
 
   document.getElementById('compReportGenerate').addEventListener('click', runComplianceReport);
   document.getElementById('compReportExport').addEventListener('click',   exportComplianceReportCsv);
+  document.getElementById('compReportSearch').addEventListener('input',   renderComplianceReportTable);
 }
 
 async function runComplianceReport() {
@@ -7070,53 +7084,103 @@ const CRED_CHIP = {
   submitted:   { cls: 'comp-action',  label: 'Submitted' },
 };
 
+// One icon per chip color, not per status -- same visual vocabulary as
+// CRED_CHIP's cls values (comp-cleared/comp-action/comp-blocked/comp-unknown).
+const CHIP_ICON = {
+  'comp-cleared': '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  'comp-action':  '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  'comp-blocked': '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+  'comp-unknown': '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+};
+
 function renderCredChip(cred) {
   const info = CRED_CHIP[cred?.status] ?? CRED_CHIP.not_on_file;
   const dateStr = cred?.date ? new Date(cred.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-  return `<span class="comp-chip ${info.cls}">${info.label}</span>${dateStr ? `<span class="cr-chip-date">${escHtml(dateStr)}</span>` : ''}`;
+  return `<span class="comp-chip ${info.cls}">${CHIP_ICON[info.cls]}${info.label}</span>${dateStr ? `<span class="cr-chip-date">${escHtml(dateStr)}</span>` : ''}`;
 }
 
 function renderComplianceReport(data) {
-  const { templates, rows } = data;
+  compReportData = data;
   const wrap = document.getElementById('compReportResultWrap');
-  const thead = document.getElementById('compReportThead');
-  const tbody = document.getElementById('compReportTbody');
-  const summary = document.getElementById('compReportSummary');
   const exportBtn = document.getElementById('compReportExport');
+  const searchInput = document.getElementById('compReportSearch');
 
   wrap.style.display = '';
-  exportBtn.style.display = '';
+  exportBtn.style.display = data.rows?.length ? '' : 'none';
+  searchInput.value = '';
 
-  if (!rows?.length) {
-    thead.innerHTML = '';
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px 0;color:#9ca3af;">No students found for the selected criteria.</td></tr>';
-    summary.innerHTML = '';
-    return;
-  }
+  renderComplianceReportStats(data.rows ?? []);
+  renderComplianceReportTable();
+}
 
-  // Summary chips (guardian rows only -- a placeholder "no guardian on file"
-  // row isn't a person who can be missing a background check)
+// Stat tiles reflect the full generated report regardless of the search box --
+// search narrows what's visible in the table, not what's being tracked.
+function renderComplianceReportStats(rows) {
+  const summary = document.getElementById('compReportSummary');
+
+  // Guardian rows only -- a placeholder "no guardian on file" row isn't a
+  // person who can be missing a background check.
   const guardianRows = rows.filter(r => r.guardian_id);
   const totalStudents = new Set(rows.map(r => r.student_id)).size;
-  const needsAttention = guardianRows.filter(r =>
-    r.bg?.status === 'missing' || r.bg?.status === 'expired' ||
-    Object.values(r.compliance ?? {}).some(c => c.status !== 'signed')
-  ).length;
-  const ok = guardianRows.length - needsAttention;
+
   summary.innerHTML = `
-    <span class="comp-summary-chip comp-summary-chip--total">${totalStudents} student${totalStudents !== 1 ? 's' : ''} · ${guardianRows.length} guardian${guardianRows.length !== 1 ? 's' : ''}</span>
-    ${ok > 0 ? `<span class="comp-summary-chip comp-summary-chip--ok">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-      ${ok} clear
-    </span>` : ''}
-    ${needsAttention > 0 ? `<span class="comp-summary-chip comp-summary-chip--missing">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      ${needsAttention} need attention
-    </span>` : ''}`;
+    <div class="cr-stat-card cr-stat-card--students">
+      <div class="cr-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <div><div class="cr-stat-val">${totalStudents}</div><div class="cr-stat-label">Student${totalStudents !== 1 ? 's' : ''}</div></div>
+    </div>
+    <div class="cr-stat-card cr-stat-card--guardians">
+      <div class="cr-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg></div>
+      <div><div class="cr-stat-val">${guardianRows.length}</div><div class="cr-stat-label">Guardian${guardianRows.length !== 1 ? 's' : ''}</div></div>
+    </div>
+  `;
+}
+
+// Drops whole (student, guardian…) groups that don't match -- keeps every
+// guardian row for a matching student together rather than splitting a
+// family across the rowspan.
+function filterComplianceRows(rows, term) {
+  if (!term) return rows;
+  const t = term.toLowerCase();
+  const matchedStudentIds = new Set();
+  let i = 0;
+  while (i < rows.length) {
+    const studentId = rows[i].student_id;
+    let span = 1;
+    while (i + span < rows.length && rows[i + span].student_id === studentId) span++;
+
+    const hit = rows.slice(i, i + span).some(r =>
+      r.student_name?.toLowerCase().includes(t) ||
+      r.guardian_name?.toLowerCase().includes(t) ||
+      r.guardian_email?.toLowerCase().includes(t)
+    );
+    if (hit) matchedStudentIds.add(studentId);
+    i += span;
+  }
+  return rows.filter(r => matchedStudentIds.has(r.student_id));
+}
+
+function renderComplianceReportTable() {
+  const { templates, rows: allRows } = compReportData ?? {};
+  const thead = document.getElementById('compReportThead');
+  const tbody = document.getElementById('compReportTbody');
+  const term = (document.getElementById('compReportSearch')?.value ?? '').trim();
+  const colspan = 9 + (templates?.length ?? 0);
+
+  if (!allRows?.length) {
+    thead.innerHTML = '';
+    tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;padding:24px 0;color:#9ca3af;">No students found for the selected criteria.</td></tr>`;
+    return;
+  }
 
   // Headers
   const formCols = templates?.length ? templates.map(t => `<th>${escHtml(t.title)}</th>`).join('') : '';
   thead.innerHTML = `<tr><th>Student</th><th>Grade</th><th>Teacher</th><th>Guardian</th><th>BG Check</th><th>MVR</th><th>DL</th><th>Insurance</th>${formCols}<th>Restrictions</th></tr>`;
+
+  const rows = filterComplianceRows(allRows, term);
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="${colspan}" style="text-align:center;padding:24px 0;color:#9ca3af;">No students match your search.</td></tr>`;
+    return;
+  }
 
   // Rows, with Student/Grade/Teacher visually grouped for consecutive
   // guardians of the same student via rowspan.
@@ -7126,13 +7190,14 @@ function renderComplianceReport(data) {
     const studentId = rows[i].student_id;
     let span = 1;
     while (i + span < rows.length && rows[i + span].student_id === studentId) span++;
+    const guardianCount = rows.slice(i, i + span).filter(r => r.guardian_id).length;
 
     for (let j = 0; j < span; j++) {
       const row = rows[i + j];
       const tr = document.createElement('tr');
 
       const leadCells = j === 0
-        ? `<td rowspan="${span}"><strong>${escHtml(row.student_name)}</strong></td>
+        ? `<td rowspan="${span}"><strong>${escHtml(row.student_name)}</strong><span class="cr-student-guardian-count">${guardianCount} guardian${guardianCount !== 1 ? 's' : ''}</span></td>
            <td rowspan="${span}">${escHtml(row.grade_level ?? '—')}</td>
            <td rowspan="${span}">${escHtml(row.teacher_name)}</td>`
         : '';
@@ -7147,7 +7212,7 @@ function renderComplianceReport(data) {
             const cls   = c.status === 'signed' ? 'comp-cleared' : c.status === 'expired' ? 'comp-blocked' : 'comp-unknown';
             const label = c.status === 'signed' ? 'Signed' : c.status === 'expired' ? 'Expired' : 'Missing';
             const date  = c.signed_at ? `<span class="cr-chip-date">${escHtml(new Date(c.signed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))}</span>` : '';
-            return `<td><span class="comp-chip ${cls}">${label}</span>${date}</td>`;
+            return `<td><span class="comp-chip ${cls}">${CHIP_ICON[cls]}${label}</span>${date}</td>`;
           }).join('')
         : '';
 
