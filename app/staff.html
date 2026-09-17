@@ -1402,12 +1402,6 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
               <option value="">All homerooms</option>
             </select>
           </div>
-          <div class="comp-filter-field">
-            <label class="comp-filter-label" for="compReportTemplate">Form Type</label>
-            <select id="compReportTemplate">
-              <option value="">All active forms</option>
-            </select>
-          </div>
           <div class="comp-filter-actions">
             <button id="compReportGenerate" class="btn btn-primary comp-report-cta">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -7021,7 +7015,6 @@ async function initComplianceReport() {
     return;
   }
   const teachers   = init.teachers   ?? [];
-  const templates  = init.templates  ?? [];
 
   // Populate teacher select
   const teacherSel = document.getElementById('compReportTeacher');
@@ -7033,23 +7026,12 @@ async function initComplianceReport() {
     teacherSel.appendChild(opt);
   });
 
-  // Populate template select
-  const tmplSel = document.getElementById('compReportTemplate');
-  tmplSel.innerHTML = '<option value="">All active forms</option>';
-  templates.forEach(t => {
-    const opt = document.createElement('option');
-    opt.value = t.id;
-    opt.textContent = t.title;
-    tmplSel.appendChild(opt);
-  });
-
   document.getElementById('compReportGenerate').addEventListener('click', runComplianceReport);
   document.getElementById('compReportExport').addEventListener('click',   exportComplianceReportCsv);
 }
 
 async function runComplianceReport() {
   const teacherId  = document.getElementById('compReportTeacher')?.value;
-  const templateId = document.getElementById('compReportTemplate')?.value;
   const msgEl      = document.getElementById('compReportMsg');
   const generateBtn = document.getElementById('compReportGenerate');
 
@@ -7059,7 +7041,6 @@ async function runComplianceReport() {
 
   const body = {};
   if (teacherId)  body.teacher_employee_ids = [teacherId];
-  if (templateId) body.template_ids         = [templateId];
 
   const { data, error } = await supabase.functions.invoke('compliance_report', { body });
 
