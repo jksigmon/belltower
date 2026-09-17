@@ -2087,6 +2087,24 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       </div>
     </div>
   </div>
+
+  <!-- ── Duplicate BG check request confirmation (must acknowledge before submitting) ── -->
+  <div id="bgDedupModal" class="modal modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Possible Duplicate Request</h3>
+        <span class="modal-close" id="bgDedupModalClose">&times;</span>
+      </div>
+      <p id="bgDedupModalBody" class="muted" style="font-size:0.86rem;margin:0 0 14px;color:#374151;"></p>
+      <p style="font-size:0.82rem;color:#991b1b;font-weight:600;margin:0 0 14px;">
+        Submitting this request will create a duplicate entry in Background Requests.
+      </p>
+      <div class="modal-actions">
+        <button class="btn" id="bgDedupModalCancel">Go Back</button>
+        <button class="btn warn" id="bgDedupModalConfirm">Submit Anyway</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -5889,6 +5907,13 @@ let bgDedupTimer = null;
 // submission until the confirm checkbox is checked.
 let bgDedupEmailMatch = false;
 
+// The dedup warning text for the match currently shown in #bgDedupWarning,
+// or null when there's no match. Doubles as a signature: submission is
+// gated on the modal being acknowledged for this exact message, so editing
+// the name/email to a genuinely different match re-triggers the popup.
+let lastBgDedupMatch = null;
+let bgDedupModalAckedFor = null;
+
 function scheduleBgDedupCheck() {
   clearTimeout(bgDedupTimer);
   bgDedupTimer = setTimeout(runBgDedupCheck, 500);
@@ -5911,6 +5936,8 @@ function fmtBgLookupDate(d) {
 // duplicates when the teacher doesn't know the parent's email.
 function hideBgDedupConfirm() {
   bgDedupEmailMatch = false;
+  lastBgDedupMatch = null;
+  bgDedupModalAckedFor = null;
   const wrap = document.getElementById('bgDedupConfirmWrap');
   const confirmBox = document.getElementById('bgDedupConfirm');
   wrap.style.display = 'none';
@@ -5965,7 +5992,32 @@ async function runBgDedupCheck() {
   }
 
   warningEl.style.display = 'block';
+  lastBgDedupMatch = warningEl.textContent;
 }
+
+// Shows the required-acknowledgment popup for whatever match is currently
+// active. Reused for both name and email matches -- the inline checkbox
+// still separately gates email matches, but that's an easy-to-miss inline
+// control, and this modal is the loud, hard-to-ignore version teachers
+// asked for after duplicates kept slipping through anyway.
+function showBgDedupModal() {
+  document.getElementById('bgDedupModalBody').textContent = lastBgDedupMatch.replace(/^⚠\s*/, '');
+  document.getElementById('bgDedupModal').classList.add('open');
+  document.body.classList.add('modal-open');
+}
+
+function closeBgDedupModal() {
+  document.getElementById('bgDedupModal').classList.remove('open');
+  document.body.classList.remove('modal-open');
+}
+
+document.getElementById('bgDedupModalClose')?.addEventListener('click', closeBgDedupModal);
+document.getElementById('bgDedupModalCancel')?.addEventListener('click', closeBgDedupModal);
+document.getElementById('bgDedupModalConfirm')?.addEventListener('click', () => {
+  bgDedupModalAckedFor = lastBgDedupMatch;
+  closeBgDedupModal();
+  document.getElementById('bgSubmitBtn')?.click();
+});
 
 async function loadMyBgRequests() {
   const container = document.getElementById('myBgRequests');
@@ -6060,6 +6112,14 @@ document.getElementById('bgSubmitBtn')?.addEventListener('click', async () => {
   if (rolesRequireDetails(roles) && !notes) {
     msgEl.textContent = DETAIL_ROLE_ERROR;
     document.getElementById('bgNotes')?.focus();
+    return;
+  }
+  // A pending/submitted/cleared match was found for this name (or email) --
+  // require an explicit popup acknowledgment before proceeding, on top of
+  // the flashing warning bar, since that warning alone kept getting
+  // clicked past.
+  if (lastBgDedupMatch && bgDedupModalAckedFor !== lastBgDedupMatch) {
+    showBgDedupModal();
     return;
   }
   // An exact email match against an existing volunteer or in-flight
