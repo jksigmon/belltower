@@ -1391,12 +1391,27 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <div class="comp-report-panel-header">
           <div>
             <h3 style="margin:0 0 3px;">Compliance Report</h3>
-            <p class="muted" style="margin:0;font-size:13px;">Background check, MVR, and signed-form status for every guardian on your roster.</p>
+            <p class="muted" style="margin:0;font-size:13px;">View each guardian's background check, MVR, and signed-form status for students in your homeroom. Select filters, then generate.</p>
+          </div>
+        </div>
+
+        <div class="comp-report-filter-row" id="compReportFilters">
+          <div class="comp-filter-field">
+            <label class="comp-filter-label" for="compReportTeacher">Homeroom / Teacher</label>
+            <select id="compReportTeacher">
+              <option value="">All homerooms</option>
+            </select>
+          </div>
+          <div class="comp-filter-field">
+            <label class="comp-filter-label" for="compReportTemplate">Form Type</label>
+            <select id="compReportTemplate">
+              <option value="">All active forms</option>
+            </select>
           </div>
           <div class="comp-filter-actions">
-            <button id="compReportGenerate" class="btn comp-report-cta">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              Refresh
+            <button id="compReportGenerate" class="btn btn-primary comp-report-cta">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Generate Report
             </button>
             <button id="compReportExport" class="btn comp-report-cta" style="display:none;">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -6986,14 +7001,55 @@ async function initComplianceReport() {
   if (compReportInitialized) return;
   compReportInitialized = true;
 
-  document.getElementById('compReportGenerate').addEventListener('click', () => loadComplianceReport());
-  document.getElementById('compReportExport').addEventListener('click',   exportComplianceReportCsv);
-
-  await loadComplianceReport(compReportPrefetch);
+  // Use the prefetch if it fired. Only retry on network/timeout errors — if the
+  // prefetch returned a real HTTP error (e.g. 403), retrying will get the same result.
+  let result = compReportPrefetch ? await compReportPrefetch : null;
   compReportPrefetch = null;
+  if (!result || (result.error && result.error.name !== 'FunctionsHttpError')) {
+    result = await supabase.functions.invoke('compliance_report', { body: {} });
+  }
+  const { data: init, error: initErr } = result;
+
+  if (initErr || init?.error) {
+    // FunctionsHttpError.message is always the generic "Edge Function returned a non-2xx
+    // status code"; the real message from the function body is in error.context.error.
+    const msg = init?.error
+      ?? (initErr?.context && typeof initErr.context === 'object' ? initErr.context.error : null)
+      ?? initErr?.message
+      ?? 'Error loading report setup.';
+    document.getElementById('compReportMsg').textContent = msg;
+    return;
+  }
+  const teachers   = init.teachers   ?? [];
+  const templates  = init.templates  ?? [];
+
+  // Populate teacher select
+  const teacherSel = document.getElementById('compReportTeacher');
+  teacherSel.innerHTML = '<option value="">All homerooms</option>';
+  teachers.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = `${t.last_name}, ${t.first_name}`;
+    teacherSel.appendChild(opt);
+  });
+
+  // Populate template select
+  const tmplSel = document.getElementById('compReportTemplate');
+  tmplSel.innerHTML = '<option value="">All active forms</option>';
+  templates.forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = t.title;
+    tmplSel.appendChild(opt);
+  });
+
+  document.getElementById('compReportGenerate').addEventListener('click', runComplianceReport);
+  document.getElementById('compReportExport').addEventListener('click',   exportComplianceReportCsv);
 }
 
-async function loadComplianceReport(prefetched) {
+async function runComplianceReport() {
+  const teacherId  = document.getElementById('compReportTeacher')?.value;
+  const templateId = document.getElementById('compReportTemplate')?.value;
   const msgEl      = document.getElementById('compReportMsg');
   const generateBtn = document.getElementById('compReportGenerate');
 
@@ -7001,25 +7057,17 @@ async function loadComplianceReport(prefetched) {
   generateBtn.disabled    = true;
   generateBtn.textContent = 'Loading…';
 
-  // Use the prefetch if it fired. Only retry on network/timeout errors — if the
-  // prefetch returned a real HTTP error (e.g. 403), retrying will get the same result.
-  let result = prefetched ? await prefetched : null;
-  if (!result || (result.error && result.error.name !== 'FunctionsHttpError')) {
-    result = await supabase.functions.invoke('compliance_report', { body: {} });
-  }
-  const { data, error } = result;
+  const body = {};
+  if (teacherId)  body.teacher_employee_ids = [teacherId];
+  if (templateId) body.template_ids         = [templateId];
+
+  const { data, error } = await supabase.functions.invoke('compliance_report', { body });
 
   generateBtn.disabled    = false;
-  generateBtn.innerHTML   = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>Refresh';
+  generateBtn.textContent = 'Generate Report';
 
   if (error || data?.error) {
-    // FunctionsHttpError.message is always the generic "Edge Function returned a non-2xx
-    // status code"; the real message from the function body is in error.context.error.
-    const msg = data?.error
-      ?? (error?.context && typeof error.context === 'object' ? error.context.error : null)
-      ?? error?.message
-      ?? 'Error loading report.';
-    msgEl.textContent = msg;
+    msgEl.textContent = data?.error ?? error?.message ?? 'Failed to generate report.';
     return;
   }
 
@@ -7060,7 +7108,7 @@ function renderComplianceReport(data) {
 
   if (!rows?.length) {
     thead.innerHTML = '';
-    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px 0;color:#9ca3af;">No students found.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px 0;color:#9ca3af;">No students found for the selected criteria.</td></tr>';
     summary.innerHTML = '';
     return;
   }
