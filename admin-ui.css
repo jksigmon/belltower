@@ -9037,27 +9037,7 @@ select.admin-input {
   outline-offset: 2px;
 }
 
-/* ── BG Check request form: header + numbered steps (staff.html) ── */
-.bg-form-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 20px;
-}
-.bg-form-header-icon {
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #eff6ff;
-  color: #2563eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.bg-form-header h3 { margin: 0 0 4px; }
-.bg-form-header p { margin: 0; }
-
+/* ── BG Check request form: numbered steps (staff.html) ── */
 .bg-step-header {
   display: flex;
   align-items: center;
@@ -9166,3 +9146,95 @@ select.admin-input {
   text-transform: uppercase;
 }
 .bg-req-date { margin-left: auto; font-size: 12px; color: #9ca3af; white-space: nowrap; }
+
+/* ── Shared page hero banner (field-trips.html, staff.html bg-checks) ── */
+.page-hero {
+  position: relative;
+  background: linear-gradient(135deg, #eaf2ff 0%, #f5f9ff 55%, #ffffff 100%);
+  border: 1px solid #e0ebfd;
+  border-radius: 16px;
+  padding: 20px 28px;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+.page-hero-text  { position: relative; z-index: 1; max-width: 56%; }
+.page-hero-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--primary, #2563eb);
+  margin-bottom: 6px;
+}
+.page-hero-title { font-size: 24px; font-weight: 800; color: #0b2d4f; line-height: 1.15; margin: 0 0 4px; }
+.page-hero-sub   { font-size: 13px; color: var(--text-muted, #64748b); margin: 0; }
+/* Sized off the bar's own height so the sky never gets clipped by
+   overflow:hidden; width follows from the viewBox ratio. */
+.page-hero-art   {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  height: 100%;
+  width: auto;
+  aspect-ratio: 700 / 118;
+  max-width: 72%;
+  pointer-events: none;
+}
+@media (max-width: 720px) {
+  .page-hero-art  { display: none; }
+  .page-hero-text { max-width: 100%; }
+}
+
+/* Larger variant: roomier padding + bigger type, for a hero that's meant to
+   carry the page (e.g. staff.html bg-checks) rather than sit above a dense
+   admin list like the field-trips one does. Art gets a taller viewBox so
+   the illustration reads as a real scene instead of a thin strip. */
+.page-hero-lg {
+  padding: 28px 36px 32px;
+}
+.page-hero-lg .page-hero-title { font-size: 30px; margin: 0 0 6px; }
+.page-hero-lg .page-hero-sub   { font-size: 14px; }
+.page-hero-lg .page-hero-art   { aspect-ratio: 920 / 170; max-width: 76%; }
+
+/* ── Background check request page: two-column layout ── */
+.bg-page-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .bg-page-layout { grid-template-columns: 1fr; }
+}
+.bg-links-panel h4 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+}
+.bg-links-panel > p.muted { margin: 0 0 16px; font-size: 12px; }
+.bg-link-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.bg-link-row:last-child { border-bottom: none; }
+.bg-link-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #eaf2ff;
+  color: var(--primary, #2563eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.bg-link-info { flex: 1; min-width: 0; }
+.bg-link-title { font-size: 13px; font-weight: 700; color: #111827; }
+.bg-link-desc { font-size: 12px; color: #9ca3af; margin-top: 1px; }
+.bg-link-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
+.bg-link-actions .btn-sm { white-space: nowrap; }

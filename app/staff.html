@@ -1333,15 +1333,145 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
     <!-- ── Background Check Requests ───────────────── -->
     <section id="bg-checks" style="display:none;">
 
-      <div class="panel panel-action">
-        <div class="bg-form-header">
-          <span class="bg-form-header-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg></span>
-          <div>
-            <h3>Request Background Check</h3>
-            <p class="muted">Submit a request for a background check on a volunteer, parent helper, or field trip chaperone.</p>
-          </div>
+      <div class="page-hero page-hero-lg">
+        <div class="page-hero-text">
+          <div class="page-hero-eyebrow">Background Checks</div>
+          <h1 class="page-hero-title">Request Background Check</h1>
+          <p class="page-hero-sub">Submit a request for a background check on a volunteer, parent helper, or field trip chaperone.</p>
         </div>
+        <svg class="page-hero-art" viewBox="0 0 920 170" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" preserveAspectRatio="xMaxYMax meet">
+          <defs>
+            <linearGradient id="bgHeroFade" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+              <stop offset="0.2" stop-color="#ffffff" stop-opacity="1"/>
+            </linearGradient>
+            <mask id="bgHeroFadeMask">
+              <rect width="920" height="170" fill="url(#bgHeroFade)"/>
+            </mask>
+            <!-- Foliage is shaded off currentColor, so one reference can
+                 recolor a whole tree while the trunk stays wood-toned. -->
+            <g id="bgHeroTree">
+              <rect x="-2.6" y="-18" width="5.2" height="20" rx="1.8" fill="#9c8a72"/>
+              <circle cx="-8.5" cy="-29" r="12.5" fill="currentColor" opacity="0.72"/>
+              <circle cx="8.5" cy="-27" r="11.5" fill="currentColor" opacity="0.86"/>
+              <circle cx="0" cy="-39" r="14.5" fill="currentColor"/>
+            </g>
+            <g id="bgHeroFir">
+              <rect x="-2.2" y="-10" width="4.4" height="12" rx="1.6" fill="#9c8a72"/>
+              <path d="M0 -58L12 -33L-12 -33Z" fill="currentColor" opacity="0.7"/>
+              <path d="M0 -45L15.5 -17L-15.5 -17Z" fill="currentColor" opacity="0.85"/>
+              <path d="M0 -30L19 0L-19 0Z" fill="currentColor"/>
+            </g>
+            <g id="bgHeroBush">
+              <ellipse cx="-6" cy="-5" rx="8" ry="6.5" fill="currentColor" opacity="0.75"/>
+              <ellipse cx="5.5" cy="-4" rx="7" ry="5.5" fill="currentColor" opacity="0.88"/>
+              <ellipse cx="0" cy="-9.5" rx="8.5" ry="7" fill="currentColor"/>
+            </g>
+            <path id="bgHeroCloud" d="M4 18Q0 18 0 14Q0 10 5 10Q6 3 13 3Q17 -2 24 1Q30 -3 36 2Q43 1 45 7Q52 7 52 12Q52 18 47 18Z"/>
+          </defs>
 
+          <g mask="url(#bgHeroFadeMask)">
+            <g fill="#ffffff">
+              <use href="#bgHeroCloud" transform="translate(150,32) scale(1.1)" opacity="0.9"/>
+              <use href="#bgHeroCloud" transform="translate(330,14) scale(0.78)" opacity="0.7"/>
+              <use href="#bgHeroCloud" transform="translate(468,40) scale(0.6)" opacity="0.6"/>
+              <use href="#bgHeroCloud" transform="translate(648,12) scale(0.86)" opacity="0.8"/>
+              <use href="#bgHeroCloud" transform="translate(806,34) scale(0.64)" opacity="0.55"/>
+            </g>
+
+            <!-- Distant ridgeline, hazy to solid -->
+            <path d="M110 170C190 134 248 98 330 90C402 83 452 110 522 106C602 101 664 80 744 84C814 87 872 98 920 94L920 170Z" fill="#dbe6f4"/>
+            <path d="M40 170C140 148 214 118 308 112C390 107 452 128 532 126C614 124 682 106 762 110C832 113 884 120 920 118L920 170Z" fill="#c6d6e9"/>
+
+            <!-- Rolling green, back to front -->
+            <path d="M0 170C104 152 186 128 296 124C388 121 458 138 558 138C660 138 730 126 818 130C868 132 896 134 920 133L920 170Z" fill="#dae8d6"/>
+
+            <g>
+              <use href="#bgHeroTree" transform="translate(248,142) scale(0.5)" color="#bcd9c0"/>
+              <use href="#bgHeroFir"  transform="translate(275,144) scale(0.5)"  color="#b0d1b6"/>
+              <use href="#bgHeroTree" transform="translate(300,142) scale(0.42)" color="#c4ddc8"/>
+            </g>
+
+            <path d="M0 170C110 160 196 142 306 139C398 136 462 150 560 150C662 150 734 142 820 145C870 147 897 148 920 147L920 170Z" fill="#c3ddc2"/>
+
+            <g>
+              <use href="#bgHeroFir"  transform="translate(396,152) scale(0.66)" color="#a0c6a8"/>
+              <use href="#bgHeroTree" transform="translate(424,154) scale(0.6)"  color="#9bc2a4"/>
+              <use href="#bgHeroFir"  transform="translate(450,152) scale(0.54)" color="#b0d1b6"/>
+              <use href="#bgHeroBush" transform="translate(472,153) scale(0.7)"  color="#a8cfad"/>
+            </g>
+
+            <path d="M60 170C160 163 240 154 340 152C430 150 500 158 590 158C690 158 760 154 840 156C880 157 902 158 920 157L920 170Z" fill="#a8cfad"/>
+
+            <!-- Main treeline -->
+            <g>
+              <use href="#bgHeroBush" transform="translate(664,170) scale(0.9)"  color="#8fbe99"/>
+              <use href="#bgHeroTree" transform="translate(690,170) scale(0.9)"  color="#8fbe99"/>
+              <use href="#bgHeroFir"  transform="translate(718,170) scale(1)"    color="#6f9f80"/>
+              <use href="#bgHeroTree" transform="translate(748,170) scale(1.05)" color="#7fb28c"/>
+              <use href="#bgHeroFir"  transform="translate(778,170) scale(0.84)" color="#8fbe99"/>
+              <use href="#bgHeroBush" transform="translate(800,170) scale(0.8)"  color="#9bc2a4"/>
+            </g>
+
+            <!-- Schoolhouse -->
+            <g transform="translate(858,170)">
+              <rect x="-1.8" y="-146" width="3.6" height="25" fill="#8b98ab"/>
+              <path d="M-1.8 -146L15 -140.5L15 -133L-1.8 -138.5Z" fill="#2563eb"/>
+              <path d="M-12 -121L0 -132L12 -121Z" fill="#bdcfe9"/>
+              <rect x="-8" y="-121" width="16" height="14" rx="2" fill="#e6eefa" stroke="#c9d8ee" stroke-width="1.5"/>
+              <path d="M-58 -80L0 -110L58 -80Z" fill="#c9d8ee"/>
+              <rect x="-52" y="-80" width="104" height="80" rx="2" fill="#eef3fb" stroke="#c9d8ee" stroke-width="2"/>
+              <rect x="-43" y="-70" width="15" height="14" rx="2" fill="#a9c2e6"/>
+              <rect x="-21" y="-70" width="15" height="14" rx="2" fill="#a9c2e6"/>
+              <rect x="6" y="-70" width="15" height="14" rx="2" fill="#a9c2e6"/>
+              <rect x="28" y="-70" width="15" height="14" rx="2" fill="#a9c2e6"/>
+              <rect x="-43" y="-46" width="15" height="14" rx="2" fill="#a9c2e6"/>
+              <rect x="28" y="-46" width="15" height="14" rx="2" fill="#a9c2e6"/>
+              <path d="M-23 -46L0 -59L23 -46Z" fill="#dbe6f5"/>
+              <rect x="-21" y="-46" width="5.5" height="46" fill="#dbe6f5"/>
+              <rect x="15.5" y="-46" width="5.5" height="46" fill="#dbe6f5"/>
+              <rect x="-9" y="-33" width="18" height="33" rx="9" fill="#a9c2e6"/>
+              <rect x="-28" y="-4" width="56" height="4" rx="1.5" fill="#dbe6f5"/>
+            </g>
+
+            <!-- Clipboard -->
+            <g transform="translate(620,96)">
+              <rect x="-40" y="-56" width="84" height="116" rx="10" fill="#dde6f4" opacity="0.65"/>
+              <rect x="-44" y="-60" width="84" height="116" rx="10" fill="#ffffff" stroke="#c3d0e4" stroke-width="2"/>
+              <rect x="-16" y="-71" width="32" height="18" rx="6" fill="#20406e"/>
+              <rect x="-8" y="-78" width="16" height="10" rx="4" fill="#0b2d4f"/>
+
+              <circle cx="-26" cy="-26" r="8.5" fill="#16a34a"/>
+              <path d="M-30 -26L-27 -22.2L-21.5 -30" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <rect x="-12" y="-30" width="36" height="4.6" rx="2.3" fill="#c3d0e4"/>
+              <rect x="-12" y="-21" width="26" height="4.6" rx="2.3" fill="#e1e7f0"/>
+
+              <circle cx="-26" cy="4" r="8.5" fill="#16a34a"/>
+              <path d="M-30 4L-27 7.8L-21.5 0" stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <rect x="-12" y="0" width="36" height="4.6" rx="2.3" fill="#c3d0e4"/>
+              <rect x="-12" y="9" width="21" height="4.6" rx="2.3" fill="#e1e7f0"/>
+
+              <rect x="-31" y="29" width="10" height="10" rx="2.5" fill="none" stroke="#c3d0e4" stroke-width="2"/>
+              <rect x="-12" y="31" width="30" height="4.6" rx="2.3" fill="#e1e7f0"/>
+              <rect x="-12" y="40" width="18" height="4.6" rx="2.3" fill="#eef2f7"/>
+            </g>
+
+            <!-- Shield badge, overlapping the clipboard -->
+            <g transform="translate(566,112) scale(1.75)">
+              <circle r="26" fill="#dbeafe"/>
+              <circle r="26" fill="none" stroke="#c2d9fb" stroke-width="1"/>
+              <path d="M0 -17C5.2 -14 10.4 -12.3 14 -12.3C14 3 8 14.5 0 20C-8 14.5 -14 3 -14 -12.3C-10.4 -12.3 -5.2 -14 0 -17Z" fill="#2563eb"/>
+              <path d="M0 -17C5.2 -14 10.4 -12.3 14 -12.3C14 3 8 14.5 0 20Z" fill="#1d4ed8" opacity="0.45"/>
+              <path d="M-6.5 0.5L-1.8 5.5L7.5 -6" stroke="#ffffff" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <div class="bg-page-layout">
+      <div>
+
+      <div class="panel panel-action">
         <div class="bg-step-header"><span class="bg-step-num">1</span><span class="bg-step-label">Volunteer information</span></div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
@@ -1394,6 +1524,18 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <div id="myBgRequests">
           <p class="muted" style="text-align:center;padding:24px 0;">Loading…</p>
         </div>
+      </div>
+
+      </div>
+
+      <div class="panel bg-links-panel">
+        <h4><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Form Links</h4>
+        <p class="muted">Copy links to share with parents via email or text. Each link opens a secure Belltower form. Links are created and managed by school administrators.</p>
+        <div id="bgFormLinksList">
+          <p class="muted" style="text-align:center;padding:20px 0;">Loading…</p>
+        </div>
+      </div>
+
       </div>
 
     </section>
@@ -2128,11 +2270,12 @@ import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE, getAvatarColor, renderQuickActions, QA_ICONS } from '/app/admin.shared.js?v=3';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE, getAvatarColor, renderQuickActions, QA_ICONS, todayISO } from '/app/admin.shared.js?v=3';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { VOLUNTEER_ROLES, roleCheckboxGridHTML, wireRoleDetailsRequirement, rolesRequireDetails, DETAIL_ROLE_HINT, DETAIL_ROLE_ERROR } from '/app/compliance.roles.js?v=3';
 import { printRosters, saveRostersPdf, saveRostersXlsx, printStudentSchedule, toRosterStudent, ROSTER_SELECT } from '/app/roster-print.js?v=7';
+import qrcode from '/app/vendor/qrcode.js';
 
 document.getElementById('bgRoleGrid').innerHTML = roleCheckboxGridHTML('bgRole');
 
@@ -2839,7 +2982,7 @@ function setActive(hash) {
     loadPtoSection();
   }
   if (hash === '#licensure')           loadMyLicenses();
-  if (hash === '#bg-checks')           loadMyBgRequests();
+  if (hash === '#bg-checks')           { loadMyBgRequests(); loadBgFormLinks(); }
   if (hash === '#compliance-report')   initComplianceReport();
   if (hash === '#my-roster')           initMyRoster();
   if (hash === '#student-lookup')      initStudentLookup();
@@ -6106,6 +6249,110 @@ async function loadMyBgRequests() {
       loadMyBgRequests();
     });
   });
+}
+
+const BG_FORM_LINK_BASE = `${window.location.origin}/volunteer.html?form=`;
+
+async function loadBgFormLinks() {
+  const container = document.getElementById('bgFormLinksList');
+  if (!container || !currentProfile) return;
+
+  container.innerHTML = '<p class="muted" style="text-align:center;padding:20px 0;">Loading…</p>';
+
+  const { data, error } = await supabase
+    .from('compliance_form_templates')
+    .select('id, title, description, compliance_form_links(token, label, expires_at, active, created_at)')
+    .eq('school_id', currentProfile.school_id)
+    .eq('active', true)
+    .order('title', { ascending: true });
+
+  if (error) {
+    container.innerHTML = '<p class="muted" style="text-align:center;padding:20px 0;">Failed to load form links.</p>';
+    return;
+  }
+
+  const today = todayISO();
+  const rows = (data ?? [])
+    .map(t => {
+      const link = (t.compliance_form_links ?? [])
+        .filter(l => l.active && (!l.expires_at || l.expires_at >= today))
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+      return link ? { template: t, link } : null;
+    })
+    .filter(Boolean);
+
+  if (!rows.length) {
+    container.innerHTML = '<p class="muted" style="text-align:center;padding:20px 0;">No active form links yet. Ask an administrator to create one.</p>';
+    return;
+  }
+
+  container.innerHTML = rows.map(({ template, link }) => {
+    const url = `${BG_FORM_LINK_BASE}${link.token}`;
+    return `
+      <div class="bg-link-row">
+        <span class="bg-link-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>
+        <div class="bg-link-info">
+          <div class="bg-link-title">${escHtml(template.title)}</div>
+          ${template.description ? `<div class="bg-link-desc">${escHtml(template.description)}</div>` : ''}
+        </div>
+        <div class="bg-link-actions">
+          <button class="btn btn-sm" data-action="copy" data-url="${escHtml(url)}">Copy link</button>
+          <button class="btn btn-sm" data-action="qr" data-url="${escHtml(url)}" data-name="${escHtml(template.title)}">QR code</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  container.querySelectorAll('[data-action="copy"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      navigator.clipboard.writeText(btn.dataset.url).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = orig; }, 2000);
+      }).catch(() => {
+        prompt('Copy this link:', btn.dataset.url);
+      });
+    });
+  });
+
+  container.querySelectorAll('[data-action="qr"]').forEach(btn => {
+    btn.addEventListener('click', () => downloadLinkQR(btn.dataset.url, btn.dataset.name));
+  });
+}
+
+// Renders a link as a scannable QR code and downloads it as a PNG. Pure
+// client-side canvas render (vendor/qrcode.js) -- no network call, same
+// approach as the data-collection campaign QR codes.
+function downloadLinkQR(url, name) {
+  const qr = qrcode(0, 'M');
+  qr.addData(url);
+  qr.make();
+
+  const cellSize = 8;
+  const margin = 4 * cellSize;
+  const count = qr.getModuleCount();
+  const size = count * cellSize + margin * 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#000';
+  for (let row = 0; row < count; row++) {
+    for (let col = 0; col < count; col++) {
+      if (qr.isDark(row, col)) {
+        ctx.fillRect(margin + col * cellSize, margin + row * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = `${name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-qr-code.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 document.getElementById('bgSubmitBtn')?.addEventListener('click', async () => {

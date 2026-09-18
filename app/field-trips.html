@@ -148,44 +148,8 @@
     .drawer-row { display: flex; gap: 12px; }
     .drawer-row .drawer-field { flex: 1; }
 
-    /* ── Hero banner ── */
-    .ft-hero {
-      position: relative;
-      background: linear-gradient(135deg, #eaf2ff 0%, #f5f9ff 55%, #ffffff 100%);
-      border: 1px solid #e0ebfd;
-      border-radius: 16px;
-      padding: 20px 28px;
-      margin-bottom: 18px;
-      overflow: hidden;
-    }
-    .ft-hero-text  { position: relative; z-index: 1; max-width: 56%; }
-    .ft-hero-eyebrow {
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--primary, #2563eb);
-      margin-bottom: 6px;
-    }
-    .ft-hero-title { font-size: 24px; font-weight: 800; color: #0b2d4f; line-height: 1.15; margin: 0 0 4px; }
-    .ft-hero-sub   { font-size: 13px; color: var(--text-muted, #64748b); margin: 0; }
-    /* Sized off the bar's own height so the sky never gets clipped by
-       overflow:hidden; width follows from the viewBox ratio. */
-    .ft-hero-art   {
-      position: absolute;
-      right: 0;
-      bottom: 0;
-      z-index: 0;
-      height: 100%;
-      width: auto;
-      aspect-ratio: 700 / 118;
-      max-width: 72%;
-      pointer-events: none;
-    }
-    @media (max-width: 720px) {
-      .ft-hero-art  { display: none; }
-      .ft-hero-text { max-width: 100%; }
-    }
+    /* Hero banner: shared .page-hero component now lives in admin-ui.css
+       so other pages (e.g. staff.html bg-checks) can reuse it. */
 
     /* ── Stat summary strip ── */
     .ft-stat-row {
@@ -388,13 +352,13 @@
 
       <!-- List view -->
       <div id="ftListView">
-        <div class="ft-hero">
-          <div class="ft-hero-text">
-            <div class="ft-hero-eyebrow">Field Trips</div>
-            <h1 class="ft-hero-title">Plan and manage every trip</h1>
-            <p class="ft-hero-sub">Chaperones, vehicles, and payments, all in one place.</p>
+        <div class="page-hero">
+          <div class="page-hero-text">
+            <div class="page-hero-eyebrow">Field Trips</div>
+            <h1 class="page-hero-title">Plan and manage every trip</h1>
+            <p class="page-hero-sub">Chaperones, vehicles, and payments, all in one place.</p>
           </div>
-          <svg class="ft-hero-art" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" preserveAspectRatio="xMaxYMax meet">
+          <svg class="page-hero-art" viewBox="0 0 700 118" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false" preserveAspectRatio="xMaxYMax meet">
             <defs>
               <!-- Lets the scenery emerge out of the sky instead of starting
                    on a hard vertical edge mid-bar. -->

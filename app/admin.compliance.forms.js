@@ -3,6 +3,7 @@ import { supabase } from './admin.supabase.js?v=2';
 import { esc, fetchAllRows } from './admin.shared.js?v=3';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { VOLUNTEER_BASE, openDrawer, closeDrawer, showToast, renderPagination, PAGE_SIZE } from './admin.compliance.utils.js';
+import qrcode from './vendor/qrcode.js';
 
 let _profile = null;
 
@@ -203,6 +204,7 @@ async function toggleTemplateLinks(templateId) {
               ${link.expires_at ? `<span class="muted" style="font-size:11px;margin-left:6px;">Expires ${link.expires_at}</span>` : ''}
             </div>
             <button class="btn btn-sm" data-action="copy-link" data-token="${esc(link.token)}">Copy URL</button>
+            <button class="btn btn-sm" data-action="qr-link" data-token="${esc(link.token)}" data-label="${esc(link.label || 'form')}">QR Code</button>
             <button class="btn btn-sm" data-action="deactivate-link" data-lid="${esc(link.id)}" data-active="${link.active}">${link.active ? 'Deactivate' : 'Activate'}</button>
           </div>
         `).join('')
@@ -219,6 +221,13 @@ async function toggleTemplateLinks(templateId) {
         btn.textContent = 'Copied!';
         setTimeout(() => { btn.textContent = 'Copy URL'; }, 2000);
       });
+    });
+  });
+
+  wrap.querySelectorAll('[data-action="qr-link"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const url = `${VOLUNTEER_BASE}${btn.dataset.token}`;
+      downloadFormLinkQR(url, btn.dataset.label);
     });
   });
 
@@ -276,6 +285,42 @@ export async function createLink() {
   navigator.clipboard.writeText(url).then(() => showToast(`URL copied: ${url}`)).catch(() => {});
 
   await toggleTemplateLinks(activeLinkTemplateId);
+}
+
+// Renders a form link as a scannable QR code and downloads it as a PNG.
+// Pure client-side canvas render -- same approach as the data-collection
+// campaign QR codes, no network call.
+function downloadFormLinkQR(url, name) {
+  const qr = qrcode(0, 'M');
+  qr.addData(url);
+  qr.make();
+
+  const cellSize = 8;
+  const margin = 4 * cellSize;
+  const count = qr.getModuleCount();
+  const size = count * cellSize + margin * 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#000';
+  for (let row = 0; row < count; row++) {
+    for (let col = 0; col < count; col++) {
+      if (qr.isDark(row, col)) {
+        ctx.fillRect(margin + col * cellSize, margin + row * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = `${name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-qr-code.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 // ═══════════════════════════════════════════════════════════════════════
