@@ -850,6 +850,9 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
 .cr-student-guardian-count { display:block; font-size:12px; color:#9ca3af; font-weight:400; margin-top:1px; }
 
+.cr-badge-note { display:flex; align-items:flex-start; gap:7px; margin:0 0 14px; font-size:12.5px; line-height:1.5; color:#6b7280; }
+.cr-badge-note svg { flex-shrink:0; margin-top:1px; }
+
 /* Pending reservations on the calendar: dashed border as a second visual
    cue beyond amber color alone (colorblind users, grayscale print) —
    same convention as .pto-cal-pending in pto.html */
@@ -1429,6 +1432,11 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
       <div id="compReportResultWrap" style="margin-top:12px;display:none;">
         <div id="compReportSummary" class="cr-stat-row"></div>
+
+        <p class="cr-badge-note">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          Each badge shows whether that item (background check, MVR, license, insurance, or form) is on file and current. It does not mean a volunteer is cleared for a specific role. Check with your school admin on what's required for the role they'll be filling.
+        </p>
 
         <div class="panel">
           <div class="staff-search-wrap" style="max-width:420px;margin:0 0 14px;">

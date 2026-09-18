@@ -8916,7 +8916,7 @@ select.admin-input {
 }
 .bg-role-card {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 12px 14px;
   border: 1.5px solid #e5e7eb;
@@ -8958,12 +8958,6 @@ select.admin-input {
   font-weight: 600;
   color: #111827;
   line-height: 1.3;
-}
-.bg-role-desc {
-  font-size: 11px;
-  color: #9ca3af;
-  margin-top: 3px;
-  line-height: 1.4;
 }
 .bg-role-card:has(.bg-role-check:checked) {
   border-color: var(--primary, #2563eb);
