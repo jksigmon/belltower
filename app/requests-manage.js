@@ -2,6 +2,7 @@ import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
 import { esc, fmtShortDate, showToast, fetchAllRows } from './admin.shared.js?v=3';
 import { exportSubmissions, exportOneSubmission } from './requests.export.js?v=1';
+import { renderPager, pageSlice, pageCount } from './requests.pager.js';
 
 const OPEN_STATUSES = ['pending', 'in_review'];
 
@@ -12,6 +13,9 @@ let filterCatId    = '';
 // 'open' = pending + in_review. Default so finished work drops out of the
 // queue on its own; '' (All Statuses) is one click away.
 let filterStatus   = 'open';
+let page           = 1;
+// Approved addresses a manager can forward a request to (admin-maintained).
+let forwardDestinations = [];
 
 (async () => {
   currentProfile = await initPage({});
@@ -32,6 +36,7 @@ let filterStatus   = 'open';
   }
 
   document.getElementById('reqmFilters').style.display = '';
+  await loadForwardDestinations();
   await loadSubmissions();
   renderList();
   wireFilters();
@@ -84,6 +89,17 @@ async function loadManagedCategories() {
   });
 }
 
+async function loadForwardDestinations() {
+  const { data, error } = await supabase
+    .from('request_forward_destinations')
+    .select('id, name')
+    .eq('school_id', currentProfile.school_id)
+    .eq('is_active', true)
+    .order('name');
+  if (error) console.error('loadForwardDestinations', error);
+  forwardDestinations = data ?? [];
+}
+
 async function loadSubmissions() {
   // Paged: an unranged select stops at 1000 rows, which would silently drop
   // the oldest submissions from both the list and the CSV export.
@@ -116,9 +132,29 @@ async function loadSubmissions() {
   submissions = data ?? [];
 }
 
+function renderPagers() {
+  const goTo = (target, scrollToTop) => {
+    page = target;
+    renderList();
+    if (scrollToTop) document.querySelector('.reqm-main')?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const opts = { page, total: submissions.length };
+  for (const [id, scrollToTop] of [['reqmPagerTop', false], ['reqmPagerBottom', true]]) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    el.style.display = submissions.length ? '' : 'none';
+    renderPager(el, { ...opts, onPage: target => goTo(target, scrollToTop) });
+  }
+}
+
 function renderList() {
   const wrap = document.getElementById('reqmListWrap');
   if (!wrap) return;
+
+  // A save can shrink the filtered list (e.g. closing the last open item on
+  // the final page), so keep the page in range.
+  page = Math.min(page, pageCount(submissions.length));
+  renderPagers();
 
   if (!submissions.length) {
     // Under the default "Open" filter an empty list means caught up, not
@@ -142,7 +178,7 @@ function renderList() {
         </tr>
       </thead>
       <tbody>
-        ${submissions.map(s => {
+        ${pageSlice(submissions, page).map(s => {
           const name = s.profiles?.display_name ?? s.profiles?.email ?? 'Unknown';
           const preview = submissionPreview(s);
           return `
@@ -168,11 +204,13 @@ function renderList() {
 function wireFilters() {
   document.getElementById('reqmFilterCat').addEventListener('change', async (e) => {
     filterCatId = e.target.value;
+    page = 1;
     await loadSubmissions();
     renderList();
   });
   document.getElementById('reqmFilterStatus').addEventListener('change', async (e) => {
     filterStatus = e.target.value;
+    page = 1;
     await loadSubmissions();
     renderList();
   });
@@ -261,9 +299,13 @@ async function openDrawer(sub) {
       <label>Notes <span style="text-transform:none;font-weight:400;letter-spacing:0;color:#9ca3af;">(visible to submitter)</span></label>
       <textarea id="reqmSubNotes" rows="3" placeholder="Optional notes…">${esc(sub.manager_notes ?? '')}</textarea>
     </div>
+
+    <hr class="drawer-divider" />
+    <div id="reqmForwardPanel"></div>
   `;
 
   notesSnapshot = sub.manager_notes?.trim() ?? '';
+  renderForwardPanel(sub);
 
   // Rebound per open — the drawer is reused across submissions, so the
   // handler has to close over the one currently shown.
@@ -272,6 +314,101 @@ async function openDrawer(sub) {
     exportBtn.onclick = () =>
       exportOneSubmission({ ...sub, staff_request_responses: responses ?? [] });
   }
+}
+
+// Forward section of the drawer: past forwards for this request, plus a form
+// to send it to one of the admin-approved destinations.
+async function renderForwardPanel(sub) {
+  const panel = document.getElementById('reqmForwardPanel');
+  if (!panel) return;
+
+  const { data: forwards, error } = await supabase
+    .from('request_forwards')
+    .select('id, created_at, destination_name, note, profiles!request_forwards_forwarded_by_fkey ( display_name )')
+    .eq('request_id', sub.id)
+    .order('created_at', { ascending: false });
+  if (error) console.error('load forwards', error);
+
+  // The drawer is reused; ignore a slow response for a submission that's no
+  // longer the one on screen.
+  if (currentRequestId !== sub.id) return;
+
+  const history = (forwards ?? []).map(f => `
+    <div style="font-size:13px;color:#374151;margin-bottom:8px;">
+      Forwarded to <strong>${esc(f.destination_name)}</strong>
+      by ${esc(f.profiles?.display_name ?? 'a manager')} on ${fmtShortDate(f.created_at)}
+      ${f.note ? `<div style="color:#6b7280;white-space:pre-wrap;margin-top:2px;">${esc(f.note)}</div>` : ''}
+    </div>`).join('');
+
+  const form = forwardDestinations.length ? `
+    <div class="drawer-field">
+      <label>Forward to</label>
+      <select id="reqmFwdDest">
+        <option value="">Choose a destination…</option>
+        ${forwardDestinations.map(d => `<option value="${esc(d.id)}">${esc(d.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="drawer-field">
+      <label>Message <span style="text-transform:none;font-weight:400;letter-spacing:0;color:#9ca3af;">(optional, sent to the recipient only)</span></label>
+      <textarea id="reqmFwdNote" rows="2" maxlength="1000" placeholder="e.g. This is a network issue, not facilities."></textarea>
+    </div>
+    <button class="btn" id="reqmFwdBtn">Forward request</button>
+    <p id="reqmFwdError" style="color:#dc2626;font-size:13px;margin:8px 0 0;display:none;"></p>
+    <p style="font-size:12px;color:#9ca3af;margin:8px 0 0;">Emails the full submission and adds a line to the notes above. The submitter sees the note, not the address.</p>`
+    : (history ? '' : `<p style="font-size:13px;color:#9ca3af;">Forwarding isn't set up yet. An admin can add destinations under Requests, Forwarding.</p>`);
+
+  panel.innerHTML = `
+    <div class="drawer-field"><label>Forward</label></div>
+    ${history}
+    ${form}`;
+
+  document.getElementById('reqmFwdBtn')?.addEventListener('click', () => forwardRequest(sub));
+}
+
+async function forwardRequest(sub) {
+  const destSel = document.getElementById('reqmFwdDest');
+  const noteEl  = document.getElementById('reqmFwdNote');
+  const errEl   = document.getElementById('reqmFwdError');
+  const btn     = document.getElementById('reqmFwdBtn');
+  const showErr = msg => { errEl.textContent = msg; errEl.style.display = msg ? '' : 'none'; };
+  showErr('');
+
+  if (!destSel.value) return showErr('Choose a destination first.');
+
+  // Forwarding appends a line to the notes on the server. Unsaved text in
+  // the box would be overwritten by the next Save, so make them save first.
+  const notesNow = document.getElementById('reqmSubNotes')?.value.trim() ?? '';
+  if (notesNow !== notesSnapshot) return showErr('Save your notes first. Forwarding adds a line to them.');
+
+  const destName = destSel.options[destSel.selectedIndex].text;
+  if (!confirm(`Forward this request to ${destName}? The full submission will be emailed to them.`)) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Forwarding…';
+
+  const { data, error } = await supabase.functions.invoke('forward_request', {
+    body: { request_id: sub.id, destination_id: destSel.value, note: noteEl.value.trim() },
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Forward request';
+
+  if (error || !data?.ok) {
+    let msg = 'Forward failed. Nothing was sent.';
+    try { msg = (await error.context.json()).error || msg; } catch { /* keep the generic message */ }
+    return showErr(msg);
+  }
+
+  // Pull the note line the server added into the box and the local copy, so
+  // the next Save doesn't undo it.
+  const notesEl = document.getElementById('reqmSubNotes');
+  if (notesEl && typeof data.manager_notes === 'string') {
+    notesEl.value = data.manager_notes;
+    notesSnapshot = data.manager_notes.trim();
+    sub.manager_notes = data.manager_notes;
+  }
+  showToast(`Forwarded to ${destName}.`);
+  await renderForwardPanel(sub);
 }
 
 async function saveRequest(requestId) {

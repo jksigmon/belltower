@@ -2118,7 +2118,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <p>Yes. Click <strong>Export CSV</strong> above the submissions list, in either <strong>Admin Panel → Staff Requests → Submissions</strong> or the <strong>Request Manager</strong> page. The file opens in Excel or Google Sheets.</p>
-        <p>The export matches whatever the filters are showing, so you can export one form, one status, or everything at once. Each submission is a row; each question on the form becomes its own column, alongside who submitted it, when, its current status, and any manager notes. To export a single submission, open it and click <strong>Export CSV</strong> in the detail panel.</p>
+        <p>The export matches whatever the filters are showing, so you can export one form, one status, or everything at once. It includes every matching submission, not only the page you're looking at. Each submission is a row; each question on the form becomes its own column, alongside who submitted it, when, its current status, and any manager notes. To export a single submission, open it and click <strong>Export CSV</strong> in the detail panel.</p>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           Exporting all forms at once puts every question across every form into one wide sheet. For a tidy spreadsheet, filter to a single form first.
@@ -2147,6 +2147,22 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
     <div class="faq-item">
       <button class="faq-question">
         Can I customize the status wording, or add a "Denied" option?
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I forward a request to someone else, like IT?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Open the request in the <strong>Request Manager</strong>, scroll to the <strong>Forward</strong> section, pick a destination, add an optional message, and click <strong>Forward request</strong>. Belltower emails the full submission to that destination. Replies go to you, not to a no-reply address.</p>
+        <p>The request stays in your queue. Forwarding also adds a line like "Forwarded to IT Helpdesk on Sep 21, 2026" to the request's notes, and the Forward section keeps a history of every forward, who sent it, and any message.</p>
+        <p>You can only forward to destinations an admin has approved. If the Forward section says forwarding isn't set up, or the address you need isn't listed, ask an admin to add it under <strong>Admin Panel → Staff Requests → Forwarding</strong>. Anyone who can manage request forms can add, deactivate, or remove destinations there.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          The note is visible to the person who submitted the request. It names the destination but not the email address. Save any notes you've typed before forwarding.
+        </div>
+      </div>
+    </div>
+
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">

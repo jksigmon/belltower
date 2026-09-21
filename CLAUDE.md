@@ -110,6 +110,7 @@ All functions use the Deno runtime and `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS
 | `send_license_verification_notification` | Email a staff member when an admin verifies (or un-verifies) one of their licenses or CEU entries |
 | `send_request_notification` | Email managers on a new Requests-module submission, and confirm receipt to the submitter |
 | `send_request_update_notification` | Email the submitter when a manager changes a request's status or notes |
+| `forward_request` | Email a request's full submission to an admin-approved destination (`request_forward_destinations`); JWT-authenticated, checks `can_action_request()`, logs to `request_forwards` and adds a line to the manager notes |
 | `compliance_form_lookup` | Validate a form token and return template content |
 | `compliance_form_submit` | Accept a signed agreement and auto-link to guardian |
 | `compliance_form_pdf` | Generate a signed agreement PDF for download |

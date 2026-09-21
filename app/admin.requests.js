@@ -1,9 +1,10 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { esc, debounce, getAvatarColor, fmtShortDate, showToast, fetchAllRows } from './admin.shared.js?v=3';
 import { exportSubmissions, exportOneSubmission } from './requests.export.js?v=1';
+import { renderForwardingView } from './admin.requests.forwarding.js';
 
 let currentProfile = null;
-let currentView = 'forms'; // 'forms' | 'submissions'
+let currentView = 'forms'; // 'forms' | 'submissions' | 'forwarding'
 let categories   = [];
 let editingCat   = null;   // category being edited in drawer
 let draftFields  = [];     // field rows in open drawer
@@ -152,6 +153,7 @@ function renderRoot() {
     <div class="req-tabs" style="margin-bottom:16px;">
       ${canBuildForms() ? `<button class="req-tab${currentView === 'forms' ? ' active' : ''}" data-view="forms">Request Forms</button>` : ''}
       ${canReviewAll() ? `<button class="req-tab${currentView === 'submissions' ? ' active' : ''}" data-view="submissions">Submissions</button>` : ''}
+      ${canBuildForms() ? `<button class="req-tab${currentView === 'forwarding' ? ' active' : ''}" data-view="forwarding">Forwarding</button>` : ''}
     </div>
     <div id="reqViewContainer"></div>
   `;
@@ -163,6 +165,8 @@ function renderRoot() {
       if (currentView === 'submissions') {
         await loadSubmissions();
         renderSubmissionsView();
+      } else if (currentView === 'forwarding') {
+        await renderForwardingView(document.getElementById('reqViewContainer'), currentProfile);
       } else {
         renderFormsView();
       }

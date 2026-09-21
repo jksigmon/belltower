@@ -630,7 +630,7 @@ td strong { color: #111827; }
         <th>What it grants access to</th>
       </tr>
       <tr><td><code>can_access_admin</code></td><td>The Admin Panel itself. Without this, staff only see the Staff Portal. Also unlocks the <strong>Setup Checklist</strong>.</td></tr>
-      <tr><td><code>can_manage_requests</code></td><td>Requests tab, <strong>Request Forms</strong> view — create/edit request categories (forms) and assign category managers. Doesn't affect who can submit requests, who can read submissions, or who can respond to submissions in a category they're already assigned to manage.</td></tr>
+      <tr><td><code>can_manage_requests</code></td><td>Requests tab, <strong>Request Forms</strong> view: create/edit request categories (forms) and assign category managers. Also controls the <strong>Forwarding</strong> view, the approved list of email addresses managers can forward a request to. Doesn't affect who can submit requests, who can read submissions, or who can respond to submissions in a category they're already assigned to manage.</td></tr>
       <tr><td><code>can_review_all_requests</code></td><td>Requests tab, <strong>Submissions</strong> view, plus the Request Manager page — read and action every submission school-wide. Independent of <code>can_manage_requests</code>: grant it to people who triage what comes in without letting them restructure forms. Does <em>not</em> grant access to forms marked <strong>Confidential</strong>, which stay limited to that form's assigned managers.</td></tr>
       <tr><td><code>can_manage_staff</code></td><td>Staff tab — add, edit, deactivate employee records.</td></tr>
       <tr><td><code>can_manage_students</code></td><td>Students tab — add, edit, manage student records.</td></tr>
