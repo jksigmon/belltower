@@ -1,6 +1,7 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
 import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, fmtShortDate, todayISO, dbError, showToast, getAvatarColor } from './admin.shared.js?v=4';
+import qrcode from './vendor/qrcode.js';
 
 let profile = null;
 let schoolConfig = null;
@@ -25,6 +26,7 @@ async function fetchAllRows(builder) {
 
 // ── Module-level state ──────────────────────────────────────────────────
 let tripCache            = [];
+let tripDateSortAsc      = false; // list-view Date column sort; newest first by default
 let currentTrip          = null;
 let chaperoneList        = [];
 let studentList          = [];
@@ -194,6 +196,13 @@ function renderTripList() {
     return true;
   });
 
+  filtered.sort((a, b) => tripDateSortAsc
+    ? a.start_date.localeCompare(b.start_date)
+    : b.start_date.localeCompare(a.start_date));
+
+  const arrow = document.getElementById('ftDateSortArrow');
+  if (arrow) arrow.textContent = tripDateSortAsc ? ' ▲' : ' ▼';
+
   document.getElementById('ftListTableWrap').style.display = filtered.length ? '' : 'none';
   document.getElementById('ftListEmpty').hidden = filtered.length > 0;
   if (!filtered.length) {
@@ -353,6 +362,10 @@ function wireFilters() {
   search?.addEventListener('input', handler);
   status?.addEventListener('change', handler);
   document.getElementById('newTripBtn')?.addEventListener('click', () => openTripDrawer(null));
+  document.getElementById('ftDateSortTh')?.addEventListener('click', () => {
+    tripDateSortAsc = !tripDateSortAsc;
+    renderTripList();
+  });
 }
 
 // ── Trip detail ──────────────────────────────────────────────────────────
@@ -978,6 +991,7 @@ async function renderComplianceFormLinks() {
           <span style="display:inline-flex;align-items:center;gap:6px;margin-right:8px;margin-top:4px;">
             <span style="font-size:12px;color:#374151;">${esc(l.label || 'Link')}</span>
             <button class="btn btn-sm" data-copy-url="${esc(BASE + l.token)}" style="font-size:11px;padding:2px 8px;">Copy Link</button>
+            <button class="btn btn-sm" data-qr-url="${esc(BASE + l.token)}" data-qr-name="${esc(t.title)} - ${esc(l.label || 'Link')}" style="font-size:11px;padding:2px 8px;">QR code</button>
           </span>`).join('')
       : `<span style="font-size:12px;color:#9ca3af;">No active link — create one in Compliance settings</span>`;
     return `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px 12px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
@@ -996,7 +1010,47 @@ async function renderComplianceFormLinks() {
     });
   });
 
+  wrap.querySelectorAll('[data-qr-url]').forEach(btn => {
+    btn.addEventListener('click', () => downloadFormLinkQR(btn.dataset.qrUrl, btn.dataset.qrName));
+  });
+
   wrap.style.display = '';
+}
+
+// Renders a form link as a scannable QR code and downloads it as a PNG.
+// Pure client-side canvas render -- same approach used for the
+// Compliance Report's form links and the volunteer BG request page.
+function downloadFormLinkQR(url, name) {
+  const qr = qrcode(0, 'M');
+  qr.addData(url);
+  qr.make();
+
+  const cellSize = 8;
+  const margin = 4 * cellSize;
+  const count = qr.getModuleCount();
+  const size = count * cellSize + margin * 2;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#000';
+  for (let row = 0; row < count; row++) {
+    for (let col = 0; col < count; col++) {
+      if (qr.isDark(row, col)) {
+        ctx.fillRect(margin + col * cellSize, margin + row * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = `${name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-qr-code.png`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 async function removeChaperone(chapId) {
