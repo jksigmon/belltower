@@ -883,6 +883,8 @@ function renderChaperoneTable() {
         mvrCell = `<td><span class="muted" style="font-size:12px;" title="MVR clearance isn't tracked for staff in Belltower — verify separately.">Not tracked</span></td>`;
       } else if (!chap.is_driver) {
         mvrCell = `<td><span class="muted" style="font-size:12px;">N/A</span></td>`;
+      } else if (volunteer?.can_drive === false) {
+        mvrCell = `<td><span class="comp-chip comp-blocked" title="Flagged as not allowed to drive in Compliance → Volunteers -- see Driver column.">Not allowed to drive</span></td>`;
       } else {
         const tripEnd  = new Date(tripDate + 'T12:00:00');
         const mvrExp   = volunteer?.mvr_expires_at ? new Date(volunteer.mvr_expires_at + 'T12:00:00') : null;
@@ -904,6 +906,10 @@ function renderChaperoneTable() {
       } else if (!chap.is_driver) {
         dlCell  = `<td><span class="muted" style="font-size:12px;">N/A</span></td>`;
         insCell = `<td><span class="muted" style="font-size:12px;">N/A</span></td>`;
+      } else if (volunteer?.can_drive === false) {
+        const blocked = `<span class="comp-chip comp-blocked" title="Flagged as not allowed to drive in Compliance → Volunteers -- see Driver column.">Not allowed to drive</span>`;
+        dlCell  = `<td>${blocked}</td>`;
+        insCell = `<td>${blocked}</td>`;
       } else {
         dlCell  = `<td>${renderExpiryChip(volunteer?.dl_expires_at, tripDate)}</td>`;
         insCell = `<td>${renderExpiryChip(volunteer?.insurance_expires_at, tripDate)}</td>`;
