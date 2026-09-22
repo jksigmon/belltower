@@ -14,6 +14,7 @@ export const DRAWERS = {
   attRenew:     { overlay: 'attRenewOverlay',      drawer: 'attRenewDrawer',    save: 'attRenewSave',      close: ['attRenewClose', 'attRenewCancel'] },
   reqAdd:       { overlay: 'reqAddDrawerOverlay',  drawer: 'reqAddDrawer',      save: 'reqAddDrawerSave',  close: ['reqAddDrawerClose', 'reqAddDrawerCancel'] },
   guardianMatch: { overlay: 'guardianMatchOverlay', drawer: 'guardianMatchDrawer', save: 'guardianMatchConfirm', close: ['guardianMatchClose', 'guardianMatchCancel'] },
+  agreementMatch: { overlay: 'agreementMatchOverlay', drawer: 'agreementMatchDrawer', save: 'agreementMatchConfirm', close: ['agreementMatchClose', 'agreementMatchCancel'] },
   reviewData:   { overlay: 'reviewDataOverlay',   drawer: 'reviewDataDrawer',   save: null,               close: ['reviewDataClose'] },
 };
 

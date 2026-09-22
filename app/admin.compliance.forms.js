@@ -3,6 +3,7 @@ import { supabase } from './admin.supabase.js?v=2';
 import { esc, fetchAllRows } from './admin.shared.js?v=3';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { VOLUNTEER_BASE, openDrawer, closeDrawer, showToast, renderPagination, PAGE_SIZE } from './admin.compliance.utils.js';
+import { pickGuardianMatch, normMatch, guardianNameKey, AMBIGUOUS, MATCH_BASIS_LABEL } from './admin.compliance.requests.js';
 import qrcode from './vendor/qrcode.js';
 
 let _profile = null;
@@ -29,6 +30,9 @@ let guardianSearchTimer    = null;
 
 // ── Review data state ──
 let activeReviewAgreementId = null;
+
+// ── Guardian auto-match state ──
+let agreementMatchCandidates = [];
 
 // ═══════════════════════════════════════════════════════════════════════
 // FORM TEMPLATES
@@ -550,6 +554,7 @@ export function wireFormFilters() {
   document.getElementById('agreementTemplateFilter')?.addEventListener('change', resetAgr);
   document.getElementById('agreementLinkFilter')?.addEventListener('change', resetAgr);
   document.getElementById('agrShowArchived')?.addEventListener('change', resetAgr);
+  document.getElementById('agrAutoMatchBtn')?.addEventListener('click', openAgreementMatchReview);
 
   // "Only for overnight trips" only means anything once the form is
   // required for chaperones at all -- keep it hidden (and cleared, on
@@ -736,6 +741,190 @@ export async function saveLinkGuardian() {
     await loadAgreements();
   }
   activeLinkTarget = null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// GUARDIAN AUTO-MATCH (bulk, preview & review before writing)
+// ═══════════════════════════════════════════════════════════════════════
+// Mirrors the Requests screen's Auto-Match Guardians feature (see
+// admin.compliance.requests.js) and reuses its matching rules directly,
+// so the two screens can never disagree about which guardian a name or
+// email belongs to. Finds candidates by exact email (preferred) or exact
+// name, but never writes anything until the admin reviews and confirms
+// individual matches in a drawer.
+
+// A signed agreement only has one "signer_name" field, unlike a BG
+// request which already has separate first/last inputs -- split it
+// before handing it to the shared name-matching helpers. Last word is
+// taken as the last name and everything before it as the first name;
+// imperfect on multi-word surnames, but this only ever feeds a
+// suggestion the admin reviews before anything is written.
+function splitSignerName(signerName) {
+  const parts = (signerName ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return { first: parts[0] ?? '', last: '' };
+  return { first: parts.slice(0, -1).join(' '), last: parts[parts.length - 1] };
+}
+
+async function openAgreementMatchReview() {
+  const btn = document.getElementById('agrAutoMatchBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Matching…'; }
+
+  try {
+    const result = await computeAgreementMatchCandidates();
+    if (!result) return; // error already surfaced via alert
+
+    if (!result.matches.length && !result.unmatched.length) {
+      showToast(result.ambiguous ? `No confident matches found (${result.ambiguous} skipped — ambiguous)` : 'No matches found');
+      return;
+    }
+
+    agreementMatchCandidates = result.matches;
+    renderAgreementMatchReview(result.matches, result.ambiguous, result.unmatched);
+    openDrawer('agreementMatch');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Auto-Match Guardians'; }
+  }
+}
+
+async function computeAgreementMatchCandidates() {
+  const { data: agreements, error: agrErr } = await supabase
+    .from('compliance_agreements')
+    .select('id, signer_name, signer_email')
+    .eq('school_id', _profile.school_id)
+    .eq('link_status', 'unresolved')
+    .is('archived_at', null);
+  if (agrErr) { alert(`Auto-match failed: ${agrErr.message}`); return null; }
+  if (!agreements?.length) return { matches: [], ambiguous: 0, unmatched: [] };
+
+  // Paginated for the same reason the Requests screen's matcher is --
+  // an unbounded select silently stops at Supabase's 1000-row cap, and
+  // any guardian past it would never match no matter how exact the hit.
+  const guardians = [];
+  for (let from = 0; ; from += 1000) {
+    const { data: page, error: gErr } = await supabase
+      .from('guardians')
+      .select('id, first_name, last_name, email')
+      .eq('school_id', _profile.school_id)
+      .eq('active', true)
+      .range(from, from + 999);
+    if (gErr) { alert(`Auto-match failed: ${gErr.message}`); return null; }
+    guardians.push(...(page ?? []));
+    if (!page || page.length < 1000) break;
+  }
+
+  // Buckets hold every guardian sharing a key rather than collapsing to a
+  // single record, so a shared household email/name stays resolvable
+  // instead of being written off as ambiguous -- see pickGuardianMatch().
+  const byEmail = new Map();
+  const byName = new Map();
+  guardians.forEach(g => {
+    if (g.email) {
+      const key = normMatch(g.email);
+      byEmail.set(key, [...(byEmail.get(key) ?? []), g]);
+    }
+    const nameKey = guardianNameKey(g.first_name, g.last_name);
+    byName.set(nameKey, [...(byName.get(nameKey) ?? []), g]);
+  });
+
+  const matches = [];
+  const unmatched = [];
+  let ambiguous = 0;
+  agreements.forEach(a => {
+    const { first, last } = splitSignerName(a.signer_name);
+    const picked = pickGuardianMatch(
+      { subject_first_name: first, subject_last_name: last },
+      a.signer_email ? byEmail.get(normMatch(a.signer_email)) ?? [] : [],
+      byName.get(guardianNameKey(first, last)) ?? [],
+    );
+    if (picked === AMBIGUOUS) { ambiguous++; return; }
+    if (!picked) {
+      unmatched.push({ name: a.signer_name, email: a.signer_email });
+      return;
+    }
+    const { guardian: g, basis } = picked;
+    matches.push({
+      agreementId:   a.id,
+      signerName:    a.signer_name,
+      signerEmail:   a.signer_email,
+      guardianId:    g.id,
+      guardianName:  `${g.first_name} ${g.last_name}`,
+      guardianEmail: g.email,
+      basis,
+    });
+  });
+
+  return { matches, ambiguous, unmatched };
+}
+
+function renderAgreementMatchReview(matches, ambiguous, unmatched) {
+  document.getElementById('agreementMatchSummary').textContent =
+    `${matches.length} match${matches.length === 1 ? '' : 'es'} found`
+    + (ambiguous ? ` — ${ambiguous} skipped (ambiguous match)` : '')
+    + (unmatched.length ? ` — ${unmatched.length} not matched at all` : '');
+  document.getElementById('agreementMatchMsg').textContent = '';
+
+  const unmatchedWrap = document.getElementById('agreementMatchUnmatchedWrap');
+  unmatchedWrap.style.display = unmatched.length ? '' : 'none';
+  document.getElementById('agreementMatchUnmatchedCount').textContent = unmatched.length;
+  document.getElementById('agreementMatchUnmatchedList').innerHTML = unmatched
+    .map(u => `<div>${esc(u.name)}${u.email ? ` <span class="muted">${esc(u.email)}</span>` : ''}</div>`)
+    .join('');
+
+  const listEl = document.getElementById('agreementMatchList');
+  listEl.innerHTML = matches.map((m, i) => `
+    <div class="req-roster-card" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;">
+      <input type="checkbox" class="agreement-match-check" data-idx="${i}" checked style="margin-top:3px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;"><strong>${esc(m.signerName)}</strong>${m.signerEmail ? ` <span class="muted">${esc(m.signerEmail)}</span>` : ''}</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">
+          → matched to <strong>${esc(m.guardianName)}</strong>${m.guardianEmail ? ` <span class="muted">${esc(m.guardianEmail)}</span>` : ''}
+          <span class="bg-status-pill bg-status-pending" style="margin-left:6px;">${esc(MATCH_BASIS_LABEL[m.basis] ?? 'Match')}</span>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  const selectAll = document.getElementById('agreementMatchSelectAll');
+  selectAll.checked = true;
+  selectAll.onchange = () => {
+    listEl.querySelectorAll('.agreement-match-check').forEach(cb => { cb.checked = selectAll.checked; });
+  };
+}
+
+export async function confirmAgreementMatches() {
+  const listEl = document.getElementById('agreementMatchList');
+  const selected = [...listEl.querySelectorAll('.agreement-match-check:checked')]
+    .map(cb => agreementMatchCandidates[Number(cb.dataset.idx)]);
+
+  if (!selected.length) {
+    document.getElementById('agreementMatchMsg').textContent = 'Select at least one match to link, or Cancel.';
+    return;
+  }
+
+  const btn = document.getElementById('agreementMatchConfirm');
+  btn.disabled = true; btn.textContent = 'Linking…';
+
+  // Same write as the manual Link drawer's Save (link_status becomes
+  // 'manual_linked' either way -- 'auto_linked' is reserved for the
+  // email-only match compliance_form_submit makes with no human review).
+  let failures = 0;
+  for (const m of selected) {
+    const { error } = await supabase
+      .from('compliance_agreements')
+      .update({ guardian_id: m.guardianId, link_status: 'manual_linked' })
+      .eq('id', m.agreementId)
+      .eq('school_id', _profile.school_id);
+    if (error) failures++;
+  }
+
+  btn.disabled = false; btn.textContent = 'Link Selected';
+
+  closeDrawer('agreementMatch');
+  const linked = selected.length - failures;
+  showToast(`Linked ${linked} agreement${linked === 1 ? '' : 's'}${failures ? ` (${failures} failed — try again)` : ''}`);
+  agreementMatchCandidates = [];
+  resetAgreementCache();
+  await loadAgreements();
 }
 
 // ═══════════════════════════════════════════════════════════════════════

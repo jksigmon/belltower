@@ -23,7 +23,7 @@ import {
   saveTemplate, deleteTemplate, createLink, openTemplateDrawer,
   onGuardianSearchInput, saveLinkGuardian,
   applySubmittedData, dismissSubmittedData,
-  wireFormFilters,
+  wireFormFilters, confirmAgreementMatches,
 } from './admin.compliance.forms.js';
 
 import {
@@ -110,6 +110,7 @@ function wireDrawers() {
   document.getElementById('resolveGuardianSearch')?.addEventListener('input', onResolveGuardianSearchInput);
   document.getElementById('resolveGuardianSaveBtn')?.addEventListener('click', saveResolveGuardianLink);
   document.getElementById('guardianMatchConfirm')?.addEventListener('click', confirmGuardianMatches);
+  document.getElementById('agreementMatchConfirm')?.addEventListener('click', confirmAgreementMatches);
   document.getElementById('attRenewSave')?.addEventListener('click', saveRenew);
 
   document.getElementById('tplDrawerSave')?.addEventListener('click',     saveTemplate);

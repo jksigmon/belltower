@@ -330,12 +330,12 @@ let guardianMatchCandidates = [];
 
 // Sentinel for "found candidates but couldn't tell them apart", which is a
 // different outcome from "found nobody" and gets counted separately.
-const AMBIGUOUS = Symbol('ambiguous');
+export const AMBIGUOUS = Symbol('ambiguous');
 
-const normMatch = s => (s ?? '').trim().toLowerCase();
-const guardianNameKey = (first, last) => `${normMatch(last)}|${normMatch(first)}`;
+export const normMatch = s => (s ?? '').trim().toLowerCase();
+export const guardianNameKey = (first, last) => `${normMatch(last)}|${normMatch(first)}`;
 
-const MATCH_BASIS_LABEL = {
+export const MATCH_BASIS_LABEL = {
   email: 'Email match',
   'email+name': 'Email + name match',
   name: 'Name match',
@@ -349,7 +349,7 @@ const MATCH_BASIS_LABEL = {
 // the name breaks the tie: a request from Kelly Gibson at an address also
 // used by Travis Gibson is still unmistakably Kelly. Only a tie the name
 // can't break is genuinely ambiguous.
-function pickGuardianMatch(request, emailCandidates, nameCandidates) {
+export function pickGuardianMatch(request, emailCandidates, nameCandidates) {
   if (emailCandidates.length === 1) return { guardian: emailCandidates[0], basis: 'email' };
 
   if (emailCandidates.length > 1) {

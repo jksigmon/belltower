@@ -533,6 +533,7 @@
             <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#6b7280;cursor:pointer;white-space:nowrap;">
               <input type="checkbox" id="agrShowArchived"> Show archived
             </label>
+            <button class="btn btn-sm" id="agrAutoMatchBtn" title="Match unresolved agreements to existing guardians by email/name">Auto-Match Guardians</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -793,6 +794,36 @@
   <div class="drawer-footer">
     <button class="btn" id="guardianMatchCancel">Cancel</button>
     <button class="btn btn-primary" id="guardianMatchConfirm">Link Selected</button>
+  </div>
+</aside>
+
+<!-- ══ AGREEMENT GUARDIAN AUTO-MATCH REVIEW DRAWER ══════════════════════ -->
+<div id="agreementMatchOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="agreementMatchDrawer" class="drawer drawer-wide" role="dialog" aria-modal="true" aria-labelledby="agreementMatchTitle" style="display:none;">
+  <div class="drawer-header">
+    <h2 class="drawer-title" id="agreementMatchTitle">Review Guardian Matches</h2>
+    <button class="drawer-close" id="agreementMatchClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body">
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+      These unresolved signed agreements were matched to an existing guardian record by exact email or name. Confirming links the guardian to each agreement, the same result as using the Link button on that row. Uncheck any that look wrong first. Nothing is saved until you confirm.
+    </p>
+    <div id="agreementMatchSummary" style="font-size:13px;margin-bottom:12px;"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+      <input type="checkbox" id="agreementMatchSelectAll">
+      <label for="agreementMatchSelectAll" style="font-size:13px;font-weight:600;">Select all</label>
+    </div>
+    <div id="agreementMatchList"></div>
+    <div id="agreementMatchUnmatchedWrap" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+      <h3 style="font-size:13px;margin:0 0 4px;">Not matched (<span id="agreementMatchUnmatchedCount"></span>)</h3>
+      <p class="muted" style="font-size:12px;margin:0 0 8px;">No guardian found by exact email or name match for these. This isn't the same as "ambiguous" above -- it means nothing matched at all. If you know a guardian record exists for one of these, search and link it from that row's Link button.</p>
+      <div id="agreementMatchUnmatchedList" style="font-size:13px;line-height:1.8;"></div>
+    </div>
+    <div id="agreementMatchMsg" style="font-size:13px;color:var(--danger);min-height:18px;margin-top:8px;"></div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn" id="agreementMatchCancel">Cancel</button>
+    <button class="btn btn-primary" id="agreementMatchConfirm">Link Selected</button>
   </div>
 </aside>
 
