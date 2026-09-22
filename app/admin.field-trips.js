@@ -656,18 +656,20 @@ async function loadVolunteerCompliance(chaperones) {
 }
 
 // Lets the BG chip distinguish "requested, still waiting on results" from
-// a flat "nothing on file" for volunteer-linked chaperones claimed off a
-// still-open request (see claim_chaperone_for_bg_request).
+// a flat "nothing on file". Fetched for the whole school (small, open-only
+// dataset) rather than filtered to this trip's chaperones -- most
+// chaperones are matched to their volunteer record by guardian/name
+// (see getVolunteer()), not the direct volunteer_id FK, and that match
+// isn't resolved yet here since this runs in parallel with
+// loadVolunteerCompliance().
 async function loadPendingRequests(chaperones) {
   pendingRequestByVolunteerId.clear();
-  const volIds = chaperones.map(c => c.volunteer_id).filter(Boolean);
-  if (!volIds.length) return;
+  if (!chaperones.length) return;
 
   const { data, error } = await supabase
     .from('compliance_bg_check_requests')
-    .select('volunteer_id, status, requested_at')
+    .select('volunteer_id, status, requested_at, submitted_at')
     .eq('school_id', profile.school_id)
-    .in('volunteer_id', volIds)
     .in('status', ['pending', 'submitted'])
     .is('archived_at', null);
 
@@ -738,27 +740,58 @@ function computeComplianceStatus(guardian, volunteer, tripDate, isDriver, { incl
   return { status: 'cleared', detail: '' };
 }
 
-function renderBgChip(status, volunteer, tripDate, isDriver, detail = '', pendingRequest = null) {
-  const labels = { cleared: 'Cleared', action: 'Action needed', blocked: 'Blocked', unknown: 'No record', pending: 'BG Pending' };
-  const cls    = { cleared: 'comp-cleared', action: 'comp-action', blocked: 'comp-blocked', unknown: 'comp-unknown', pending: 'comp-action' };
-  let s = volunteer ? status : 'unknown';
+// Same status vocabulary and chip styling as the Compliance Report
+// (staff.html's CRED_CHIP) so a chaperone's BG status reads identically
+// in both places. Unlike the report's generic "expiring within 60 days
+// of today" window, this stays trip-date aware -- a manager here cares
+// whether the BG check holds up through this specific trip, not just
+// whether it's still valid today.
+const BG_CHIP = {
+  cleared:     { cls: 'comp-cleared', label: 'Cleared' },
+  expiring:    { cls: 'comp-action',  label: 'Expiring soon' },
+  expired:     { cls: 'comp-blocked', label: 'Expired' },
+  missing:     { cls: 'comp-blocked', label: 'Missing' },
+  not_on_file: { cls: 'comp-unknown', label: 'Not on file' },
+  pending:     { cls: 'comp-unknown', label: 'Request pending' },
+  submitted:   { cls: 'comp-action',  label: 'Submitted' },
+};
 
-  let tooltip = detail;
-  if (!volunteer) {
-    tooltip = 'No matching volunteer record found. Check that this guardian\'s name matches an entry in Compliance → Volunteers, or link them from a request.';
-  } else if (s === 'blocked' && !volunteer.bg_cleared_at && pendingRequest) {
-    // Claimed off a still-open BG request (see claim_chaperone_for_bg_request)
-    // -- distinguish "already requested, awaiting results" from a flat
-    // "nothing on file" so the teacher isn't left wondering if anyone acted.
-    s = 'pending';
-    tooltip = `Background check requested ${fmtShortDate(pendingRequest.requested_at)} — awaiting results.`;
-  } else if (s === 'blocked') {
-    const bgExp = volunteer.bg_expires_at ? new Date(volunteer.bg_expires_at + 'T12:00:00') : null;
-    const trip  = new Date(tripDate + 'T12:00:00');
-    tooltip = !volunteer.bg_cleared_at ? 'No background check on file' : (bgExp && bgExp < trip ? 'BG check expired by trip date' : '');
+function bgCredentialStatus(volunteer, tripDate, pendingRequest) {
+  if (!volunteer) return { status: 'not_on_file', date: null };
+
+  if (!volunteer.bg_cleared_at && pendingRequest) {
+    const date = pendingRequest.status === 'submitted'
+      ? (pendingRequest.submitted_at ?? pendingRequest.requested_at)
+      : pendingRequest.requested_at;
+    return { status: pendingRequest.status, date };
   }
+  if (!volunteer.bg_cleared_at) return { status: 'missing', date: null };
 
-  return `<span class="comp-chip ${cls[s]}" title="${esc(tooltip)}">${labels[s]}</span>`;
+  const trip  = new Date(tripDate + 'T12:00:00');
+  const bgExp = volunteer.bg_expires_at ? new Date(volunteer.bg_expires_at + 'T12:00:00') : null;
+  if (bgExp && bgExp < trip) return { status: 'expired', date: volunteer.bg_expires_at };
+
+  const sixtyOut = new Date(); sixtyOut.setHours(0, 0, 0, 0); sixtyOut.setDate(sixtyOut.getDate() + 60);
+  if (bgExp && bgExp <= sixtyOut) return { status: 'expiring', date: volunteer.bg_expires_at };
+
+  return { status: 'cleared', date: volunteer.bg_expires_at };
+}
+
+function renderBgChip(volunteer, tripDate, pendingRequest) {
+  const { status, date } = bgCredentialStatus(volunteer, tripDate, pendingRequest);
+  const info = BG_CHIP[status];
+
+  const tooltips = {
+    not_on_file: 'No matching volunteer record found. Check that this guardian\'s name matches an entry in Compliance → Volunteers, or link them from a request.',
+    missing:     'No background check on file.',
+    expired:     `Background check expired ${fmtShortDate(date)} — before this trip's date.`,
+    expiring:    `Background check expires ${fmtShortDate(date)}.`,
+    pending:     `Background check requested ${fmtShortDate(date)} — awaiting results.`,
+    submitted:   `Submitted ${fmtShortDate(date)} — awaiting results.`,
+    cleared:     '',
+  };
+
+  return `<span class="comp-chip ${info.cls}" title="${esc(tooltips[status])}">${info.label}</span>`;
 }
 
 function renderFormsChip(guardian) {
@@ -806,9 +839,6 @@ function renderChaperoneTable() {
     // getMissingForms() only reads .email/.id off this, so the volunteer
     // record itself stands in fine for a guardian here.
     const formsPerson = isVolunteer ? (chap.volunteer ?? {}) : g;
-    // Forms are shown in their own column -- don't let a missing-forms-only
-    // gap flip the Background Check chip to "Action needed" too.
-    const { status, detail } = isStaff ? { status: 'staff', detail: '' } : computeComplianceStatus(formsPerson, volunteer, tripDate, chap.is_driver, { includeForms: false });
 
     const students = (isStaff || isVolunteer)
       ? '<span class="muted">—</span>'
@@ -838,10 +868,14 @@ function renderChaperoneTable() {
       ? `<td>${isStaff ? '<span class="muted" style="font-size:12px;">N/A</span>' : renderFormsChip(formsPerson)}</td>`
       : '';
 
-    const pendingRequest = isVolunteer ? pendingRequestByVolunteerId.get(chap.volunteer_id) : null;
+    // Keyed off the matched volunteer's own id, not chap.volunteer_id --
+    // that FK is only set when the chaperone was linked directly as a
+    // volunteer; the far more common guardian/name-matched case still
+    // needs its open request surfaced the same way.
+    const pendingRequest = volunteer ? pendingRequestByVolunteerId.get(volunteer.id) : null;
     const bgCell = isStaff
       ? `<span class="chap-staff-badge" title="Staff members aren't tracked through volunteer compliance — background checks are handled through employment records.">Staff</span>`
-      : renderBgChip(status, volunteer, tripDate, chap.is_driver, detail, pendingRequest);
+      : renderBgChip(volunteer, tripDate, pendingRequest);
 
     const fullName = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
     const initials = `${person.first_name?.[0] ?? ''}${person.last_name?.[0] ?? ''}`.toUpperCase();
