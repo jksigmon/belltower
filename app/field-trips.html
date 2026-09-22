@@ -198,25 +198,6 @@
       margin: 1px;
     }
 
-    /* ── Chaperone type toggle ── */
-    .ft-chap-type-toggle {
-      display: inline-flex;
-      border: 1px solid #d1d5db;
-      border-radius: 8px;
-      overflow: hidden;
-    }
-    .ft-toggle-btn {
-      background: #fff;
-      border: none;
-      padding: 7px 16px;
-      font-size: 13px;
-      font-weight: 600;
-      color: #6b7280;
-      cursor: pointer;
-    }
-    .ft-toggle-btn + .ft-toggle-btn { border-left: 1px solid #d1d5db; }
-    .ft-toggle-btn.active { background: #0b2d4f; color: #fff; }
-
     /* ── Trip conflict warning ── */
     .ft-conflict-warning {
       background: #fffbeb;
@@ -871,21 +852,12 @@
   </div>
   <div class="drawer-body">
     <div class="drawer-field">
-      <label class="drawer-label">Chaperone type</label>
-      <div class="ft-chap-type-toggle" id="ftChapTypeToggle">
-        <button type="button" class="ft-toggle-btn active" data-chap-type="guardian">Parent/Guardian</button>
-        <button type="button" class="ft-toggle-btn" data-chap-type="staff">Staff</button>
-        <button type="button" class="ft-toggle-btn" data-chap-type="volunteer">Volunteer</button>
-      </div>
-    </div>
-
-    <div class="drawer-field">
-      <label class="drawer-label" for="ftChapSearch" id="ftChapSearchLabel">Search guardians</label>
+      <label class="drawer-label" for="ftChapSearch">Search by name or email</label>
       <div class="ft-typeahead-wrap">
         <input type="text" id="ftChapSearch" class="admin-input" placeholder="Name or email..." style="width:100%;">
         <div id="ftChapResults" class="ft-typeahead-results" style="display:none;"></div>
       </div>
-      <small style="font-size:11px;color:#9ca3af;">Not a parent/guardian or staff member? Search here once they're in Compliance &rarr; Volunteers, or if they've already submitted a background check request (even a pending one).</small>
+      <small style="font-size:11px;color:#9ca3af;">Searches parents/guardians, staff, and volunteers together -- each match is labeled with its type. An outside volunteer (not a parent or staff member) needs to already be in Compliance &rarr; Volunteers, or have submitted a background check request (even a pending one), before they'll show up here.</small>
     </div>
 
     <div id="ftChapSelected" style="display:none;margin-bottom:16px;">

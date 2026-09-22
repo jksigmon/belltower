@@ -1503,7 +1503,8 @@ async function toggleAttendance(studentId, attending, tr) {
 }
 
 // ── Add Chaperone drawer ─────────────────────────────────────────────────
-let chapType = 'guardian'; // 'guardian' | 'staff' -- which typeahead the search box searches
+const CHAP_KIND_BADGE = { guardian: 'Guardian', staff: 'Staff', volunteer: 'Volunteer', request: 'BG check pending' };
+const CHAP_KIND_COLOR = { guardian: '#0b2d4f', staff: '#0b2d4f', volunteer: '#6b7280', request: '#b45309' };
 
 function wireChapDrawer() {
   document.getElementById('ftAddChaperoneBtn')?.addEventListener('click', openChapDrawer);
@@ -1512,18 +1513,6 @@ function wireChapDrawer() {
   document.getElementById('ftCancelChapBtn')?.addEventListener('click', closeChapDrawer);
   document.getElementById('ftChapClearBtn')?.addEventListener('click', clearChapSelection);
   document.getElementById('ftSaveChapBtn')?.addEventListener('click', saveChaperone);
-
-  document.getElementById('ftChapTypeToggle')?.addEventListener('click', e => {
-    const btn = e.target.closest('[data-chap-type]');
-    if (!btn) return;
-    chapType = btn.dataset.chapType;
-    document.querySelectorAll('#ftChapTypeToggle .ft-toggle-btn').forEach(b => b.classList.toggle('active', b === btn));
-    document.getElementById('ftChapSearchLabel').textContent =
-      chapType === 'staff' ? 'Search staff' : chapType === 'volunteer' ? 'Search volunteers' : 'Search guardians';
-    clearChapSelection();
-    document.getElementById('ftChapSearch').value = '';
-    document.getElementById('ftChapResults').style.display = 'none';
-  });
 
   const search = document.getElementById('ftChapSearch');
   if (search) {
@@ -1556,9 +1545,6 @@ function openChapDrawer() {
     showToast(`This trip is capped at ${currentTrip.max_chaperones} chaperones. Raise the limit on the trip to add more.`, 'warn');
     return;
   }
-  chapType = 'guardian';
-  document.querySelectorAll('#ftChapTypeToggle .ft-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.chapType === 'guardian'));
-  document.getElementById('ftChapSearchLabel').textContent = 'Search guardians';
   clearChapSelection();
   document.getElementById('ftChapSearch').value = '';
   document.getElementById('ftChapResults').style.display = 'none';
@@ -1582,119 +1568,67 @@ function clearChapSelection() {
   document.getElementById('ftSaveChapBtn').disabled = true;
 }
 
-async function searchChaperoneCandidates() {
-  if (chapType === 'staff') return searchStaffCandidates();
-  if (chapType === 'volunteer') return searchVolunteers();
-  return searchGuardians();
+// Splits a "First Last" query into first/last tokens and matches both
+// orderings, since first_name/last_name live in separate columns and a
+// single ILIKE against the whole string never matches a two-word query
+// (e.g. "Ashley Michaels" matches neither column alone -- only "Michaels"
+// did, which is what actually got reported). Still keeps the plain
+// whole-string match too, so a name that's genuinely all in one field
+// keeps working.
+function nameSearchOr(val, { first, last, email }) {
+  const clauses = [`${first}.ilike.%${val}%`, `${last}.ilike.%${val}%`];
+  if (email) clauses.push(`${email}.ilike.%${val}%`);
+  const words = val.split(/\s+/).filter(Boolean);
+  if (words.length > 1) {
+    const head = words[0];
+    const rest = words.slice(1).join(' ');
+    clauses.push(`and(${first}.ilike.%${head}%,${last}.ilike.%${rest}%)`);
+    clauses.push(`and(${first}.ilike.%${rest}%,${last}.ilike.%${head}%)`);
+  }
+  return clauses.join(',');
 }
 
-async function searchGuardians() {
-  const val = document.getElementById('ftChapSearch').value.trim();
-  const results = document.getElementById('ftChapResults');
-  if (val.length < 2) { results.style.display = 'none'; return; }
-
-  results.innerHTML = `<div class="ft-typeahead-empty">Searching...</div>`;
-  results.style.display = '';
-
-  const { data } = await supabase
+async function fetchGuardianMatches(val) {
+  const { data, error } = await supabase
     .from('guardians')
-    .select('id, first_name, last_name, email, family_id')
+    .select('id, first_name, last_name, email')
     .eq('school_id', profile.school_id)
     .eq('active', true)
-    .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,email.ilike.%${val}%`)
+    .or(nameSearchOr(val, { first: 'first_name', last: 'last_name', email: 'email' }))
     .limit(8);
-
-  if (!data?.length) {
-    results.innerHTML = `<div class="ft-typeahead-empty">No guardians found.</div>`;
-    return;
-  }
-
-  // Exclude guardians already added
-  const existingIds = new Set(chaperoneList.map(c => c.guardian_id));
-  const filtered = data.filter(g => !existingIds.has(g.id));
-
-  if (!filtered.length) {
-    results.innerHTML = `<div class="ft-typeahead-empty">All matching guardians are already added.</div>`;
-    return;
-  }
-
-  results.innerHTML = '';
-  filtered.forEach(g => {
-    const item = document.createElement('div');
-    item.className = 'ft-typeahead-item';
-    item.innerHTML = `<strong>${esc(g.first_name)} ${esc(g.last_name)}</strong><span>${esc(g.email ?? '')}</span>`;
-    item.addEventListener('mousedown', e => { e.preventDefault(); selectChapCandidate(g); });
-    results.appendChild(item);
-  });
+  if (error) return { data: [], error };
+  return { data: data.map(g => ({ kind: 'guardian', id: g.id, first_name: g.first_name, last_name: g.last_name, email: g.email })), error: null };
 }
 
-async function searchStaffCandidates() {
-  const val = document.getElementById('ftChapSearch').value.trim();
-  const results = document.getElementById('ftChapResults');
-  if (val.length < 2) { results.style.display = 'none'; return; }
-
-  results.innerHTML = `<div class="ft-typeahead-empty">Searching...</div>`;
-  results.style.display = '';
-
-  const { data } = await supabase
+async function fetchStaffMatches(val) {
+  const { data, error } = await supabase
     .from('employees')
     .select('id, first_name, last_name, email')
     .eq('school_id', profile.school_id)
     .eq('active', true)
-    .or(`first_name.ilike.%${val}%,last_name.ilike.%${val}%,email.ilike.%${val}%`)
+    .or(nameSearchOr(val, { first: 'first_name', last: 'last_name', email: 'email' }))
     .limit(8);
-
-  if (!data?.length) {
-    results.innerHTML = `<div class="ft-typeahead-empty">No staff found.</div>`;
-    return;
-  }
-
-  const existingIds = new Set(chaperoneList.map(c => c.employee_id));
-  const filtered = data.filter(p => !existingIds.has(p.id));
-
-  if (!filtered.length) {
-    results.innerHTML = `<div class="ft-typeahead-empty">All matching staff are already added.</div>`;
-    return;
-  }
-
-  results.innerHTML = '';
-  filtered.forEach(p => {
-    const item = document.createElement('div');
-    item.className = 'ft-typeahead-item';
-    item.innerHTML = `<strong>${esc(p.first_name)} ${esc(p.last_name)}</strong><span>${esc(p.email ?? '')}</span>`;
-    item.addEventListener('mousedown', e => { e.preventDefault(); selectChapCandidate(p); });
-    results.appendChild(item);
-  });
+  if (error) return { data: [], error };
+  return { data: data.map(p => ({ kind: 'staff', id: p.id, first_name: p.first_name, last_name: p.last_name, email: p.email })), error: null };
 }
 
 // Outside/community volunteers -- tracked in Compliance -> Volunteers with
-// no guardian_id link (see compliance_volunteers.guardian_id, nullable).
-// Volunteers already linked to a guardian should be added via the
-// Parent/Guardian search instead, so this only surfaces unlinked ones.
-//
-// Also searches open (pending/submitted, not archived) BG check requests
-// by the *subject* name/email on the request -- not just the roster name.
-// A request can already be "Linked" (compliance_bg_check_requests.
+// no guardian_id link (see compliance_volunteers.guardian_id, nullable) --
+// plus open (pending/submitted, not archived) BG check requests by the
+// *subject* name/email on the request, not just the roster name. A
+// request can already be "Linked" (compliance_bg_check_requests.
 // volunteer_id set) to a roster row filed under a different name --
 // maiden name, a "goes by" name noted on the request, a matching
 // suggestion an admin manually confirmed -- so searching the roster alone
 // can miss someone the teacher knows only by the name on their request.
-// When a match's request is still unlinked, picking it claims the request
-// via claim_chaperone_for_bg_request() in saveChaperone() below (creates
-// the placeholder roster row -- no clearance dates yet, reads as
-// Blocked/Pending -- and links it back onto the request so Resolve reuses
-// the same row). When it's already linked, the existing roster id is used
-// directly, no claim needed.
-async function searchVolunteers() {
-  const val = document.getElementById('ftChapSearch').value.trim();
-  const results = document.getElementById('ftChapResults');
-  if (val.length < 2) { results.style.display = 'none'; return; }
-
-  results.innerHTML = `<div class="ft-typeahead-empty">Searching...</div>`;
-  results.style.display = '';
-
-  const orFilter    = `first_name.ilike.%${val}%,last_name.ilike.%${val}%,email.ilike.%${val}%`;
-  const reqOrFilter = `subject_first_name.ilike.%${val}%,subject_last_name.ilike.%${val}%,subject_email.ilike.%${val}%`;
+//
+// A roster row (or a request's linked roster row) with a guardian_id is
+// resolved back to that guardian and returned as kind:'guardian' -- the
+// unified search merges/dedupes it against a direct guardian-table match
+// automatically, so it's returned identically either way.
+async function fetchVolunteerMatches(val) {
+  const orFilter    = nameSearchOr(val, { first: 'first_name', last: 'last_name', email: 'email' });
+  const reqOrFilter = nameSearchOr(val, { first: 'subject_first_name', last: 'subject_last_name', email: 'subject_email' });
 
   const [volRes, reqRes] = await Promise.all([
     supabase.from('compliance_volunteers')
@@ -1712,40 +1646,30 @@ async function searchVolunteers() {
       .limit(8),
   ]);
 
-  if (volRes.error || reqRes.error) {
-    console.error('searchVolunteers failed', { volError: volRes.error, reqError: reqRes.error });
-    results.innerHTML = `<div class="ft-typeahead-empty" style="color:#b91c1c;">Search failed: ${esc(volRes.error?.message ?? reqRes.error?.message ?? 'unknown error')} (check browser console for details)</div>`;
-    return;
-  }
+  if (volRes.error || reqRes.error) return { data: [], error: volRes.error ?? reqRes.error };
 
-  const volData = volRes.data;
-  const reqData = reqRes.data;
+  const volData = volRes.data ?? [];
+  const reqData = reqRes.data ?? [];
 
   // For requests already linked to a roster row, pull that row's own
-  // guardian_id/archived_at -- a request can be linked to a roster row
-  // filed under yet another name (maiden name, "goes by" name), and that
-  // roster row can itself be linked to a real guardian record under a
-  // *third* name. Resolving the whole chain here means the teacher can
-  // add the person from whatever name they actually searched, instead of
-  // being silently told "not found" and left to guess which of three
-  // names to try under which of three tabs.
-  const linkedVolIds = [...new Set((reqData ?? []).map(r => r.volunteer_id).filter(Boolean))];
+  // guardian_id/archived_at -- resolving the whole chain here means the
+  // teacher can add the person from whatever name they actually searched.
+  const linkedVolIds = [...new Set(reqData.map(r => r.volunteer_id).filter(Boolean))];
   const linkedVolunteers = new Map();
   if (linkedVolIds.length) {
     const { data: linkedData, error: linkedErr } = await supabase
       .from('compliance_volunteers')
       .select('id, guardian_id, archived_at')
       .in('id', linkedVolIds);
-    if (linkedErr) console.error('searchVolunteers: linked-roster lookup failed', linkedErr);
+    // A failure here only degrades resolution (a linked request falls back
+    // to its own name/email instead of the roster row's) -- not worth
+    // failing guardian and staff results too, which came back fine.
+    if (linkedErr) console.error('fetchVolunteerMatches: linked-roster lookup failed', linkedErr);
     (linkedData ?? []).forEach(v => linkedVolunteers.set(v.id, v));
   }
 
-  // A roster row's guardian_id, when present, points to a real guardian
-  // record -- fetch names so a guardian-linked match can be resolved and
-  // added directly (as a guardian chaperone) instead of just pointing the
-  // teacher at a different tab/name to re-search under.
   const guardianIds = new Set();
-  (volData ?? []).forEach(v => { if (v.guardian_id) guardianIds.add(v.guardian_id); });
+  volData.forEach(v => { if (v.guardian_id) guardianIds.add(v.guardian_id); });
   linkedVolunteers.forEach(v => { if (v.guardian_id) guardianIds.add(v.guardian_id); });
   const guardianById = new Map();
   if (guardianIds.size) {
@@ -1753,12 +1677,86 @@ async function searchVolunteers() {
       .from('guardians')
       .select('id, first_name, last_name, email')
       .in('id', [...guardianIds]);
-    if (gErr) console.error('searchVolunteers: guardian lookup failed', gErr);
+    // Same as above -- a guardian-linked match just won't resolve this
+    // round (pushVolunteer skips it when guardianById has no entry) rather
+    // than the whole search failing.
+    if (gErr) console.error('fetchVolunteerMatches: guardian lookup failed', gErr);
     (gData ?? []).forEach(g => guardianById.set(g.id, g));
   }
 
-  const existingVolunteerIds = new Set(chaperoneList.map(c => c.volunteer_id));
+  const seen = new Set();
+  const candidates = [];
+
+  const pushVolunteer = (volId, guardianId, firstName, lastName, email) => {
+    if (guardianId) {
+      const g = guardianById.get(guardianId);
+      if (!g) return;
+      const key = `guardian:${g.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      candidates.push({ kind: 'guardian', id: g.id, first_name: firstName, last_name: lastName, email: email ?? g.email });
+      return;
+    }
+    const key = `volunteer:${volId}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push({ kind: 'volunteer', id: volId, first_name: firstName, last_name: lastName, email });
+  };
+
+  volData.forEach(v => pushVolunteer(v.id, v.guardian_id, v.first_name, v.last_name, v.email));
+
+  reqData.forEach(r => {
+    if (r.volunteer_id) {
+      const v = linkedVolunteers.get(r.volunteer_id);
+      if (!v || v.archived_at) return;
+      pushVolunteer(v.id, v.guardian_id, r.subject_first_name, r.subject_last_name, r.subject_email);
+    } else {
+      const key = `request:${r.id}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      candidates.push({ kind: 'request', id: r.id, first_name: r.subject_first_name, last_name: r.subject_last_name, email: r.subject_email });
+    }
+  });
+
+  return { data: candidates, error: null };
+}
+
+// One search across guardians, staff, and volunteers/pending BG requests --
+// each result is labeled with its type instead of teachers having to guess
+// which of three tabs a person is under before they can even search.
+async function searchChaperoneCandidates() {
+  const raw = document.getElementById('ftChapSearch').value.trim();
+  const results = document.getElementById('ftChapResults');
+  if (raw.length < 2) { results.style.display = 'none'; return; }
+
+  results.innerHTML = `<div class="ft-typeahead-empty">Searching...</div>`;
+  results.style.display = '';
+
+  // Strip characters with special meaning in a PostgREST filter string
+  // (clause/group separators) so they're searched literally instead of
+  // breaking or altering the query.
+  const val = raw.replace(/[,()]/g, ' ').trim();
+  if (val.length < 2) { results.innerHTML = `<div class="ft-typeahead-empty">No matches.</div>`; return; }
+
+  const [guardianRes, staffRes, volunteerRes] = await Promise.all([
+    fetchGuardianMatches(val),
+    fetchStaffMatches(val),
+    fetchVolunteerMatches(val),
+  ]);
+
+  const firstError = guardianRes.error ?? staffRes.error ?? volunteerRes.error;
+  if (firstError) {
+    console.error('searchChaperoneCandidates failed', { guardianRes, staffRes, volunteerRes });
+    results.innerHTML = `<div class="ft-typeahead-empty" style="color:#b91c1c;">Search failed: ${esc(firstError.message)} (check browser console for details)</div>`;
+    return;
+  }
+
   const existingGuardianIds  = new Set(chaperoneList.map(c => c.guardian_id));
+  const existingEmployeeIds  = new Set(chaperoneList.map(c => c.employee_id));
+  const existingVolunteerIds = new Set(chaperoneList.map(c => c.volunteer_id));
+  const existingSetFor = kind =>
+    kind === 'guardian' ? existingGuardianIds : kind === 'staff' ? existingEmployeeIds : kind === 'volunteer' ? existingVolunteerIds : null;
+
   const seen = new Set();
   const candidates = [];
   // Tracks whether a real match existed but got filtered out for already
@@ -1766,63 +1764,43 @@ async function searchVolunteers() {
   // of a flat "not found" that reads as if nothing matched at all.
   let hadExistingMatch = false;
 
-  const pushVolunteer = (volId, guardianId, firstName, lastName, email) => {
-    if (guardianId) {
-      const g = guardianById.get(guardianId);
-      if (!g) return;
-      if (existingGuardianIds.has(g.id)) { hadExistingMatch = true; return; }
-      if (seen.has(`guardian:${g.id}`)) return;
-      seen.add(`guardian:${g.id}`);
-      candidates.push({ kind: 'guardian', id: g.id, first_name: firstName, last_name: lastName, email: email ?? g.email, guardianName: `${g.first_name} ${g.last_name}` });
-      return;
-    }
-    if (existingVolunteerIds.has(volId)) { hadExistingMatch = true; return; }
-    if (seen.has(`volunteer:${volId}`)) return;
-    seen.add(`volunteer:${volId}`);
-    candidates.push({ kind: 'volunteer', id: volId, first_name: firstName, last_name: lastName, email });
-  };
-
-  (volData ?? []).forEach(v => pushVolunteer(v.id, v.guardian_id, v.first_name, v.last_name, v.email));
-
-  (reqData ?? []).forEach(r => {
-    if (r.volunteer_id) {
-      const v = linkedVolunteers.get(r.volunteer_id);
-      if (!v || v.archived_at) return;
-      pushVolunteer(v.id, v.guardian_id, r.subject_first_name, r.subject_last_name, r.subject_email);
-    } else {
-      candidates.push({ kind: 'request', id: r.id, first_name: r.subject_first_name, last_name: r.subject_last_name, email: r.subject_email });
-    }
+  [...guardianRes.data, ...staffRes.data, ...volunteerRes.data].forEach(c => {
+    const key = `${c.kind}:${c.id}`;
+    if (seen.has(key)) return;
+    const existingSet = existingSetFor(c.kind);
+    if (existingSet?.has(c.id)) { hadExistingMatch = true; return; }
+    seen.add(key);
+    candidates.push(c);
   });
 
   if (!candidates.length) {
     results.innerHTML = hadExistingMatch
-      ? `<div class="ft-typeahead-empty">Matches "${esc(val)}" but they're already added as a chaperone on this trip.</div>`
-      : `<div class="ft-typeahead-empty">No volunteers or pending BG requests found. Add them in Compliance &rarr; Volunteers, or have them submit a request first.</div>`;
+      ? `<div class="ft-typeahead-empty">Matches "${esc(raw)}" but they're already added as a chaperone on this trip.</div>`
+      : `<div class="ft-typeahead-empty">No matches. An outside volunteer needs to already be in Compliance &rarr; Volunteers, or have submitted a background check request, before they'll show up here.</div>`;
     return;
   }
+
+  candidates.sort((a, b) => `${a.last_name ?? ''} ${a.first_name ?? ''}`.localeCompare(`${b.last_name ?? ''} ${b.first_name ?? ''}`));
 
   results.innerHTML = '';
   candidates.forEach(c => {
     const item = document.createElement('div');
     item.className = 'ft-typeahead-item';
-    let tag = '';
-    if (c.kind === 'request') tag = ' <span style="color:#b45309;font-weight:700;">BG check pending</span>';
-    else if (c.kind === 'guardian') tag = ` <span style="color:#6b7280;">(linked guardian: ${esc(c.guardianName)})</span>`;
-    item.innerHTML = `<strong>${esc(c.first_name)} ${esc(c.last_name)}</strong><span>${esc(c.email ?? '')}${tag}</span>`;
+    const badge = `<span style="color:${CHAP_KIND_COLOR[c.kind]};font-weight:700;">${esc(CHAP_KIND_BADGE[c.kind])}</span>`;
+    item.innerHTML = `<strong>${esc(c.first_name)} ${esc(c.last_name)}</strong><span>${esc(c.email ?? '')}  ${badge}</span>`;
     item.addEventListener('mousedown', e => { e.preventDefault(); selectChapCandidate(c); });
     results.appendChild(item);
   });
 }
 
-function selectChapCandidate(g) {
-  selectedCandidate = g;
+function selectChapCandidate(c) {
+  selectedCandidate = c;
   document.getElementById('ftChapResults').style.display = 'none';
   document.getElementById('ftChapSearch').value = '';
-  document.getElementById('ftChapSelectedName').textContent  = `${g.first_name} ${g.last_name}`;
-  let hint = '';
-  if (g.kind === 'request') hint = '  •  BG check pending — will show as Pending until compliance clears it';
-  else if (g.kind === 'guardian') hint = `  •  Linked guardian record: ${g.guardianName}`;
-  document.getElementById('ftChapSelectedEmail').textContent = (g.email ?? '') + hint;
+  document.getElementById('ftChapSelectedName').textContent  = `${c.first_name} ${c.last_name}`;
+  let hint = `  •  ${CHAP_KIND_BADGE[c.kind]}`;
+  if (c.kind === 'request') hint += ' (will show as Pending until compliance clears it)';
+  document.getElementById('ftChapSelectedEmail').textContent = (c.email ?? '') + hint;
   document.getElementById('ftChapSelected').style.display = '';
   document.getElementById('ftSaveChapBtn').disabled = false;
 }
@@ -1848,27 +1826,23 @@ async function saveChaperone() {
     vehicle_capacity:    vehicleCap,
     added_by_profile_id: profile.id,
   };
-  if (chapType === 'staff') {
+  if (selectedCandidate.kind === 'staff') {
     payload.employee_id = selectedCandidate.id;
-  } else if (chapType === 'volunteer') {
-    if (selectedCandidate.kind === 'request') {
-      const { data: claimed, error: claimErr } = await supabase.rpc('claim_chaperone_for_bg_request', {
-        p_request_id: selectedCandidate.id,
-        p_field_trip_id: currentTrip.id,
-      });
-      if (claimErr || !claimed?.length) {
-        showToast('Failed to claim this pending request -- it may have just been resolved. Try searching again.', 'error');
-        btn.disabled = false;
-        return;
-      }
-      payload.volunteer_id = claimed[0].volunteer_id;
-    } else if (selectedCandidate.kind === 'guardian') {
-      payload.guardian_id = selectedCandidate.id;
-    } else {
-      payload.volunteer_id = selectedCandidate.id;
+  } else if (selectedCandidate.kind === 'request') {
+    const { data: claimed, error: claimErr } = await supabase.rpc('claim_chaperone_for_bg_request', {
+      p_request_id: selectedCandidate.id,
+      p_field_trip_id: currentTrip.id,
+    });
+    if (claimErr || !claimed?.length) {
+      showToast('Failed to claim this pending request -- it may have just been resolved. Try searching again.', 'error');
+      btn.disabled = false;
+      return;
     }
-  } else {
+    payload.volunteer_id = claimed[0].volunteer_id;
+  } else if (selectedCandidate.kind === 'guardian') {
     payload.guardian_id = selectedCandidate.id;
+  } else {
+    payload.volunteer_id = selectedCandidate.id;
   }
 
   const { error } = await supabase.from('field_trip_chaperones').insert(payload);
