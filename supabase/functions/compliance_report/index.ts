@@ -68,6 +68,7 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const teacher_employee_ids: string[] | undefined = body.teacher_employee_ids;
     const template_ids:          string[] | undefined = body.template_ids;
+    const teachersOnly:          boolean               = !!body.teachers_only;
 
     // ── Resolve which teachers this caller can see ────────────────────
     let allowedTeacherIds: string[] | null = null; // null = all teachers
@@ -118,6 +119,13 @@ serve(async (req) => {
       return q;
     });
     if (!teachers?.length) return json({ teachers: [], templates: [], rows: [] }, 200);
+
+    // The homeroom/teacher selector needs nothing but this list -- populating
+    // it used to run the full report pipeline below (every student, guardian,
+    // agreement, volunteer record, and open BG request in the school) just to
+    // throw away everything except `teachers`. Short-circuit here so opening
+    // the report tab is fast; "Generate Report" makes the real, unflagged call.
+    if (teachersOnly) return json({ teachers }, 200);
 
     const teacherIds = teachers.map((t: { id: string }) => t.id);
 

@@ -2908,8 +2908,11 @@ async function initStaff() {
 
   // Pre-warm the compliance_report edge function AFTER the dashboard loads so
   // the auth session is fully settled before the edge function call goes out.
+  // teachers_only skips the full report pipeline -- this call only needs to
+  // populate the homeroom/teacher selector, not compute every student's
+  // compliance status before the tab is even opened.
   if (window.staffModules?.compliance) {
-    compReportPrefetch = supabase.functions.invoke('compliance_report', { body: {} });
+    compReportPrefetch = supabase.functions.invoke('compliance_report', { body: { teachers_only: true } });
   }
 }
 
@@ -7268,7 +7271,7 @@ async function initComplianceReport() {
   let result = compReportPrefetch ? await compReportPrefetch : null;
   compReportPrefetch = null;
   if (!result || (result.error && result.error.name !== 'FunctionsHttpError')) {
-    result = await supabase.functions.invoke('compliance_report', { body: {} });
+    result = await supabase.functions.invoke('compliance_report', { body: { teachers_only: true } });
   }
   const { data: init, error: initErr } = result;
 
