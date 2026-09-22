@@ -923,6 +923,15 @@ function renderChaperoneTable() {
       ? `<span class="chap-staff-badge" title="Staff members aren't tracked through volunteer compliance — background checks are handled through employment records.">Staff</span>`
       : renderBgChip(volunteer, tripDate, pendingRequest);
 
+    // can_drive is a manual override set in Compliance -> Volunteers, not
+    // tied to MVR clearance -- can flag someone (a revoked license, say)
+    // whose MVR was never even run.
+    const driverCell = !chap.is_driver
+      ? '<span class="muted" style="font-size:12px;">No</span>'
+      : volunteer?.can_drive === false
+        ? '<span class="comp-chip comp-blocked" title="Flagged as not allowed to drive in Compliance → Volunteers.">Not cleared to drive</span>'
+        : '<span class="comp-chip comp-action">Driver</span>';
+
     const fullName = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
     const initials = `${person.first_name?.[0] ?? ''}${person.last_name?.[0] ?? ''}`.toUpperCase();
 
@@ -942,7 +951,7 @@ function renderChaperoneTable() {
       ${dlCell}
       ${insCell}
       ${formsCell}
-      <td>${chap.is_driver ? '<span class="comp-chip comp-action">Driver</span>' : '<span class="muted" style="font-size:12px;">No</span>'}</td>
+      <td>${driverCell}</td>
       <td>
         <div style="display:flex;gap:6px;">
           <button class="btn btn-sm" data-edit-chap-id="${esc(chap.id)}" style="font-size:11px;">Edit</button>
