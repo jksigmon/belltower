@@ -1,11 +1,11 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, fmtShortDate, dbError, debounce, getAvatarColor } from './admin.shared.js?v=3';
+import { esc, fmtShortDate, dbError, debounce, getAvatarColor } from './admin.shared.js?v=4';
 import { openDrawer, closeDrawer, showToast, renderPagination, createBulkSelection, PAGE_SIZE } from './admin.compliance.utils.js';
 import {
   VOLUNTEER_ROLES, roleCheckboxGridHTML, wireRoleDetailsRequirement,
   rolesRequireDetails, DETAIL_ROLE_HINT, DETAIL_ROLE_ERROR,
-} from './compliance.roles.js?v=3';
+} from './compliance.roles.js?v=4';
 import { downloadCSV } from './admin.compliance.volunteers.js';
 
 const reqSelection = createBulkSelection({ barId: 'reqBulkBar', countId: 'reqBulkCount', label: 'selected' });

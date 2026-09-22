@@ -1,11 +1,11 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, fmtShortDate, dbError, todayISO } from './admin.shared.js?v=3';
+import { esc, fmtShortDate, dbError, todayISO } from './admin.shared.js?v=4';
 import {
   openDrawer, closeDrawer, showToast, renderPagination,
   createBulkSelection, applyVolunteerStatusFilters, closeOpenRequestsForVolunteers, PAGE_SIZE,
 } from './admin.compliance.utils.js';
-import { VOLUNTEER_ROLES, credentialStatus } from './compliance.roles.js?v=3';
+import { VOLUNTEER_ROLES, credentialStatus } from './compliance.roles.js?v=4';
 import { openVolunteerDrawerForRow, populateVolunteerRoleFilters, downloadCSV } from './admin.compliance.volunteers.js';
 
 let _profile          = null;
@@ -158,6 +158,7 @@ function updateSelectAllMatchingBar(pageCount) {
 function urgencyChip(row, cred) {
   const status = credentialStatus(row, cred);
   if (status === 'ok') return '<span class="muted">—</span>';
+  if (status === 'blocked') return '<span class="bg-expiry-chip bg-expiry-expired" title="Flagged not allowed to drive (May drive is unchecked).">Not allowed to drive</span>';
   if (status === 'missing') return '<span class="bg-expiry-chip bg-expiry-warn">Missing</span>';
 
   const expiresCol = cred === 'bg' ? 'bg_expires_at' : cred === 'mvr' ? 'mvr_expires_at' : cred === 'dl' ? 'dl_expires_at' : 'insurance_expires_at';

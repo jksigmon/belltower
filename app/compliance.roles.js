@@ -74,17 +74,21 @@ function dateStatus(expiresAt) {
 
 // bg/mvr are "cleared" credentials (need a cleared_at on file, not just
 // a future expiry); dl/insurance are plain expiry dates with no
-// separate cleared marker.
+// separate cleared marker. mvr/dl/insurance are all driving-specific, so
+// a manual can_drive=false override (Compliance -> Volunteers' "May
+// drive" checkbox) short-circuits all three to 'blocked' -- covers a
+// known-revoked-license case with no MVR/DL/insurance dates on file at
+// all, which would otherwise just read as "missing" like any other gap.
 const CREDENTIAL_CHECKS = {
   bg:        v => (v.bg_cleared_at  ? dateStatus(v.bg_expires_at)  : 'missing'),
-  mvr:       v => (v.mvr_cleared_at ? dateStatus(v.mvr_expires_at) : 'missing'),
-  dl:        v => dateStatus(v.dl_expires_at),
-  insurance: v => dateStatus(v.insurance_expires_at),
+  mvr:       v => (v.can_drive === false ? 'blocked' : (v.mvr_cleared_at ? dateStatus(v.mvr_expires_at) : 'missing')),
+  dl:        v => (v.can_drive === false ? 'blocked' : dateStatus(v.dl_expires_at)),
+  insurance: v => (v.can_drive === false ? 'blocked' : dateStatus(v.insurance_expires_at)),
 };
 
-// Per-credential status ('missing' | 'expired' | 'ok'), independent of
-// any role -- used to render the BG/MVR/DL/Insurance chips shown for
-// every volunteer regardless of which roles they hold.
+// Per-credential status ('missing' | 'expired' | 'blocked' | 'ok'),
+// independent of any role -- used to render the BG/MVR/DL/Insurance
+// chips shown for every volunteer regardless of which roles they hold.
 export function credentialStatus(volunteer, cred) {
   const check = CREDENTIAL_CHECKS[cred];
   return check ? check(volunteer) : 'missing';
@@ -94,7 +98,8 @@ export function credentialStatus(volunteer, cred) {
 // (Needs Attention, the Volunteer Directory, field trip chaperone
 // assignment) instead of each surface re-deriving its own notion of
 // "compliant". missing = credential never on file; expired = on file
-// but lapsed.
+// but lapsed; blocked = manually flagged not allowed (folded into
+// missing here since callers treat both as "not eligible").
 export function statusForRole(volunteer, roleKey) {
   const role = VOLUNTEER_ROLES[roleKey];
   if (!role) return { ok: false, missing: [], expired: [] };
@@ -103,7 +108,7 @@ export function statusForRole(volunteer, roleKey) {
   const expired = [];
   for (const cred of role.requires) {
     const status = CREDENTIAL_CHECKS[cred](volunteer);
-    if (status === 'missing') missing.push(cred);
+    if (status === 'missing' || status === 'blocked') missing.push(cred);
     else if (status === 'expired') expired.push(cred);
   }
   return { ok: missing.length === 0 && expired.length === 0, missing, expired };

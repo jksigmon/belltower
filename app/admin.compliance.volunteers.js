@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, fmtShortDate, dbError, downloadCSV } from './admin.shared.js?v=3';
+import { esc, fmtShortDate, dbError, downloadCSV } from './admin.shared.js?v=4';
 import {
   openDrawer, closeDrawer, showToast, renderPagination,
   createBulkSelection, applyVolunteerStatusFilters, closeOpenRequestsForVolunteers, PAGE_SIZE,
@@ -8,7 +8,7 @@ import {
 import {
   VOLUNTEER_ROLES, roleCheckboxGridHTML, credentialStatus,
   wireRoleDetailsRequirement, rolesRequireDetails, DETAIL_ROLE_HINT, DETAIL_ROLE_ERROR,
-} from './compliance.roles.js?v=3';
+} from './compliance.roles.js?v=4';
 import { openLinkGuardianDrawerForVolunteer } from './admin.compliance.forms.js';
 
 let _profile        = null;
@@ -135,6 +135,7 @@ function credChipHTML(row, cred) {
   const [, expiresCol] = CRED_DATE_COLS[cred];
   const dateStr = row[expiresCol] ? fmtShortDate(row[expiresCol]) : null;
 
+  if (status === 'blocked') return '<span class="bg-status-pill bg-status-expired" title="Flagged not allowed to drive (May drive is unchecked below).">Not allowed to drive</span>';
   if (status === 'missing') return '<span class="bg-status-pill bg-status-cancelled">Missing</span>';
   if (status === 'expired') return `<span class="bg-status-pill bg-status-expired">Expired${dateStr ? ` ${esc(dateStr)}` : ''}</span>`;
   return `<span class="bg-status-pill bg-status-cleared">${dateStr ? esc(dateStr) : 'OK'}</span>`;
