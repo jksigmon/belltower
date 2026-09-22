@@ -807,6 +807,23 @@ function renderBgChip(volunteer, tripDate, pendingRequest) {
   return `<span class="comp-chip ${info.cls}" title="${esc(tooltips[status])}">${info.label}</span>`;
 }
 
+// Trip-date aware, same coloring convention as the BG chip: red once it
+// lapses before the trip, amber inside a 60-day heads-up window, green
+// otherwise. DL/insurance are advisory (never blocking), so a missing
+// date is just neutral "Not on file" rather than a warning color.
+function renderExpiryChip(dateStr, tripDate) {
+  if (!dateStr) return `<span class="muted" style="font-size:12px;">Not on file</span>`;
+
+  const trip = new Date(tripDate + 'T12:00:00');
+  const exp  = new Date(dateStr + 'T12:00:00');
+  const sixtyOut = new Date(); sixtyOut.setHours(0, 0, 0, 0); sixtyOut.setDate(sixtyOut.getDate() + 60);
+
+  const cls = exp < trip ? 'comp-blocked' : exp <= sixtyOut ? 'comp-action' : 'comp-cleared';
+  const tooltip = exp < trip ? "Expires before this trip's date." : exp <= sixtyOut ? 'Expiring soon.' : '';
+
+  return `<span class="comp-chip ${cls}" title="${esc(tooltip)}">${fmtShortDate(dateStr)}</span>`;
+}
+
 function renderFormsChip(guardian) {
   const missing = getMissingForms(guardian);
   if (!missing.length) return `<span class="comp-chip comp-cleared">All signed</span>`;
@@ -822,7 +839,9 @@ function renderChaperoneTable() {
   const tripDate      = currentTrip.end_date ?? currentTrip.start_date;
 
   const requireMvrGlobal = schoolConfig?.require_mvr_for_drivers !== false;
-  document.getElementById('thMvr').style.display   = (driversNeeded && requireMvrGlobal) ? '' : 'none';
+  document.getElementById('thMvr').style.display        = (driversNeeded && requireMvrGlobal) ? '' : 'none';
+  document.getElementById('thDl').style.display          = driversNeeded ? '' : 'none';
+  document.getElementById('thInsurance').style.display   = driversNeeded ? '' : 'none';
   document.getElementById('thForms').style.display  = formsRequired ? '' : 'none';
 
   document.getElementById('ftChapTableWrap').style.display = chaperoneList.length ? '' : 'none';
@@ -877,6 +896,20 @@ function renderChaperoneTable() {
       }
     }
 
+    let dlCell = '', insCell = '';
+    if (driversNeeded) {
+      if (isStaff) {
+        dlCell  = `<td><span class="muted" style="font-size:12px;" title="Driver's license isn't tracked for staff in Belltower — verify separately.">Not tracked</span></td>`;
+        insCell = `<td><span class="muted" style="font-size:12px;" title="Insurance isn't tracked for staff in Belltower — verify separately.">Not tracked</span></td>`;
+      } else if (!chap.is_driver) {
+        dlCell  = `<td><span class="muted" style="font-size:12px;">N/A</span></td>`;
+        insCell = `<td><span class="muted" style="font-size:12px;">N/A</span></td>`;
+      } else {
+        dlCell  = `<td>${renderExpiryChip(volunteer?.dl_expires_at, tripDate)}</td>`;
+        insCell = `<td>${renderExpiryChip(volunteer?.insurance_expires_at, tripDate)}</td>`;
+      }
+    }
+
     const formsCell = formsRequired
       ? `<td>${isStaff ? '<span class="muted" style="font-size:12px;">N/A</span>' : renderFormsChip(formsPerson)}</td>`
       : '';
@@ -906,6 +939,8 @@ function renderChaperoneTable() {
       <td class="chap-students">${students}</td>
       <td>${bgCell}</td>
       ${mvrCell}
+      ${dlCell}
+      ${insCell}
       ${formsCell}
       <td>${chap.is_driver ? '<span class="comp-chip comp-action">Driver</span>' : '<span class="muted" style="font-size:12px;">No</span>'}</td>
       <td>
