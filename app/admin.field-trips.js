@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
-import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, fmtShortDate, todayISO, dbError, showToast, getAvatarColor } from './admin.shared.js?v=3';
+import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, fmtShortDate, todayISO, dbError, showToast, getAvatarColor } from './admin.shared.js?v=4';
 
 let profile = null;
 let schoolConfig = null;
@@ -638,11 +638,16 @@ async function loadVolunteerCompliance(chaperones) {
   // Fetch the whole school's roster once -- small dataset (a few hundred
   // to ~1000 rows), and guardian_id is only reliably set on a subset of
   // volunteers, so a name-fallback index still needs the full set anyway.
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('compliance_volunteer_status')
     .select('id, first_name, last_name, guardian_id, bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at, dl_expires_at, insurance_expires_at, can_chaperone, can_drive')
     .eq('school_id', profile.school_id)
     .is('archived_at', null);
+
+  if (error) {
+    dbError(error, 'Failed to load background check status');
+    return;
+  }
 
   (data ?? []).forEach(row => {
     if (row.guardian_id) volunteerByGuardianId.set(row.guardian_id, row);
@@ -658,13 +663,18 @@ async function loadPendingRequests(chaperones) {
   const volIds = chaperones.map(c => c.volunteer_id).filter(Boolean);
   if (!volIds.length) return;
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('compliance_bg_check_requests')
     .select('volunteer_id, status, requested_at')
     .eq('school_id', profile.school_id)
     .in('volunteer_id', volIds)
     .in('status', ['pending', 'submitted'])
     .is('archived_at', null);
+
+  if (error) {
+    dbError(error, 'Failed to load pending BG requests');
+    return;
+  }
 
   (data ?? []).forEach(r => { if (r.volunteer_id) pendingRequestByVolunteerId.set(r.volunteer_id, r); });
 }
