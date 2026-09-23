@@ -10,7 +10,11 @@
       "Bash(Select-Object -ExpandProperty FullName)",
       "WebFetch(domain:api.anthropic.com)",
       "PowerShell(\\(Get-Content \"C:\\\\Users\\\\Sigmon\\\\Desktop\\\\Belltower\\\\design_dump2.txt\" | Measure-Object -Line\\).Lines)",
-      "Bash(node --check app/requests.js)"
+      "Bash(node --check app/requests.js)",
+      "Bash(node --check app/pto.js)",
+      "Bash(node --check app/admin.shared.js)",
+      "Bash(python3 -)",
+      "Bash(node --check /tmp/staff_inline.mjs)"
     ]
   }
 }

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Required Training</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+  <link rel="stylesheet" href="/admin-ui.css">
+  <style>
+    .trn-main { height: 100%; overflow-y: auto; }
+    .trn-pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .trn-pill-verified { background: #dcfce7; color: #15803d; }
+    .trn-pill-pending  { background: #eff6ff; color: #1d4ed8; }
+
+    /* Row-level icon buttons -- same convention as licensure.html's
+       .lic-btn-icon so attachment/edit/delete look consistent across the
+       two admin pages. */
+    .trn-btn-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 28px; height: 28px;
+      border-radius: 6px; border: 1px solid #e5e7eb;
+      background: #f8fafc; color: #6b7280;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .trn-btn-icon:hover { background: #f1f5f9; border-color: #0b2d4f; color: #0b2d4f; }
+    .trn-btn-attach { background: #eff4ff; border-color: #dbe6fb; color: #2563eb; }
+    .trn-btn-attach:hover { background: #dbe6fb; border-color: #2563eb; color: #1d4ed8; }
+  </style>
+</head>
+<body class="admin-page" id="trainingPage">
+
+<header>
+  <div class="header-left">
+    <a id="backBtn" href="/admin.html" class="btn btn-admin back-to-admin" aria-label="Back">
+      <i data-lucide="arrow-left" width="20" height="20" stroke-width="2.5"></i>
+    </a>
+    <img src="/images/belltower-logo.png" alt="Belltower" class="admin-logo" />
+  </div>
+  <div class="header-actions">
+    <div class="user-menu" id="userMenu">
+      <button class="user-avatar" id="userAvatar" aria-label="Account menu" aria-expanded="false">
+        <span id="userInitials"></span>
+      </button>
+      <div class="user-dropdown" id="userDropdown" hidden>
+        <div class="user-dropdown-header">
+          <div class="user-dropdown-name" id="userDropdownName"></div>
+        </div>
+        <a href="/help.html" class="user-dropdown-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Help
+        </a>
+        <div class="user-dropdown-divider"></div>
+        <button class="user-dropdown-item signout" id="signOut">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="trn-main">
+
+<div id="loadingScreen" style="display:flex;align-items:center;justify-content:center;height:100%;font-size:14px;color:#6b7280;">
+  Loading…
+</div>
+
+<div id="accessDenied" hidden style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;text-align:center;padding:20px;">
+  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+  <div style="font-size:16px;font-weight:600;color:#111827;">Access denied</div>
+  <div style="font-size:14px;color:#6b7280;">You don't have permission to manage required training.</div>
+  <a href="/admin.html" class="btn btn-outline btn-sm" style="margin-top:8px;">Back to admin panel</a>
+</div>
+
+<div id="appShell" style="display:none;height:100%;overflow-y:auto;">
+  <div class="admin-content">
+    <div class="panel">
+      <div class="placement-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h3 style="margin:0 0 4px;">Required Training</h3>
+          <p class="muted" style="font-size:13px;margin:0;">Employment-required training (Safe Schools, AED, CPR, and similar Vector Solutions modules). This is not CEU or license renewal credit &mdash; that lives in Licensure.</p>
+        </div>
+        <button class="btn btn-primary" id="trnAddRecordBtn" style="height:34px;padding:0 14px;">+ Add Record</button>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:16px 0;">
+        <input type="text" id="trnSearch" class="admin-input" placeholder="Search employee name…" style="width:220px;" autocomplete="off" data-lpignore="true" data-1p-ignore data-bwignore="true">
+        <select id="trnVerifiedFilter" class="admin-input" style="min-width:140px;width:auto;">
+          <option value="">All statuses</option>
+          <option value="true">Verified</option>
+          <option value="false">Pending</option>
+        </select>
+        <button class="btn btn-sm" id="trnExportBtn">Export CSV</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Training</th>
+              <th>Provider</th>
+              <th>Duration</th>
+              <th>Completed</th>
+              <th>Expires</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="trnTableBody">
+            <tr><td colspan="8" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="trnPagination" class="pagination" style="display:none;"></div>
+    </div>
+  </div>
+</div><!-- /#appShell -->
+
+<!-- ══ TRAINING DRAWER ══════════════════════════════════════════════ -->
+<div id="trnDrawerOverlay" class="drawer-overlay" style="display:none;" aria-hidden="true"></div>
+<aside id="trnDrawer" class="drawer" role="dialog" aria-modal="true" aria-labelledby="trnDrawerTitle" style="display:none;">
+  <div class="drawer-header">
+    <h2 class="drawer-title" id="trnDrawerTitle">Add Training Record</h2>
+    <button class="drawer-close" id="trnDrawerClose" aria-label="Close">&times;</button>
+  </div>
+  <div class="drawer-body" id="trnDrawerBody"></div>
+  <div class="drawer-footer">
+    <button class="btn" id="trnDrawerCancel" style="flex:1;">Cancel</button>
+    <button class="btn btn-primary" id="trnDrawerSave" style="flex:2;">Save Changes</button>
+  </div>
+</aside>
+
+</div><!-- /.trn-main -->
+
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>if (window.lucide) lucide.createIcons();</script>
+<script type="module">
+  import { supabase } from './admin.supabase.js?v=2';
+  import { initUserMenu } from './user-menu.js?v=2';
+  import { initTraining } from './admin.training.js';
+
+  (async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { location.href = '/app/login.html'; return; }
+
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .single();
+
+    document.getElementById('loadingScreen').style.display = 'none';
+
+    if (error || !profile) {
+      console.error('Required training: profile load failed', error);
+      document.getElementById('accessDenied').hidden = false;
+      return;
+    }
+
+    if (!profile.can_manage_required_training && !profile.is_superadmin) {
+      document.getElementById('accessDenied').hidden = false;
+      return;
+    }
+
+    const displayName = profile.display_name || profile.email || '';
+    initUserMenu(displayName);
+
+    document.getElementById('signOut').addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      location.href = '/app/login.html';
+    });
+
+    document.getElementById('appShell').style.display = '';
+    if (window.lucide) lucide.createIcons();
+    try {
+      await initTraining(profile);
+    } catch (err) {
+      console.error('Required training init error:', err);
+      document.getElementById('trnTableBody').innerHTML =
+        `<tr><td colspan="8" class="muted" style="text-align:center;padding:32px 0;">Failed to load: ${err?.message || err}</td></tr>`;
+    }
+  })();
+</script>
+</body>
+</html>

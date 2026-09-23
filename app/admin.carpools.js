@@ -1,7 +1,7 @@
 
 import { supabase } from './admin.supabase.js?v=2';
 import { createDirectory } from './admin.directory.js?v=2';
-import { esc, getAvatarColor, debounce, dbError, showToast, findTagConflict, gradeLabel } from './admin.shared.js?v=3';
+import { esc, getAvatarColor, debounce, dbError, showToast, findTagConflict, gradeLabel } from './admin.shared.js?v=4';
 import { openAvailableTagsModal } from './admin.tag-availability.js?v=1';
 
 let currentProfile;

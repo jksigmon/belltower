@@ -21,6 +21,11 @@ CREATE TABLE public.[table_name] (
 
 ALTER TABLE public.[table_name] ENABLE ROW LEVEL SECURITY;
 
+-- As of Oct 30 2026, Supabase no longer auto-grants Data API access to new
+-- tables -- this GRANT is required or the table is unreachable via the API.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.[table_name] TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.[table_name] TO service_role;
+
 -- All active same-school users can read
 CREATE POLICY "[table_name]_select" ON public.[table_name] FOR SELECT
   USING (public.current_user_is_active_in_school([table_name].school_id));

@@ -1,5 +1,5 @@
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, dbError } from './admin.shared.js?v=3';
+import { esc, dbError } from './admin.shared.js?v=4';
 import { SUPABASE_URL } from './config.js';
 
 let profile = null;

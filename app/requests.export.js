@@ -1,4 +1,4 @@
-import { downloadCSV, fmtShortDate, toLocalISODate } from './admin.shared.js?v=3';
+import { downloadCSV, fmtShortDate, toLocalISODate } from './admin.shared.js?v=4';
 
 /**
  * CSV export for request submissions, shared by the admin panel's Requests

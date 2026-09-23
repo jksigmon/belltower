@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
-import { esc, fmtShortDate, showToast, fetchAllRows } from './admin.shared.js?v=3';
+import { esc, fmtShortDate, showToast, fetchAllRows } from './admin.shared.js?v=4';
 import { exportSubmissions, exportOneSubmission } from './requests.export.js?v=1';
 import { renderPager, pageSlice, pageCount } from './requests.pager.js';
 
@@ -301,7 +301,7 @@ async function openDrawer(sub) {
     </div>
 
     <hr class="drawer-divider" />
-    <div id="reqmForwardPanel"></div>
+    <div id="reqmForwardPanel" style="display:flex;flex-direction:column;gap:16px;"></div>
   `;
 
   notesSnapshot = sub.manager_notes?.trim() ?? '';
@@ -334,10 +334,10 @@ async function renderForwardPanel(sub) {
   if (currentRequestId !== sub.id) return;
 
   const history = (forwards ?? []).map(f => `
-    <div style="font-size:13px;color:#374151;margin-bottom:8px;">
+    <div style="font-size:13px;color:#374151;line-height:1.45;">
       Forwarded to <strong>${esc(f.destination_name)}</strong>
       by ${esc(f.profiles?.display_name ?? 'a manager')} on ${fmtShortDate(f.created_at)}
-      ${f.note ? `<div style="color:#6b7280;white-space:pre-wrap;margin-top:2px;">${esc(f.note)}</div>` : ''}
+      ${f.note ? `<div style="color:#6b7280;white-space:pre-wrap;margin-top:3px;">${esc(f.note)}</div>` : ''}
     </div>`).join('');
 
   const form = forwardDestinations.length ? `
@@ -352,14 +352,19 @@ async function renderForwardPanel(sub) {
       <label>Message <span style="text-transform:none;font-weight:400;letter-spacing:0;color:#9ca3af;">(optional, sent to the recipient only)</span></label>
       <textarea id="reqmFwdNote" rows="2" maxlength="1000" placeholder="e.g. This is a network issue, not facilities."></textarea>
     </div>
-    <button class="btn" id="reqmFwdBtn">Forward request</button>
-    <p id="reqmFwdError" style="color:#dc2626;font-size:13px;margin:8px 0 0;display:none;"></p>
-    <p style="font-size:12px;color:#9ca3af;margin:8px 0 0;">Emails the full submission and adds a line to the notes above. The submitter sees the note, not the address.</p>`
+    <div style="display:flex;flex-direction:column;align-items:flex-start;gap:10px;">
+      <button class="btn" id="reqmFwdBtn">Forward request</button>
+      <p id="reqmFwdError" style="color:#dc2626;font-size:13px;margin:0;display:none;"></p>
+      <p style="font-size:12px;color:#9ca3af;line-height:1.5;margin:0;">Emails the full submission and adds a line to the notes above. The submitter sees the note, not the address.</p>
+    </div>`
     : (history ? '' : `<p style="font-size:13px;color:#9ca3af;">Forwarding isn't set up yet. An admin can add destinations under Requests, Forwarding.</p>`);
 
   panel.innerHTML = `
-    <div class="drawer-field"><label>Forward</label></div>
-    ${history}
+    ${history ? `
+      <div class="drawer-field">
+        <label>Forwarded</label>
+        <div style="display:flex;flex-direction:column;gap:10px;">${history}</div>
+      </div>` : ''}
     ${form}`;
 
   document.getElementById('reqmFwdBtn')?.addEventListener('click', () => forwardRequest(sub));

@@ -9,7 +9,7 @@
 // Deliberately carries no guardian contact data: rosters are printed and
 // left on desks, clipboards, and buses, so they stay to roster facts
 // (name, grade, carline tag, bus group) rather than family PII.
-import { esc, gradeLabel } from './admin.shared.js?v=3';
+import { esc, gradeLabel } from './admin.shared.js?v=4';
 
 /**
  * Formats a student's display name as "Last, First" with a preferred

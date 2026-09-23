@@ -491,6 +491,10 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
       Compliance
     </a>
+    <a href="#section-required-training" class="help-cat-card">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Required Training
+    </a>
     <a href="#section-field-trips" class="help-cat-card">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
       Field Trips
@@ -1190,6 +1194,8 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <p>Open a staff member's license from <strong>All Licenses</strong> and find the <strong>CEU Progress</strong> section, or use the <strong>CEUs</strong> tab to log an entry for any staff member/license from one place. Each entry records a category, hours (or semester credits for college coursework), the completion date, and an optional proof-of-completion file.</p>
         <p>North Carolina requires 8 CEUs (80 clock hours) per 5-year Continuing Professional License renewal cycle, split across role-based categories — the progress bars only appear once a license's <strong>Category</strong> and, for teaching licenses, <strong>Grade Authorization</strong> are set, since NC's category minimums (e.g. Literacy for PreK-6) depend on both.</p>
         <p>1 CEU equals 10 clock hours for LEA in-service/approved workshops, or 1.5 CEUs per semester credit for college coursework — the CEU amount is calculated automatically from whichever you enter.</p>
+        <p>The 8-credit renewal requirement only applies to a Continuing Professional License (CPL). Other license types (Initial Professional, Residency, Emergency, Permit, CTE Provisional) don't carry it, so the CEU Progress section won't show a category breakdown for those.</p>
+        <p>Safe Schools, AED, CPR, and similar Vector Solutions style trainings are employment-required compliance training, not CEUs. Don't log them in the "General CEU (not tied to a license)" bucket: doing so makes them look like progress toward the 8-credit renewal requirement when they don't actually count toward it. Track those in the separate <strong>Required Training</strong> module instead.</p>
       </div>
     </div>
   </div>
@@ -1631,7 +1637,8 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
           <li>Go to <strong>Compliance → Volunteers</strong> and open the person's record.</li>
           <li>Enter the <strong>DL expires</strong> and <strong>Insurance expires</strong> dates, then click <strong>Save Changes</strong>.</li>
         </ol>
-        <p>If someone only needs to handle this one task &mdash; without access to background checks, MVR, or agreements &mdash; grant them the <strong>Manage chaperone credentials</strong> permission instead of full Manage compliance. It unlocks a separate, narrower <strong>Chaperone Credentials</strong> tool (linked from both the Staff Portal and Admin Panel navigation) where they can search the existing roster and update just these two dates.</p>
+        <p>Each date field also has an <strong>Attach Copy</strong> button for uploading a photo or scan of the license or insurance card (PDF, JPG, PNG, or HEIC). Once attached, click the file name to view it, or use the remove button to take it off the record. Attachments are private and only visible to compliance managers and chaperone credential managers.</p>
+        <p>If someone only needs to handle this one task &mdash; without access to background checks, MVR, or agreements &mdash; grant them the <strong>Manage chaperone credentials</strong> permission instead of full Manage compliance. It unlocks a separate, narrower <strong>Chaperone Credentials</strong> tool (linked from both the Staff Portal and Admin Panel navigation) where they can search the existing roster, update just these two dates, and attach the same file copies.</p>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           Both paths only work for volunteers already on the roster. A brand-new person still needs a background check request first (Compliance → Requests, or the staff self-service BG Checks page), which is what creates their roster record.
@@ -1659,6 +1666,36 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
           <li>Choose which teacher's homeroom they should be able to see, then click <strong>Save Grant</strong>.</li>
         </ol>
         <p>You can add multiple grants for the same person (one per teacher). Grants can be revoked at any time from the same Settings page.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ REQUIRED TRAINING ══════════ -->
+  <div class="faq-section" id="section-required-training">
+    <div class="faq-section-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Required Training
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What is the Required Training module for?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>It tracks employment-required staff training completions: Safe Schools, AED, CPR, and similar Vector Solutions modules. It is a standalone tool, separate from both Compliance (background checks and volunteer agreements) and Licensure (NC license renewal / CEU tracking).</p>
+        <p>This training is not CEU or renewal credit toward a teaching license, so it's tracked here instead of as a "General CEU" on the Licensure page.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        How do I log a training completion?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Staff can log their own training from <strong>Required Training</strong> in the Staff Portal nav: click <strong>+ Add Training</strong>, enter the training name, provider, and completion date, and attach a certificate if you have one. An administrator will verify it.</p>
+        <p>Administrators can log or verify any staff member's training from the <strong>Required Training</strong> tool in the Admin Panel.</p>
       </div>
     </div>
   </div>
@@ -2113,6 +2150,22 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
 
     <div class="faq-item">
       <button class="faq-question">
+        How do I forward a request to someone else, like IT?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>Open the request in the <strong>Request Manager</strong>, scroll to the <strong>Forward</strong> section, pick a destination, add an optional message, and click <strong>Forward request</strong>. Belltower emails the full submission to that destination. Replies go to you, not to a no-reply address.</p>
+        <p>The request stays in your queue. Forwarding also adds a line like "Forwarded to IT Helpdesk on Sep 21, 2026" to the request's notes, and the Forward section keeps a history of every forward, who sent it, and any message.</p>
+        <p>You can only forward to destinations an admin has approved. If the Forward section says forwarding isn't set up, or the address you need isn't listed, ask an admin to add it under <strong>Admin Panel → Staff Requests → Forwarding</strong>. Anyone who can manage request forms can add, deactivate, or remove destinations there.</p>
+        <div class="tip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          The note is visible to the person who submitted the request. It names the destination but not the email address. Save any notes you've typed before forwarding.
+        </div>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
         Can I export submissions to a spreadsheet?
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
@@ -2147,22 +2200,6 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
     <div class="faq-item">
       <button class="faq-question">
         Can I customize the status wording, or add a "Denied" option?
-    <div class="faq-item">
-      <button class="faq-question">
-        How do I forward a request to someone else, like IT?
-        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-      <div class="faq-answer">
-        <p>Open the request in the <strong>Request Manager</strong>, scroll to the <strong>Forward</strong> section, pick a destination, add an optional message, and click <strong>Forward request</strong>. Belltower emails the full submission to that destination. Replies go to you, not to a no-reply address.</p>
-        <p>The request stays in your queue. Forwarding also adds a line like "Forwarded to IT Helpdesk on Sep 21, 2026" to the request's notes, and the Forward section keeps a history of every forward, who sent it, and any message.</p>
-        <p>You can only forward to destinations an admin has approved. If the Forward section says forwarding isn't set up, or the address you need isn't listed, ask an admin to add it under <strong>Admin Panel → Staff Requests → Forwarding</strong>. Anyone who can manage request forms can add, deactivate, or remove destinations there.</p>
-        <div class="tip">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          The note is visible to the person who submitted the request. It names the destination but not the email address. Save any notes you've typed before forwarding.
-        </div>
-      </div>
-    </div>
-
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">

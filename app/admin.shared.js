@@ -8,6 +8,7 @@ import { supabase } from './admin.supabase.js?v=2';
 const familyCache = {};
 const busGroupCache = {};
 const schoolConfigCache = {};
+let ceuRenewalRequirementsCache = null;
 
 /* ===============================
    PAGINATED FETCH
@@ -82,6 +83,58 @@ export async function loadSchoolConfig(schoolId) {
  *  so the change is visible without a full page reload. */
 export function invalidateSchoolConfigCache(schoolId) {
   delete schoolConfigCache[schoolId];
+}
+
+/* ===============================
+   CEU RENEWAL REQUIREMENTS (Licensure)
+================================ */
+
+export const CEU_CATEGORY_LABELS = {
+  literacy:                 'Literacy',
+  content:                  'Content',
+  digital_learning:         'Digital Learning',
+  administration:           'Administration',
+  professional_discipline:  'Professional Discipline',
+  general_other:            'General / Other',
+};
+export const CEU_TOTAL_TARGET = 8;
+
+/**
+ * Loads the NC CEU renewal-credit category breakdown (staff_category +
+ * grade_band -> { category: targetCEUs }), cached for the page's lifetime.
+ * Not school-scoped -- this is NC state licensure law, not per-school config.
+ */
+export async function loadCeuRenewalRequirements() {
+  if (ceuRenewalRequirementsCache) return ceuRenewalRequirementsCache;
+
+  const { data, error } = await supabase
+    .from('ceu_renewal_requirements')
+    .select('staff_category, grade_band, category_targets');
+
+  if (error) {
+    console.error('Failed to load CEU renewal requirements', error);
+    return [];
+  }
+  ceuRenewalRequirementsCache = data || [];
+  return ceuRenewalRequirementsCache;
+}
+
+/**
+ * Returns { category: targetCEUs } summing to CEU_TOTAL_TARGET for the given
+ * license, or null when it doesn't carry the NC 8-credit/5-year renewal
+ * requirement at all -- a non-CPL license (IPL, Residency, Emergency, Permit,
+ * CTE_Provisional), a substitute license, or a teaching license with no grade
+ * authorization set (NC's literacy requirement hinges on grade band).
+ *
+ * `requirements` is the array from loadCeuRenewalRequirements().
+ */
+export function ceuTargetProfile(lic, requirements) {
+  if (!lic || lic.license_type !== 'CPL') return null;
+  const row = requirements.find(r =>
+    r.staff_category === lic.category &&
+    (r.grade_band === null || r.grade_band === lic.grade_authorization)
+  );
+  return row ? row.category_targets : null;
 }
 
 /* ===============================

@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, showToast } from './admin.shared.js?v=3';
+import { esc, showToast } from './admin.shared.js?v=4';
 
 /* ===============================
    AVAILABLE TAG NUMBERS

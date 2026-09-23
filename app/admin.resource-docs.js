@@ -1,6 +1,6 @@
 // admin.resource-docs.js
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, dbError, fmtShortDate, debounce, categoryChipStyle, CATEGORY_COLOR_KEYS } from './admin.shared.js?v=3';
+import { esc, dbError, fmtShortDate, debounce, categoryChipStyle, CATEGORY_COLOR_KEYS } from './admin.shared.js?v=4';
 import { fileKind, tileIconSvg, getThumbnailUrl, withThumbnailConcurrency } from './resource-doc-thumbnails.js?v=2';
 
 const BUCKET = 'resource-docs';

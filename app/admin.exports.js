@@ -1,7 +1,7 @@
 
 // admin.exports.js
 import { supabase } from './admin.supabase.js?v=2';
-import { loadSchoolConfig, gradeLabel, GRADE_ORDER, fetchAllRows } from './admin.shared.js?v=3';
+import { loadSchoolConfig, gradeLabel, GRADE_ORDER, fetchAllRows } from './admin.shared.js?v=4';
 import {
   printRosters, saveRostersPdf, saveRostersXlsx, toRosterStudent, ROSTER_SELECT
 } from './roster-print.js?v=7';

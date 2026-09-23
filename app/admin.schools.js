@@ -1,6 +1,6 @@
 
 import { supabase } from './admin.supabase.js?v=2';
-import { esc } from './admin.shared.js?v=3';
+import { esc } from './admin.shared.js?v=4';
 
 let currentProfile;
 let initialized = false;
@@ -9,9 +9,12 @@ const MODULES = [
   { key: 'pto',         label: 'Leave Management' },
   { key: 'substitutes', label: 'Substitute Assignment' },
   { key: 'carline',     label: 'Carline Dismissal' },
+  { key: 'requests',    label: 'Requests' },
   { key: 'licensure',   label: 'Licensure Tracking' },
   { key: 'compliance',  label: 'Volunteer Compliance' },
+  { key: 'required_training', label: 'Required Training' },
   { key: 'field_trips', label: 'Field Trip Planning' },
+  { key: 'resource_docs', label: 'Operations Manual' },
   { key: 'reservations', label: 'Reservations' },
   { key: 'inventory',    label: 'Inventory Tracking' },
 ];

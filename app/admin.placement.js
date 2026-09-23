@@ -1,5 +1,5 @@
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast, getAvatarColor, fmtShortDate, fetchAllRows } from './admin.shared.js?v=3';
+import { esc, GRADE_ORDER, nextGrade, gradeLabel, loadSchoolConfig, showToast, getAvatarColor, fmtShortDate, fetchAllRows } from './admin.shared.js?v=4';
 import {
   initSessions, showSessionList, showCreateForm, renderSessionList,
   setShowArchived, setShowDeleted, setShowAllYears, submitCreateForm, showConfirmModal,

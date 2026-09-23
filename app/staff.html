@@ -986,6 +986,23 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 /* Paperclip on an entry whose certificate is already attached, so "did my
    file actually make it?" is answerable without opening the entry. */
 .ceu-entry-clip { color: #16a34a; display: flex; flex-shrink: 0; }
+/* Clickable variant of .ceu-entry-clip -- opens the attachment straight
+   from the row instead of requiring Edit first. */
+.ceu-entry-clip-btn {
+  color: #16a34a;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.ceu-entry-clip-btn:hover { background: #f0fdf4; border-color: #bbf7d0; }
 
   </style>
  </head>
@@ -1050,14 +1067,15 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="#my-roster" id="navMyRoster" style="display:none;"><i data-lucide="users"></i> My Roster</a>
   <a href="#student-lookup" id="navStudentLookup" style="display:none;"><i data-lucide="search"></i> Student Lookup</a>
   <a href="#class-rosters" id="navClassRosters" style="display:none;"><i data-lucide="users-round"></i> Class Rosters</a>
-  <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
   <a href="#bg-checks"          data-module="compliance"><i data-lucide="user-check"></i> BG Checks</a>
   <a href="#compliance-report" data-module="compliance"><i data-lucide="clipboard-list"></i> Compliance Report</a>
+  <a href="/app/chaperone-credentials.html" id="navChaperoneCredentials" style="display:none;"><i data-lucide="car-front"></i> Chaperone Credentials</a>
+  <a href="#licensure"  data-module="licensure"><i data-lucide="badge-check"></i> My Licenses</a>
+  <a href="#required-training" data-module="required_training"><i data-lucide="shield-check"></i> Required Training</a>
   <a href="/app/requests.html" data-module="requests"><i data-lucide="inbox"></i> Form Requests <span class="badge-count" id="staffFormRequestsBadge"></span></a>
   <a href="/app/requests-manage.html" id="navRequestManager" style="display:none;"><i data-lucide="clipboard-check"></i> Request Manager</a>
   <a href="/app/field-trips.html" data-module="field_trips"><i data-lucide="map"></i> Field Trips</a>
   <a href="/app/placement.html" id="navPlacement" style="display:none;"><i data-lucide="layout-grid"></i> Class Placement</a>
-  <a href="/app/chaperone-credentials.html" id="navChaperoneCredentials" style="display:none;"><i data-lucide="car-front"></i> Chaperone Credentials</a>
   <a href="#data-collection"><i data-lucide="link"></i> Form Links</a>
   <a href="#resources" data-module="resource_docs"><i data-lucide="folder-open"></i> Resources</a>
   <a href="#reservations" data-module="reservations"><i data-lucide="calendar-clock"></i> Reservations</a>
@@ -1363,6 +1381,23 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       </div>
 
       <div id="staffCeuProgress" style="margin-top:24px;"></div>
+    </section>
+
+    <!-- ── Required Training (Safe Schools, AED, CPR, etc.) ───────────────── -->
+    <section id="required-training" style="display:none;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
+        <h2 style="margin:0;">My Required Training</h2>
+        <button type="button" class="btn btn-sm btn-primary" id="staffAddTrainingBtn">+ Add Training</button>
+      </div>
+      <p class="muted" style="font-size:0.85rem;margin:0 0 18px;">
+        Log employment-required training here (Safe Schools, AED, CPR, and similar Vector Solutions modules).
+        Add it yourself and an administrator will verify it. This is separate from CEU / license renewal
+        tracking in My Licenses: this training doesn't count toward your 8-credit NC renewal requirement.
+      </p>
+
+      <div id="staffTrainingList">
+        <p style="color:#9ca3af;text-align:center;padding:32px 0;">Loading…</p>
+      </div>
     </section>
 
     <!-- ── Background Check Requests ───────────────── -->
@@ -2280,6 +2315,59 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
     </div>
   </div>
 
+  <!-- ── Add / Edit Required Training modal (My Required Training) ── -->
+  <div id="staffTrainingModal" class="modal modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="staffTrainingModalTitle">Add Training</h3>
+        <span class="modal-close" id="staffTrainingModalClose">&times;</span>
+      </div>
+      <div class="drawer-field">
+        <label>Training name <span class="required">*</span></label>
+        <input id="staffTrainingName" class="form-input" placeholder="e.g. Safe Schools: Blood Borne Pathogens" />
+      </div>
+      <div class="drawer-row-2">
+        <div class="drawer-field">
+          <label>Provider</label>
+          <input id="staffTrainingProvider" class="form-input" value="Vector Solutions" />
+        </div>
+        <div class="drawer-field">
+          <label>Completed <span class="required">*</span></label>
+          <input id="staffTrainingCompletedDate" type="date" class="form-input" />
+        </div>
+      </div>
+      <div class="drawer-field">
+        <label>Expires <span class="muted" style="font-weight:400;">(if applicable)</span></label>
+        <input id="staffTrainingExpiresDate" type="date" class="form-input" />
+      </div>
+      <div class="drawer-field">
+        <label>Duration <span class="muted" style="font-weight:400;">(optional)</span></label>
+        <div class="lic-hours-input-row">
+          <input id="staffTrainingHours" type="number" min="0" step="0.5" class="form-input" placeholder="Hours" />
+          <input id="staffTrainingMinutes" type="number" min="0" step="1" class="form-input" placeholder="Minutes" />
+        </div>
+      </div>
+      <div class="drawer-field">
+        <label>Certificate <span class="muted" style="font-weight:400;">(optional)</span></label>
+        <div id="staffTrainingCurrentFile" class="lic-file-current" hidden></div>
+        <div class="lic-file-choose-row">
+          <input type="file" id="staffTrainingFileInput" accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,application/pdf,image/*" style="display:none;">
+          <button type="button" class="btn btn-sm" id="staffTrainingFileChooseBtn">Choose File</button>
+          <span id="staffTrainingFileNameLabel" class="muted" style="font-size:0.82rem;">No file chosen</span>
+        </div>
+      </div>
+      <div class="drawer-field">
+        <label>Notes <span class="muted" style="font-weight:400;">(optional)</span></label>
+        <textarea id="staffTrainingNotes" class="form-input" rows="2"></textarea>
+      </div>
+      <p id="staffTrainingError" style="color:#dc2626;font-size:13px;display:none;margin:0 0 10px;"></p>
+      <div class="modal-actions">
+        <button class="btn" id="staffTrainingCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="staffTrainingSaveBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Duplicate BG check request confirmation (must acknowledge before submitting) ── -->
   <div id="bgDedupModal" class="modal modal-sm">
     <div class="modal-content">
@@ -2305,7 +2393,7 @@ import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE, getAvatarColor, renderQuickActions, QA_ICONS, todayISO, loadNoSchoolDays, noSchoolDaysInRange } from '/app/admin.shared.js?v=4';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE, getAvatarColor, renderQuickActions, QA_ICONS, todayISO, loadCeuRenewalRequirements, ceuTargetProfile, CEU_CATEGORY_LABELS, CEU_TOTAL_TARGET, loadNoSchoolDays, noSchoolDaysInRange } from '/app/admin.shared.js?v=5';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { VOLUNTEER_ROLES, roleCheckboxGridHTML, wireRoleDetailsRequirement, rolesRequireDetails, DETAIL_ROLE_HINT, DETAIL_ROLE_ERROR } from '/app/compliance.roles.js?v=3';
@@ -3027,6 +3115,7 @@ function setActive(hash) {
     if (hash === '#pto')                subtitle.textContent = 'Leave';
     if (hash === '#licensure')          subtitle.textContent = 'My Licenses';
     if (hash === '#bg-checks')          subtitle.textContent = 'Background Checks';
+    if (hash === '#required-training')  subtitle.textContent = 'Required Training';
     if (hash === '#compliance-report')  subtitle.textContent = 'Compliance Report';
     if (hash === '#my-roster')          subtitle.textContent = 'My Roster';
     if (hash === '#student-lookup')     subtitle.textContent = 'Student Lookup';
@@ -3055,6 +3144,7 @@ function setActive(hash) {
   }
   if (hash === '#licensure')           loadMyLicenses();
   if (hash === '#bg-checks')           { loadMyBgRequests(); loadBgFormLinks(); }
+  if (hash === '#required-training')   loadMyTraining();
   if (hash === '#compliance-report')   initComplianceReport();
   if (hash === '#my-roster')           initMyRoster();
   if (hash === '#student-lookup')      initStudentLookup();
@@ -4249,17 +4339,11 @@ document.getElementById('invExportBtn')?.addEventListener('click', async () => {
 });
 
 // CEU category targets — NC: 8 CEUs / 80 clock hours per 5-year CPL renewal
-// cycle, split by role. Mirrors admin.licensure.js's ceuTargetProfile();
-// keep the two in sync if the NC requirements change.
-const CEU_CATEGORY_LABELS = {
-  literacy:                 'Literacy',
-  content:                  'Content',
-  digital_learning:         'Digital Learning',
-  administration:           'Administration',
-  professional_discipline:  'Professional Discipline',
-  general_other:            'General / Other',
-};
-const CEU_TOTAL_TARGET = 8;
+// cycle, split by role. Loaded from ceu_renewal_requirements (see
+// admin.shared.js's loadCeuRenewalRequirements/ceuTargetProfile) so a rule
+// correction doesn't require a redeploy, and admin.licensure.js can't drift
+// out of sync with this page.
+let myCeuRequirements = [];  // ceu_renewal_requirements rows, loaded in init()
 
 let myLicensesById = {}; // license id → row, populated by loadMyLicenses() for the Add CEU modal
 let myCeusById     = {}; // CEU id → row, same source, used to prefill the modal in edit mode
@@ -4269,21 +4353,6 @@ let myCeusById     = {}; // CEU id → row, same source, used to prefill the mod
 const MY_CEU_COLUMNS = 'id, license_id, category, title, completed_date, ceu_amount, verified, file_path, provider, source_type, hours, notes, file_name';
 let editingMyCeu   = null; // the CEU row being edited, or null when adding
 let removeMyCeuFile = false; // edit mode: user cleared the existing attachment without picking a new one
-
-function ceuTargetProfile(lic) {
-  if (lic.category === 'admin')   return { administration: 3, general_other: 3, digital_learning: 2 };
-  if (lic.category === 'support') return { professional_discipline: 3, general_other: 3, digital_learning: 2 };
-  if (lic.category === 'teaching') {
-    if (lic.grade_authorization === 'K-6' || lic.grade_authorization === 'K-12') {
-      return { literacy: 3, content: 3, digital_learning: 2 };
-    }
-    if (lic.grade_authorization === '6-9' || lic.grade_authorization === '9-12') {
-      return { content: 3, general_other: 3, digital_learning: 2 };
-    }
-    return null;
-  }
-  return null;
-}
 
 // CEUs only count toward the license's *current* 5-year cycle.
 function ceuCycleStartDate(expirationDate) {
@@ -4329,7 +4398,7 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
     const ceus  = ceusByLicense[lic.id] ?? [];
     const start = ceuCycleStartDate(lic.expiration_date);
     const inCycle = start ? ceus.filter(c => c.completed_date >= start) : ceus;
-    const profile = ceuTargetProfile(lic);
+    const profile = ceuTargetProfile(lic, myCeuRequirements);
     const total   = inCycle.reduce((sum, c) => sum + Number(c.ceu_amount), 0);
 
     const label = lic.license_type + (lic.license_area ? ' – ' + lic.license_area : '');
@@ -4358,6 +4427,8 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
             <div class="ceu-progress-bar-track"><div class="ceu-progress-bar-fill ${short ? 'short' : ''}" style="width:${pct}%;"></div></div>
           </div>`;
       }).join('');
+    } else if (lic.license_type !== 'CPL') {
+      html += `<div class="ceu-no-profile">Only a Continuing Professional License (CPL) carries the NC 8-credit renewal requirement, so this license type has no category breakdown.</div>`;
     } else {
       html += `<div class="ceu-no-profile">Category not set for this license — contact an administrator to see the NC category breakdown.</div>`;
     }
@@ -4378,6 +4449,7 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
       <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">General CEUs <span class="muted" style="font-weight:400;font-size:0.78rem;">(not linked to a license)</span></span>
       <button type="button" class="btn btn-sm staffAddCeuBtn" data-license-id="">+ Add CEU</button>
     </div>
+    <p class="muted" style="font-size:0.76rem;margin:2px 0 8px;">For coursework or workshops that don't map to a specific license. Don't log Safe Schools, AED, CPR, or other required compliance training here: those aren't CEUs and don't count toward your renewal credits. Ask an administrator to track those in Compliance instead.</p>
     <div class="ceu-progress-total">Total <span>${generalTotal.toFixed(3)} CEU${generalTotal === 1 ? '' : 's'}</span></div>
     ${generalCeus.length
       ? '<div class="ceu-entry-list">' + generalCeus.map(myCeuEntryRow).join('') + '</div>'
@@ -4706,7 +4778,7 @@ async function showStaffCeuCurrentFile(entry) {
 }
 
 function suggestedStaffCeuCategory(lic) {
-  const profile = ceuTargetProfile(lic);
+  const profile = ceuTargetProfile(lic, myCeuRequirements);
   return profile ? Object.keys(profile)[0] : 'general_other';
 }
 
@@ -4935,6 +5007,8 @@ async function deleteMyCeuEntry(id, filePath) {
 async function loadMyLicenses() {
   const container = document.getElementById('staffLicenseList');
   if (!container) return;
+
+  myCeuRequirements = await loadCeuRenewalRequirements();
 
   const { data, error } = await supabase
     .from('staff_licenses')
@@ -6248,6 +6322,268 @@ document.getElementById('bgDedupModalConfirm')?.addEventListener('click', () => 
   bgDedupModalAckedFor = lastBgDedupMatch;
   closeBgDedupModal();
   document.getElementById('bgSubmitBtn')?.click();
+});
+
+/* ─────────────────────────────────────────────────────
+   MY REQUIRED TRAINING (Safe Schools, AED, CPR, etc.)
+   Staff self-report, an administrator verifies. Separate from CEU/
+   licensure tracking on purpose -- see admin.shared.js's ceuTargetProfile
+   comment and help.html for why these aren't the same thing.
+───────────────────────────────────────────────────── */
+let myTrainingById   = {}; // training id → row, populated by loadMyTraining()
+let editingMyTraining = null; // the training row being edited, or null when adding
+let removeMyTrainingFile = false;
+
+async function loadMyTraining() {
+  const container = document.getElementById('staffTrainingList');
+  if (!container || !currentProfile) return;
+
+  const { data, error } = await supabase
+    .from('staff_required_training')
+    .select('id, training_name, provider, completed_date, expires_date, duration_hours, verified, file_path, file_name, notes')
+    .eq('employee_id', currentProfile.employee_id)
+    .order('completed_date', { ascending: false });
+
+  if (error) {
+    container.innerHTML = '<p style="color:#dc2626;text-align:center;padding:24px 0;">Failed to load training records.</p>';
+    return;
+  }
+
+  const rows = data || [];
+  myTrainingById = {};
+  rows.forEach(r => { myTrainingById[r.id] = r; });
+
+  if (!rows.length) {
+    container.innerHTML = `
+      <div class="admin-empty-state">
+        <div class="admin-empty-state-icon"><i data-lucide="shield-check"></i></div>
+        <p class="admin-empty-state-title">No training records on file yet</p>
+        <p class="admin-empty-state-sub">Add your first one with the button above.</p>
+      </div>`;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = rows.map(myTrainingRowHTML).join('');
+  container.querySelectorAll('.staffEditTrainingBtn').forEach(btn =>
+    btn.addEventListener('click', () => openStaffTrainingModal(myTrainingById[btn.dataset.id])));
+  container.querySelectorAll('.staffDeleteTrainingBtn').forEach(btn =>
+    btn.addEventListener('click', () => deleteMyTraining(btn.dataset.id)));
+  container.querySelectorAll('.staffTrainingClipBtn').forEach(btn =>
+    btn.addEventListener('click', () => openMyTrainingFile(myTrainingById[btn.dataset.id])));
+}
+
+// Opens a training record's attachment straight from its row. The blank tab
+// is opened synchronously on click so the popup blocker treats it as a
+// user-initiated action; it's then pointed at the signed URL once resolved.
+async function openMyTrainingFile(t) {
+  if (!t?.file_path) return;
+  const win = window.open('', '_blank');
+  if (win) win.opener = null;
+
+  const { data, error } = await supabase.storage
+    .from('training-files')
+    .createSignedUrl(t.file_path, 3600);
+
+  if (error || !data?.signedUrl) {
+    if (win) win.close();
+    console.error('Could not open training attachment', error);
+    showToast('Could not open attachment.', 'error');
+    return;
+  }
+
+  if (win) win.location = data.signedUrl;
+  else window.open(data.signedUrl, '_blank', 'noopener');
+}
+
+function formatTrainingDuration(hours) {
+  if (!hours) return '';
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  const parts = [];
+  if (h) parts.push(`${h}h`);
+  if (m) parts.push(`${m}m`);
+  return parts.length ? ` · ${esc(parts.join(' '))}` : '';
+}
+
+function myTrainingRowHTML(t) {
+  const verifiedBadge = t.verified
+    ? '<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">✓ Verified</span>'
+    : '<span style="background:#fef9c3;color:#a16207;padding:2px 8px;border-radius:999px;font-size:0.72rem;font-weight:600;">Pending Verification</span>';
+  const clipBtn = t.file_path
+    ? `<button type="button" class="ceu-entry-clip-btn staffTrainingClipBtn" data-id="${esc(t.id)}" title="Open ${esc(t.file_name ?? 'attachment')}">${CEU_CLIP_SVG}</button>`
+    : '';
+  const actions = t.verified
+    ? ''
+    : `<button type="button" class="btn btn-sm staffEditTrainingBtn" data-id="${esc(t.id)}">Edit</button>
+       <button type="button" class="btn btn-sm staffDeleteTrainingBtn" data-id="${esc(t.id)}" style="color:#dc2626;border-color:#fca5a5;">Delete</button>`;
+
+  return `<div class="ceu-license-card">
+    <div class="ceu-license-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">${esc(t.training_name)} ${verifiedBadge}</span>
+      <span style="display:flex;align-items:center;gap:6px;">${clipBtn}${actions}</span>
+    </div>
+    <div class="ceu-entry-row" style="margin-top:6px;">
+      <span class="muted">${t.provider ? esc(t.provider) : '—'}${formatTrainingDuration(t.duration_hours)}</span>
+      <span class="ceu-entry-date">Completed ${fmtShortDate(t.completed_date)}${t.expires_date ? ` · Expires ${fmtShortDate(t.expires_date)}` : ''}</span>
+    </div>
+  </div>`;
+}
+
+async function deleteMyTraining(id) {
+  const t = myTrainingById[id];
+  if (!t || t.verified) return;
+  if (!confirm('Delete this training record?')) return;
+
+  if (t.file_path) await supabase.storage.from('training-files').remove([t.file_path]);
+
+  const { error } = await supabase.from('staff_required_training').delete().eq('id', id);
+  if (error) { showToast('Failed to delete training record.'); return; }
+  showToast('Training record deleted');
+  await loadMyTraining();
+}
+
+async function openStaffTrainingModal(entry = null) {
+  editingMyTraining    = entry;
+  removeMyTrainingFile = false;
+
+  document.getElementById('staffTrainingModalTitle').textContent = entry ? 'Edit Training' : 'Add Training';
+  document.getElementById('staffTrainingSaveBtn').textContent    = entry ? 'Update' : 'Save';
+
+  document.getElementById('staffTrainingName').value          = entry?.training_name ?? '';
+  document.getElementById('staffTrainingProvider').value      = entry?.provider ?? 'Vector Solutions';
+  document.getElementById('staffTrainingCompletedDate').value = entry?.completed_date ?? toLocalISODate(new Date());
+  document.getElementById('staffTrainingExpiresDate').value   = entry?.expires_date ?? '';
+
+  // Only the combined decimal hours value is stored, so the original
+  // Hours/Minutes split is gone on edit -- re-derive a sensible one.
+  const wholeHours   = entry?.duration_hours ? Math.floor(entry.duration_hours) : '';
+  const remainderMin = entry?.duration_hours ? Math.round((entry.duration_hours - Math.floor(entry.duration_hours)) * 60) : '';
+  document.getElementById('staffTrainingHours').value   = wholeHours;
+  document.getElementById('staffTrainingMinutes').value = remainderMin;
+
+  document.getElementById('staffTrainingNotes').value         = entry?.notes ?? '';
+  document.getElementById('staffTrainingError').style.display = 'none';
+  resetStaffTrainingFileSection();
+
+  if (entry?.file_path) await showStaffTrainingCurrentFile(entry);
+
+  document.getElementById('staffTrainingModal').classList.add('open');
+  document.body.classList.add('modal-open');
+}
+
+function resetStaffTrainingFileSection() {
+  document.getElementById('staffTrainingFileInput').value = '';
+  document.getElementById('staffTrainingFileNameLabel').textContent = 'No file chosen';
+  const current = document.getElementById('staffTrainingCurrentFile');
+  current.hidden = true;
+  current.innerHTML = '';
+}
+
+async function showStaffTrainingCurrentFile(entry) {
+  const current = document.getElementById('staffTrainingCurrentFile');
+  if (!current) return;
+  const { data: signed } = await supabase.storage.from('training-files').createSignedUrl(entry.file_path, 3600);
+  if (editingMyTraining?.id !== entry.id) return;
+  current.hidden = false;
+  current.innerHTML =
+    CEU_FILE_SVG +
+    `<a href="${esc(signed?.signedUrl ?? '#')}" target="_blank" rel="noopener">${esc(entry.file_name ?? 'Attached file')}</a>` +
+    '<button type="button" class="lic-file-current-remove" id="staffTrainingRemoveFileBtn" title="Remove this attachment">Remove</button>';
+  document.getElementById('staffTrainingRemoveFileBtn').addEventListener('click', () => {
+    removeMyTrainingFile = true;
+    resetStaffTrainingFileSection();
+    document.getElementById('staffTrainingFileNameLabel').textContent = 'Attachment will be removed when you save';
+  });
+}
+
+function closeStaffTrainingModal() {
+  document.getElementById('staffTrainingModal').classList.remove('open');
+  document.body.classList.remove('modal-open');
+  editingMyTraining    = null;
+  removeMyTrainingFile = false;
+}
+
+document.getElementById('staffAddTrainingBtn')?.addEventListener('click', () => openStaffTrainingModal(null));
+document.getElementById('staffTrainingCancelBtn')?.addEventListener('click', closeStaffTrainingModal);
+document.getElementById('staffTrainingModalClose')?.addEventListener('click', closeStaffTrainingModal);
+
+document.getElementById('staffTrainingFileChooseBtn')?.addEventListener('click', () => {
+  document.getElementById('staffTrainingFileInput')?.click();
+});
+document.getElementById('staffTrainingFileInput')?.addEventListener('change', e => {
+  const file = e.target.files?.[0];
+  const label = document.getElementById('staffTrainingFileNameLabel');
+  if (label) label.textContent = file ? file.name : 'No file chosen';
+  if (file) removeMyTrainingFile = false;
+});
+
+async function uploadMyTrainingFile(trainingId, file) {
+  const ts       = Date.now();
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  const path     = `${currentProfile.school_id}/${trainingId}/${ts}-${safeName}`;
+
+  const { error: uploadError } = await supabase.storage.from('training-files').upload(path, file, { upsert: false });
+  if (uploadError) { showToast('File upload failed: ' + uploadError.message); return; }
+
+  const { error: linkError } = await supabase.from('staff_required_training')
+    .update({ file_path: path, file_name: file.name })
+    .eq('id', trainingId);
+  if (linkError) showToast('File uploaded, but attaching it failed: ' + linkError.message);
+}
+
+document.getElementById('staffTrainingSaveBtn')?.addEventListener('click', async () => {
+  const errorEl = document.getElementById('staffTrainingError');
+  errorEl.style.display = 'none';
+
+  const trainingName = document.getElementById('staffTrainingName').value.trim();
+  if (!trainingName) { errorEl.textContent = 'Training name is required.'; errorEl.style.display = 'block'; return; }
+
+  const completedDate = document.getElementById('staffTrainingCompletedDate').value;
+  if (!completedDate) { errorEl.textContent = 'Completed date is required.'; errorEl.style.display = 'block'; return; }
+
+  const hoursRaw   = parseFloat(document.getElementById('staffTrainingHours').value) || 0;
+  const minutesRaw = parseFloat(document.getElementById('staffTrainingMinutes').value) || 0;
+  const totalHours = hoursRaw + minutesRaw / 60;
+
+  const payload = {
+    training_name:  trainingName,
+    provider:       document.getElementById('staffTrainingProvider').value.trim() || null,
+    completed_date: completedDate,
+    expires_date:   document.getElementById('staffTrainingExpiresDate').value || null,
+    duration_hours: totalHours > 0 ? Math.round(totalHours * 100) / 100 : null,
+    notes:          document.getElementById('staffTrainingNotes').value.trim() || null,
+  };
+
+  const saveBtn = document.getElementById('staffTrainingSaveBtn');
+  saveBtn.disabled = true;
+
+  let trainingId;
+  if (editingMyTraining) {
+    const { error } = await supabase.from('staff_required_training').update(payload).eq('id', editingMyTraining.id);
+    saveBtn.disabled = false;
+    if (error) { errorEl.textContent = 'Failed to save: ' + error.message; errorEl.style.display = 'block'; return; }
+    trainingId = editingMyTraining.id;
+  } else {
+    payload.employee_id = currentProfile.employee_id;
+    payload.school_id   = currentProfile.school_id;
+    const { data, error } = await supabase.from('staff_required_training').insert(payload).select().single();
+    saveBtn.disabled = false;
+    if (error) { errorEl.textContent = 'Failed to save: ' + error.message; errorEl.style.display = 'block'; return; }
+    trainingId = data.id;
+  }
+
+  if (removeMyTrainingFile && editingMyTraining?.file_path) {
+    await supabase.storage.from('training-files').remove([editingMyTraining.file_path]);
+    await supabase.from('staff_required_training').update({ file_path: null, file_name: null }).eq('id', trainingId);
+  }
+
+  const fileInput = document.getElementById('staffTrainingFileInput');
+  if (fileInput?.files?.length) await uploadMyTrainingFile(trainingId, fileInput.files[0]);
+
+  closeStaffTrainingModal();
+  showToast(editingMyTraining ? 'Training record updated' : 'Training record added');
+  await loadMyTraining();
 });
 
 async function loadMyBgRequests() {

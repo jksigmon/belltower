@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
-import { debounce, esc, showToast, fetchAllRows } from './admin.shared.js?v=3';
+import { debounce, esc, showToast, fetchAllRows, loadCeuRenewalRequirements, ceuTargetProfile, CEU_CATEGORY_LABELS, CEU_TOTAL_TARGET } from './admin.shared.js?v=4';
 
 /* ─────────────────────────────────────────────────────
    STATE
@@ -42,44 +42,18 @@ let fpAuditTo   = null;
 
 /* ─────────────────────────────────────────────────────
    CEU CATEGORY TARGETS (NC: 8 CEUs / 80 clock hours per
-   5-year CPL renewal cycle, split by role — see
-   staff_licenses.category / .grade_authorization)
+   5-year CPL renewal cycle, split by role — loaded from
+   ceu_renewal_requirements via admin.shared.js so a rule
+   correction doesn't need a redeploy)
 ───────────────────────────────────────────────────── */
-const CEU_CATEGORY_LABELS = {
-  literacy:                 'Literacy',
-  content:                  'Content',
-  digital_learning:         'Digital Learning',
-  administration:           'Administration',
-  professional_discipline:  'Professional Discipline',
-  general_other:            'General / Other',
-};
-const CEU_TOTAL_TARGET = 8;
+let ceuRequirements = [];  // ceu_renewal_requirements rows, loaded in init()
 
 const EDIT_ICON_SVG  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
 const TRASH_ICON_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
 const FILE_ICON_SVG  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>`;
 
-// Returns { category: targetCEUs } summing to CEU_TOTAL_TARGET, or null when
-// the license's category/grade authorization don't map to a known NC profile
-// (e.g. substitute licenses, or a teaching license with no grade band set —
-// NC's literacy requirement hinges on that).
-function ceuTargetProfile(lic) {
-  if (lic.category === 'admin')   return { administration: 3, general_other: 3, digital_learning: 2 };
-  if (lic.category === 'support') return { professional_discipline: 3, general_other: 3, digital_learning: 2 };
-  if (lic.category === 'teaching') {
-    if (lic.grade_authorization === 'K-6' || lic.grade_authorization === 'K-12') {
-      return { literacy: 3, content: 3, digital_learning: 2 };
-    }
-    if (lic.grade_authorization === '6-9' || lic.grade_authorization === '9-12') {
-      return { content: 3, general_other: 3, digital_learning: 2 };
-    }
-    return null;
-  }
-  return null;
-}
-
 function suggestedCeuCategory(lic) {
-  const profile = ceuTargetProfile(lic);
+  const profile = ceuTargetProfile(lic, ceuRequirements);
   return profile ? Object.keys(profile)[0] : 'general_other';
 }
 
@@ -100,6 +74,7 @@ async function init() {
 
   currentProfile = profile;
 
+  ceuRequirements = await loadCeuRenewalRequirements();
   await Promise.all([loadCampuses(), loadEmployees()]);
   populateCampusSelects();
   populateStaffSelect();
@@ -1260,7 +1235,7 @@ function renderCeuPanel(lic, ceus) {
 
   const start   = cycleStartDate(lic.expiration_date);
   const inCycle = start ? ceus.filter(c => c.completed_date >= start) : ceus;
-  const profile = ceuTargetProfile(lic);
+  const profile = ceuTargetProfile(lic, ceuRequirements);
   const total   = inCycle.reduce((sum, c) => sum + Number(c.ceu_amount), 0);
 
   let html = `<div class="ceu-progress-total">CEU Progress (this cycle) <span>${total.toFixed(3)} / ${profile ? CEU_TOTAL_TARGET : '—'}</span></div>`;
@@ -1276,6 +1251,8 @@ function renderCeuPanel(lic, ceus) {
           <div class="ceu-progress-bar-track"><div class="ceu-progress-bar-fill ${short ? 'short' : ''}" style="width:${pct}%;"></div></div>
         </div>`;
     }).join('');
+  } else if (lic.license_type !== 'CPL') {
+    html += `<div class="ceu-no-profile">Only a Continuing Professional License (CPL) carries the NC 8-credit renewal requirement. This is a ${esc(lic.license_type || 'non-CPL')} license, so no category breakdown applies.</div>`;
   } else {
     const hint = lic.category === 'teaching' ? ' and Grade Authorization' : '';
     html += `<div class="ceu-no-profile">Set Category${hint} above to see the NC category breakdown.</div>`;

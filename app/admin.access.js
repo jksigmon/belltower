@@ -1,6 +1,6 @@
 // admin.access.js
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, getAvatarColor, dbError, debounce } from './admin.shared.js?v=3';
+import { esc, getAvatarColor, dbError, debounce } from './admin.shared.js?v=4';
 
 let currentProfile;
 let currentModules = {};
@@ -48,6 +48,7 @@ const ACCESS_ROLE_PRESETS = {
     can_manage_licensure: false,
     can_manage_compliance: false,
     can_manage_chaperone_credentials: false,
+    can_manage_required_training: false,
     can_manage_requests: false,
     can_review_all_requests: false
   },
@@ -81,6 +82,7 @@ const ACCESS_ROLE_PRESETS = {
     can_manage_licensure: false,
     can_manage_compliance: false,
     can_manage_chaperone_credentials: false,
+    can_manage_required_training: false,
     can_manage_requests: false,
     can_review_all_requests: false
   },
@@ -115,6 +117,7 @@ const ACCESS_ROLE_PRESETS = {
     can_manage_licensure: true,
     can_manage_compliance: true,
     can_manage_chaperone_credentials: true,
+    can_manage_required_training: true,
     can_manage_requests: true,
     can_review_all_requests: true
   }
@@ -213,7 +216,7 @@ async function loadAccessProfile(profileId) {
       can_manage_families, can_view_families, can_manage_guardians, can_manage_bus_groups,
       can_manage_carpools, can_manage_substitutes, can_manage_campuses,
       can_manage_calendar, can_manage_resource_docs, can_manage_reservations, can_manage_inventory,
-      can_bulk_upload, can_export_data, can_manage_licensure, can_manage_compliance, can_manage_chaperone_credentials, can_manage_field_trips,
+      can_bulk_upload, can_export_data, can_manage_licensure, can_manage_compliance, can_manage_chaperone_credentials, can_manage_required_training, can_manage_field_trips,
       can_manage_requests, can_review_all_requests
     `)
     .eq('id', profileId)

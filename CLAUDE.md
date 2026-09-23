@@ -85,9 +85,13 @@ Full schema is in `schema.sql`. Key domains:
 
 **Roles:** `admin`, `staff`, `front office` (defined in `role_type` enum).
 
-**Feature flags:** `school_modules` table controls which modules are enabled per school. Known keys: `pto`, `substitutes`, `carline`, `licensure`, `compliance`. Always gate new module UI behind `currentModules['<module_key>']` in `admin.core.js`.
+**Feature flags:** `school_modules` table controls which modules are enabled per school. Known keys: `pto`, `substitutes`, `carline`, `requests`, `licensure`, `compliance`, `required_training`, `field_trips`, `resource_docs`, `reservations`, `inventory`. Always gate new module UI behind `currentModules['<module_key>']` in `admin.core.js`.
+
+**Adding a new module:** whenever a new module is created, add its toggle to the Admin Panel's Schools page (`app/admin.schools.js` `MODULES` array, plus the `addMod_<key>`/`editMod_<key>` checkboxes in both the add-school and edit-school drawers in `app/admin.html`) in the same change that adds the module. A module flag that only exists in the database with no UI toggle can't be turned on or off by a superadmin.
 
 **RLS is enabled on all tables.** Always check existing RLS policies before adding new tables or queries. Never bypass RLS without explicit discussion.
+
+**New tables need explicit grants.** As of October 30 2026, Supabase no longer auto-grants Data API access to new tables in `public`. Any migration with `CREATE TABLE` must also `GRANT` the relevant privileges (typically `SELECT, INSERT, UPDATE, DELETE` to `authenticated` and `service_role`; add `anon` only if an RLS policy actually serves anonymous access) in the same migration, or the table is unreachable via supabase-js/PostgREST until grants are added. Existing tables keep their current grants and are unaffected.
 
 **Database migrations:** Root-level `*.sql` files (e.g. `field-trips-migration.sql`) are ad-hoc scripts run manually against the live DB. Versioned, sequential migrations live in `supabase/migrations/` and follow the `YYYYMMDDNNNNNN_description.sql` naming pattern. New schema changes should go in `supabase/migrations/`.
 

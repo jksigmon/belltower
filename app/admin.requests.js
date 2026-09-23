@@ -1,5 +1,5 @@
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, debounce, getAvatarColor, fmtShortDate, showToast, fetchAllRows } from './admin.shared.js?v=3';
+import { esc, debounce, getAvatarColor, fmtShortDate, showToast, fetchAllRows } from './admin.shared.js?v=4';
 import { exportSubmissions, exportOneSubmission } from './requests.export.js?v=1';
 import { renderForwardingView } from './admin.requests.forwarding.js';
 

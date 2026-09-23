@@ -1,6 +1,6 @@
 // admin.reservations.js
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, dbError, fmtShortDate } from './admin.shared.js?v=3';
+import { esc, dbError, fmtShortDate } from './admin.shared.js?v=4';
 
 let profile = null;
 let initialized = false;

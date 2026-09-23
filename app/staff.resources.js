@@ -11,7 +11,7 @@
 //      (see renderList) -- that conflation hid a real staff-facing bug.
 
 import { supabase } from '/app/admin.supabase.js?v=2';
-import { esc, debounce, categoryChipStyle, fmtRelativeDate, isToday } from '/app/admin.shared.js?v=3';
+import { esc, debounce, categoryChipStyle, fmtRelativeDate, isToday } from '/app/admin.shared.js?v=4';
 import {
   fileKind,
   fileTypeLabel,
