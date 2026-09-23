@@ -13,6 +13,15 @@ const DEFAULT_FROM    = "Belltower Requests <requests@belltower.school>";
 const DEFAULT_REPLY_TO = "no-reply@belltower.school";
 const APP_BASE_URL    = Deno.env.get("APP_BASE_URL") ?? "https://belltower.school";
 
+function esc(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -79,9 +88,19 @@ serve(async (req) => {
 
     const responsesHtml = (responses ?? []).map((r: any) => {
       const label = r.request_category_fields?.label ?? "Field";
-      const val   = r.value ?? "(no response)";
+      const type  = r.request_category_fields?.field_type;
+      let val: string;
+      if (!r.value) {
+        val = "(no response)";
+      } else if (type === "boolean") {
+        val = r.value === "true" ? "Yes" : "No";
+      } else if ((type === "file" || type === "url") && /^https?:\/\//i.test(r.value)) {
+        val = `<a href="${esc(r.value)}">${esc(r.value)}</a>`;
+      } else {
+        val = esc(r.value);
+      }
       return `<tr>
-        <td style="padding:6px 0 2px 0;font-weight:600;color:#374151;">${label}</td>
+        <td style="padding:6px 0 2px 0;font-weight:600;color:#374151;">${esc(label)}</td>
       </tr>
       <tr>
         <td style="padding:0 0 10px 0;color:#111827;word-break:break-word;">${val}</td>
