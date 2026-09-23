@@ -2010,6 +2010,84 @@ select {
 }
 .lic-file-current-remove:hover { color: #dc2626; background: #fef2f2; }
 
+/* Attached/missing document control -- a bordered box with filename +
+   View/Replace/Remove when a file is attached, or a dashed upload button
+   when it isn't. Originated in chaperone-credentials.html's own <style>
+   block; promoted here once the Volunteers drawer in Compliance
+   (admin.compliance.volunteers.js) needed the same look, same reasoning
+   as .lic-file-choose-row above. */
+.cc-doc-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  width: 100%;
+}
+.cc-doc-box-pending .cc-doc-box-icon,
+.cc-doc-box-pending .cc-doc-box-name { color: #9ca3af; }
+.cc-doc-box-icon { color: #6b7280; flex-shrink: 0; margin-top: 1px; display: inline-flex; }
+.cc-doc-box-body { min-width: 0; }
+.cc-doc-box-name {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  max-width: 150px;
+}
+.cc-doc-box-name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cc-doc-check { color: #16a34a; flex-shrink: 0; display: inline-flex; }
+.cc-doc-box-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  margin-top: 3px;
+}
+.cc-doc-box-actions a,
+.cc-doc-box-actions button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2563eb;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+.cc-doc-box-actions a:hover,
+.cc-doc-box-actions button:hover { text-decoration: underline; }
+.cc-doc-box-actions .cc-doc-remove { color: #9ca3af; }
+.cc-doc-box-actions .cc-doc-remove:hover { color: #dc2626; }
+.cc-doc-sep { color: var(--border); }
+
+.cc-doc-upload {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  border: 1.5px dashed var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: none;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cc-doc-upload svg { width: 14px; height: 14px; flex-shrink: 0; }
+.cc-doc-upload:hover { background: #eff6ff; border-color: #93c5fd; }
+
 /* Hours + Minutes duration pair for CEU entry (both fields additive, not
    either/or) -- same sharing rationale as .lic-file-choose-row above. */
 .lic-hours-input-row {
