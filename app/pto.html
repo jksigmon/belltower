@@ -695,6 +695,47 @@
   flex-shrink: 0;
 }
 
+.pto-req-noschool {
+  font-size: 11.5px;
+  color: #b45309;
+  background: #fef3c7;
+  border-radius: 99px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── No-School Days admin form ── */
+.no-school-day-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: flex-end;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 18px;
+}
+.no-school-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.no-school-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.no-school-field input,
+.no-school-field select {
+  width: 150px;
+}
+.no-school-field--title input { width: 200px; }
+.no-school-field--notes { flex: 1; min-width: 180px; }
+.no-school-field--notes input { width: 100%; }
+.no-school-add-btn { height: 40px; }
+
 /* Pending leave requests on the calendar: dashed border as a second
    visual cue beyond amber color alone (colorblind users, grayscale
    print) — see initPtoCalendar() in pto.js */
@@ -809,6 +850,7 @@
 <a href="/pto.html#reports"><i data-lucide="bar-chart-2"></i> Leave Reports</a>
 <a href="/pto.html#rollover" id="navPtoRollover"><i data-lucide="refresh-cw"></i> Year-End Rollover</a>
 <a href="/pto.html#policies" id="navPtoPolicies"><i data-lucide="file-text"></i> Leave Policies</a>
+<a href="/pto.html#no-school-days" id="navPtoNoSchoolDays"><i data-lucide="calendar-x"></i> No-School Days</a>
 
   </nav>
 
@@ -1327,6 +1369,66 @@
           <tbody></tbody>
         </table>
       </div>
+    </div>
+  </div>
+</section>
+
+<section id="pto-no-school-days" class="admin-section">
+  <div class="admin-content skeleton-container">
+    <div class="panel skeleton skeleton-row"></div>
+  </div>
+
+  <div class="admin-content fade-in">
+    <div class="panel panel-history">
+      <h3>No-School Days</h3>
+      <div class="muted" style="margin-bottom:14px; font-size:13px;">
+        Mark days school isn't in session (holidays, breaks). Staff and approvers see a heads-up if a leave request overlaps one of these dates. This does not change leave hours or balances in any way.
+      </div>
+
+      <form id="noSchoolDayForm" class="no-school-day-form">
+        <div class="no-school-field no-school-field--title">
+          <label for="noSchoolTitle">Label</label>
+          <input type="text" id="noSchoolTitle" placeholder="e.g. Winter Break" maxlength="120" required />
+        </div>
+        <div class="no-school-field">
+          <label for="noSchoolStart">Start date</label>
+          <input id="noSchoolStart" placeholder="Select date" autocomplete="off" />
+        </div>
+        <div class="no-school-field">
+          <label for="noSchoolEnd">End date</label>
+          <input id="noSchoolEnd" placeholder="Same as start" autocomplete="off" />
+        </div>
+        <div class="no-school-field">
+          <label for="noSchoolType">Type</label>
+          <select id="noSchoolType">
+            <option value="no_school">No School</option>
+            <option value="holiday">Holiday</option>
+            <option value="break">Break</option>
+          </select>
+        </div>
+        <div class="no-school-field no-school-field--notes">
+          <label for="noSchoolNotes">Notes (optional)</label>
+          <input type="text" id="noSchoolNotes" maxlength="200" />
+        </div>
+        <button type="submit" class="btn btn-primary no-school-add-btn">Add day</button>
+        <span id="noSchoolFormErr" class="muted" style="font-size:12px; color:#b91c1c; flex-basis:100%;" hidden></span>
+      </form>
+
+      <div class="table-scroll-wrap" style="margin-top:18px;">
+        <table id="noSchoolDaysTable">
+          <thead>
+            <tr>
+              <th style="text-align:left;">Date(s)</th>
+              <th style="text-align:left;">Label</th>
+              <th style="text-align:left;">Type</th>
+              <th style="text-align:left;">Notes</th>
+              <th style="width:80px;"></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p id="noSchoolDaysEmpty" class="muted" style="margin-top:10px;" hidden>No no-school days added yet.</p>
     </div>
   </div>
 </section>

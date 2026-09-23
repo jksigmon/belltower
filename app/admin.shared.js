@@ -655,3 +655,28 @@ export function downloadCSV(filename, header, rows) {
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
 }
+
+// school_calendar_events event_types that mean "school isn't in session" for
+// leave-request warning purposes. pd_day and early_release are excluded on
+// purpose — staff normally still work those days, so warning on them would
+// just be noise.
+export const NO_SCHOOL_EVENT_TYPES = ['no_school', 'holiday', 'break'];
+
+export async function loadNoSchoolDays(supabase, schoolId) {
+  const { data } = await supabase
+    .from('school_calendar_events')
+    .select('id, title, event_date, end_date, event_type, notes')
+    .eq('school_id', schoolId)
+    .in('event_type', NO_SCHOOL_EVENT_TYPES)
+    .order('event_date', { ascending: true });
+  return data ?? [];
+}
+
+// Subset of noSchoolDays whose [event_date, end_date||event_date] overlaps
+// [startISO, endISO] (both 'YYYY-MM-DD').
+export function noSchoolDaysInRange(noSchoolDays, startISO, endISO) {
+  return noSchoolDays.filter(d => {
+    const end = d.end_date || d.event_date;
+    return d.event_date <= endISO && end >= startISO;
+  });
+}

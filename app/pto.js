@@ -1,7 +1,7 @@
 import { supabase } from '/app/admin.supabase.js?v=2';
 import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
-import { showToast, esc, getAvatarColor, fmtShortDate, toLocalISODate, fetchAllRows } from '/app/admin.shared.js?v=3';
+import { showToast, esc, getAvatarColor, fmtShortDate, toLocalISODate, fetchAllRows, loadNoSchoolDays, noSchoolDaysInRange } from '/app/admin.shared.js?v=4';
 import { SUPABASE_URL } from '/app/config.js';
 
 /* =============================================
@@ -126,6 +126,15 @@ if (!_canAdjustPto) {
 if (!_canManagePtoBalances) {
   document.getElementById('navPtoRollover')?.remove();
   document.getElementById('navPtoPolicies')?.remove();
+}
+
+const _canManageCalendar =
+  currentProfile.is_superadmin === true ||
+  currentProfile.role === 'admin' ||
+  currentProfile.can_manage_calendar === true;
+
+if (!_canManageCalendar) {
+  document.getElementById('navPtoNoSchoolDays')?.remove();
 }
 
 if (!currentProfile.can_generate_pto_reports) {
@@ -707,6 +716,9 @@ async function loadPto() {
     return set.size - (set.has(row.employee_id) ? 1 : 0);
   }
 
+  // ── No-school day overlap (advisory only, doesn't affect approval) ──
+  const noSchoolDays = await loadNoSchoolDays(supabase, currentProfile.school_id);
+
   // ── Group requests by employee ──────────────────────────────
   const groups = new Map();
   data.forEach(r => {
@@ -760,6 +772,7 @@ async function loadPto() {
         durationSub = `${formatTime(r.start_time)} – ${formatTime(r.end_time)}`;
       }
       const coverageCount = otherStaffOutCount(r);
+      const noSchoolHits = noSchoolDaysInRange(noSchoolDays, r.start_date, r.end_date);
 
       const row = document.createElement('div');
       row.className = 'pto-req';
@@ -770,6 +783,7 @@ async function loadPto() {
           ${durationSub ? `<div class="pto-req-duration">${esc(durationSub)}</div>` : ''}
         </div>
         ${coverageCount > 0 ? `<span class="pto-req-coverage" title="Staff with approved leave overlapping ${esc(fmtShortDate(r.start_date))}">${coverageCount} staff already out this day</span>` : ''}
+        ${noSchoolHits.length > 0 ? `<span class="pto-req-noschool" title="${esc(noSchoolHits.map(h => fmtShortDate(h.event_date)).join(', '))}">Includes ${noSchoolHits.length} no-school day${noSchoolHits.length > 1 ? 's' : ''}</span>` : ''}
         <span class="pto-type-chip" style="background:${tint.bg};color:${tint.fg}">${esc(ptoTypeLabel(r.pto_type))}</span>
         ${r.needs_sub_coverage
           ? '<span class="pto-sub-chip" title="The requester indicated substitute coverage is needed">Sub needed</span>'
@@ -1772,6 +1786,113 @@ async function loadPtoPolicies() {
   });
 }
 
+/* =============================================
+   NO-SCHOOL DAYS (advisory calendar for leave requests)
+============================================= */
+const NO_SCHOOL_TYPE_LABELS = { no_school: 'No School', holiday: 'Holiday', break: 'Break' };
+
+function fmtNoSchoolRange(row) {
+  if (!row.end_date || row.end_date === row.event_date) return fmtShortDate(row.event_date);
+  return `${fmtShortDate(row.event_date)} – ${fmtShortDate(row.end_date)}`;
+}
+
+let noSchoolStartPicker = null;
+let noSchoolEndPicker = null;
+
+function initNoSchoolDatePickers() {
+  if (noSchoolStartPicker) return;
+  noSchoolStartPicker = flatpickr('#noSchoolStart', { dateFormat: 'Y-m-d', altInput: true, altFormat: 'M j, Y' });
+  noSchoolEndPicker = flatpickr('#noSchoolEnd', { dateFormat: 'Y-m-d', altInput: true, altFormat: 'M j, Y' });
+}
+
+async function loadNoSchoolDaysAdmin() {
+  initNoSchoolDatePickers();
+
+  const tbody = document.querySelector('#noSchoolDaysTable tbody');
+  const emptyEl = document.getElementById('noSchoolDaysEmpty');
+  if (!tbody) return;
+
+  const rows = await loadNoSchoolDays(supabase, currentProfile.school_id);
+
+  tbody.innerHTML = '';
+  if (emptyEl) emptyEl.hidden = rows.length > 0;
+
+  rows.forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${esc(fmtNoSchoolRange(row))}</td>
+      <td>${esc(row.title)}</td>
+      <td>${esc(NO_SCHOOL_TYPE_LABELS[row.event_type] ?? row.event_type)}</td>
+      <td>${row.notes ? esc(row.notes) : ''}</td>
+      <td><button type="button" class="btn btn-sm btn-outline noschool-delete-btn">Delete</button></td>
+    `;
+    tr.querySelector('.noschool-delete-btn').addEventListener('click', () => deleteNoSchoolDay(row.id));
+    tbody.appendChild(tr);
+  });
+}
+
+async function deleteNoSchoolDay(id) {
+  if (!await showConfirm({
+    title: 'Delete no-school day',
+    body: 'This removes it from the calendar and from the leave-request warning. This cannot be undone.',
+    confirmText: 'Delete',
+    danger: true
+  })) return;
+
+  const { error } = await supabase.from('school_calendar_events').delete().eq('id', id);
+  if (error) {
+    console.error(error);
+    showToast('Failed to delete. Please try again.', 'error');
+    return;
+  }
+  showToast('No-school day deleted.', 'success');
+  ptoViewCache.delete('no-school-days');
+  await loadNoSchoolDaysAdmin();
+}
+
+document.getElementById('noSchoolDayForm')?.addEventListener('submit', async e => {
+  e.preventDefault();
+  const errEl = document.getElementById('noSchoolFormErr');
+  if (errEl) errEl.hidden = true;
+
+  const title = document.getElementById('noSchoolTitle').value.trim();
+  const startDate = document.getElementById('noSchoolStart').value;
+  const endDate = document.getElementById('noSchoolEnd').value || null;
+  const eventType = document.getElementById('noSchoolType').value;
+  const notes = document.getElementById('noSchoolNotes').value.trim() || null;
+
+  if (!title || !startDate) {
+    if (errEl) { errEl.textContent = 'Label and start date are required.'; errEl.hidden = false; }
+    return;
+  }
+  if (endDate && endDate < startDate) {
+    if (errEl) { errEl.textContent = 'End date can\'t be before the start date.'; errEl.hidden = false; }
+    return;
+  }
+
+  const { error } = await supabase.from('school_calendar_events').insert({
+    school_id: currentProfile.school_id,
+    title,
+    event_date: startDate,
+    end_date: endDate,
+    event_type: eventType,
+    notes
+  });
+
+  if (error) {
+    console.error(error);
+    if (errEl) { errEl.textContent = 'Failed to save. Please try again.'; errEl.hidden = false; }
+    return;
+  }
+
+  e.target.reset();
+  noSchoolStartPicker?.clear();
+  noSchoolEndPicker?.clear();
+  showToast('No-school day added.', 'success');
+  ptoViewCache.delete('no-school-days');
+  await loadNoSchoolDaysAdmin();
+});
+
 async function bulkSetPolicies(fillBlankOnly) {
   const ptoType = document.getElementById('policyBulkType').value;
   const hoursRaw = document.getElementById('policyBulkHours').value;
@@ -2232,6 +2353,10 @@ async function setPtoView(view) {
     showToast('You are not authorized to modify leave policies.', 'error');
     return;
   }
+  if (view === 'no-school-days' && !_canManageCalendar) {
+    showToast('You are not authorized to manage the school calendar.', 'error');
+    return;
+  }
   if (view === 'reports' && !currentProfile.can_generate_pto_reports) {
     showToast('You are not authorized to generate leave reports.', 'error');
     return;
@@ -2314,6 +2439,11 @@ async function setPtoView(view) {
     if (view === 'policies' && !ptoViewCache.has('policies')) {
       await loadPtoPolicies();
       ptoViewCache.add('policies');
+    }
+
+    if (view === 'no-school-days' && !ptoViewCache.has('no-school-days')) {
+      await loadNoSchoolDaysAdmin();
+      ptoViewCache.add('no-school-days');
     }
 
     if (view === 'submit-for-staff' && !ptoViewCache.has('submit-for-staff')) {

@@ -411,7 +411,36 @@
   align-items: flex-start;
   gap: 8px;
 }
+
+/* No-school day heads-up (advisory only) — same pulsing-ring treatment as
+   .bg-dedup-alert (admin-ui.css) so a real overlap reads as attention-
+   worthy rather than blending into routine form hints, just in amber
+   instead of red since this doesn't block anything. */
+@keyframes no-school-warning-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.35); }
+  50%      { box-shadow: 0 0 0 7px rgba(245, 158, 11, 0); }
+}
+.pto-no-school-warning {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #b45309;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  white-space: normal;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  animation: no-school-warning-pulse 1.8s ease-in-out infinite;
+}
 .pto-balance-warning svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.pto-no-school-warning svg {
   flex-shrink: 0;
   margin-top: 1px;
 }
@@ -1199,6 +1228,12 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       <span class="pto-field-label">Date(s) <span style="color:#dc2626;">*</span></span>
       <input type="text" id="ptoDateRange" placeholder="Select date(s)" readonly />
     </div>
+  </div>
+
+  <!-- No-school day heads-up (advisory only; does not affect hours or balance) -->
+  <div id="ptoNoSchoolWarning" class="pto-no-school-warning" style="display:none;">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span id="ptoNoSchoolWarningText"></span>
   </div>
 
   <!-- Conditional: custom hours (shown when Duration = Custom) -->
@@ -2270,7 +2305,7 @@ import { initUserMenu } from '/app/user-menu.js?v=2';
 import { requireAuth } from '/app/admin.auth.js?v=2';
 import { loadWeather } from '/app/weather.js';
 import { initCalendarStrip } from '/app/calendar-strip.js';
-import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE, getAvatarColor, renderQuickActions, QA_ICONS, todayISO } from '/app/admin.shared.js?v=3';
+import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODate, fmtShortDate, initDashClamps, BDAY_VISIBLE, getAvatarColor, renderQuickActions, QA_ICONS, todayISO, loadNoSchoolDays, noSchoolDaysInRange } from '/app/admin.shared.js?v=4';
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { VOLUNTEER_ROLES, roleCheckboxGridHTML, wireRoleDetailsRequirement, rolesRequireDetails, DETAIL_ROLE_HINT, DETAIL_ROLE_ERROR } from '/app/compliance.roles.js?v=3';
@@ -2479,6 +2514,7 @@ durationSelect.addEventListener('change', () => {
     selectedStartDate = null;
     selectedEndDate = null;
     updateDeductionSummary();
+    updateNoSchoolWarning();
   }
 });
 
@@ -2903,7 +2939,8 @@ async function initStaff() {
   // Settings (uses campus data already in profile) and dashboard run concurrently
   await Promise.all([
     loadSchoolSettings(currentProfile.school_id),
-    loadStaffDashboard()
+    loadStaffDashboard(),
+    window.staffModules?.pto ? loadNoSchoolDaysCache() : Promise.resolve()
   ]);
 
   // Pre-warm the compliance_report edge function AFTER the dashboard loads so
@@ -2919,6 +2956,37 @@ async function initStaff() {
 let selectedStartDate = null;
 let selectedEndDate = null;
 let ptoDatePicker = null;
+let noSchoolDaysCache = [];
+
+async function loadNoSchoolDaysCache() {
+  noSchoolDaysCache = await loadNoSchoolDays(supabase, currentProfile.school_id);
+}
+
+function updateNoSchoolWarning() {
+  const el = document.getElementById('ptoNoSchoolWarning');
+  const textEl = document.getElementById('ptoNoSchoolWarningText');
+  if (!el || !textEl) return;
+
+  if (!selectedStartDate || !selectedEndDate) {
+    el.style.display = 'none';
+    return;
+  }
+
+  const hits = noSchoolDaysInRange(
+    noSchoolDaysCache,
+    toLocalISODate(selectedStartDate),
+    toLocalISODate(selectedEndDate)
+  );
+
+  if (!hits.length) {
+    el.style.display = 'none';
+    return;
+  }
+
+  const label = hits.map(h => `${fmtShortDate(h.event_date)}${h.title ? ` (${h.title})` : ''}`).join(', ');
+  textEl.innerHTML = `Heads up: your selected dates include ${hits.length > 1 ? 'no-school days' : 'a no-school day'}, <strong>${esc(label)}</strong>. You may not need to request leave for ${hits.length > 1 ? 'these days' : 'this day'}.`;
+  el.style.display = 'flex';
+}
 
 // A weekend day is never valid on its own, but a multi-day range may bridge a
 // weekend (e.g. Fri–Mon). In multi-day (range) mode weekends become selectable
@@ -2936,6 +3004,7 @@ requestAnimationFrame(() => {
       selectedStartDate = selectedDates[0];
       selectedEndDate = selectedDates.length > 1 ? selectedDates[1] : selectedDates[0];
       updateDeductionSummary();
+      updateNoSchoolWarning();
     }
   });
 });
@@ -5568,7 +5637,8 @@ const needsSubCoverage = subChoice === 'yes';
   selectedEndDate = null;
   document.getElementById('ptoDuration').value = 'full';
   if (ptoDatePicker) { ptoDatePicker.set('mode', 'single'); ptoDatePicker.clear(); }
-  
+  updateNoSchoolWarning();
+
   document.getElementById('ptoStartTime').value = '';
   document.getElementById('ptoNotes').value = '';
 
