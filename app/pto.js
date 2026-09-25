@@ -1371,6 +1371,7 @@ async function loadStaffPtoHistory(employeeId) {
       start_time,
       end_time,
       requested_hours,
+      requested_duration_label,
       status,
       notes,
       submitted_at,

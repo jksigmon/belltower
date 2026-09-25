@@ -608,6 +608,24 @@
 
 .asg-error svg { flex: 0 0 auto; }
 
+/* Informational (not error) banner for the legacy-Half-Day assist flow */
+.asg-note {
+  margin-top: 12px;
+  padding: 9px 12px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  color: #92400e;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.asg-quick-half {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .asg-actions {
   justify-content: space-between;
 }
@@ -1163,6 +1181,10 @@
         </div>
       </div>
 
+      <div class="asg-note" id="asgLegacyHalfDayNote" hidden>
+        This Half Day request predates AM/PM tracking, so no coverage time was recorded. Choose morning or afternoon below before saving.
+      </div>
+
       <label class="staff-active-label asg-partial-toggle">
         <input type="checkbox" id="asgPartialDay" />
         <span>Partial day (specific start/end time)</span>
@@ -1177,6 +1199,11 @@
           <label>End time</label>
           <input id="assignEndTime" />
         </div>
+      </div>
+
+      <div class="asg-quick-half" id="asgQuickHalfBtns" hidden>
+        <button type="button" class="btn btn-sm" id="asgQuickAM">Morning (AM)</button>
+        <button type="button" class="btn btn-sm" id="asgQuickPM">Afternoon (PM)</button>
       </div>
     </div>
 
@@ -1302,6 +1329,40 @@ import {
 
 let currentProfile;
 let calendar;
+
+// School day boundaries, used to compute a concrete AM/PM time window when a
+// legacy Half Day request (no half_day_period, no start_time/end_time) needs
+// a sub assigned -- see covAssign() and asgQuickHalfDay(). Mirrors the same
+// school_settings fields and math app/staff.html uses when a new Half Day
+// request is submitted, so the computed window matches what the app would
+// have recorded had the request been submitted today.
+let SCHOOL_WORKDAY_HOURS = 8;
+let DAY_START_TIME = "08:00";
+let DAY_END_TIME = "16:00";
+
+async function loadSchoolDaySettings(schoolId) {
+  const { data, error } = await supabase
+    .from('school_settings')
+    .select('workday_hours, day_start_time, day_end_time')
+    .eq('school_id', schoolId)
+    .single();
+
+  if (error || !data) {
+    console.warn('Using default school day settings:', error);
+    return;
+  }
+  SCHOOL_WORKDAY_HOURS = data.workday_hours ?? 8;
+  DAY_START_TIME = (data.day_start_time ?? "08:00").slice(0, 5);
+  DAY_END_TIME   = (data.day_end_time   ?? "16:00").slice(0, 5);
+}
+
+function addHoursToTime(startTime, hours) {
+  const [h, m] = startTime.split(':').map(Number);
+  const totalMinutes = h * 60 + m + hours * 60;
+  const endH = Math.floor(totalMinutes / 60) % 24;
+  const endM = Math.round(totalMinutes % 60);
+  return `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+}
 
 // -------------------- AUTH + PROFILE --------------------
 const profile = await initPage({ requiredCap: 'can_manage_substitutes' });
@@ -2172,6 +2233,28 @@ async function covAssign() {
   const covererId    = covState.pickId;
   const covererName  = covState.pickName;
 
+  // A legacy Half Day request (submitted before half_day_period existed) has
+  // no start_time/end_time recorded, so there's no real time window to copy
+  // onto the assignment. Quick-assigning it here would silently insert null
+  // times, which every downstream view (calendar, history, export) then
+  // reads back as "Full day" -- exactly the bug this is fixing. Route it
+  // through the full Schedule modal instead so AM/PM gets picked explicitly.
+  if (covIsLegacyHalfDay(row) && !row.start_time && !row.end_time) {
+    await asgOpen({
+      mode: 'new',
+      ptoRequestId: row.pto_request_id,
+      outEmployeeId: row.out_employee_id,
+      outNameFallback: `${row.out_first_name} ${row.out_last_name}`,
+      startDate: row.coverage_date,
+      endDate: row.coverage_date,
+      coverKind: kind,
+      coverId: covererId,
+      reason: `Leave: ${row.out_first_name} ${row.out_last_name}`
+    });
+    asgShowLegacyHalfDayHint();
+    return;
+  }
+
   btn.disabled = true;
   btn.textContent = 'Assigning…';
 
@@ -2363,6 +2446,39 @@ function asgSyncTimeRowVisibility() {
   }
 }
 
+/** Forces the Schedule modal into "pick a time" state for a legacy Half Day
+ *  request with no recorded start_time/end_time, and surfaces the quick
+ *  AM/PM fill buttons so the coordinator doesn't have to hand-type times. */
+function asgShowLegacyHalfDayHint() {
+  const note = document.getElementById('asgLegacyHalfDayNote');
+  const quick = document.getElementById('asgQuickHalfBtns');
+  if (note) note.hidden = false;
+  if (quick) quick.hidden = false;
+
+  const partialCb = document.getElementById('asgPartialDay');
+  if (partialCb) partialCb.checked = true;
+  asgSyncTimeRowVisibility();
+}
+
+function asgHideLegacyHalfDayHint() {
+  const note = document.getElementById('asgLegacyHalfDayNote');
+  const quick = document.getElementById('asgQuickHalfBtns');
+  if (note) note.hidden = true;
+  if (quick) quick.hidden = true;
+}
+
+function asgQuickFillHalfDay(period) {
+  const start = period === 'AM'
+    ? DAY_START_TIME
+    : addHoursToTime(DAY_END_TIME, -(SCHOOL_WORKDAY_HOURS / 2));
+  const end = period === 'AM'
+    ? addHoursToTime(DAY_START_TIME, SCHOOL_WORKDAY_HOURS / 2)
+    : DAY_END_TIME;
+
+  setTimePicker(assignStartTimeFp, start);
+  setTimePicker(assignEndTimeFp, end);
+}
+
 /**
  * Renders the "Who's Covering" picker for the modal — same card, same
  * ranking rules as the Pending Coverage rail's renderCovPickList(), just
@@ -2495,6 +2611,7 @@ async function asgOpen({
   await loadCoverageSupport();
 
   asgResetState();
+  asgHideLegacyHalfDayHint();
   asgState.mode = mode;
   asgState.assignmentId = assignmentId;
   asgState.ptoRequestId = ptoRequestId;
@@ -3029,6 +3146,7 @@ function clearAssignmentModal() {
   const partialCb = document.getElementById('asgPartialDay');
   if (partialCb) partialCb.checked = false;
   asgSyncTimeRowVisibility();
+  asgHideLegacyHalfDayHint();
 
   const pickSearch = document.getElementById('asgPickSearch');
   if (pickSearch) pickSearch.value = '';
@@ -3278,6 +3396,11 @@ document.getElementById('saveAssignBtn').addEventListener('click', async () => {
 
   const partialDay = document.getElementById('asgPartialDay')?.checked;
 
+  if (partialDay && (!assignStartTime.value || !assignEndTime.value)) {
+    showAsgError('Enter both a start and end time for a partial-day assignment, or uncheck Partial Day for full-day coverage.');
+    return;
+  }
+
   const payload = {
     pto_request_id: asgState.ptoRequestId,
     covered_employee_id: asgState.ptoRequestId ? null : coveredEmployeeId,
@@ -3434,6 +3557,9 @@ async function loadHistory() {
       internal_coverage:employees!substitute_assignments_employee_id_fkey ( first_name, last_name ),
       covered_employee:employees!substitute_assignments_covered_employee_id_fkey ( first_name, last_name ),
       pto:pto_requests!substitute_assignments_pto_request_id_fkey (
+        partial_day,
+        half_day_period,
+        requested_duration_label,
         employees!pto_requests_employee_id_fkey ( first_name, last_name )
       )
     `)
@@ -3466,6 +3592,21 @@ async function loadHistory() {
   historyData.forEach(row => tbody.appendChild(renderHistoryRow(row)));
 }
 
+// Same rule as covTimeLabel() for the Pending Coverage list: a legacy Half
+// Day request (submitted before half_day_period existed) has no recorded
+// start_time/end_time on the assignment either, so falling straight to
+// "Full day" mislabels it. Fall back to the PTO request's own duration
+// label so these read as "Half day" instead of looking like a full day off.
+function historyTimeText(a) {
+  if (a.start_time && a.end_time) {
+    return `${a.start_time.slice(0, 5)}–${a.end_time.slice(0, 5)}`;
+  }
+  if (a.pto && covIsLegacyHalfDay(a.pto)) {
+    return 'Half day (AM/PM not recorded)';
+  }
+  return 'Full day';
+}
+
 function renderHistoryRow(a) {
   const covererName = a.substitutes
     ? `${a.substitutes.last_name}, ${a.substitutes.first_name}`
@@ -3483,9 +3624,7 @@ function renderHistoryRow(a) {
     ? a.start_date
     : `${a.start_date} – ${a.end_date}`;
 
-  const timeText = (a.start_time && a.end_time)
-    ? `${a.start_time.slice(0,5)}–${a.end_time.slice(0,5)}`
-    : 'Full day';
+  const timeText = historyTimeText(a);
 
   const statusColor = a.status === 'cancelled'
     ? 'color:#ef4444; font-weight:600;'
@@ -3523,9 +3662,7 @@ function exportHistory() {
       ? a.start_date
       : `${a.start_date} – ${a.end_date}`;
 
-    const timeText = (a.start_time && a.end_time)
-      ? `${a.start_time.slice(0, 5)}–${a.end_time.slice(0, 5)}`
-      : 'Full day';
+    const timeText = historyTimeText(a);
 
     return {
       'Date':       dateText,
@@ -3549,6 +3686,7 @@ function exportHistory() {
 
 // -------------------- INIT --------------------
 await loadSubstitutes();
+await loadSchoolDaySettings(currentProfile.school_id);
 
 let assignStartFp;
 let assignEndFp;
@@ -3655,6 +3793,8 @@ document.getElementById('asgPickSearch')?.addEventListener('input', (e) => {
   renderAsgPickList();
 });
 document.getElementById('asgPartialDay')?.addEventListener('change', asgSyncTimeRowVisibility);
+document.getElementById('asgQuickAM')?.addEventListener('click', () => asgQuickFillHalfDay('AM'));
+document.getElementById('asgQuickPM')?.addEventListener('click', () => asgQuickFillHalfDay('PM'));
 document.getElementById('assignCoveredEmployee')?.addEventListener('change', (e) => {
   asgState.outEmployeeId = e.target.value || null;
   renderAsgPickList();
