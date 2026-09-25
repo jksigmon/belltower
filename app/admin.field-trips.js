@@ -49,6 +49,7 @@ let paymentsLoaded       = false;
 let permissionSlipMap    = new Map(); // student_id -> { id, status, note }
 let doubleBookingMap     = new Map(); // student_id -> [conflicting trip names]
 let attendingCount       = null;      // attending-student count for the current trip; null until loaded
+let activeTeacherFilterId = null;     // employee_id of the Managing Teacher chip currently narrowing Chaperones/Students, or null
 
 // Populated from school config on init — not a hardcoded constant
 let GRADE_LEVELS = GRADE_ORDER;
@@ -81,6 +82,7 @@ async function init() {
   wireFilters();
   wireDayOfSheet();
   wireStudentToolbar();
+  wireChaperoneToolbar();
   wireParentEmailModal();
 
   document.getElementById('signOut')?.addEventListener('click', async () => {
@@ -381,6 +383,7 @@ async function openTrip(id) {
   paymentCache    = [];
   studentList     = [];
   attendingCount  = null;
+  activeTeacherFilterId = null;
   document.getElementById('ftPaymentsTab').style.display = trip.payment_required ? '' : 'none';
 
   renderTripHeader(trip);
@@ -513,7 +516,7 @@ async function loadChaperones() {
       id, guardian_id, employee_id, volunteer_id, is_driver, vehicle_capacity, added_at,
       guardian:guardians(id, first_name, last_name, email, phone,
         family:families(family_name,
-          students(id, first_name, last_name, grade_level)
+          students(id, first_name, last_name, grade_level, homeroom_teacher_id, employees!left(first_name, last_name))
         )
       ),
       employee:employees(id, first_name, last_name, email),
@@ -533,6 +536,7 @@ async function loadChaperones() {
   }
 
   chaperoneList = data ?? [];
+  populateChapHomeroomFilter();
 
   await Promise.all([
     loadVolunteerCompliance(chaperoneList),
@@ -832,6 +836,44 @@ function renderFormsChip(guardian) {
   return `<span class="comp-chip comp-action" title="Missing: ${esc(names)}">${esc(label)}</span>`;
 }
 
+function populateChapHomeroomFilter() {
+  const sel = document.getElementById('ftChapHomeroomFilter');
+  if (!sel) return;
+  const current = sel.value;
+  const homerooms = new Map();
+  chaperoneList.forEach(c => {
+    (c.guardian?.family?.students ?? []).forEach(s => {
+      if (s.homeroom_teacher_id && s.employees) {
+        homerooms.set(s.homeroom_teacher_id, `${s.employees.first_name} ${s.employees.last_name}`);
+      }
+    });
+  });
+  const sorted = [...homerooms.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  sel.innerHTML = '<option value="">All homerooms</option>' +
+    sorted.map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');
+  if (homerooms.has(current)) sel.value = current;
+}
+
+// Staff and volunteer chaperones aren't tied to any one family's homeroom,
+// so a homeroom filter only narrows guardian chaperones -- staff/volunteers
+// always stay visible since they're general trip help, not class-specific.
+function getFilteredChaperones() {
+  const homeroomVal = document.getElementById('ftChapHomeroomFilter')?.value ?? '';
+  if (!homeroomVal) return chaperoneList;
+  return chaperoneList.filter(c => {
+    if (!c.guardian_id) return true;
+    return (c.guardian?.family?.students ?? []).some(s => s.homeroom_teacher_id === homeroomVal);
+  });
+}
+
+function wireChaperoneToolbar() {
+  document.getElementById('ftChapHomeroomFilter')?.addEventListener('change', () => {
+    activeTeacherFilterId = null;
+    renderManagerChips();
+    renderChaperoneTable();
+  });
+}
+
 function renderChaperoneTable() {
   const tbody         = document.getElementById('ftChapTableBody');
   const driversNeeded = currentTrip.drivers_needed;
@@ -852,8 +894,13 @@ function renderChaperoneTable() {
   }
 
   tbody.innerHTML = '';
+  const filtered = getFilteredChaperones();
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="9" class="muted" style="text-align:center;padding:24px 0;">No chaperones match the current filter.</td></tr>`;
+    return;
+  }
   const chapPerson = c => c.employee_id ? (c.employee ?? {}) : c.volunteer_id ? (c.volunteer ?? {}) : (c.guardian ?? {});
-  const sortedChaperones = [...chaperoneList].sort((a, b) => {
+  const sortedChaperones = [...filtered].sort((a, b) => {
     const pa = chapPerson(a);
     const pb = chapPerson(b);
     const nameA = `${pa.last_name ?? ''} ${pa.first_name ?? ''}`.trim().toLowerCase();
@@ -969,6 +1016,12 @@ function renderChaperoneTable() {
     tr.querySelector('button[data-edit-chap-id]').addEventListener('click', () => openEditChapModal(chap));
     tbody.appendChild(tr);
   });
+
+  if (filtered.length !== chaperoneList.length) {
+    const summary = document.createElement('tr');
+    summary.innerHTML = `<td colspan="9" style="font-size:12px;color:var(--text-muted,#6b7280);padding:10px 16px;">${filtered.length} of ${chaperoneList.length} shown</td>`;
+    tbody.appendChild(summary);
+  }
 }
 
 function renderComplianceStats() {
@@ -1175,12 +1228,16 @@ function populateHomeroomFilter() {
   const sel = document.getElementById('ftStudHomeroomFilter');
   if (!sel) return;
   const current = sel.value;
-  const homerooms = [...new Set(studentList
-    .map(s => s.employees ? `${s.employees.first_name} ${s.employees.last_name}` : null)
-    .filter(Boolean))].sort();
+  const homerooms = new Map();
+  studentList.forEach(s => {
+    if (s.homeroom_teacher_id && s.employees) {
+      homerooms.set(s.homeroom_teacher_id, `${s.employees.first_name} ${s.employees.last_name}`);
+    }
+  });
+  const sorted = [...homerooms.entries()].sort((a, b) => a[1].localeCompare(b[1]));
   sel.innerHTML = '<option value="">All homerooms</option>' +
-    homerooms.map(h => `<option value="${esc(h)}">${esc(h)}</option>`).join('');
-  if (homerooms.includes(current)) sel.value = current;
+    sorted.map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');
+  if (homerooms.has(current)) sel.value = current;
 }
 
 // Flags a student as double-booked when they're attending-by-default (or
@@ -1234,10 +1291,7 @@ function getFilteredStudents() {
     if (search && !`${s.first_name} ${s.last_name}`.toLowerCase().includes(search)) return false;
     if (attendVal === 'attending'     && !s.attending) return false;
     if (attendVal === 'not_attending' && s.attending)  return false;
-    if (homeroomVal) {
-      const hr = s.employees ? `${s.employees.first_name} ${s.employees.last_name}` : '';
-      if (hr !== homeroomVal) return false;
-    }
+    if (homeroomVal && s.homeroom_teacher_id !== homeroomVal) return false;
     if (slipVal && (permissionSlipMap.get(s.id)?.status ?? 'pending') !== slipVal) return false;
     return true;
   });
@@ -1328,7 +1382,11 @@ function wireStudentToolbar() {
   const handler = debounce(() => renderStudentTable(), 200);
   document.getElementById('ftStudSearch')?.addEventListener('input', handler);
   document.getElementById('ftStudAttendFilter')?.addEventListener('change', () => renderStudentTable());
-  document.getElementById('ftStudHomeroomFilter')?.addEventListener('change', () => renderStudentTable());
+  document.getElementById('ftStudHomeroomFilter')?.addEventListener('change', () => {
+    activeTeacherFilterId = null;
+    renderManagerChips();
+    renderStudentTable();
+  });
   document.getElementById('ftStudSlipFilter')?.addEventListener('change', () => renderStudentTable());
   document.getElementById('ftStudMarkAttendingBtn')?.addEventListener('click', () => bulkSetAttendance(true));
   document.getElementById('ftStudMarkNotAttendingBtn')?.addEventListener('click', () => bulkSetAttendance(false));
@@ -2356,6 +2414,7 @@ async function loadManagers(tripId) {
       profile_id: r.profile_id,
       name: r.display_name || r.email || 'Unknown staff',
       email: r.email ?? '',
+      employee_id: r.employee_id ?? null,
     }));
   renderManagerChips();
 }
@@ -2377,14 +2436,41 @@ function renderManagerChips() {
     wrap.innerHTML = '<span style="font-size:12px;color:#9ca3af;">No managers assigned</span>';
     return;
   }
-  wrap.innerHTML = currentManagers.map(m => `
-    <span style="display:inline-flex;align-items:center;gap:4px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:999px;padding:2px 10px;font-size:12px;color:#1d4ed8;">
-      ${esc(m.name)}
+  wrap.innerHTML = currentManagers.map(m => {
+    const isActive = m.employee_id && m.employee_id === activeTeacherFilterId;
+    const bg     = isActive ? '#dbeafe' : '#eff6ff';
+    const border = isActive ? '#60a5fa' : '#bfdbfe';
+    const nameHtml = m.employee_id
+      ? `<button data-filter-teacher="${esc(m.employee_id)}" style="background:none;border:none;cursor:pointer;padding:0;font:inherit;color:inherit;${isActive ? 'text-decoration:underline;' : ''}" title="${isActive ? "Showing only this teacher's class. Click to clear." : "Show only this teacher's class"}">${esc(m.name)}</button>`
+      : esc(m.name);
+    return `
+    <span style="display:inline-flex;align-items:center;gap:4px;background:${bg};border:1px solid ${border};border-radius:999px;padding:2px 10px;font-size:12px;color:#1d4ed8;">
+      ${nameHtml}
       <button data-remove-mgr="${esc(m.profile_id)}" style="background:none;border:none;cursor:pointer;padding:0;color:#93c5fd;font-size:14px;line-height:1;" title="Remove">&times;</button>
-    </span>`).join('');
+    </span>`;
+  }).join('');
   wrap.querySelectorAll('[data-remove-mgr]').forEach(btn => {
     btn.addEventListener('click', () => removeManager(btn.dataset.removeMgr));
   });
+  wrap.querySelectorAll('[data-filter-teacher]').forEach(btn => {
+    btn.addEventListener('click', () => toggleTeacherFilter(btn.dataset.filterTeacher));
+  });
+}
+
+// Clicking a Managing Teacher's name narrows both the Chaperones and
+// Students tabs to that teacher's homeroom. Clicking the same chip again
+// clears the filter.
+async function toggleTeacherFilter(employeeId) {
+  activeTeacherFilterId = activeTeacherFilterId === employeeId ? null : employeeId;
+  if (activeTeacherFilterId && !studentList.length) await loadStudents();
+  const chapSel = document.getElementById('ftChapHomeroomFilter');
+  const studSel = document.getElementById('ftStudHomeroomFilter');
+  const val = activeTeacherFilterId ?? '';
+  if (chapSel) chapSel.value = [...chapSel.options].some(o => o.value === val) ? val : '';
+  if (studSel) studSel.value = [...studSel.options].some(o => o.value === val) ? val : '';
+  renderManagerChips();
+  renderChaperoneTable();
+  renderStudentTable();
 }
 
 // Search employees by name/email, matched to their profile if one exists.

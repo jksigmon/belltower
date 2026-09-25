@@ -539,6 +539,9 @@
         <div id="ftTabChaperones">
           <div class="ft-export-bar">
             <button class="btn btn-sm" id="ftAddChaperoneBtn">+ Add Chaperone</button>
+            <select id="ftChapHomeroomFilter" class="admin-input" style="width:170px;">
+              <option value="">All homerooms</option>
+            </select>
             <button class="btn btn-sm" id="ftExportCsvBtn">Export CSV</button>
           </div>
           <div class="panel" style="padding:0;overflow:hidden;" id="ftChapTableWrap">
@@ -891,7 +894,7 @@
   </div>
 </aside>
 
-<script type="module" src="/app/admin.field-trips.js?v=7"></script>
+<script type="module" src="/app/admin.field-trips.js?v=8"></script>
 <script defer src="/app/nav-mobile.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.469.0/dist/umd/lucide.min.js"></script>
 <script>if (window.lucide) lucide.createIcons();</script>
