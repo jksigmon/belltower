@@ -445,6 +445,21 @@
   margin-top: 1px;
 }
 
+.staff-init-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 14px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+}
+.staff-init-error svg { flex-shrink: 0; }
+.staff-init-error span { flex: 1; }
+
 /* Estimated ledger deduction preview */
 .pto-deduction-summary {
   background: #f8fafc;
@@ -1059,6 +1074,12 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 <div id="navOverlay" class="nav-overlay"></div>
 
 <div class="wrap">
+
+<div id="staffInitError" class="staff-init-error" hidden>
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  <span>Something went wrong loading your dashboard. This is usually temporary.</span>
+  <button type="button" id="staffInitRetry" class="btn btn-sm">Retry</button>
+</div>
 
 <nav id="staffNav" class="nav hidden">
   <a href="#dashboard"><i data-lucide="layout-dashboard"></i> Dashboard</a>
@@ -3196,69 +3217,87 @@ function hasAdminAccess(profile) {
   );
 }
 
+// Everything below the auth check is wrapped in try/catch: it used to
+// assume the profile query always succeeds and read currentProfile.employee_id
+// unchecked, so a DB error or timeout (e.g. the DB-wide contention behind the
+// 2026-09-28 "kicked out during carline" reports) left currentProfile null and
+// threw there -- an uncaught exception with staffNav never unhidden and no
+// message, which is what actually produced the "kicked out" look. This doesn't
+// fix DB load by itself (see staff_has_current_schedule above for the piece
+// that does); it makes a failure under load a visible, recoverable state
+// instead of a silent blank page.
 async function initStaff() {
   const session = await requireAuth();
   if (!session) return;
 
-  // Profile + school name + modules + employee campus in one round-trip
-  const profileResult = await supabase
-    .from('profiles')
-    .select('*, schools!profiles_school_id_fkey(id, name, timezone, weather_lat, weather_lon, school_modules(module, enabled)), employees!employee_id(campus_id, campuses(workday_hours, pto_increment_minutes, day_start_time, day_end_time))')
-    .eq('user_id', session.user.id)
-    .single();
+  try {
+    // Profile + school name + modules + employee campus in one round-trip
+    const profileResult = await supabase
+      .from('profiles')
+      .select('*, schools!profiles_school_id_fkey(id, name, timezone, weather_lat, weather_lon, school_modules(module, enabled)), employees!employee_id(campus_id, campuses(workday_hours, pto_increment_minutes, day_start_time, day_end_time))')
+      .eq('user_id', session.user.id)
+      .single();
 
-  currentProfile = profileResult.data;
+    if (profileResult.error || !profileResult.data) {
+      throw profileResult.error ?? new Error('No profile returned');
+    }
 
-  if (!currentProfile.employee_id) {
-    alert(
-      'Your account is active, but staff records are not fully set up yet.\n\n' +
-      'Please contact an administrator.'
-    );
-    return;
-  }
+    currentProfile = profileResult.data;
 
-  initUserMenu(currentProfile.display_name ?? currentProfile.email);
-  loadWeather('staffDashWeather', currentProfile.schools?.weather_lat, currentProfile.schools?.weather_lon, currentProfile.schools?.timezone);
+    if (!currentProfile.employee_id) {
+      alert(
+        'Your account is active, but staff records are not fully set up yet.\n\n' +
+        'Please contact an administrator.'
+      );
+      return;
+    }
+
+    initUserMenu(currentProfile.display_name ?? currentProfile.email);
+    loadWeather('staffDashWeather', currentProfile.schools?.weather_lat, currentProfile.schools?.weather_lon, currentProfile.schools?.timezone);
 
 
-  // Extract modules from joined data — no separate round-trip needed
-  window.staffModules = {};
-  (currentProfile.schools?.school_modules || []).forEach(r => {
-    window.staffModules[r.module] = r.enabled === true;
-  });
+    // Extract modules from joined data — no separate round-trip needed
+    window.staffModules = {};
+    (currentProfile.schools?.school_modules || []).forEach(r => {
+      window.staffModules[r.module] = r.enabled === true;
+    });
 
-  wireSubCoverageUI();
+    wireSubCoverageUI();
 
-  // Show the admin-panel button to anyone with admin access — not just
-  // users who navigated here from the admin panel. Otherwise someone
-  // granted access mid-session has no visible path into the panel.
-  const backToAdmin = document.getElementById('backToAdmin');
-  if (backToAdmin && hasAdminAccess(currentProfile)) {
-    backToAdmin.style.display = 'inline-flex';
-  }
+    // Show the admin-panel button to anyone with admin access — not just
+    // users who navigated here from the admin panel. Otherwise someone
+    // granted access mid-session has no visible path into the panel.
+    const backToAdmin = document.getElementById('backToAdmin');
+    if (backToAdmin && hasAdminAccess(currentProfile)) {
+      backToAdmin.style.display = 'inline-flex';
+    }
 
-  applyModuleNavVisibility();
-  showRequestManagerNavIfManager();
-  showMyRosterNavIfHomeroomTeacher();
-  showStudentLookupNavIfScheduleExists();
-  document.getElementById('staffNav')?.classList.remove('hidden');
-  setActive('#dashboard');
-  window.scrollTo(0, 0);
+    applyModuleNavVisibility();
+    showRequestManagerNavIfManager();
+    showMyRosterNavIfHomeroomTeacher();
+    showStudentLookupNavIfScheduleExists();
+    document.getElementById('staffNav')?.classList.remove('hidden');
+    setActive('#dashboard');
+    window.scrollTo(0, 0);
 
-  // Settings (uses campus data already in profile) and dashboard run concurrently
-  await Promise.all([
-    loadSchoolSettings(currentProfile.school_id),
-    loadStaffDashboard(),
-    window.staffModules?.pto ? loadNoSchoolDaysCache() : Promise.resolve()
-  ]);
+    // Settings (uses campus data already in profile) and dashboard run concurrently
+    await Promise.all([
+      loadSchoolSettings(currentProfile.school_id),
+      loadStaffDashboard(),
+      window.staffModules?.pto ? loadNoSchoolDaysCache() : Promise.resolve()
+    ]);
 
-  // Pre-warm the compliance_report edge function AFTER the dashboard loads so
-  // the auth session is fully settled before the edge function call goes out.
-  // teachers_only skips the full report pipeline -- this call only needs to
-  // populate the homeroom/teacher selector, not compute every student's
-  // compliance status before the tab is even opened.
-  if (window.staffModules?.compliance) {
-    compReportPrefetch = supabase.functions.invoke('compliance_report', { body: { teachers_only: true } });
+    // Pre-warm the compliance_report edge function AFTER the dashboard loads so
+    // the auth session is fully settled before the edge function call goes out.
+    // teachers_only skips the full report pipeline -- this call only needs to
+    // populate the homeroom/teacher selector, not compute every student's
+    // compliance status before the tab is even opened.
+    if (window.staffModules?.compliance) {
+      compReportPrefetch = supabase.functions.invoke('compliance_report', { body: { teachers_only: true } });
+    }
+  } catch (err) {
+    console.error('Staff portal failed to load', err);
+    document.getElementById('staffInitError')?.removeAttribute('hidden');
   }
 }
 
@@ -6087,55 +6126,44 @@ function applyModuleNavVisibility() {
 // unblock the rest of the dashboard.
 //
 // My Roster: shown to any staff member who teaches at least one LIVE
-// board this year — a committed homeroom OR a published Core/Block
-// section. Reads student_schedule rather than students.homeroom_teacher_id
-// directly, so a section-only teacher (5th-7th grade Core/Block, no
-// homeroom of their own) gets the tab too. is_current_year keeps a
-// leftover board from a prior year from lighting this up after rollover.
-//
-// Existence check via limit(1), never count: 'exact'. student_schedule is
-// a security_invoker view whose homeroom branch runs a correlated lateral
-// (plus that lateral's RLS subquery) once per active student, and
-// is_current_year is a computed expression so it cannot be pushed down.
-// An exact count has to build the whole view before it can answer, which
-// is what blew the statement timeout on these two gates. limit(1) lets
-// the planner stop at the first matching row. Same applies to
-// showStudentLookupNavIfScheduleExists below.
+// board this year, a committed homeroom OR a published Core/Block
+// section. Existence-only, so it goes through the staff_has_current_schedule
+// RPC rather than the student_schedule view: that view's homeroom branch
+// runs a LEFT JOIN LATERAL per active student purely to enrich display data
+// (label/period) that this check never uses, and even with limit(1) that
+// was enough concurrent load right before dismissal to blow statement_timeout
+// repeatedly (2026-09-28 incident) and take unrelated queries down with it.
+// The RPC (see supabase/migrations/20260928000003_staff_schedule_nav_gate_perf.sql)
+// answers the same boolean directly off the underlying tables. Same applies
+// to showStudentLookupNavIfScheduleExists below.
 async function showMyRosterNavIfHomeroomTeacher() {
   const link = document.getElementById('navMyRoster');
   if (!link) return;
 
-  const { data } = await supabase
-    .from('student_schedule')
-    .select('session_id')
-    .eq('school_id', currentProfile.school_id)
-    .eq('teacher_id', currentProfile.employee_id)
-    .eq('is_current_year', true)
-    .limit(1);
+  const { data } = await supabase.rpc('staff_has_current_schedule', {
+    p_school_id: currentProfile.school_id,
+    p_teacher_id: currentProfile.employee_id
+  });
 
-  if (data?.length) link.style.display = 'flex';
+  if (data) link.style.display = 'flex';
 }
 
 // Student Lookup and Class Rosters are both school-wide, not scoped to
-// what THIS staff member teaches — RLS already grants read on every
+// what THIS staff member teaches: RLS already grants read on every
 // active student in the school, so gating is only about whether there's
 // anything to find. Hidden until the school has published or committed
 // at least one live board this year, so neither sits in the nav as a
-// dead end before admin has set anything up. One query gates both.
-// limit(1) rather than an exact count, for the reason above.
+// dead end before admin has set anything up. One RPC call gates both.
 async function showStudentLookupNavIfScheduleExists() {
   const slLink = document.getElementById('navStudentLookup');
   const crLink = document.getElementById('navClassRosters');
   if (!slLink && !crLink) return;
 
-  const { data } = await supabase
-    .from('student_schedule')
-    .select('session_id')
-    .eq('school_id', currentProfile.school_id)
-    .eq('is_current_year', true)
-    .limit(1);
+  const { data } = await supabase.rpc('staff_has_current_schedule', {
+    p_school_id: currentProfile.school_id
+  });
 
-  if (data?.length) {
+  if (data) {
     if (slLink) slLink.style.display = 'flex';
     if (crLink) crLink.style.display = 'flex';
   }
@@ -8333,6 +8361,12 @@ document
 
 window.addEventListener('hashchange', function () {
   setActive(location.hash || '#dashboard');
+});
+
+// Reload rather than re-invoke initStaff() -- it wires several one-time
+// listeners (wireSubCoverageUI, etc.) that would double-bind on a second call.
+document.getElementById('staffInitRetry')?.addEventListener('click', () => {
+  window.location.reload();
 });
 
 initStaff();
