@@ -134,6 +134,8 @@
     .veh-unassigned-count { font-size: 12px; color: #6b7280; margin-top: 2px; }
     .veh-unassigned-search-wrap { padding: 0 14px 10px; flex-shrink: 0; }
     .veh-unassigned-search-wrap .veh-search { width: 100%; }
+    .veh-unassigned-filter-wrap { padding: 0 14px 10px; flex-shrink: 0; }
+    .veh-unassigned-filter-wrap select.veh-search { width: 100%; background: #fff; }
     .veh-unassigned-list {
       flex: 1;
       overflow-y: auto;
@@ -141,6 +143,18 @@
       min-height: 60px;
     }
     .veh-unassigned-list.drag-over { background: rgba(59,130,246,0.06); }
+    .veh-unassigned-group + .veh-unassigned-group { margin-top: 10px; }
+    .veh-unassigned-group-header {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #475569;
+      background: #f1f5f9;
+      border-radius: 6px;
+      padding: 4px 8px;
+      margin-bottom: 6px;
+    }
     .veh-unassigned-footer {
       flex-shrink: 0;
       padding: 8px 14px;
@@ -505,6 +519,6 @@
 <!-- ── Print roster (hidden on screen) ── -->
 <div class="print-roster" id="printRoster"></div>
 
-<script type="module" src="/app/field-trip-vehicles.js?v=3"></script>
+<script type="module" src="/app/field-trip-vehicles.js?v=4"></script>
 </body>
 </html>

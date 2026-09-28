@@ -9,6 +9,7 @@ const GRADE_COLORS = [
 ];
 
 const GROUP_VIEW_KEY = 'vehGroupByLabel';
+const NO_HOMEROOM_KEY = '__none__';
 
 const SAVE_ICONS = {
   saving: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
@@ -33,6 +34,7 @@ let selected     = new Set();  // student ids selected for click-to-move
 let undoStack    = [];         // array of [{ studentId, fromChaperoneId }, ...] groups
 let searchTerm   = '';         // toolbar search — applies board-wide
 let unassignedSearchTerm = ''; // sidebar-local search — Unassigned list only
+let unassignedHomeroomFilter = ''; // '' = all, NO_HOMEROOM_KEY, or a homeroom_teacher_id
 
 // ── Init ──────────────────────────────────────────────────────────────────
 
@@ -129,7 +131,7 @@ async function init() {
 async function loadAttendingStudents() {
   const grades = trip.grade_levels ?? [];
   let q = supabase.from('students')
-    .select('id, first_name, last_name, grade_level')
+    .select('id, first_name, last_name, grade_level, homeroom_teacher_id, employees!left(first_name, last_name)')
     .eq('school_id', profile.school_id)
     .eq('active', true)
     .order('last_name');
@@ -174,8 +176,7 @@ function buildBoard() {
   }
 
   // Unassigned pool — pinned sidebar, can run long
-  const unassigned = students.filter(s => !assignments.get(s.id));
-  board.appendChild(buildUnassignedPanel(unassigned));
+  board.appendChild(buildUnassignedPanel());
 
   // Vehicle grid — each vehicle only holds a handful of students, so wrapping
   // into a grid uses screen space far better than one tall column per driver
@@ -222,24 +223,24 @@ function driverName(driver) {
 
 // ── Unassigned sidebar ───────────────────────────────────────────────────
 
-function buildUnassignedPanel(studs) {
+function buildUnassignedPanel() {
   const wrap = document.createElement('div');
   wrap.className = 'veh-unassigned-wrap';
   wrap.dataset.chaperoneId = 'unassigned';
   wrap.innerHTML = `
     <div class="veh-unassigned-header">
       <div class="veh-unassigned-title">Unassigned Students</div>
-      <div class="veh-unassigned-count" id="vehUnassignedCount">${countLabel(studs.length, studs.length)}</div>
+      <div class="veh-unassigned-count" id="vehUnassignedCount"></div>
     </div>
     <div class="veh-unassigned-search-wrap">
       <input type="search" id="vehUnassignedSearch" class="veh-search" placeholder="Search students…">
     </div>
+    ${homeroomFilterHtml()}
     <div class="veh-unassigned-list" id="veh-cards-unassigned"></div>
     <div class="veh-unassigned-footer" id="vehUnassignedFooter"></div>
   `;
 
-  const list = wrap.querySelector('#veh-cards-unassigned');
-  studs.forEach(s => list.appendChild(buildCard(s)));
+  renderUnassignedList();
 
   const searchInput = wrap.querySelector('#vehUnassignedSearch');
   searchInput.value = unassignedSearchTerm;
@@ -248,6 +249,17 @@ function buildUnassignedPanel(studs) {
     applySearchFilter();
   });
 
+  const homeroomSelect = wrap.querySelector('#vehUnassignedHomeroomFilter');
+  if (homeroomSelect) {
+    homeroomSelect.value = unassignedHomeroomFilter;
+    homeroomSelect.addEventListener('change', e => {
+      unassignedHomeroomFilter = e.target.value;
+      renderUnassignedList();
+      applySearchFilter();
+    });
+  }
+
+  const list = wrap.querySelector('#veh-cards-unassigned');
   list.addEventListener('dragover', e => {
     e.preventDefault();
     list.classList.add('drag-over');
@@ -261,12 +273,97 @@ function buildUnassignedPanel(studs) {
   });
 
   wrap.addEventListener('click', e => {
-    if (e.target.closest('#vehUnassignedSearch')) return;
+    if (e.target.closest('#vehUnassignedSearch') || e.target.closest('#vehUnassignedHomeroomFilter')) return;
     if (!selected.size) return;
     moveStudents([...selected], null);
   });
 
   return wrap;
+}
+
+// Options built from every attending student on the trip (not just the
+// currently-unassigned ones) so the dropdown stays stable as students get
+// assigned, instead of options disappearing mid-session.
+function homeroomFilterHtml() {
+  const { homerooms, hasNoHomeroom } = getUnassignedHomeroomOptions();
+  if (!homerooms.length) return ''; // trip/school doesn't track homerooms -- omit the control entirely
+  let opts = '<option value="">All homerooms</option>' +
+    homerooms.map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');
+  if (hasNoHomeroom) opts += `<option value="${NO_HOMEROOM_KEY}">No homeroom</option>`;
+  return `<div class="veh-unassigned-filter-wrap">
+    <select id="vehUnassignedHomeroomFilter" class="veh-search">${opts}</select>
+  </div>`;
+}
+
+function getUnassignedHomeroomOptions() {
+  const map = new Map();
+  let hasNoHomeroom = false;
+  students.forEach(s => {
+    if (s.homeroom_teacher_id && s.employees) {
+      map.set(s.homeroom_teacher_id, `${s.employees.first_name} ${s.employees.last_name}`);
+    } else {
+      hasNoHomeroom = true;
+    }
+  });
+  const homerooms = [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  return { homerooms, hasNoHomeroom };
+}
+
+// Rebuilds just the card list inside the Unassigned panel from current
+// assignments/filter state. Called on init, whenever the homeroom filter
+// changes, and whenever a move/undo changes Unassigned membership -- cheap
+// enough for a class-sized roster and avoids fragile DOM-patching once
+// cards need to land under the right homeroom group.
+function renderUnassignedList() {
+  const list = document.getElementById('veh-cards-unassigned');
+  if (!list) return;
+  list.innerHTML = '';
+
+  const unassigned = students.filter(s => !assignments.get(s.id));
+
+  let visible = unassigned;
+  if (unassignedHomeroomFilter === NO_HOMEROOM_KEY) {
+    visible = unassigned.filter(s => !s.homeroom_teacher_id);
+  } else if (unassignedHomeroomFilter) {
+    visible = unassigned.filter(s => s.homeroom_teacher_id === unassignedHomeroomFilter);
+  }
+
+  // A specific homeroom is already selected -- one group, no headers needed.
+  if (unassignedHomeroomFilter) {
+    visible.forEach(s => list.appendChild(buildCard(s)));
+    return;
+  }
+
+  const buckets = new Map(); // homeroom_teacher_id → { label, students }
+  const noHomeroom = [];
+  visible.forEach(s => {
+    if (!s.homeroom_teacher_id || !s.employees) { noHomeroom.push(s); return; }
+    if (!buckets.has(s.homeroom_teacher_id)) {
+      buckets.set(s.homeroom_teacher_id, { label: `${s.employees.first_name} ${s.employees.last_name}`, students: [] });
+    }
+    buckets.get(s.homeroom_teacher_id).students.push(s);
+  });
+
+  const groups = [...buckets.values()].sort((a, b) => a.label.localeCompare(b.label));
+  if (noHomeroom.length) groups.push({ label: null, students: noHomeroom });
+
+  // Nothing meaningful to group by (no homeroom data, or everyone shares
+  // one) -- render flat, identical to a trip with no homeroom tracking.
+  if (groups.length <= 1) {
+    visible.forEach(s => list.appendChild(buildCard(s)));
+    return;
+  }
+
+  groups.forEach(({ label, students: studs }) => {
+    const groupWrap = document.createElement('div');
+    groupWrap.className = 'veh-unassigned-group';
+    const header = document.createElement('div');
+    header.className = 'veh-unassigned-group-header';
+    header.textContent = `${label ?? 'No homeroom'} (${studs.length})`;
+    groupWrap.appendChild(header);
+    studs.forEach(s => groupWrap.appendChild(buildCard(s)));
+    list.appendChild(groupWrap);
+  });
 }
 
 // ── Vehicle columns ──────────────────────────────────────────────────────
@@ -601,6 +698,12 @@ function applySearchFilter() {
     const matchesLocal  = !inUnassigned || !unassignedSearchTerm || full.includes(unassignedSearchTerm);
     card.style.display = (matchesGlobal && matchesLocal) ? '' : 'none';
   });
+  // Homeroom group headers in Unassigned should disappear along with every
+  // card in that group once search filters them all out.
+  document.querySelectorAll('.veh-unassigned-group').forEach(group => {
+    const anyVisible = [...group.querySelectorAll('.veh-card')].some(c => c.style.display !== 'none');
+    group.style.display = anyVisible ? '' : 'none';
+  });
   updateColumnCounts();
 }
 
@@ -646,6 +749,13 @@ function moveStudents(studentIds, targetChaperoneId) {
     if (card) document.getElementById(cardsContainerId(targetChaperoneId))?.appendChild(card);
   });
 
+  // Unassigned is (optionally) grouped by homeroom, so anything moving in or
+  // out of it needs a rebuild rather than a plain append -- otherwise a
+  // newly-unassigned card lands outside any group wrapper.
+  if (targetChaperoneId === null || group.some(g => g.fromChaperoneId === null)) {
+    renderUnassignedList();
+  }
+
   applySearchFilter();
   updateColumnCounts();
   scheduleSave();
@@ -656,12 +766,16 @@ function undoLastMove() {
   const group = undoStack.pop();
   if (!group) return;
 
+  let touchedUnassigned = false;
   group.forEach(({ studentId, fromChaperoneId }) => {
+    if (assignments.get(studentId) === null || fromChaperoneId === null) touchedUnassigned = true;
     assignments.set(studentId, fromChaperoneId);
     dirty.add(studentId);
     const card = document.querySelector(`[data-sid="${studentId}"]`);
     if (card) document.getElementById(cardsContainerId(fromChaperoneId))?.appendChild(card);
   });
+
+  if (touchedUnassigned) renderUnassignedList();
 
   clearSelection();
   applySearchFilter();
