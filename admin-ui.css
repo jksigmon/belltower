@@ -3815,6 +3815,79 @@ nav a[data-cap-group] {
   transform: rotate(180deg);
 }
 
+/* Send-a-note button on an eligible birthday row */
+.bday-note-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border: 1px solid #fcd34d;
+  border-radius: 999px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bday-note-btn:hover { background: #fef3c7; border-color: #fbbf24; }
+.bday-note-btn:disabled {
+  cursor: default;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+}
+
+/* Send-a-note button sits on its own line below the row -- putting it
+   inline with the name/pill squeezes the name column down to almost
+   nothing on the card's fixed width. */
+.bday-note-btn-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 2px 8px;
+  margin-top: -4px;
+}
+
+/* Birthday Notes panel + My Birthday Notes history modal */
+.bday-note-list { display: flex; flex-direction: column; gap: 2px; }
+.bday-note-row {
+  padding: 9px 2px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.bday-note-row:last-child { border-bottom: none; }
+.bday-note-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+.bday-note-names {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.bday-note-time {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.bday-note-text {
+  font-size: 0.85rem;
+  color: #374151;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.bday-note-empty {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  padding: 10px 2px;
+}
+
 /* ── End birthday styling ─────────────────────────────────────── */
 
 /* ── Leave balance cards (staff dashboard) ───────────────────── */

@@ -1138,6 +1138,11 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
         <div class="dash-card-foot" id="staffDashBirthdayFoot" style="display:none;"></div>
       </div>
 
+      <div class="dash-section" id="staffDashBirthdayNotes" style="display:none;">
+        <div class="dash-section-head"><span class="dash-section-eyebrow">Birthday Notes 💌</span><span class="dash-section-rule"></span><a class="dash-card-link" href="#" id="staffMyBirthdayNotesLink">My notes</a></div>
+        <div id="staffBirthdayNoteList" class="staff-dash-list bday-note-list"></div>
+      </div>
+
       <div class="dash-section" id="staffDashEvents" style="display:none;">
         <div class="dash-section-head"><i data-lucide="calendar-days"></i><span class="dash-section-eyebrow">Upcoming Events</span><span class="dash-section-rule"></span><a class="dash-card-link" href="#" id="staffDashEventsLink">View calendar</a></div>
         <div id="staffDashEventList"></div>
@@ -2368,6 +2373,41 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
     </div>
   </div>
 
+  <!-- ── Send a Birthday Note (Upcoming Birthdays card) ── -->
+  <div id="birthdayNoteModal" class="modal modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Send a Birthday Note</h3>
+        <span class="modal-close" id="birthdayNoteModalClose">&times;</span>
+      </div>
+      <p id="birthdayNoteModalRecipient" style="font-size:0.9rem;font-weight:600;color:#0f172a;margin:0 0 12px;"></p>
+      <div class="drawer-field">
+        <label>Message <span class="required">*</span></label>
+        <textarea id="birthdayNoteMessage" class="form-input" rows="3" maxlength="280" placeholder="Wishing you a great birthday!"></textarea>
+        <div id="birthdayNoteCount" class="muted" style="font-size:0.75rem;text-align:right;margin-top:2px;">280 characters left</div>
+      </div>
+      <p id="birthdayNoteError" style="color:#dc2626;font-size:13px;display:none;margin:0 0 10px;"></p>
+      <div class="modal-actions">
+        <button class="btn" id="birthdayNoteCancelBtn">Cancel</button>
+        <button class="btn btn-primary" id="birthdayNoteSendBtn">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── My Birthday Notes (permanent history of notes I've received) ── -->
+  <div id="myBirthdayNotesModal" class="modal modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>My Birthday Notes</h3>
+        <span class="modal-close" id="myBirthdayNotesModalClose">&times;</span>
+      </div>
+      <div id="myBirthdayNotesList" class="bday-note-list" style="max-height:60vh;overflow-y:auto;"></div>
+      <div class="modal-actions">
+        <button class="btn" id="myBirthdayNotesCloseBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Duplicate BG check request confirmation (must acknowledge before submitting) ── -->
   <div id="bgDedupModal" class="modal modal-sm">
     <div class="modal-content">
@@ -2742,10 +2782,21 @@ async function loadStaffDashboard() {
   }
 
   queries.staffBirthdays = supabase.from('employees')
-    .select('first_name, last_name, birthdate')
+    .select('id, first_name, last_name, birthdate')
     .eq('school_id', p.school_id)
     .eq('active', true)
     .not('birthdate', 'is', null);
+
+  if (p.employee_id) {
+    queries.birthdayNotes = supabase.from('staff_birthday_messages')
+      .select(`
+        id, message, created_at, birthday_year, sender_employee_id, recipient_employee_id,
+        recipient:employees!staff_birthday_messages_recipient_employee_id_fkey(first_name, last_name, birthdate),
+        sender:employees!staff_birthday_messages_sender_employee_id_fkey(first_name, last_name)
+      `)
+      .eq('school_id', p.school_id)
+      .order('created_at', { ascending: false });
+  }
 
   const keys    = Object.keys(queries);
   const results = await Promise.all(keys.map(k => queries[k]));
@@ -2892,7 +2943,7 @@ async function loadStaffDashboard() {
         if (bday < todayDate) bday = new Date(todayDate.getFullYear() + 1, bMonth - 1, bDay);
         var daysLeft = Math.round((bday - todayDate) / 86400000);
         if (daysLeft <= 7) {
-          upcoming.push({ name: s.first_name + ' ' + s.last_name, age: type === 'student' ? bday.getFullYear() - bYear : null, type: type, daysLeft: daysLeft, bday: bday });
+          upcoming.push({ id: s.id ?? null, name: s.first_name + ' ' + s.last_name, age: type === 'student' ? bday.getFullYear() - bYear : null, type: type, daysLeft: daysLeft, bday: bday });
         }
       });
     }
@@ -2900,6 +2951,16 @@ async function loadStaffDashboard() {
     addBdays(r.homeroomBirthdays?.data, 'student');
     addBdays(r.staffBirthdays?.data, 'staff');
     upcoming.sort(function (a, b) { return a.daysLeft - b.daysLeft; });
+
+    // Notes I've already sent this cycle, keyed by recipient + the birthday
+    // year the note is for -- lets the "Send a note" button flip to a
+    // disabled "Sent" state without a separate query, since a note can only
+    // ever be created inside this same daysLeft <= 2 window (see
+    // BDAY_NOTE_WINDOW_DAYS below).
+    var sentThisCycle = {};
+    (r.birthdayNotes?.data || []).forEach(function (n) {
+      if (n.sender_employee_id === p.employee_id) sentThisCycle[n.recipient_employee_id + '_' + n.birthday_year] = true;
+    });
 
     if (upcoming.length > 0) {
       var fmtBday = function (d) { return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); };
@@ -2911,6 +2972,15 @@ async function loadStaffDashboard() {
           : dayLabel;
         var roleLabel = item.type === 'staff' ? 'Staff' : 'Student';
         var initials = item.name.split(' ').map(function(w){ return w[0]; }).slice(0,2).join('').toUpperCase();
+
+        var noteBtn = '';
+        if (item.type === 'staff' && item.id && item.id !== p.employee_id && item.daysLeft <= BDAY_NOTE_WINDOW_DAYS) {
+          var alreadySent = !!sentThisCycle[item.id + '_' + item.bday.getFullYear()];
+          noteBtn = alreadySent
+            ? '<button type="button" class="bday-note-btn" disabled>Sent 🎉</button>'
+            : '<button type="button" class="bday-note-btn bday-note-send-btn" data-employee-id="' + esc(item.id) + '" data-name="' + esc(item.name) + '" data-year="' + item.bday.getFullYear() + '">Send a note</button>';
+        }
+
         return '<div class="bday-row">' +
           '<span class="dash-bday-av">' + esc(initials) + '</span>' +
           '<span style="flex:1;min-width:0;">' +
@@ -2918,7 +2988,8 @@ async function loadStaffDashboard() {
           '<div class="bday-row-meta">' + esc(roleLabel + ' · ' + secondary) + '</div>' +
           '</span>' +
           '<span class="bday-pill' + (item.daysLeft === 0 ? ' bday-today' : '') + '">' + when + '</span>' +
-          '</div>';
+          '</div>' +
+          (noteBtn ? '<div class="bday-note-btn-row">' + noteBtn + '</div>' : '');
       };
 
       // Show the soonest few (list is day-sorted), but never collapse
@@ -2934,6 +3005,12 @@ async function loadStaffDashboard() {
         (hidden.length
           ? '<div id="staffDashBirthdayMore" style="display:none;">' + hidden.map(rowHtml).join('') + '</div>'
           : '');
+
+      listEl.querySelectorAll('.bday-note-send-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          openBirthdayNoteModal(btn.dataset.employeeId, btn.dataset.name, Number(btn.dataset.year));
+        });
+      });
 
       var footEl = document.getElementById('staffDashBirthdayFoot');
       if (hidden.length && footEl) {
@@ -2958,9 +3035,153 @@ async function loadStaffDashboard() {
     }
   }());
 
+  // Birthday Notes panel -- notes for birthdays from BDAY_NOTE_WINDOW_DAYS
+  // ago through BDAY_NOTE_WINDOW_DAYS from now, so a note sent early for a
+  // weekend birthday (see BDAY_NOTE_WINDOW_DAYS) stays visible for a few
+  // days on the other side of it too. The table itself is never pruned --
+  // this is just what the live panel chooses to show.
+  (function () {
+    var todayDate = new Date(); todayDate.setHours(0, 0, 0, 0);
+    var notes = (r.birthdayNotes?.data || []).filter(function (n) {
+      if (!n.recipient?.birthdate) return false;
+      var parts = n.recipient.birthdate.split('-').map(Number);
+      var bday = new Date(n.birthday_year, parts[1] - 1, parts[2]);
+      var diffDays = Math.round((bday - todayDate) / 86400000);
+      return Math.abs(diffDays) <= BDAY_NOTE_WINDOW_DAYS;
+    });
+
+    // Always shown (not just when there are current notes) -- this is the
+    // only place "My notes" lives, and that history link needs to stay
+    // reachable on the many days nobody's birthday is imminent.
+    var listEl = document.getElementById('staffBirthdayNoteList');
+    listEl.innerHTML = notes.length
+      ? notes.map(function (n) { return renderBirthdayNoteRow(n, false); }).join('')
+      : '<p class="bday-note-empty">No birthday notes right now.</p>';
+    document.getElementById('staffDashBirthdayNotes').style.display = '';
+  }());
+
   document.getElementById('staffDashGrid')?.classList.add('loaded');
   initDashClamps(document.getElementById('staffDashGrid') ?? document);
 
+}
+
+// A note can be sent for a birthday up to this many days out, and stays in
+// the live Birthday Notes panel from this many days before the birthday
+// through this many days after -- chosen so a note sent the Friday before a
+// Sunday birthday is both sendable and still visible afterward.
+const BDAY_NOTE_WINDOW_DAYS = 2;
+
+// mineOnly: true for the "My Birthday Notes" history view, where the
+// recipient is always the viewer and the sender is the only name worth
+// showing; false for the shared panel, which shows both names.
+function renderBirthdayNoteRow(n, mineOnly) {
+  var senderName = n.sender ? (n.sender.first_name + ' ' + n.sender.last_name) : 'Someone';
+  var when = new Date(n.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  var headLabel = mineOnly
+    ? 'From ' + esc(senderName)
+    : esc(senderName) + ' &rarr; ' + esc(n.recipient ? (n.recipient.first_name + ' ' + n.recipient.last_name) : 'a colleague');
+  return '<div class="bday-note-row">' +
+    '<div class="bday-note-row-head">' +
+    '<span class="bday-note-names">' + headLabel + '</span>' +
+    '<span class="bday-note-time">' + esc(when) + '</span>' +
+    '</div>' +
+    '<div class="bday-note-text">' + esc(n.message) + '</div>' +
+    '</div>';
+}
+
+let birthdayNoteRecipient = null;
+
+function openBirthdayNoteModal(employeeId, name, birthdayYear) {
+  birthdayNoteRecipient = { employeeId: employeeId, name: name, birthdayYear: birthdayYear };
+  document.getElementById('birthdayNoteModalRecipient').textContent = 'To: ' + name;
+  document.getElementById('birthdayNoteMessage').value = '';
+  document.getElementById('birthdayNoteCount').textContent = '280 characters left';
+  document.getElementById('birthdayNoteError').style.display = 'none';
+  document.getElementById('birthdayNoteModal').classList.add('open');
+  document.body.classList.add('modal-open');
+}
+
+function closeBirthdayNoteModal() {
+  document.getElementById('birthdayNoteModal').classList.remove('open');
+  document.body.classList.remove('modal-open');
+  birthdayNoteRecipient = null;
+}
+
+document.getElementById('birthdayNoteModalClose')?.addEventListener('click', closeBirthdayNoteModal);
+document.getElementById('birthdayNoteCancelBtn')?.addEventListener('click', closeBirthdayNoteModal);
+
+document.getElementById('birthdayNoteMessage')?.addEventListener('input', e => {
+  document.getElementById('birthdayNoteCount').textContent = (280 - e.target.value.length) + ' characters left';
+});
+
+document.getElementById('birthdayNoteSendBtn')?.addEventListener('click', async () => {
+  const errorEl = document.getElementById('birthdayNoteError');
+  errorEl.style.display = 'none';
+
+  if (!birthdayNoteRecipient) return;
+
+  const message = document.getElementById('birthdayNoteMessage').value.trim();
+  if (!message) { errorEl.textContent = 'Write a short message first.'; errorEl.style.display = 'block'; return; }
+
+  const sendBtn = document.getElementById('birthdayNoteSendBtn');
+  sendBtn.disabled = true;
+
+  const { error } = await supabase.from('staff_birthday_messages').insert({
+    school_id: currentProfile.school_id,
+    recipient_employee_id: birthdayNoteRecipient.employeeId,
+    sender_employee_id: currentProfile.employee_id,
+    message,
+    birthday_year: birthdayNoteRecipient.birthdayYear,
+  });
+
+  if (error) {
+    console.error(error);
+    // A duplicate here means a note was already sent to this person this
+    // cycle -- the button shouldn't have been clickable, but another tab or
+    // a second click while the first insert was in flight can still race it.
+    errorEl.textContent = error.code === '23505'
+      ? 'You already sent this person a birthday note this year.'
+      : 'Failed to send your note. Please try again.';
+    errorEl.style.display = 'block';
+    sendBtn.disabled = false;
+    return;
+  }
+
+  sendBtn.disabled = false;
+  closeBirthdayNoteModal();
+  showToast('Birthday note sent!');
+  loadStaffDashboard();
+});
+
+document.getElementById('staffMyBirthdayNotesLink')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  const listEl = document.getElementById('myBirthdayNotesList');
+  listEl.innerHTML = '<p class="bday-note-empty">Loading...</p>';
+  document.getElementById('myBirthdayNotesModal').classList.add('open');
+  document.body.classList.add('modal-open');
+
+  const { data, error } = await supabase.from('staff_birthday_messages')
+    .select('id, message, created_at, sender:employees!staff_birthday_messages_sender_employee_id_fkey(first_name, last_name)')
+    .eq('recipient_employee_id', currentProfile.employee_id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error(error);
+    listEl.innerHTML = '<p class="bday-note-empty">Couldn\'t load your birthday notes. Please try again.</p>';
+    return;
+  }
+
+  listEl.innerHTML = data.length
+    ? data.map(function (n) { return renderBirthdayNoteRow(n, true); }).join('')
+    : '<p class="bday-note-empty">No birthday notes yet.</p>';
+});
+
+document.getElementById('myBirthdayNotesModalClose')?.addEventListener('click', closeMyBirthdayNotesModal);
+document.getElementById('myBirthdayNotesCloseBtn')?.addEventListener('click', closeMyBirthdayNotesModal);
+
+function closeMyBirthdayNotesModal() {
+  document.getElementById('myBirthdayNotesModal').classList.remove('open');
+  document.body.classList.remove('modal-open');
 }
 
 function hasAdminAccess(profile) {

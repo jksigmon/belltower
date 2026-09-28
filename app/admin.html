@@ -232,6 +232,11 @@
     <div class="dash-card-foot" id="dashBirthdayFoot" style="display:none;"></div>
   </div>
 
+  <div class="dash-section" id="dashBirthdayNotes" style="display:none;">
+    <div class="dash-section-head"><span class="dash-section-eyebrow">Birthday Notes 💌</span><span class="dash-section-rule"></span><a class="dash-card-link" href="#" id="dashMyBirthdayNotesLink">My notes</a></div>
+    <div id="dashBirthdayNoteList" class="staff-dash-list bday-note-list"></div>
+  </div>
+
   <!-- Upcoming Events (populated by calendar-strip.js) -->
   <div class="dash-section" id="dashEvents" style="display:none;">
     <div class="dash-section-head"><i data-lucide="calendar-days"></i><span class="dash-section-eyebrow">Upcoming Events</span><span class="dash-section-rule"></span><a class="dash-card-link" href="#" id="dashEventsLink">View calendar</a></div>
@@ -304,6 +309,33 @@
   </div>
 
   </div><!-- /dashGrid -->
+
+  <!-- ── Send a Birthday Note (Upcoming Birthdays card) ── -->
+  <div id="birthdayNoteModal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);">
+    <div class="panel" style="width:400px;max-width:94vw;padding:28px 32px;">
+      <h3 style="margin:0 0 6px;font-size:16px;font-weight:700;">Send a Birthday Note</h3>
+      <p id="birthdayNoteModalRecipient" style="font-size:0.9rem;font-weight:600;color:#0f172a;margin:0 0 14px;"></p>
+      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px;">Message</label>
+      <textarea id="birthdayNoteMessage" class="form-control" rows="3" maxlength="280" placeholder="Wishing you a great birthday!" style="width:100%;resize:vertical;"></textarea>
+      <div id="birthdayNoteCount" style="font-size:0.75rem;color:#6b7280;text-align:right;margin:2px 0 14px;">280 characters left</div>
+      <p id="birthdayNoteError" style="color:#dc2626;font-size:13px;display:none;margin:0 0 10px;"></p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button class="btn" id="birthdayNoteCancelBtn" style="height:36px;padding:0 16px;">Cancel</button>
+        <button class="btn btn-primary" id="birthdayNoteSendBtn" style="height:36px;padding:0 16px;">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── My Birthday Notes (permanent history of notes I've received) ── -->
+  <div id="myBirthdayNotesModal" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.4);">
+    <div class="panel" style="width:500px;max-width:94vw;padding:28px 32px;">
+      <h3 style="margin:0 0 14px;font-size:16px;font-weight:700;">My Birthday Notes</h3>
+      <div id="myBirthdayNotesList" class="bday-note-list" style="max-height:60vh;overflow-y:auto;"></div>
+      <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+        <button class="btn" id="myBirthdayNotesCloseBtn" style="height:36px;padding:0 16px;">Close</button>
+      </div>
+    </div>
+  </div>
 
 </section>
 <section id="staff" class="admin-section">
