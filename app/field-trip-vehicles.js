@@ -8,6 +8,8 @@ const GRADE_COLORS = [
   '#14b8a6','#a855f7',
 ];
 
+const GROUP_VIEW_KEY = 'vehGroupByLabel';
+
 const SAVE_ICONS = {
   saving: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>',
   saved:  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>',
@@ -22,6 +24,8 @@ let students     = [];   // attending students
 let assignments  = new Map(); // student_id → chaperone_id | null
 let assignmentIds = new Map(); // student_id → assignment row id
 let capacities   = new Map(); // chaperone_id → vehicle_capacity int
+let groupLabels  = new Map(); // chaperone_id → car_group_label string
+let groupByLabel = localStorage.getItem(GROUP_VIEW_KEY) === '1'; // view preference (grouped vs. flat grid)
 let gradeColors  = new Map(); // grade_level → color hex
 let dirty        = new Set();
 let saveTimer    = null;
@@ -74,7 +78,7 @@ async function init() {
 
   const [driversRes, studList, assignRes] = await Promise.all([
     supabase.from('field_trip_chaperones')
-      .select('id, vehicle_capacity, guardian:guardians(first_name, last_name), employee:employees(first_name, last_name), volunteer:compliance_volunteers(first_name, last_name)')
+      .select('id, vehicle_capacity, car_group_label, guardian:guardians(first_name, last_name), employee:employees(first_name, last_name), volunteer:compliance_volunteers(first_name, last_name)')
       .eq('field_trip_id', tripId)
       .eq('is_driver', true)
       .is('removed_at', null)
@@ -90,6 +94,7 @@ async function init() {
 
   drivers.forEach(d => {
     if (d.vehicle_capacity != null) capacities.set(d.id, d.vehicle_capacity);
+    if (d.car_group_label) groupLabels.set(d.id, d.car_group_label);
   });
 
   (assignRes.data ?? []).forEach(r => {
@@ -186,12 +191,25 @@ function buildBoard() {
   board.appendChild(section);
   const grid = section.querySelector('#vehVehicleGrid');
 
-  drivers.forEach(driver => {
-    const name    = driverName(driver);
+  const appendDriverColumn = driver => {
+    const name     = driverName(driver);
     const assigned = students.filter(s => assignments.get(s.id) === driver.id);
     grid.appendChild(buildColumn(driver, name, assigned));
-  });
+  };
 
+  if (groupByLabel) {
+    groupDrivers(drivers).forEach(({ label, drivers: bucketDrivers }) => {
+      const header = document.createElement('div');
+      header.className = 'veh-group-section-header';
+      header.textContent = label ?? 'Ungrouped';
+      grid.appendChild(header);
+      bucketDrivers.forEach(appendDriverColumn);
+    });
+  } else {
+    drivers.forEach(appendDriverColumn);
+  }
+
+  updateGroupToggleVisibility();
   applySearchFilter();
   updateSelectionUI();
   setSaveStatus('saved');
@@ -261,12 +279,14 @@ function buildColumn(driver, name, studs) {
 
   const cap   = capacities.get(driver.id) ?? null;
   const count = studs.length;
+  const label = groupLabels.get(driver.id) ?? null;
 
   col.innerHTML = `
     <div class="veh-col-header">
       <div class="veh-col-title">${esc(name)}</div>
       <div class="veh-col-meta">
         <span id="veh-count-${esc(chaperoneId)}">${countLabel(count, count)}</span>
+        ${groupPillHtml(chaperoneId, label)}
         ${capPillHtml(chaperoneId, count, cap)}
       </div>
     </div>
@@ -306,6 +326,11 @@ function buildColumn(driver, name, studs) {
   col.querySelector('.veh-cap-badge')?.addEventListener('click', e => {
     e.stopPropagation();
     editCapacity(driver.id, name);
+  });
+
+  col.querySelector('.veh-group-badge')?.addEventListener('click', e => {
+    e.stopPropagation();
+    editGroupLabel(driver.id, name);
   });
 
   return col;
@@ -400,6 +425,90 @@ function updateCapBadge(chaperoneId, count) {
   badge.className = 'veh-cap-badge' + (remain < 0 ? ' over-cap' : remain === 0 ? ' at-cap' : '');
   badge.textContent = remain < 0 ? 'Over capacity' : remain === 0 ? 'Full' : `${remain} seat${remain !== 1 ? 's' : ''} left`;
   badge.title = 'Click to edit capacity';
+}
+
+// ── Class/group pill ─────────────────────────────────────────────────────
+// Purely organizational -- never read by moveStudents/autoAssign/drag-drop,
+// so a car's label can't restrict which students end up in it.
+
+function groupPillHtml(chaperoneId, label) {
+  if (!label) {
+    return `<span class="veh-group-badge" id="veh-group-${esc(chaperoneId)}" title="Click to label this car by class or group">+ Class/group</span>`;
+  }
+  return `<span class="veh-group-badge set" id="veh-group-${esc(chaperoneId)}" title="Click to edit">${esc(label)}</span>`;
+}
+
+function updateGroupBadge(chaperoneId) {
+  const badge = document.getElementById(`veh-group-${chaperoneId}`);
+  if (!badge) return;
+  const label = groupLabels.get(chaperoneId) ?? null;
+  if (!label) {
+    badge.className = 'veh-group-badge';
+    badge.textContent = '+ Class/group';
+    badge.title = 'Click to label this car by class or group';
+    return;
+  }
+  badge.className = 'veh-group-badge set';
+  badge.textContent = label;
+  badge.title = 'Click to edit';
+}
+
+async function editGroupLabel(chaperoneId, name) {
+  const current = groupLabels.get(chaperoneId) ?? '';
+  const input   = prompt(`Class/group label for ${name} (optional, e.g. a class name, "AM Group", "Bus 3"):`, current);
+  if (input === null) return; // cancelled
+
+  const val = input.trim().slice(0, 60);
+  if (val) groupLabels.set(chaperoneId, val);
+  else groupLabels.delete(chaperoneId);
+
+  await supabase.from('field_trip_chaperones').update({ car_group_label: val || null }).eq('id', chaperoneId);
+
+  if (groupByLabel) {
+    buildBoard();
+  } else {
+    updateGroupBadge(chaperoneId);
+    updateGroupToggleVisibility();
+  }
+}
+
+// Case/whitespace-insensitive bucketing, alphabetical by label, with a
+// trailing null-label ("Ungrouped") bucket for cars with no label set.
+// Shared by buildBoard() and preparePrintRoster() so screen and print
+// never diverge.
+function groupDrivers(list) {
+  const buckets = new Map(); // normalized key → { label, drivers }
+  const ungrouped = [];
+
+  list.forEach(driver => {
+    const label = groupLabels.get(driver.id);
+    if (!label) { ungrouped.push(driver); return; }
+    const key = label.trim().toLowerCase();
+    if (!buckets.has(key)) buckets.set(key, { label: label.trim(), drivers: [] });
+    buckets.get(key).drivers.push(driver);
+  });
+
+  const sorted = [...buckets.values()].sort((a, b) => a.label.localeCompare(b.label));
+  if (ungrouped.length) sorted.push({ label: null, drivers: ungrouped });
+  return sorted;
+}
+
+function anyGroupLabelSet() {
+  return drivers.some(d => groupLabels.get(d.id));
+}
+
+function updateGroupToggleVisibility() {
+  const btn = document.getElementById('vehGroupToggleBtn');
+  if (!btn) return;
+  const hasLabels = anyGroupLabelSet();
+  btn.hidden = !hasLabels;
+  if (!hasLabels && groupByLabel) {
+    groupByLabel = false;
+    localStorage.setItem(GROUP_VIEW_KEY, '0');
+  }
+  btn.classList.toggle('active', groupByLabel);
+  btn.setAttribute('aria-pressed', String(groupByLabel));
+  btn.title = groupByLabel ? 'Showing cars grouped by class/label. Click to show the flat grid.' : 'Click to group cars by their class/label';
 }
 
 function progressBarHtml(chaperoneId, count, cap) {
@@ -699,31 +808,42 @@ function preparePrintRoster() {
       })
     : '';
 
+  const driverBoxHtml = driver => {
+    const name  = driverName(driver);
+    const cap   = capacities.get(driver.id);
+    const label = groupLabels.get(driver.id);
+    const studs = students
+      .filter(s => assignments.get(s.id) === driver.id)
+      .sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
+
+    let box = `<div class="print-vehicle-box">
+      <div class="print-vehicle-name">${esc(name)}</div>
+      ${label ? `<div class="print-vehicle-group">${esc(label)}</div>` : ''}
+      <div class="print-vehicle-cap">${cap ? `${studs.length} of ${cap} seats` : `${studs.length} student${studs.length !== 1 ? 's' : ''}`}</div>`;
+
+    if (studs.length) {
+      studs.forEach(s => {
+        box += `<div class="print-vehicle-student">${esc(s.last_name)}, ${esc(s.first_name)}${s.grade_level ? ` <span style="color:#9ca3af;font-size:11px;">(${esc(s.grade_level)})</span>` : ''}</div>`;
+      });
+    } else {
+      box += `<div style="font-size:12px;color:#9ca3af;font-style:italic;">No students assigned</div>`;
+    }
+    return box + `</div>`;
+  };
+
   let html = `
     <h1>${esc(trip.name)}</h1>
     <div class="print-meta">${startDate}${trip.destination ? ' &mdash; ' + esc(trip.destination) : ''}</div>
     <div class="print-vehicles">`;
 
-  drivers.forEach(driver => {
-    const name  = driverName(driver);
-    const cap   = capacities.get(driver.id);
-    const studs = students
-      .filter(s => assignments.get(s.id) === driver.id)
-      .sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
-
-    html += `<div class="print-vehicle-box">
-      <div class="print-vehicle-name">${esc(name)}</div>
-      <div class="print-vehicle-cap">${cap ? `${studs.length} of ${cap} seats` : `${studs.length} student${studs.length !== 1 ? 's' : ''}`}</div>`;
-
-    if (studs.length) {
-      studs.forEach(s => {
-        html += `<div class="print-vehicle-student">${esc(s.last_name)}, ${esc(s.first_name)}${s.grade_level ? ` <span style="color:#9ca3af;font-size:11px;">(${esc(s.grade_level)})</span>` : ''}</div>`;
-      });
-    } else {
-      html += `<div style="font-size:12px;color:#9ca3af;font-style:italic;">No students assigned</div>`;
-    }
-    html += `</div>`;
-  });
+  if (groupByLabel) {
+    groupDrivers(drivers).forEach(({ label, drivers: bucketDrivers }) => {
+      html += `<div class="print-group-header">${esc(label ?? 'Ungrouped')}</div>`;
+      bucketDrivers.forEach(driver => { html += driverBoxHtml(driver); });
+    });
+  } else {
+    drivers.forEach(driver => { html += driverBoxHtml(driver); });
+  }
 
   html += `</div>`;
 
@@ -754,6 +874,11 @@ function wireActions() {
   });
   document.getElementById('vehUndoBtn')?.addEventListener('click', undoLastMove);
   document.getElementById('vehSelectionBadge')?.addEventListener('click', clearSelection);
+  document.getElementById('vehGroupToggleBtn')?.addEventListener('click', () => {
+    groupByLabel = !groupByLabel;
+    localStorage.setItem(GROUP_VIEW_KEY, groupByLabel ? '1' : '0');
+    buildBoard();
+  });
   document.getElementById('vehSearch')?.addEventListener('input', e => {
     searchTerm = e.target.value.trim().toLowerCase();
     applySearchFilter();

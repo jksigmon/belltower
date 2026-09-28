@@ -217,6 +217,39 @@
     .veh-cap-badge:hover { background: #dbeafe; }
     .veh-cap-badge.at-cap   { background: #fef3c7; color: #92400e; border-color: #fde68a; }
     .veh-cap-badge.over-cap { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+    .veh-group-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: #f5f3ff;
+      color: #6d28d9;
+      cursor: pointer;
+      border: 1px solid #ddd6fe;
+      white-space: nowrap;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: background 0.12s;
+    }
+    .veh-group-badge:hover { background: #ede9fe; }
+    .veh-group-badge:not(.set) { color: #7c3aed; opacity: 0.7; font-weight: 600; }
+    .veh-group-section-header {
+      grid-column: 1 / -1;
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #6d28d9;
+      background: #f5f3ff;
+      border: 1px solid #ddd6fe;
+      border-radius: 8px;
+      padding: 6px 12px;
+      margin-top: 4px;
+    }
+    .veh-group-section-header:first-child { margin-top: 0; }
+    #vehGroupToggleBtn.active { background: #6d28d9; border-color: #6d28d9; color: #fff; }
 
     .veh-progress {
       height: 4px;
@@ -399,7 +432,14 @@
       padding: 14px 16px; break-inside: avoid;
     }
     .print-vehicle-name { font-size: 14px; font-weight: 800; color: #0b2d4f; margin-bottom: 2px; }
+    .print-vehicle-group { font-size: 11px; font-weight: 700; color: #6d28d9; margin-bottom: 2px; }
     .print-vehicle-cap  { font-size: 11px; color: #6b7280; margin-bottom: 10px; }
+    .print-group-header {
+      grid-column: 1 / -1;
+      font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
+      color: #6d28d9; margin: 14px 0 2px 0;
+    }
+    .print-group-header:first-child { margin-top: 0; }
     .print-vehicle-student {
       font-size: 13px; color: #374151; padding: 3px 0;
       border-bottom: 1px solid #f3f4f6;
@@ -436,6 +476,7 @@
     <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.6 6.4L20 10l-6.4 1.6L12 18l-1.6-6.4L4 10l6.4-1.6L12 2z"/></svg>
     Auto-assign
   </button>
+  <button class="btn btn-sm" id="vehGroupToggleBtn" style="flex-shrink:0;" title="Cars are grouped by their class/group label" hidden>Group by class</button>
   <button class="btn btn-sm" id="vehClearBtn" style="flex-shrink:0;">Clear All</button>
   <button class="btn btn-sm" id="vehPrintBtn" style="flex-shrink:0;">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -464,6 +505,6 @@
 <!-- ── Print roster (hidden on screen) ── -->
 <div class="print-roster" id="printRoster"></div>
 
-<script type="module" src="/app/field-trip-vehicles.js?v=2"></script>
+<script type="module" src="/app/field-trip-vehicles.js?v=3"></script>
 </body>
 </html>
