@@ -631,7 +631,7 @@ async function deleteGroup(id) {
 async function loadPending() {
   const { data, error } = await supabase
     .from('reservations')
-    .select('id, title, notes, starts_at, ends_at, reserved_by_name, resource_id, reservable_resources(name)')
+    .select('id, title, notes, starts_at, ends_at, reserved_by_name, resource_id, series_id, reservable_resources(name)')
     .eq('school_id', profile.school_id)
     .eq('status', 'pending')
     .order('starts_at');
@@ -656,10 +656,49 @@ function renderPending() {
     return;
   }
 
-  wrap.innerHTML = pending.map(r => `
+  wrap.innerHTML = groupPending(pending)
+    .map(g => (g.seriesId ? seriesCardHtml(g) : singleCardHtml(g.items[0])))
+    .join('');
+
+  wrap.querySelectorAll('.res-approve-btn').forEach(btn =>
+    btn.addEventListener('click', () => decidePending(btn.dataset.id, 'confirmed')));
+  wrap.querySelectorAll('.res-deny-btn').forEach(btn =>
+    btn.addEventListener('click', () => decidePending(btn.dataset.id, 'denied')));
+  wrap.querySelectorAll('.res-approve-series-btn').forEach(btn =>
+    btn.addEventListener('click', () => decidePendingSeries(btn.dataset.series, 'confirmed')));
+  wrap.querySelectorAll('.res-deny-series-btn').forEach(btn =>
+    btn.addEventListener('click', () => decidePendingSeries(btn.dataset.series, 'denied')));
+}
+
+// Rows sharing a series_id were booked in one submission (a weekly repeat, or
+// several time blocks across a date range), so they are decided as a unit.
+// Each series takes the list position of its earliest occurrence.
+function groupPending(rows) {
+  const groups = [];
+  const bySeries = new Map();
+
+  for (const r of rows) {
+    if (!r.series_id) {
+      groups.push({ seriesId: null, items: [r] });
+      continue;
+    }
+    let group = bySeries.get(r.series_id);
+    if (!group) {
+      group = { seriesId: r.series_id, items: [] };
+      bySeries.set(r.series_id, group);
+      groups.push(group);
+    }
+    group.items.push(r);
+  }
+
+  return groups;
+}
+
+function singleCardHtml(r) {
+  return `
     <div class="access-req-card" data-id="${esc(r.id)}">
       <div class="access-req-card-main">
-        <div class="access-req-name">${esc(r.title)} — ${esc(r.reservable_resources?.name ?? 'Unknown resource')}</div>
+        <div class="access-req-name">${esc(r.title)} · ${esc(r.reservable_resources?.name ?? 'Unknown resource')}</div>
         <div class="access-req-email">${esc(r.reserved_by_name)} · ${fmtRange(r.starts_at, r.ends_at)}</div>
         ${r.notes ? `<div class="staff-cell-muted" style="margin-top:4px;">${esc(r.notes)}</div>` : ''}
       </div>
@@ -668,12 +707,55 @@ function renderPending() {
         <button class="btn btn-sm res-deny-btn" data-id="${esc(r.id)}" style="color:#dc2626;border-color:#fca5a5;">Deny</button>
       </div>
     </div>
-  `).join('');
+  `;
+}
 
-  wrap.querySelectorAll('.res-approve-btn').forEach(btn =>
-    btn.addEventListener('click', () => decidePending(btn.dataset.id, 'confirmed')));
-  wrap.querySelectorAll('.res-deny-btn').forEach(btn =>
-    btn.addEventListener('click', () => decidePending(btn.dataset.id, 'denied')));
+function seriesCardHtml({ seriesId, items }) {
+  const first = items[0];
+  const count = items.length;
+
+  return `
+    <div class="access-req-card" data-series="${esc(seriesId)}">
+      <div class="access-req-card-main">
+        <div class="access-req-name">${esc(first.title)} · ${esc(first.reservable_resources?.name ?? 'Unknown resource')}</div>
+        <div class="access-req-email">${esc(first.reserved_by_name)} · ${esc(seriesSummary(items))}</div>
+        ${first.notes ? `<div class="staff-cell-muted" style="margin-top:4px;">${esc(first.notes)}</div>` : ''}
+        <details class="res-series-details">
+          <summary>Decide these one at a time</summary>
+          <div class="res-series-list">
+            ${items.map(r => `
+              <div class="res-series-occurrence">
+                <span>${fmtRange(r.starts_at, r.ends_at)}</span>
+                <span class="res-series-occurrence-actions">
+                  <button class="btn btn-sm btn-primary res-approve-btn" data-id="${esc(r.id)}">Approve</button>
+                  <button class="btn btn-sm res-deny-btn" data-id="${esc(r.id)}" style="color:#dc2626;border-color:#fca5a5;">Deny</button>
+                </span>
+              </div>
+            `).join('')}
+          </div>
+        </details>
+      </div>
+      <div class="access-req-actions">
+        <button class="btn btn-sm btn-primary res-approve-series-btn" data-series="${esc(seriesId)}">Approve All (${count})</button>
+        <button class="btn btn-sm res-deny-series-btn" data-series="${esc(seriesId)}" style="color:#dc2626;border-color:#fca5a5;">Deny All</button>
+      </div>
+    </div>
+  `;
+}
+
+const WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function seriesSummary(items) {
+  const days = [...new Set(items.map(r => new Date(r.starts_at).getDay()))]
+    .sort((a, b) => a - b)
+    .map(d => WEEKDAY_ABBR[d])
+    .join(', ');
+
+  const first = fmtShortDate(items[0].starts_at);
+  const last = fmtShortDate(items[items.length - 1].starts_at);
+  const span = first === last ? first : `${first} through ${last}`;
+
+  return `${items.length} bookings · ${days} · ${span}`;
 }
 
 function fmtRange(startsAt, endsAt) {
@@ -691,6 +773,24 @@ async function decidePending(id, status) {
     .eq('id', id);
 
   if (error) { alert('Failed to update reservation: ' + error.message); return; }
+  await loadPending();
+}
+
+async function decidePendingSeries(seriesId, status) {
+  const count = pending.filter(r => r.series_id === seriesId).length;
+  const verb = status === 'confirmed' ? 'Approve' : 'Deny';
+  if (!confirm(`${verb} all ${count} bookings in this series?`)) return;
+
+  // Scoped to still-pending rows so an occurrence the booker already cancelled
+  // is not revived by a bulk decision.
+  const { error } = await supabase
+    .from('reservations')
+    .update({ status, decided_by: profile.id, decided_at: new Date().toISOString() })
+    .eq('series_id', seriesId)
+    .eq('school_id', profile.school_id)
+    .eq('status', 'pending');
+
+  if (error) { alert('Failed to update reservations: ' + error.message); return; }
   await loadPending();
 }
 

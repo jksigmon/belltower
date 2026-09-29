@@ -5150,6 +5150,41 @@ a.staff-dash-request-row:hover {
   }
 }
 
+/* Pending reservation series: the whole booking is approved from the card,
+   with the individual occurrences tucked behind a disclosure. */
+.res-series-details {
+  margin-top: 8px;
+}
+
+.res-series-details > summary {
+  font-size: 12.5px;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.res-series-list {
+  margin-top: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.res-series-occurrence {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid #e5e7eb;
+  font-size: 12.5px;
+  color: #374151;
+}
+
+.res-series-occurrence-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* =============================================
    Access Management — Premium UI
    ============================================= */

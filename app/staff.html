@@ -928,6 +928,34 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   #resBookDatetimeRow { grid-template-columns: 1fr; }
 }
 
+/* Weekly-repeat day picker: hidden checkboxes behind pill labels, so the
+   seven days fit one row of the 440px modal and still toggle by keyboard. */
+.res-weekday-picker { display:flex; flex-wrap:wrap; gap:6px; }
+/* flex:1 lets the seven pills share the row evenly, so they stay on one line
+   at any modal width instead of wrapping one day onto its own line. */
+.res-weekday-picker label { position:relative; flex:1 1 auto; cursor:pointer; margin:0; }
+.res-weekday-picker input { position:absolute; opacity:0; pointer-events:none; }
+.res-weekday-picker span {
+  display:block;
+  text-align:center;
+  padding:6px 4px;
+  border:1px solid #e5e7eb;
+  border-radius:999px;
+  font-size:12.5px;
+  color:#475569;
+  background:#fff;
+  user-select:none;
+}
+.res-weekday-picker input:checked + span {
+  background: var(--primary, #2563eb);
+  border-color: var(--primary, #2563eb);
+  color:#fff;
+}
+.res-weekday-picker input:focus-visible + span {
+  outline:2px solid var(--primary, #2563eb);
+  outline-offset:2px;
+}
+
 /* ── My Licenses: CEU progress (read-only mirror of the admin drawer panel) ── */
 .ceu-license-card {
   background: #fff;
@@ -2039,6 +2067,29 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
           <input id="resBookEndTime" type="time" class="form-input" />
         </div>
       </div>
+      <div id="resBookRepeatBlock">
+        <label class="ar-check-label" style="margin:0 0 10px;">
+          <input type="checkbox" id="resBookRepeatToggle" /> Repeat weekly
+        </label>
+        <div id="resBookRepeatOptions" style="display:none;">
+          <div class="drawer-field">
+            <label>Repeat on <span class="required">*</span></label>
+            <div id="resBookWeekdays" class="res-weekday-picker">
+              <label><input type="checkbox" value="0" /><span>Sun</span></label>
+              <label><input type="checkbox" value="1" /><span>Mon</span></label>
+              <label><input type="checkbox" value="2" /><span>Tue</span></label>
+              <label><input type="checkbox" value="3" /><span>Wed</span></label>
+              <label><input type="checkbox" value="4" /><span>Thu</span></label>
+              <label><input type="checkbox" value="5" /><span>Fri</span></label>
+              <label><input type="checkbox" value="6" /><span>Sat</span></label>
+            </div>
+          </div>
+          <div class="drawer-field">
+            <label>Repeat until <span class="required">*</span></label>
+            <input id="resBookRepeatUntil" type="date" class="form-input" />
+          </div>
+        </div>
+      </div>
       <div class="admin-form-row compact two" style="gap:8px;display:none;" id="resBookBlockRow">
         <div class="drawer-field" style="margin:0;">
           <label>Date</label>
@@ -2078,7 +2129,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
       <p style="font-size:13px;margin:0 0 4px;"><strong>Time:</strong> <span id="resDetailTime"></span></p>
       <p style="font-size:13px;margin:0 0 4px;"><strong>Status:</strong> <span id="resDetailStatus"></span></p>
       <p id="resDetailNotesRow" style="font-size:13px;margin:8px 0 0;"></p>
-      <p id="resDetailSeriesNote" class="muted" style="font-size:12px;margin:8px 0 0;display:none;">Part of a multi-day/multi-block booking.</p>
+      <p id="resDetailSeriesNote" class="muted" style="font-size:12px;margin:8px 0 0;display:none;">Part of a repeating or multi-day booking.</p>
       <div class="modal-actions">
         <button class="btn" id="resDetailCloseBtn">Close</button>
         <button class="btn" id="resDetailCancelSeriesBtn" style="color:#dc2626;border-color:#fca5a5;display:none;">Cancel Entire Series</button>
@@ -3470,6 +3521,16 @@ let resTimeBlockCatalog = [];
 let resCampusLookup = {};
 let resSelectedEvent = null;
 
+// A weekly repeat inserts one reservation row per occurrence, so an open-ended
+// range would mean an unbounded insert. Capped at a semester's worth of daily
+// bookings; past that the booker is asked to shorten the range.
+const RES_MAX_OCCURRENCES = 100;
+
+// Separate from the occurrence cap: a sparse pattern (one weekday) stays under
+// 100 occurrences for two years, and expanding a range day by day to find that
+// out means a typo'd year would walk millions of dates.
+const RES_MAX_REPEAT_DAYS = 365;
+
 async function loadStaffReservations() {
   await Promise.all([loadCampusLookupForReservations(), loadReservableResources(), loadTimeBlockCatalog()]);
   if (!resCalendar) {
@@ -3602,6 +3663,7 @@ function updateBookingFieldsForResource() {
 
   const useBlocks = !!resource?.use_time_blocks;
   document.getElementById('resBookDatetimeRow').style.display = useBlocks ? 'none' : '';
+  document.getElementById('resBookRepeatBlock').style.display = useBlocks ? 'none' : '';
   document.getElementById('resBookBlockRow').style.display = useBlocks ? '' : 'none';
   document.getElementById('resBookBlockChecksField').style.display = useBlocks ? '' : 'none';
   if (useBlocks) {
@@ -3619,10 +3681,8 @@ function updateBookingFieldsForResource() {
           ${esc(b.label)} (${fmtBlockTimeShort(b.start_time)}–${fmtBlockTimeShort(b.end_time)})
         </label>
       `).join('');
-    updateSeriesHint();
-  } else {
-    document.getElementById('resBookSeriesHint').style.display = 'none';
   }
+  updateSeriesHint();
 
   const policyBlock = document.getElementById('resBookPolicyBlock');
   if (resource?.policy_text) {
@@ -3739,12 +3799,87 @@ function openResBookingModal() {
   document.getElementById('resBookDateEnd').value = todayStr;
   document.getElementById('resBookSeriesHint').style.display = 'none';
 
+  document.getElementById('resBookRepeatToggle').checked = false;
+  document.getElementById('resBookRepeatOptions').style.display = 'none';
+  document.getElementById('resBookRepeatUntil').value = '';
+  document.querySelectorAll('#resBookWeekdays input').forEach(cb => { cb.checked = false; });
+
   updateBookingFieldsForResource();
   document.getElementById('resBookingModal').style.display = 'flex';
 }
 
+// Dates a weekly repeat lands on: every selected weekday from the start date
+// through the "repeat until" date, inclusive. Returns null when repeat is off
+// or its inputs are incomplete, so callers can fall back to a single booking.
+function repeatOccurrenceDates() {
+  if (!document.getElementById('resBookRepeatToggle').checked) return null;
+  const startVal = document.getElementById('resBookStartDate').value;
+  const untilVal = document.getElementById('resBookRepeatUntil').value;
+  if (!startVal || !untilVal || untilVal < startVal) return null;
+
+  if (daysBetweenISO(startVal, untilVal) > RES_MAX_REPEAT_DAYS) return null;
+
+  const weekdays = Array.from(document.querySelectorAll('#resBookWeekdays input:checked')).map(cb => Number(cb.value));
+  if (!weekdays.length) return null;
+
+  return datesInRange(startVal, untilVal).filter(d => weekdays.includes(weekdayOfISO(d)));
+}
+
+function weekdayOfISO(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).getDay();
+}
+
+function addDaysISO(dateStr, n) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + n);
+  const pad = v => String(v).padStart(2, '0');
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+}
+
+// Whole days from a to b. Rounded because a DST change makes the span a
+// 23- or 25-hour day.
+function daysBetweenISO(a, b) {
+  const [ay, am, ad] = a.split('-').map(Number);
+  const [by, bm, bd] = b.split('-').map(Number);
+  return Math.round((new Date(by, bm - 1, bd) - new Date(ay, am - 1, ad)) / 86400000);
+}
+
+function fmtOccurrenceDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 function updateSeriesHint() {
   const hint = document.getElementById('resBookSeriesHint');
+  const resource = resCatalog.find(r => r.id === document.getElementById('resBookResource').value);
+
+  if (!resource?.use_time_blocks) {
+    const startVal = document.getElementById('resBookStartDate').value;
+    const untilVal = document.getElementById('resBookRepeatUntil').value;
+    if (document.getElementById('resBookRepeatToggle').checked && startVal && untilVal
+        && daysBetweenISO(startVal, untilVal) > RES_MAX_REPEAT_DAYS) {
+      hint.textContent = '"Repeat until" must be within a year of the start date.';
+      hint.style.display = 'block';
+      return;
+    }
+
+    const dates = repeatOccurrenceDates();
+    if (!dates) {
+      hint.style.display = 'none';
+      return;
+    }
+    if (!dates.length) {
+      hint.textContent = 'No dates in that range fall on the days you picked.';
+    } else if (dates.length > RES_MAX_OCCURRENCES) {
+      hint.textContent = `That would create ${dates.length} reservations. Shorten the range or pick fewer days (limit ${RES_MAX_OCCURRENCES}).`;
+    } else {
+      hint.textContent = `Creates ${dates.length} reservation${dates.length === 1 ? '' : 's'} (${fmtOccurrenceDate(dates[0])} through ${fmtOccurrenceDate(dates[dates.length - 1])}).`;
+    }
+    hint.style.display = 'block';
+    return;
+  }
+
   const startVal = document.getElementById('resBookDate').value;
   const endVal = document.getElementById('resBookDateEnd').value || startVal;
   const blockCount = document.querySelectorAll('#resBookBlockChecklist .res-block-cb:checked').length;
@@ -3782,6 +3917,26 @@ function datesInRange(startStr, endStr) {
 
 document.getElementById('resBookDate')?.addEventListener('change', updateSeriesHint);
 document.getElementById('resBookDateEnd')?.addEventListener('change', updateSeriesHint);
+document.getElementById('resBookStartDate')?.addEventListener('change', updateSeriesHint);
+document.getElementById('resBookRepeatUntil')?.addEventListener('change', updateSeriesHint);
+document.getElementById('resBookWeekdays')?.addEventListener('change', updateSeriesHint);
+
+document.getElementById('resBookRepeatToggle')?.addEventListener('change', e => {
+  document.getElementById('resBookRepeatOptions').style.display = e.target.checked ? '' : 'none';
+  if (e.target.checked) {
+    // Seed the picker with the start date's own weekday and a 4-week run, so
+    // the common case (this meeting, weekly, for a while) is one click.
+    const startVal = document.getElementById('resBookStartDate').value;
+    const anyChecked = document.querySelector('#resBookWeekdays input:checked');
+    if (startVal && !anyChecked) {
+      const cb = document.querySelector(`#resBookWeekdays input[value="${weekdayOfISO(startVal)}"]`);
+      if (cb) cb.checked = true;
+    }
+    const untilEl = document.getElementById('resBookRepeatUntil');
+    if (startVal && !untilEl.value) untilEl.value = addDaysISO(startVal, 27);
+  }
+  updateSeriesHint();
+});
 document.getElementById('resBookBlockChecklist')?.addEventListener('change', e => {
   if (e.target.classList.contains('res-block-cb')) updateSeriesHint();
 });
@@ -3874,7 +4029,59 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
       errorEl.style.display = 'block';
       return;
     }
-    windows.push({ starts: new Date(`${startDateVal}T${startTimeVal}`), ends: new Date(`${endDateVal}T${endTimeVal}`) });
+
+    if (document.getElementById('resBookRepeatToggle').checked) {
+      const untilVal = document.getElementById('resBookRepeatUntil').value;
+      const weekdayCount = document.querySelectorAll('#resBookWeekdays input:checked').length;
+      if (!weekdayCount) {
+        errorEl.textContent = 'Pick at least one day of the week to repeat on.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      if (!untilVal) {
+        errorEl.textContent = '"Repeat until" date is required.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      if (untilVal < startDateVal) {
+        errorEl.textContent = '"Repeat until" must be on or after the start date.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      if (daysBetweenISO(startDateVal, untilVal) > RES_MAX_REPEAT_DAYS) {
+        errorEl.textContent = '"Repeat until" must be within a year of the start date.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const dayOffset = daysBetweenISO(startDateVal, endDateVal);
+      if (dayOffset < 0) {
+        errorEl.textContent = 'End date must be on or after the start date.';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      const dates = repeatOccurrenceDates();
+      if (!dates.length) {
+        errorEl.textContent = 'No dates in that range fall on the days you picked.';
+        errorEl.style.display = 'block';
+        return;
+      }
+      if (dates.length > RES_MAX_OCCURRENCES) {
+        errorEl.textContent = `That would create ${dates.length} reservations. Shorten the range or pick fewer days (limit ${RES_MAX_OCCURRENCES}).`;
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      for (const d of dates) {
+        windows.push({
+          starts: new Date(`${d}T${startTimeVal}`),
+          ends: new Date(`${addDaysISO(d, dayOffset)}T${endTimeVal}`),
+        });
+      }
+    } else {
+      windows.push({ starts: new Date(`${startDateVal}T${startTimeVal}`), ends: new Date(`${endDateVal}T${endTimeVal}`) });
+    }
   }
 
   if (windows.some(w => !(w.ends > w.starts))) {
@@ -3946,7 +4153,15 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
   btn.textContent = 'Reserve';
 
   if (insErr) {
-    errorEl.textContent = 'Failed to reserve: ' + insErr.message;
+    // 23P01 = exclusion_violation, i.e. reservations_no_overlap caught a slot
+    // that was still free when the availability check above ran. Nothing was
+    // inserted, so the whole booking (series included) can just be retried.
+    if (insErr.code === '23P01') {
+      errorEl.textContent = 'Someone just booked this resource for that time. Pick another slot.';
+      resCalendar?.refetchEvents();
+    } else {
+      errorEl.textContent = 'Failed to reserve: ' + insErr.message;
+    }
     errorEl.style.display = 'block';
     return;
   }
@@ -3993,7 +4208,7 @@ document.getElementById('resDetailCloseBtn')?.addEventListener('click', closeRes
 document.getElementById('resDetailCancelBtn')?.addEventListener('click', async () => {
   if (!resSelectedEvent) return;
   const isSeries = !!resSelectedEvent.extendedProps.seriesId;
-  if (!confirm(isSeries ? 'Cancel just this one booking (this day/block)?' : 'Cancel this reservation?')) return;
+  if (!confirm(isSeries ? 'Cancel just this one booking?' : 'Cancel this reservation?')) return;
 
   const { error } = await supabase
     .from('reservations')
@@ -4010,7 +4225,7 @@ document.getElementById('resDetailCancelSeriesBtn')?.addEventListener('click', a
   if (!resSelectedEvent) return;
   const seriesId = resSelectedEvent.extendedProps.seriesId;
   if (!seriesId) return;
-  if (!confirm('Cancel every day of this multi-day booking?')) return;
+  if (!confirm('Cancel every booking in this series?')) return;
 
   const { error } = await supabase
     .from('reservations')
