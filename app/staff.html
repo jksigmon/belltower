@@ -2058,14 +2058,19 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
           <label>Start time</label>
           <input id="resBookStartTime" type="time" class="form-input" />
         </div>
-        <div class="drawer-field" style="margin:0;">
+        <div class="drawer-field" style="margin:0;" id="resBookEndDateField">
           <label>End date</label>
           <input id="resBookEndDate" type="date" class="form-input" />
         </div>
-        <div class="drawer-field" style="margin:0;">
+        <div class="drawer-field" style="margin:0;" id="resBookEndTimeField">
           <label>End time</label>
           <input id="resBookEndTime" type="time" class="form-input" />
         </div>
+      </div>
+      <div class="drawer-field" id="resBookOvernightField" style="display:none;">
+        <label class="ar-check-label" style="margin:0;">
+          <input type="checkbox" id="resBookOvernightToggle" /> This ends the next day
+        </label>
       </div>
       <div id="resBookRepeatBlock">
         <label class="ar-check-label" style="margin:0 0 10px;">
@@ -3803,6 +3808,8 @@ function openResBookingModal() {
   document.getElementById('resBookRepeatOptions').style.display = 'none';
   document.getElementById('resBookRepeatUntil').value = '';
   document.querySelectorAll('#resBookWeekdays input').forEach(cb => { cb.checked = false; });
+  document.getElementById('resBookOvernightToggle').checked = false;
+  applyRepeatFieldVisibility();
 
   updateBookingFieldsForResource();
   document.getElementById('resBookingModal').style.display = 'flex';
@@ -3828,6 +3835,29 @@ function repeatOccurrenceDates() {
 function weekdayOfISO(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d).getDay();
+}
+
+// The repeat form shows only a start date, not a separate end date, since a
+// repeating booking having a different length per occurrence than "the same
+// day" or "spans into the next day" isn't a real scenario. Hides the End
+// date field and drives it from the start date (plus a day, if the
+// "ends the next day" box is checked) instead, so the save logic below --
+// which reads End date/dayOffset the same way for both repeat and one-off
+// bookings -- doesn't need to change.
+function applyRepeatFieldVisibility() {
+  const repeatOn = document.getElementById('resBookRepeatToggle').checked;
+  document.getElementById('resBookEndDateField').style.display = repeatOn ? 'none' : '';
+  document.getElementById('resBookOvernightField').style.display = repeatOn ? '' : 'none';
+  document.getElementById('resBookEndTimeField').style.gridColumn = repeatOn ? '1 / -1' : '';
+  if (repeatOn) syncRepeatEndDate();
+}
+
+function syncRepeatEndDate() {
+  if (!document.getElementById('resBookRepeatToggle').checked) return;
+  const startVal = document.getElementById('resBookStartDate').value;
+  if (!startVal) return;
+  const overnight = document.getElementById('resBookOvernightToggle').checked;
+  document.getElementById('resBookEndDate').value = overnight ? addDaysISO(startVal, 1) : startVal;
 }
 
 function addDaysISO(dateStr, n) {
@@ -3917,9 +3947,13 @@ function datesInRange(startStr, endStr) {
 
 document.getElementById('resBookDate')?.addEventListener('change', updateSeriesHint);
 document.getElementById('resBookDateEnd')?.addEventListener('change', updateSeriesHint);
-document.getElementById('resBookStartDate')?.addEventListener('change', updateSeriesHint);
+document.getElementById('resBookStartDate')?.addEventListener('change', () => {
+  syncRepeatEndDate();
+  updateSeriesHint();
+});
 document.getElementById('resBookRepeatUntil')?.addEventListener('change', updateSeriesHint);
 document.getElementById('resBookWeekdays')?.addEventListener('change', updateSeriesHint);
+document.getElementById('resBookOvernightToggle')?.addEventListener('change', syncRepeatEndDate);
 
 document.getElementById('resBookRepeatToggle')?.addEventListener('change', e => {
   document.getElementById('resBookRepeatOptions').style.display = e.target.checked ? '' : 'none';
@@ -3934,7 +3968,10 @@ document.getElementById('resBookRepeatToggle')?.addEventListener('change', e => 
     }
     const untilEl = document.getElementById('resBookRepeatUntil');
     if (startVal && !untilEl.value) untilEl.value = addDaysISO(startVal, 27);
+  } else {
+    document.getElementById('resBookOvernightToggle').checked = false;
   }
+  applyRepeatFieldVisibility();
   updateSeriesHint();
 });
 document.getElementById('resBookBlockChecklist')?.addEventListener('change', e => {
