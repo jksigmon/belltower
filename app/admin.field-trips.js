@@ -522,7 +522,8 @@ async function loadChaperones() {
       employee:employees(id, first_name, last_name, email),
       volunteer:compliance_volunteers(id, first_name, last_name, email, guardian_id,
         bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at,
-        dl_expires_at, insurance_expires_at, can_chaperone, can_drive
+        dl_expires_at, insurance_expires_at, can_chaperone, can_drive,
+        bg_followup_flag, bg_followup_note
       )
     `)
     .eq('field_trip_id', currentTrip.id)
@@ -657,7 +658,7 @@ async function loadVolunteerCompliance(chaperones) {
   // volunteers, so a name-fallback index still needs the full set anyway.
   const { data, error } = await supabase
     .from('compliance_volunteer_status')
-    .select('id, first_name, last_name, guardian_id, bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at, dl_expires_at, insurance_expires_at, can_chaperone, can_drive')
+    .select('id, first_name, last_name, guardian_id, bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at, dl_expires_at, insurance_expires_at, can_chaperone, can_drive, bg_followup_flag, bg_followup_note')
     .eq('school_id', profile.school_id)
     .is('archived_at', null);
 
@@ -725,6 +726,19 @@ function computeComplianceStatus(guardian, volunteer, tripDate, isDriver, { incl
   const bgExp = volunteer.bg_expires_at ? new Date(volunteer.bg_expires_at + 'T12:00:00') : null;
   const bgOk  = !!volunteer.bg_cleared_at && (!bgExp || bgExp >= trip);
 
+  // Flagged means the vendor needs to hear from this person directly --
+  // stays blocked if there's still no clearance on file (same as any other
+  // incomplete BG check), but downgrades to a warning rather than a silent
+  // "Cleared" if a clearance is already on file and the flag was added
+  // afterward (e.g. a renewal check that came back needing clarification).
+  // Either way the detail text is what tells a trip manager whose court
+  // this is in.
+  if (volunteer.bg_followup_flag) {
+    const detail = volunteer.bg_followup_note
+      || 'The background check vendor needs to hear from this person directly to resolve something.';
+    return { status: bgOk ? 'action' : 'blocked', detail };
+  }
+
   if (!bgOk) return { status: 'blocked', detail: '' };
 
   // Only enforce MVR if the school has require_mvr_for_drivers enabled (default: true)
@@ -764,17 +778,23 @@ function computeComplianceStatus(guardian, volunteer, tripDate, isDriver, { incl
 // whether the BG check holds up through this specific trip, not just
 // whether it's still valid today.
 const BG_CHIP = {
-  cleared:     { cls: 'comp-cleared', label: 'Cleared' },
-  expiring:    { cls: 'comp-action',  label: 'Expiring soon' },
-  expired:     { cls: 'comp-blocked', label: 'Expired' },
-  missing:     { cls: 'comp-blocked', label: 'Missing' },
-  not_on_file: { cls: 'comp-unknown', label: 'Not on file' },
-  pending:     { cls: 'comp-unknown', label: 'Request pending' },
-  submitted:   { cls: 'comp-action',  label: 'Submitted' },
+  cleared:        { cls: 'comp-cleared', label: 'Cleared' },
+  expiring:       { cls: 'comp-action',  label: 'Expiring soon' },
+  expired:        { cls: 'comp-blocked', label: 'Expired' },
+  missing:        { cls: 'comp-blocked', label: 'Missing' },
+  not_on_file:    { cls: 'comp-unknown', label: 'Not on file' },
+  pending:        { cls: 'comp-unknown', label: 'Request pending' },
+  submitted:      { cls: 'comp-action',  label: 'Submitted' },
+  needs_followup: { cls: 'comp-action',  label: 'Needs vendor follow-up' },
 };
 
 function bgCredentialStatus(volunteer, tripDate, pendingRequest) {
   if (!volunteer) return { status: 'not_on_file', date: null };
+
+  // Takes priority over cleared/expired/pending -- this tells a trip
+  // manager the file is stalled on the volunteer's own action with the
+  // vendor, not on the compliance office, regardless of what the dates say.
+  if (volunteer.bg_followup_flag) return { status: 'needs_followup', date: null };
 
   if (!volunteer.bg_cleared_at && pendingRequest) {
     const date = pendingRequest.status === 'submitted'
@@ -799,13 +819,15 @@ function renderBgChip(volunteer, tripDate, pendingRequest) {
   const info = BG_CHIP[status];
 
   const tooltips = {
-    not_on_file: 'No matching volunteer record found. Check that this guardian\'s name matches an entry in Compliance → Volunteers, or link them from a request.',
-    missing:     'No background check on file.',
-    expired:     `Background check expired ${fmtShortDate(date)} — before this trip's date.`,
-    expiring:    `Background check expires ${fmtShortDate(date)}.`,
-    pending:     `Background check requested ${fmtShortDate(date)} — awaiting results.`,
-    submitted:   `Submitted ${fmtShortDate(date)} — awaiting results.`,
-    cleared:     '',
+    not_on_file:    'No matching volunteer record found. Check that this guardian\'s name matches an entry in Compliance → Volunteers, or link them from a request.',
+    missing:        'No background check on file.',
+    expired:        `Background check expired ${fmtShortDate(date)} — before this trip's date.`,
+    expiring:       `Background check expires ${fmtShortDate(date)}.`,
+    pending:        `Background check requested ${fmtShortDate(date)} — awaiting results.`,
+    submitted:      `Submitted ${fmtShortDate(date)} — awaiting results.`,
+    needs_followup: volunteer?.bg_followup_note
+      || 'The background check vendor needs to hear from this person directly to resolve something. This is not something the compliance office can act on — set by your compliance manager in Compliance → Volunteers.',
+    cleared:        '',
   };
 
   return `<span class="comp-chip ${info.cls}" title="${esc(tooltips[status])}">${info.label}</span>`;
@@ -2024,7 +2046,9 @@ function exportChaperoneCSV() {
     const { status: s } = computeComplianceStatus(formsPerson, volunteer, currentTrip.end_date ?? currentTrip.start_date, chap.is_driver);
     const kids  = isVolunteer ? '' : (g.family?.students ?? []).map(k => `${k.first_name} ${k.last_name}`).join('; ');
     const pendingReq = isVolunteer ? pendingRequestByVolunteerId.get(chap.volunteer_id) : null;
-    const bgStatus = !volunteer ? 'No record' : !volunteer.bg_cleared_at ? (pendingReq ? 'Pending' : 'Missing') : 'On file';
+    const bgStatus = !volunteer ? 'No record'
+      : volunteer.bg_followup_flag ? 'Needs vendor follow-up'
+      : !volunteer.bg_cleared_at ? (pendingReq ? 'Pending' : 'Missing') : 'On file';
     const row = [
       `${person.last_name ?? ''}, ${person.first_name ?? ''}`,
       person.email ?? '',

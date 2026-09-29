@@ -90,7 +90,7 @@ async function loadVolunteerIndex() {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from('compliance_volunteers')
-      .select('id, first_name, last_name, guardian_id, email')
+      .select('id, first_name, last_name, guardian_id, email, bg_followup_flag, bg_followup_note')
       .eq('school_id', _profile.school_id)
       .is('archived_at', null)
       .range(from, from + 999);
@@ -265,6 +265,25 @@ export function wireRequestFilters() {
   // stack a duplicate 'change' listener on every open.
   wireExpireAutoFill('resolveClearedAt', 'resolveExpiresAt');
   wireExpireAutoFill('resolveMvrClearedAt', 'resolveMvrExpiresAt');
+
+  document.getElementById('resolveFollowupFlag')?.addEventListener('change', e => {
+    const wrap = document.getElementById('resolveFollowupNoteWrap');
+    if (wrap) wrap.style.display = e.target.checked ? '' : 'none';
+    syncResolveSaveLabel();
+  });
+  document.getElementById('resolveClearedAt')?.addEventListener('input', syncResolveSaveLabel);
+}
+
+// "Mark Cleared" reads wrong on a followup-only save (no cleared date at
+// all) -- swap the button's idle label so it says what it's actually
+// about to do. Only touches the idle label; saveResolve() sets its own
+// "Saving…"/error-recovery text independently.
+function syncResolveSaveLabel() {
+  const btn = document.getElementById('resolveDrawerSave');
+  if (!btn) return;
+  const hasCleared = !!document.getElementById('resolveClearedAt')?.value;
+  const followup   = document.getElementById('resolveFollowupFlag')?.checked;
+  btn.textContent = !hasCleared && followup ? 'Save Follow-up Flag' : 'Mark Cleared';
 }
 
 // Exports the currently filtered requests as a CSV of first/last name,
@@ -805,13 +824,14 @@ async function openResolveDrawer(id) {
 
   let suggested = null;
   if (row.volunteer_id) {
-    const { data } = await supabase.from('compliance_volunteers').select('id, first_name, last_name, guardian_id, email').eq('id', row.volunteer_id).maybeSingle();
+    const { data } = await supabase.from('compliance_volunteers').select('id, first_name, last_name, guardian_id, email, bg_followup_flag, bg_followup_note').eq('id', row.volunteer_id).maybeSingle();
     suggested = data;
   } else {
     suggested = (await loadVolunteerIndex()).get(matchKey(row.subject_first_name, row.subject_last_name)) ?? null;
   }
   setResolvedVolunteer(suggested, suggested ? (row.volunteer_id ? 'Already linked.' : 'Suggested match — change it below if this is wrong.') : 'No roster match found — a new volunteer record will be created.');
   await refreshGuardianForVolunteer(suggested, row);
+  syncResolveSaveLabel();
 
   openDrawer('resolve');
 }
@@ -881,6 +901,22 @@ function setResolvedVolunteer(volunteer, hint) {
     : '<span class="muted" style="font-size:12px;">No volunteer selected — one will be created on save.</span>';
   document.getElementById('resolveVolunteerHint').textContent = hint ?? '';
   updateResolveGuardianSaveBtn();
+  setResolveFollowup(volunteer);
+}
+
+// Syncs the "Needs vendor follow-up" checkbox/note to whichever volunteer
+// is currently matched -- called every time the match changes (drawer
+// open, or a manual roster search pick) so the checkbox always reflects
+// that record's actual state instead of carrying over whatever the
+// previous volunteer in this drawer had checked.
+function setResolveFollowup(volunteer) {
+  const checkbox = document.getElementById('resolveFollowupFlag');
+  const noteWrap = document.getElementById('resolveFollowupNoteWrap');
+  const noteEl   = document.getElementById('resolveFollowupNote');
+  if (!checkbox) return;
+  checkbox.checked = !!volunteer?.bg_followup_flag;
+  if (noteEl) noteEl.value = volunteer?.bg_followup_note ?? '';
+  if (noteWrap) noteWrap.style.display = checkbox.checked ? '' : 'none';
 }
 
 let resolveSearchTimer = null;
@@ -899,7 +935,7 @@ async function searchResolveVolunteers() {
 
   const { data, error } = await supabase
     .from('compliance_volunteers')
-    .select('id, first_name, last_name, email, guardian_id')
+    .select('id, first_name, last_name, email, guardian_id, bg_followup_flag, bg_followup_note')
     .eq('school_id', _profile.school_id)
     .is('archived_at', null)
     .or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`)
@@ -1122,8 +1158,13 @@ export async function saveResolve() {
   const expiresAt = document.getElementById('resolveExpiresAt')?.value || null;
   const mvrClearedAt = document.getElementById('resolveMvrClearedAt')?.value || null;
   const mvrExpiresAt = document.getElementById('resolveMvrExpiresAt')?.value || null;
+  const followupFlag = document.getElementById('resolveFollowupFlag')?.checked ?? false;
+  const followupNote = followupFlag ? (document.getElementById('resolveFollowupNote')?.value.trim() || null) : null;
 
-  if (!clearedAt) { msgEl.textContent = 'Enter a BG cleared date.'; return; }
+  // A followup-only save (no cleared date) is valid -- that's exactly the
+  // "vendor result came back needing a call from the volunteer" case, which
+  // isn't a clearance at all.
+  if (!clearedAt && !followupFlag) { msgEl.textContent = 'Enter a BG cleared date, or check "Needs vendor follow-up".'; return; }
 
   const saveBtn = document.getElementById('resolveDrawerSave');
   saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
@@ -1132,7 +1173,7 @@ export async function saveResolve() {
   try {
     volunteerId = await ensureResolvedVolunteerId();
   } catch (err) {
-    saveBtn.disabled = false; saveBtn.textContent = 'Mark Cleared';
+    saveBtn.disabled = false; syncResolveSaveLabel();
     msgEl.textContent = `Failed to create volunteer: ${esc(err.message)}`;
     return;
   }
@@ -1148,14 +1189,18 @@ export async function saveResolve() {
   const mergedRoles = Array.from(new Set([...(volunteer?.volunteer_roles ?? []), ...(activeRequest.volunteer_roles ?? [])]));
 
   const volUpdate = {
-    bg_cleared_at: clearedAt,
-    bg_expires_at: expiresAt,
     volunteer_roles: mergedRoles,
     // Same reasoning as the roles merge -- an "Other" description from
     // this request is appended to whatever note is already there rather
     // than replacing it.
     admin_note: mergeAdminNote(volunteer?.admin_note, otherRoleNote(activeRequest)),
+    // Always written (not just when checked) so unchecking here clears a
+    // flag that was set on an earlier pass, the same way this drawer
+    // already overwrites bg_cleared_at/bg_expires_at outright.
+    bg_followup_flag: followupFlag,
+    bg_followup_note: followupNote,
   };
+  if (clearedAt) { volUpdate.bg_cleared_at = clearedAt; volUpdate.bg_expires_at = expiresAt; }
   if (mvrClearedAt) { volUpdate.mvr_cleared_at = mvrClearedAt; volUpdate.mvr_expires_at = mvrExpiresAt; }
   if (resolvedGuardian) volUpdate.guardian_id = resolvedGuardian.id;
 
@@ -1166,30 +1211,35 @@ export async function saveResolve() {
     .eq('school_id', _profile.school_id);
 
   if (volErr) {
-    saveBtn.disabled = false; saveBtn.textContent = 'Mark Cleared';
+    saveBtn.disabled = false; syncResolveSaveLabel();
     msgEl.textContent = `Failed to update volunteer: ${esc(volErr.message)}`;
     return;
   }
 
+  // Only actually closes the request out when a BG cleared date was
+  // entered. A followup-only save leaves the request's status untouched --
+  // it's not cleared, and it's still linked to the volunteer, but it needs
+  // to stay visible in the open queue until the volunteer calls the vendor
+  // and a real cleared date comes back to resolve it for real.
+  const reqUpdate = clearedAt
+    ? { status: 'cleared', cleared_at: clearedAt, expires_at: expiresAt, mvr_cleared_at: mvrClearedAt, mvr_expires_at: mvrExpiresAt, volunteer_id: volunteerId }
+    : { volunteer_id: volunteerId };
+
   const { error: reqErr } = await supabase
     .from('compliance_bg_check_requests')
-    .update({
-      status: 'cleared', cleared_at: clearedAt, expires_at: expiresAt,
-      mvr_cleared_at: mvrClearedAt, mvr_expires_at: mvrExpiresAt,
-      volunteer_id: volunteerId,
-    })
+    .update(reqUpdate)
     .eq('id', activeRequest.id)
     .eq('school_id', _profile.school_id);
 
-  saveBtn.disabled = false; saveBtn.textContent = 'Mark Cleared';
+  saveBtn.disabled = false; syncResolveSaveLabel();
 
   if (reqErr) { msgEl.textContent = `Failed to update request: ${esc(reqErr.message)}`; return; }
 
   closeDrawer('resolve');
-  showToast('Request resolved');
+  showToast(clearedAt ? 'Request resolved' : 'Follow-up flagged');
   activeRequest = null;
   resolvedGuardian = null;
   volunteerIndex = null; // the roster just changed
-  dupEmailIndex = null; // this request left the open set
+  if (clearedAt) dupEmailIndex = null; // this request left the open set
   await loadRequests();
 }

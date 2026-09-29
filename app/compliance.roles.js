@@ -79,8 +79,14 @@ function dateStatus(expiresAt) {
 // drive" checkbox) short-circuits all three to 'blocked' -- covers a
 // known-revoked-license case with no MVR/DL/insurance dates on file at
 // all, which would otherwise just read as "missing" like any other gap.
+//
+// bg_followup_flag wins over the plain date check regardless of what
+// bg_cleared_at/bg_expires_at say -- it means the vendor needs to hear
+// from this person directly to resolve something, which isn't the same
+// gap as "never submitted" (missing) or "lapsed" (expired) and shouldn't
+// read as either.
 const CREDENTIAL_CHECKS = {
-  bg:        v => (v.bg_cleared_at  ? dateStatus(v.bg_expires_at)  : 'missing'),
+  bg:        v => (v.bg_followup_flag ? 'followup' : (v.bg_cleared_at ? dateStatus(v.bg_expires_at) : 'missing')),
   mvr:       v => (v.can_drive === false ? 'blocked' : (v.mvr_cleared_at ? dateStatus(v.mvr_expires_at) : 'missing')),
   dl:        v => (v.can_drive === false ? 'blocked' : dateStatus(v.dl_expires_at)),
   insurance: v => (v.can_drive === false ? 'blocked' : dateStatus(v.insurance_expires_at)),
@@ -108,7 +114,7 @@ export function statusForRole(volunteer, roleKey) {
   const expired = [];
   for (const cred of role.requires) {
     const status = CREDENTIAL_CHECKS[cred](volunteer);
-    if (status === 'missing' || status === 'blocked') missing.push(cred);
+    if (status === 'missing' || status === 'blocked' || status === 'followup') missing.push(cred);
     else if (status === 'expired') expired.push(cred);
   }
   return { ok: missing.length === 0 && expired.length === 0, missing, expired };

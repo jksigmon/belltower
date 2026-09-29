@@ -160,7 +160,8 @@ export function applyVolunteerStatusFilters(query, { search, role, status, crede
     query = query.or(`first_name.ilike.${term},last_name.ilike.${term},email.ilike.${term}`);
   }
   if (role) query = query.contains('volunteer_roles', [role]);
-  if (status) query = query.eq('worst_status', status);
+  if (status === 'needs_followup') query = query.eq('bg_followup_flag', true);
+  else if (status) query = query.eq('worst_status', status);
 
   if (credential === 'bg')        query = query.or('bg_expired.eq.true,bg_cleared_at.is.null');
   if (credential === 'mvr')       query = query.eq('mvr_expired', true);

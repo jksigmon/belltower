@@ -165,10 +165,19 @@ function credChipHTML(row, cred) {
   const [, expiresCol] = CRED_DATE_COLS[cred];
   const dateStr = row[expiresCol] ? fmtShortDate(row[expiresCol]) : null;
 
+  if (status === 'followup') return `<span class="bg-status-pill bg-status-followup" title="${esc(followupTooltip(row))}">Needs vendor follow-up</span>`;
   if (status === 'blocked') return '<span class="bg-status-pill bg-status-expired" title="Flagged not allowed to drive (May drive is unchecked below).">Not allowed to drive</span>';
   if (status === 'missing') return '<span class="bg-status-pill bg-status-cancelled">Missing</span>';
   if (status === 'expired') return `<span class="bg-status-pill bg-status-expired">Expired${dateStr ? ` ${esc(dateStr)}` : ''}</span>`;
   return `<span class="bg-status-pill bg-status-cleared">${dateStr ? esc(dateStr) : 'OK'}</span>`;
+}
+
+// Shared tooltip text wherever the "Needs vendor follow-up" chip shows up --
+// explains that this is on the volunteer, not the compliance office, since
+// that's the whole point of the flag existing.
+function followupTooltip(row) {
+  return row.bg_followup_note
+    || 'The background check vendor needs to hear from this person directly to resolve something. This is not something the compliance office can act on.';
 }
 
 // Small clickable paperclip next to the DL/Insurance pill when a copy is on
@@ -228,11 +237,12 @@ async function exportVolunteersCSV() {
   const { data, error } = await query;
   if (error) { dbError(error, 'Export failed'); return; }
 
-  const header = ['First name', 'Last name', 'Email', 'Roles', 'BG cleared', 'BG expires', 'MVR cleared', 'MVR expires', 'DL expires', 'Insurance expires', 'May chaperone', 'May drive'];
+  const header = ['First name', 'Last name', 'Email', 'Roles', 'BG cleared', 'BG expires', 'MVR cleared', 'MVR expires', 'DL expires', 'Insurance expires', 'May chaperone', 'May drive', 'Needs vendor follow-up', 'Follow-up note'];
   const csvRows = (data ?? []).map(r => [
     r.first_name, r.last_name, r.email ?? '', (r.volunteer_roles ?? []).join('; '),
     r.bg_cleared_at ?? '', r.bg_expires_at ?? '', r.mvr_cleared_at ?? '', r.mvr_expires_at ?? '',
     r.dl_expires_at ?? '', r.insurance_expires_at ?? '', r.can_chaperone ? 'Yes' : 'No', r.can_drive ? 'Yes' : 'No',
+    r.bg_followup_flag ? 'Yes' : 'No', r.bg_followup_note ?? '',
   ]);
   downloadCSV('volunteers.csv', header, csvRows);
 }
@@ -310,6 +320,16 @@ function renderVolunteerDrawer(row, prefill) {
         <input type="date" id="bgDrawerExpiresAt" autocomplete="off" value="${v.bg_expires_at ?? ''}">
       </div>
     </div>
+    <div class="drawer-field">
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;text-transform:none;">
+        <input type="checkbox" id="bgDrawerFollowupFlag" ${v.bg_followup_flag ? 'checked' : ''}>
+        Needs vendor follow-up
+      </label>
+      <span class="muted" style="font-size:12px;">The background check vendor needs to hear from this person directly, not from your office. Shows up on the Field Trips chaperone list and the compliance report so other staff know not to chase it themselves.</span>
+      <div id="bgDrawerFollowupNoteWrap" style="display:${v.bg_followup_flag ? '' : 'none'};margin-top:8px;">
+        <textarea id="bgDrawerFollowupNote" rows="2" placeholder="What needs to be resolved (optional)">${esc(v.bg_followup_note ?? '')}</textarea>
+      </div>
+    </div>
     <div class="drawer-row-2">
       <div class="drawer-field">
         <label for="bgDrawerMvrClearedAt">MVR cleared</label>
@@ -351,6 +371,10 @@ function renderVolunteerDrawer(row, prefill) {
   `;
 
   document.querySelectorAll('input[name="bgDrawerRole"]').forEach(cb => { cb.checked = selectedRoles.has(cb.value); });
+
+  document.getElementById('bgDrawerFollowupFlag')?.addEventListener('change', e => {
+    document.getElementById('bgDrawerFollowupNoteWrap').style.display = e.target.checked ? '' : 'none';
+  });
 
   // The admin note is where an "Other" role gets its meaning here --
   // same rule the staff request form and Log a Request drawer enforce.
@@ -607,6 +631,10 @@ export async function saveVolunteer() {
     volunteer_roles: [...document.querySelectorAll('input[name="bgDrawerRole"]:checked')].map(el => el.value),
     bg_cleared_at:   document.getElementById('bgDrawerClearedAt')?.value || null,
     bg_expires_at:   document.getElementById('bgDrawerExpiresAt')?.value || null,
+    bg_followup_flag: document.getElementById('bgDrawerFollowupFlag')?.checked ?? false,
+    bg_followup_note: document.getElementById('bgDrawerFollowupFlag')?.checked
+      ? (document.getElementById('bgDrawerFollowupNote')?.value.trim() || null)
+      : null,
     mvr_cleared_at:  document.getElementById('bgDrawerMvrClearedAt')?.value || null,
     mvr_expires_at:  document.getElementById('bgDrawerMvrExpiresAt')?.value || null,
     dl_expires_at:   document.getElementById('bgDrawerDlExpiresAt')?.value || null,

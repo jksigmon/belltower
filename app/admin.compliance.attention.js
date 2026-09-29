@@ -100,7 +100,10 @@ function baseAttentionQuery(filters, { withCount = false, columns = '*' } = {}) 
     .eq('school_id', _profile.school_id)
     .is('archived_at', null);
   query = applyVolunteerStatusFilters(query, { ...filters, status: attStatusFilter || undefined });
-  if (!attStatusFilter) query = query.neq('worst_status', 'ok');
+  // A followup-flagged record can have otherwise-current dates (worst_status
+  // 'ok') -- without the OR here it would silently vanish from the default
+  // "needs attention" view instead of showing up as the one thing that does.
+  if (!attStatusFilter) query = query.or('worst_status.neq.ok,bg_followup_flag.eq.true');
   return query;
 }
 
@@ -121,16 +124,17 @@ async function loadAttentionStats() {
       .select('id', { count: 'exact', head: true })
       .eq('school_id', _profile.school_id)
       .is('archived_at', null)
-      .neq('worst_status', 'ok');
+      .or('worst_status.neq.ok,bg_followup_flag.eq.true');
     return applyVolunteerStatusFilters(q, filters);
   })();
 
-  const [all, expired, exp30, exp60, missing] = await Promise.all([
+  const [all, expired, exp30, exp60, missing, followup] = await Promise.all([
     allQuery,
     countOnly('expired'),
     countOnly('expiring_30'),
     countOnly('expiring_60'),
     countOnly('missing_bg'),
+    countOnly('needs_followup'),
   ]);
 
   const set = (id, r) => { const el = document.getElementById(id); if (el) el.textContent = r.count ?? 0; };
@@ -139,6 +143,7 @@ async function loadAttentionStats() {
   set('attCountExp30', exp30);
   set('attCountExp60', exp60);
   set('attCountMissing', missing);
+  set('attCountFollowup', followup);
 }
 
 function updateSelectAllMatchingBar(pageCount) {
@@ -158,6 +163,11 @@ function updateSelectAllMatchingBar(pageCount) {
 function urgencyChip(row, cred) {
   const status = credentialStatus(row, cred);
   if (status === 'ok') return '<span class="muted">—</span>';
+  if (status === 'followup') {
+    const tooltip = row.bg_followup_note
+      || 'The background check vendor needs to hear from this person directly to resolve something. This is not something the compliance office can act on.';
+    return `<span class="bg-expiry-chip bg-expiry-followup" title="${esc(tooltip)}">Needs vendor follow-up</span>`;
+  }
   if (status === 'blocked') return '<span class="bg-expiry-chip bg-expiry-expired" title="Flagged not allowed to drive (May drive is unchecked).">Not allowed to drive</span>';
   if (status === 'missing') return '<span class="bg-expiry-chip bg-expiry-warn">Missing</span>';
 
@@ -286,11 +296,12 @@ async function exportCSV() {
     .limit(5000);
   if (error) { dbError(error, 'Export failed'); return; }
 
-  const header = ['First name', 'Last name', 'Roles', 'BG cleared', 'BG expires', 'MVR cleared', 'MVR expires', 'DL expires', 'Insurance expires', 'Next expiry'];
+  const header = ['First name', 'Last name', 'Roles', 'BG cleared', 'BG expires', 'MVR cleared', 'MVR expires', 'DL expires', 'Insurance expires', 'Next expiry', 'Needs vendor follow-up', 'Follow-up note'];
   const rows = (data ?? []).map(r => [
     r.first_name, r.last_name, (r.volunteer_roles ?? []).join('; '),
     r.bg_cleared_at ?? '', r.bg_expires_at ?? '', r.mvr_cleared_at ?? '', r.mvr_expires_at ?? '',
     r.dl_expires_at ?? '', r.insurance_expires_at ?? '', r.next_expiry ?? '',
+    r.bg_followup_flag ? 'Yes' : 'No', r.bg_followup_note ?? '',
   ]);
   downloadCSV('needs-attention.csv', header, rows);
 }

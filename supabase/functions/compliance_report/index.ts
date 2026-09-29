@@ -260,10 +260,11 @@ serve(async (req) => {
       mvr_cleared_at: string | null; mvr_expires_at: string | null;
       dl_expires_at: string | null; insurance_expires_at: string | null;
       can_chaperone: boolean; can_drive: boolean;
+      bg_followup_flag: boolean; bg_followup_note: string | null;
     };
 
     let volunteers: VolunteerRow[] = [];
-    const volSelect = `id, guardian_id, email, match_key, bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at, dl_expires_at, insurance_expires_at, can_chaperone, can_drive`;
+    const volSelect = `id, guardian_id, email, match_key, bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at, dl_expires_at, insurance_expires_at, can_chaperone, can_drive, bg_followup_flag, bg_followup_note`;
 
     if (allGuardianIds.length) {
       const { data } = await fetchAllRows<VolunteerRow>(() => supabaseService
@@ -375,7 +376,15 @@ serve(async (req) => {
     // it's the one credential every chaperone-eligible guardian needs. MVR/DL/
     // insurance are only relevant to guardians who actually drive, so absence
     // of any record there is reported as neutral "not on file" rather than a gap.
-    function credentialStatus(clearedAt: string | null, expiresAt: string | null, requiresClearance: boolean, pendingRequest: RequestRow | null) {
+    // followupFlag/followupNote only ever come from the BG check -- the
+    // compliance manager flagging "the vendor needs to hear from this
+    // person directly" is a BG-specific concept, not something that
+    // applies to MVR/DL/insurance. Takes priority over every other branch:
+    // it means the file is stalled on the guardian's own action, which a
+    // teacher needs to see instead of a plain "Missing" (implies nobody's
+    // done anything) or a stale "Cleared".
+    function credentialStatus(clearedAt: string | null, expiresAt: string | null, requiresClearance: boolean, pendingRequest: RequestRow | null, followupFlag = false, followupNote: string | null = null) {
+      if (followupFlag) return { status: "needs_followup", date: null as string | null, note: followupNote };
       if (!clearedAt && pendingRequest) {
         const date = pendingRequest.status === "submitted"
           ? (pendingRequest.submitted_at ?? pendingRequest.requested_at)
@@ -458,7 +467,7 @@ serve(async (req) => {
           guardian_id:    guardian?.id ?? null,
           guardian_name:  guardian?.name ?? null,
           guardian_email: guardian?.email ?? null,
-          bg:        credentialStatus(volunteer?.bg_cleared_at ?? null, volunteer?.bg_expires_at ?? null, true, pendingRequest),
+          bg:        credentialStatus(volunteer?.bg_cleared_at ?? null, volunteer?.bg_expires_at ?? null, true, pendingRequest, volunteer?.bg_followup_flag ?? false, volunteer?.bg_followup_note ?? null),
           mvr:       credentialStatus(volunteer?.mvr_cleared_at ?? null, volunteer?.mvr_expires_at ?? null, false, pendingRequest),
           dl:        expiryStatus(volunteer?.dl_expires_at ?? null),
           insurance: expiryStatus(volunteer?.insurance_expires_at ?? null),

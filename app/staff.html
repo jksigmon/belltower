@@ -8239,14 +8239,15 @@ async function runComplianceReport() {
 // reuse the .comp-chip vocabulary already used on the Field Trips chaperone
 // tab, so the same colors mean the same thing in both places.
 const CRED_CHIP = {
-  cleared:     { cls: 'comp-cleared', label: 'Cleared' },
-  ok:          { cls: 'comp-cleared', label: 'Cleared' },
-  expiring:    { cls: 'comp-action',  label: 'Expiring soon' },
-  expired:     { cls: 'comp-blocked', label: 'Expired' },
-  missing:     { cls: 'comp-blocked', label: 'Missing' },
-  not_on_file: { cls: 'comp-unknown', label: 'Not on file' },
-  pending:     { cls: 'comp-unknown', label: 'Request pending' },
-  submitted:   { cls: 'comp-action',  label: 'Submitted' },
+  cleared:        { cls: 'comp-cleared', label: 'Cleared' },
+  ok:             { cls: 'comp-cleared', label: 'Cleared' },
+  expiring:       { cls: 'comp-action',  label: 'Expiring soon' },
+  expired:        { cls: 'comp-blocked', label: 'Expired' },
+  missing:        { cls: 'comp-blocked', label: 'Missing' },
+  not_on_file:    { cls: 'comp-unknown', label: 'Not on file' },
+  pending:        { cls: 'comp-unknown', label: 'Request pending' },
+  submitted:      { cls: 'comp-action',  label: 'Submitted' },
+  needs_followup: { cls: 'comp-action',  label: 'Needs vendor follow-up' },
 };
 
 // One icon per chip color, not per status -- same visual vocabulary as
@@ -8261,7 +8262,10 @@ const CHIP_ICON = {
 function renderCredChip(cred) {
   const info = CRED_CHIP[cred?.status] ?? CRED_CHIP.not_on_file;
   const dateStr = cred?.date ? new Date(cred.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-  return `<span class="comp-chip ${info.cls}">${CHIP_ICON[info.cls]}${info.label}</span>${dateStr ? `<span class="cr-chip-date">${escHtml(dateStr)}</span>` : ''}`;
+  const tooltip = cred?.status === 'needs_followup'
+    ? (cred.note || 'The background check vendor needs to hear from this person directly to resolve something. This is not something the school office can act on.')
+    : '';
+  return `<span class="comp-chip ${info.cls}"${tooltip ? ` title="${escHtml(tooltip)}"` : ''}>${CHIP_ICON[info.cls]}${info.label}</span>${dateStr ? `<span class="cr-chip-date">${escHtml(dateStr)}</span>` : ''}`;
 }
 
 function renderComplianceReport(data) {
