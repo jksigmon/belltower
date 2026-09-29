@@ -1179,11 +1179,36 @@ function downloadFormLinkQR(url, name) {
 }
 
 async function removeChaperone(chapId) {
+  // field_trip_vehicle_assignments.chaperone_id is NOT NULL, so a removed
+  // driver's assignment rows can't be nulled out -- they must be deleted,
+  // or the assigned students become invisible (not in the removed driver's
+  // vehicle column since drivers are filtered by removed_at, but also not
+  // in Unassigned since their assignment row still points at a real chaperone_id).
+  const { data: assignedRows } = await supabase
+    .from('field_trip_vehicle_assignments')
+    .select('id')
+    .eq('chaperone_id', chapId);
+  const assignedCount = assignedRows?.length ?? 0;
+
+  if (assignedCount > 0) {
+    const ok = confirm(`This chaperone has ${assignedCount} student${assignedCount !== 1 ? 's' : ''} assigned to their vehicle in Plan Vehicles. Removing them will send ${assignedCount !== 1 ? 'those students' : 'that student'} back to Unassigned. Continue?`);
+    if (!ok) return;
+  }
+
   const { error } = await supabase
     .from('field_trip_chaperones')
     .update({ removed_at: new Date().toISOString() })
     .eq('id', chapId);
   if (error) { dbError(error, 'Failed to remove chaperone'); return; }
+
+  if (assignedCount > 0) {
+    const { error: unassignError } = await supabase
+      .from('field_trip_vehicle_assignments')
+      .delete()
+      .eq('chaperone_id', chapId);
+    if (unassignError) dbError(unassignError, 'Chaperone removed, but failed to release their assigned students back to Unassigned');
+  }
+
   chaperoneList = chaperoneList.filter(c => c.id !== chapId);
   renderChaperoneTable();
   renderComplianceStats();
