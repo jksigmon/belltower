@@ -245,8 +245,15 @@
          they were landing on whatever earlier, otherwise-blank page that
          phantom offset corresponded to instead of the top of page 1. */
       body.dayof-print-open > *:not(#ftDayOfOverlay) { display: none !important; }
+      /* position: absolute (not static) -- static let the browser truncate
+         the sheet to whatever fit on one page instead of flowing the rest
+         onto additional pages. Absolute positioning was already proven to
+         paginate this content correctly across multiple pages; it just
+         needed the display:none change above so top:0 lands at the true
+         top of page 1 instead of wherever the (now-removed) hidden content
+         would have naturally pushed it to. */
       body.dayof-print-open #ftDayOfOverlay {
-        display: block !important; position: static; width: 100%; background: #fff;
+        display: block !important; position: absolute; top: 0; left: 0; width: 100%; background: #fff;
       }
       /* The card carries an inline max-height:85vh;overflow-y:auto (so it
          scrolls on screen); inline styles beat a plain class rule, so these
