@@ -425,6 +425,10 @@
     }
 
     /* ── Print ── */
+    /* Zero page margin so Chrome has no room to draw its default header/footer
+       (page title, URL, date, page number); .print-roster's own padding below
+       takes over as the visual margin. */
+    @page { margin: 0; }
     @media print {
       html, body {
         height: auto !important;
@@ -440,16 +444,20 @@
       font-size: 22px; font-weight: 800; color: #0b2d4f; margin: 0 0 4px 0;
     }
     .print-meta { font-size: 13px; color: #6b7280; margin-bottom: 22px; }
-    .print-vehicles { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    /* Flex, not grid -- Chrome's print pagination doesn't reliably honor
+       break-inside: avoid on grid items, which was splitting boxes across
+       pages. Flex-wrapped boxes paginate correctly. */
+    .print-vehicles { display: flex; flex-wrap: wrap; gap: 16px; }
     .print-vehicle-box {
       border: 1px solid #e5e7eb; border-radius: 10px;
-      padding: 14px 16px; break-inside: avoid;
+      padding: 14px 16px; break-inside: avoid; page-break-inside: avoid;
+      width: calc(50% - 8px);
     }
     .print-vehicle-name { font-size: 14px; font-weight: 800; color: #0b2d4f; margin-bottom: 2px; }
     .print-vehicle-group { font-size: 11px; font-weight: 700; color: #6d28d9; margin-bottom: 2px; }
     .print-vehicle-cap  { font-size: 11px; color: #6b7280; margin-bottom: 10px; }
     .print-group-header {
-      grid-column: 1 / -1;
+      width: 100%;
       font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
       color: #6d28d9; margin: 14px 0 2px 0;
     }
