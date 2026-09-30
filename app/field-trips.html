@@ -236,16 +236,24 @@
        so a normal Cmd+P elsewhere on the page is untouched -- same pattern
        as the resource-viewer print isolation in staff.html. */
     @media print {
-      body.dayof-print-open * { visibility: hidden; }
-      body.dayof-print-open #ftDayOfOverlay,
-      body.dayof-print-open #ftDayOfOverlay * { visibility: visible; }
-      body.dayof-print-open #ftDayOfOverlay { position: absolute; top: 0; left: 0; width: 100%; background: #fff; }
+      /* display:none on every other top-level section, not just
+         visibility:hidden -- visibility keeps the box in layout, so the
+         whole rest of the page (header, sidebar, trips table, other
+         modals) was still reserving its full height above #ftDayOfOverlay
+         in the flow. That pushed the sheet's real start down past page 1,
+         which is why the trip title and Chaperones section were vanishing:
+         they were landing on whatever earlier, otherwise-blank page that
+         phantom offset corresponded to instead of the top of page 1. */
+      body.dayof-print-open > *:not(#ftDayOfOverlay) { display: none !important; }
+      body.dayof-print-open #ftDayOfOverlay {
+        display: block !important; position: static; width: 100%; background: #fff;
+      }
       /* The card carries an inline max-height:85vh;overflow-y:auto (so it
          scrolls on screen); inline styles beat a plain class rule, so these
          need !important or printing clips the sheet to one modal's-worth of
          content instead of flowing across pages. */
       body.dayof-print-open #ftDayOfOverlay .ft-modal-card {
-        box-shadow: none; width: 100%; max-width: 100%;
+        box-shadow: none; width: 100% !important; max-width: 100% !important;
         max-height: none !important; overflow: visible !important;
       }
       body.dayof-print-open #ftDayOfPrintBtn,
