@@ -8376,7 +8376,7 @@ function renderComplianceReportTable() {
   const thead = document.getElementById('compReportThead');
   const tbody = document.getElementById('compReportTbody');
   const term = (document.getElementById('compReportSearch')?.value ?? '').trim();
-  const colspan = 9 + (templates?.length ?? 0);
+  const colspan = 8 + (templates?.length ?? 0);
 
   if (!allRows?.length) {
     thead.innerHTML = '';
@@ -8386,7 +8386,7 @@ function renderComplianceReportTable() {
 
   // Headers
   const formCols = templates?.length ? templates.map(t => `<th>${escHtml(t.title)}</th>`).join('') : '';
-  thead.innerHTML = `<tr><th>Student</th><th>Grade</th><th>Teacher</th><th>Guardian</th><th>BG Check</th><th>MVR</th><th>DL</th><th>Insurance</th>${formCols}<th>Restrictions</th></tr>`;
+  thead.innerHTML = `<tr><th>Student</th><th>Grade</th><th>Teacher</th><th>Guardian</th><th>BG Check</th><th>MVR</th><th>DL</th><th>Insurance</th>${formCols}</tr>`;
 
   const rows = filterComplianceRows(allRows, term);
   if (!rows.length) {
@@ -8428,14 +8428,6 @@ function renderComplianceReportTable() {
           }).join('')
         : '';
 
-      const restrictCell = (() => {
-        if (!row.guardian_id || (row.can_chaperone !== false && row.can_drive !== false)) return '<td><span class="muted">—</span></td>';
-        const parts = [];
-        if (row.can_chaperone === false) parts.push('No chaperone');
-        if (row.can_drive === false)     parts.push('No driving');
-        return `<td style="white-space:normal;">${parts.map(p => `<span style="background:#fee2e2;color:#991b1b;border-radius:999px;font-size:11px;font-weight:700;padding:2px 7px;display:inline-block;margin:1px;">${p}</span>`).join('')}</td>`;
-      })();
-
       // can_drive === false blocks MVR/DL/Insurance identically -- showing
       // "Not allowed to drive" three times in a row is just noise, and each
       // repeat was part of what forced the table wide enough to need
@@ -8453,7 +8445,6 @@ function renderComplianceReportTable() {
         <td>${row.guardian_id ? renderCredChip(row.bg, 'bg') : '<span class="muted">—</span>'}</td>
         ${drivingCells}
         ${formCells}
-        ${restrictCell}
       `;
       tbody.appendChild(tr);
     }
@@ -8473,7 +8464,6 @@ function exportComplianceReportCsv() {
     'Student', 'Grade', 'Teacher', 'Guardian', 'Guardian Email',
     'BG Check', 'BG Expires', 'MVR', 'MVR Expires', 'DL', 'DL Expires', 'Insurance', 'Insurance Expires',
     ...(templates?.map(t => t.title) ?? []),
-    'Restrictions',
   ];
 
   const csvRows = [headers.join(',')];
@@ -8484,10 +8474,6 @@ function exportComplianceReportCsv() {
           return JSON.stringify(c.status === 'signed' ? 'Signed' : c.status === 'expired' ? 'Expired' : 'Missing');
         })
       : [];
-
-    const parts = [];
-    if (row.can_chaperone === false) parts.push('No chaperone');
-    if (row.can_drive === false)     parts.push('No driving');
 
     csvRows.push([
       JSON.stringify(row.student_name),
@@ -8504,7 +8490,6 @@ function exportComplianceReportCsv() {
       JSON.stringify(row.guardian_id ? credLabel(row.insurance, 'insurance') : ''),
       JSON.stringify(row.insurance?.date ?? ''),
       ...formCols,
-      JSON.stringify(parts.join('; ')),
     ].join(','));
   });
 
