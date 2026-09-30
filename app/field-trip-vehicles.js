@@ -177,6 +177,10 @@ function buildBoard() {
 
   // Unassigned pool — pinned sidebar, can run long
   board.appendChild(buildUnassignedPanel());
+  // Must run after the panel above is attached to `document` -- it looks up
+  // #veh-cards-unassigned via document.getElementById, which returns nothing
+  // for a still-detached node and silently leaves the list empty.
+  renderUnassignedList();
 
   // Vehicle grid — each vehicle only holds a handful of students, so wrapping
   // into a grid uses screen space far better than one tall column per driver
@@ -239,8 +243,6 @@ function buildUnassignedPanel() {
     <div class="veh-unassigned-list" id="veh-cards-unassigned"></div>
     <div class="veh-unassigned-footer" id="vehUnassignedFooter"></div>
   `;
-
-  renderUnassignedList();
 
   const searchInput = wrap.querySelector('#vehUnassignedSearch');
   searchInput.value = unassignedSearchTerm;
