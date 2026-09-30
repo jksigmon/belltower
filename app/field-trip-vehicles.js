@@ -991,7 +991,13 @@ function wireActions() {
   document.getElementById('vehClearBtn')?.addEventListener('click', clearAssignments);
   document.getElementById('vehPrintBtn')?.addEventListener('click', () => {
     preparePrintRoster();
-    window.print();
+    // preparePrintRoster() just wrote a fresh batch of cards into the DOM,
+    // and the print stylesheet swaps which whole sections are display:none.
+    // Calling print() in the same tick can catch the browser mid-reflow,
+    // paginating against stale geometry (seen on the Day-of Sheet as a
+    // report that printed as a single page missing most of its content).
+    // Two rAFs guarantee a full layout + paint cycle lands first.
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
   });
   document.getElementById('vehUndoBtn')?.addEventListener('click', undoLastMove);
   document.getElementById('vehSelectionBadge')?.addEventListener('click', clearSelection);

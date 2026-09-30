@@ -2990,7 +2990,13 @@ function wireDayOfSheet() {
   });
   document.getElementById('ftDayOfPrintBtn')?.addEventListener('click', () => {
     document.body.classList.add('dayof-print-open');
-    window.print();
+    // The print stylesheet now display:none's the whole rest of the app
+    // (trips table, tabs, etc.) to isolate the sheet -- that's a real layout
+    // change, not just a paint change, and calling print() in the same tick
+    // can catch Safari mid-reflow, pagination based on stale geometry, so
+    // the sheet prints as if it were only one page tall. Two rAFs guarantee
+    // a full layout + paint cycle has landed before print() fires.
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
   });
   window.addEventListener('afterprint', () => document.body.classList.remove('dayof-print-open'));
 }
