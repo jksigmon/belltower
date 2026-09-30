@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { esc, debounce, showToast, dbError, todayISO, getAvatarColor } from './admin.shared.js?v=4';
-import { VOLUNTEER_ROLES } from './compliance.roles.js?v=4';
+import { VOLUNTEER_ROLES, blockedCredentialText } from './compliance.roles.js?v=5';
 
 const BUCKET = 'volunteer-credential-files';
 const FILE_FIELDS = ['dl', 'insurance'];
@@ -74,9 +74,24 @@ function nameCellHTML(row) {
       <div class="staff-name-group">
         <span class="staff-fullname">${esc(name)}</span>
         <span class="staff-cell-muted">${row.email ? esc(row.email) : '—'}</span>
+        ${restrictionBadgesHTML(row)}
       </div>
     </div>
   `;
+}
+
+// Surfaces the can_chaperone/can_drive manual overrides from Compliance ->
+// Volunteers right on the name cell -- a teacher entering a DL/insurance
+// date here has no other way to see that this person is flagged, since
+// this page deliberately can't show BG/MVR status.
+function restrictionBadgesHTML(row) {
+  const badges = [];
+  if (row.can_chaperone === false) badges.push(blockedCredentialText('bg').label);
+  if (row.can_drive === false) badges.push(blockedCredentialText('dl').label);
+  if (!badges.length) return '';
+  return badges.map(label =>
+    `<span style="background:#fee2e2;color:#991b1b;border-radius:999px;font-size:10px;font-weight:700;padding:2px 7px;display:inline-block;margin:2px 4px 0 0;">${esc(label)}</span>`
+  ).join('');
 }
 
 function roleChipsHTML(roleKeys) {

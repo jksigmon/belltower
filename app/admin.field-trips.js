@@ -2,6 +2,7 @@ import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
 import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, fmtShortDate, todayISO, dbError, showToast, getAvatarColor } from './admin.shared.js?v=4';
 import qrcode from './vendor/qrcode.js';
+import { blockedCredentialText } from './compliance.roles.js?v=5';
 
 let profile = null;
 let schoolConfig = null;
@@ -662,11 +663,15 @@ function volunteerNameKey(firstName, lastName) {
 async function loadVolunteerCompliance(chaperones) {
   volunteerByGuardianId.clear();
   volunteerByNameKey.clear();
-  if (!chaperones.length) return;
 
   // Fetch the whole school's roster once -- small dataset (a few hundred
   // to ~1000 rows), and guardian_id is only reliably set on a subset of
   // volunteers, so a name-fallback index still needs the full set anyway.
+  // Always runs, even when this trip has zero chaperones yet -- the Add
+  // Chaperone drawer's typeahead needs these maps populated (via
+  // getVolunteer()) to flag a not-allowed-to-chaperone/drive person before
+  // they're ever added, not just after, and that's most likely to matter on
+  // a brand new trip with no chaperones at all.
   const { data, error } = await supabase
     .from('compliance_volunteer_status')
     .select('id, first_name, last_name, guardian_id, bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at, dl_expires_at, insurance_expires_at, can_chaperone, can_drive, bg_followup_flag, bg_followup_note')
@@ -1697,6 +1702,9 @@ function clearChapSelection() {
   selectedCandidate = null;
   document.getElementById('ftChapSelected').style.display = 'none';
   document.getElementById('ftSaveChapBtn').disabled = true;
+  const warnBox = document.getElementById('ftChapSelectedWarning');
+  warnBox.style.display = 'none';
+  warnBox.innerHTML = '';
 }
 
 // Splits a "First Last" query into first/last tokens and matches both
@@ -1934,6 +1942,30 @@ function selectChapCandidate(c) {
   document.getElementById('ftChapSelectedEmail').textContent = (c.email ?? '') + hint;
   document.getElementById('ftChapSelected').style.display = '';
   document.getElementById('ftSaveChapBtn').disabled = false;
+  renderChapSelectedWarning(c);
+}
+
+// Staff aren't tracked through volunteer compliance at all, so there's
+// nothing to look up for them. Every other kind (guardian/volunteer/request)
+// carries a first/last name that getVolunteer() can match against the
+// roster -- same lookup the chaperone table itself uses for its BG/driver
+// chips -- so a flag set in Compliance -> Volunteers shows up here before
+// the trip manager ever adds the person, not just after.
+function renderChapSelectedWarning(c) {
+  const box = document.getElementById('ftChapSelectedWarning');
+  if (c.kind === 'staff') { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+  const vol = getVolunteer(c);
+  const flags = [];
+  if (vol?.can_chaperone === false) flags.push(blockedCredentialText('bg').label);
+  if (vol?.can_drive === false) flags.push(blockedCredentialText('mvr').label);
+
+  if (!flags.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+
+  box.style.display = '';
+  box.innerHTML = flags.map(label =>
+    `<span class="comp-chip comp-blocked" style="margin-right:4px;" title="Set in Compliance → Volunteers.">${esc(label)}</span>`
+  ).join('');
 }
 
 async function saveChaperone() {

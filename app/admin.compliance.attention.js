@@ -5,7 +5,7 @@ import {
   openDrawer, closeDrawer, showToast, renderPagination,
   createBulkSelection, applyVolunteerStatusFilters, closeOpenRequestsForVolunteers, PAGE_SIZE,
 } from './admin.compliance.utils.js';
-import { VOLUNTEER_ROLES, credentialStatus } from './compliance.roles.js?v=4';
+import { VOLUNTEER_ROLES, credentialStatus, blockedCredentialText } from './compliance.roles.js?v=5';
 import { openVolunteerDrawerForRow, populateVolunteerRoleFilters, downloadCSV } from './admin.compliance.volunteers.js';
 
 let _profile          = null;
@@ -168,7 +168,10 @@ function urgencyChip(row, cred) {
       || 'The background check vendor needs to hear from this person directly to resolve something. This is not something the compliance office can act on.';
     return `<span class="bg-expiry-chip bg-expiry-followup" title="${esc(tooltip)}">Needs vendor follow-up</span>`;
   }
-  if (status === 'blocked') return '<span class="bg-expiry-chip bg-expiry-expired" title="Flagged not allowed to drive (May drive is unchecked).">Not allowed to drive</span>';
+  if (status === 'blocked') {
+    const { label, tooltip } = blockedCredentialText(cred);
+    return `<span class="bg-expiry-chip bg-expiry-expired" title="${esc(tooltip)}">${esc(label)}</span>`;
+  }
   if (status === 'missing') return '<span class="bg-expiry-chip bg-expiry-warn">Missing</span>';
 
   const expiresCol = cred === 'bg' ? 'bg_expires_at' : cred === 'mvr' ? 'mvr_expires_at' : cred === 'dl' ? 'dl_expires_at' : 'insurance_expires_at';

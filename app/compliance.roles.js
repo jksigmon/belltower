@@ -86,11 +86,24 @@ function dateStatus(expiresAt) {
 // gap as "never submitted" (missing) or "lapsed" (expired) and shouldn't
 // read as either.
 const CREDENTIAL_CHECKS = {
-  bg:        v => (v.bg_followup_flag ? 'followup' : (v.bg_cleared_at ? dateStatus(v.bg_expires_at) : 'missing')),
+  bg:        v => (v.can_chaperone === false ? 'blocked' : (v.bg_followup_flag ? 'followup' : (v.bg_cleared_at ? dateStatus(v.bg_expires_at) : 'missing'))),
   mvr:       v => (v.can_drive === false ? 'blocked' : (v.mvr_cleared_at ? dateStatus(v.mvr_expires_at) : 'missing')),
   dl:        v => (v.can_drive === false ? 'blocked' : dateStatus(v.dl_expires_at)),
   insurance: v => (v.can_drive === false ? 'blocked' : dateStatus(v.insurance_expires_at)),
 };
+
+// "blocked" means different things depending on which flag caused it --
+// bg is gated on can_chaperone, the other three on can_drive -- so the
+// chip label/tooltip has to be picked per credential rather than assuming
+// "not allowed to drive" everywhere.
+const BLOCKED_TEXT = {
+  bg: { label: 'Not allowed to chaperone', tooltip: 'Flagged not allowed to chaperone (May chaperone is unchecked below).' },
+};
+const DEFAULT_BLOCKED_TEXT = { label: 'Not allowed to drive', tooltip: 'Flagged not allowed to drive (May drive is unchecked below).' };
+
+export function blockedCredentialText(cred) {
+  return BLOCKED_TEXT[cred] ?? DEFAULT_BLOCKED_TEXT;
+}
 
 // Per-credential status ('missing' | 'expired' | 'blocked' | 'ok'),
 // independent of any role -- used to render the BG/MVR/DL/Insurance

@@ -383,7 +383,12 @@ serve(async (req) => {
     // it means the file is stalled on the guardian's own action, which a
     // teacher needs to see instead of a plain "Missing" (implies nobody's
     // done anything) or a stale "Cleared".
-    function credentialStatus(clearedAt: string | null, expiresAt: string | null, requiresClearance: boolean, pendingRequest: RequestRow | null, followupFlag = false, followupNote: string | null = null) {
+    // `blocked` (the manual can_chaperone/can_drive override set in Compliance
+    // -> Volunteers) takes priority over everything else, including a signed
+    // agreement or a clean date -- it's a person-level "do not use", not a
+    // credential gap, so it has to win even over needs_followup.
+    function credentialStatus(clearedAt: string | null, expiresAt: string | null, requiresClearance: boolean, pendingRequest: RequestRow | null, followupFlag = false, followupNote: string | null = null, blocked = false) {
+      if (blocked) return { status: "blocked", date: null as string | null };
       if (followupFlag) return { status: "needs_followup", date: null as string | null, note: followupNote };
       if (!clearedAt && pendingRequest) {
         const date = pendingRequest.status === "submitted"
@@ -398,7 +403,8 @@ serve(async (req) => {
       return { status: "cleared", date: expiresAt };
     }
 
-    function expiryStatus(expiresAt: string | null) {
+    function expiryStatus(expiresAt: string | null, blocked = false) {
+      if (blocked) return { status: "blocked", date: null as string | null };
       if (!expiresAt) return { status: "not_on_file", date: null as string | null };
       if (expiresAt < today) return { status: "expired", date: expiresAt };
       if (expiresAt <= sixtyOut) return { status: "expiring", date: expiresAt };
@@ -467,10 +473,10 @@ serve(async (req) => {
           guardian_id:    guardian?.id ?? null,
           guardian_name:  guardian?.name ?? null,
           guardian_email: guardian?.email ?? null,
-          bg:        credentialStatus(volunteer?.bg_cleared_at ?? null, volunteer?.bg_expires_at ?? null, true, pendingRequest, volunteer?.bg_followup_flag ?? false, volunteer?.bg_followup_note ?? null),
-          mvr:       credentialStatus(volunteer?.mvr_cleared_at ?? null, volunteer?.mvr_expires_at ?? null, false, pendingRequest),
-          dl:        expiryStatus(volunteer?.dl_expires_at ?? null),
-          insurance: expiryStatus(volunteer?.insurance_expires_at ?? null),
+          bg:        credentialStatus(volunteer?.bg_cleared_at ?? null, volunteer?.bg_expires_at ?? null, true, pendingRequest, volunteer?.bg_followup_flag ?? false, volunteer?.bg_followup_note ?? null, volunteer?.can_chaperone === false),
+          mvr:       credentialStatus(volunteer?.mvr_cleared_at ?? null, volunteer?.mvr_expires_at ?? null, false, pendingRequest, false, null, volunteer?.can_drive === false),
+          dl:        expiryStatus(volunteer?.dl_expires_at ?? null, volunteer?.can_drive === false),
+          insurance: expiryStatus(volunteer?.insurance_expires_at ?? null, volunteer?.can_drive === false),
           can_chaperone: guardian ? (volunteer?.can_chaperone ?? true) : null,
           can_drive:     guardian ? (volunteer?.can_drive ?? true) : null,
           compliance,

@@ -6,9 +6,9 @@ import {
   createBulkSelection, applyVolunteerStatusFilters, closeOpenRequestsForVolunteers, PAGE_SIZE,
 } from './admin.compliance.utils.js';
 import {
-  VOLUNTEER_ROLES, roleCheckboxGridHTML, credentialStatus,
+  VOLUNTEER_ROLES, roleCheckboxGridHTML, credentialStatus, blockedCredentialText,
   wireRoleDetailsRequirement, rolesRequireDetails, DETAIL_ROLE_HINT, DETAIL_ROLE_ERROR,
-} from './compliance.roles.js?v=4';
+} from './compliance.roles.js?v=5';
 import { openLinkGuardianDrawerForVolunteer } from './admin.compliance.forms.js';
 
 let _profile        = null;
@@ -166,7 +166,10 @@ function credChipHTML(row, cred) {
   const dateStr = row[expiresCol] ? fmtShortDate(row[expiresCol]) : null;
 
   if (status === 'followup') return `<span class="bg-status-pill bg-status-followup" title="${esc(followupTooltip(row))}">Needs vendor follow-up</span>`;
-  if (status === 'blocked') return '<span class="bg-status-pill bg-status-expired" title="Flagged not allowed to drive (May drive is unchecked below).">Not allowed to drive</span>';
+  if (status === 'blocked') {
+    const { label, tooltip } = blockedCredentialText(cred);
+    return `<span class="bg-status-pill bg-status-expired" title="${esc(tooltip)}">${esc(label)}</span>`;
+  }
   if (status === 'missing') return '<span class="bg-status-pill bg-status-cancelled">Missing</span>';
   if (status === 'expired') return `<span class="bg-status-pill bg-status-expired">Expired${dateStr ? ` ${esc(dateStr)}` : ''}</span>`;
   return `<span class="bg-status-pill bg-status-cleared">${dateStr ? esc(dateStr) : 'OK'}</span>`;

@@ -5,7 +5,7 @@ import { openDrawer, closeDrawer, showToast, renderPagination, createBulkSelecti
 import {
   VOLUNTEER_ROLES, roleCheckboxGridHTML, wireRoleDetailsRequirement,
   rolesRequireDetails, DETAIL_ROLE_HINT, DETAIL_ROLE_ERROR,
-} from './compliance.roles.js?v=4';
+} from './compliance.roles.js?v=5';
 import { downloadCSV } from './admin.compliance.volunteers.js';
 
 const reqSelection = createBulkSelection({ barId: 'reqBulkBar', countId: 'reqBulkCount', label: 'selected' });

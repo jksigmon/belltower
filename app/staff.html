@@ -8284,6 +8284,11 @@ const CRED_CHIP = {
   needs_followup: { cls: 'comp-action',  label: 'Needs vendor follow-up' },
 };
 
+// "blocked" (the manual can_chaperone/can_drive override from Compliance ->
+// Volunteers) isn't in CRED_CHIP above -- bg reads it as a chaperone flag,
+// mvr/dl/insurance as a driving flag, so renderCredChip special-cases it
+// using `kind` instead of a single fixed label.
+
 // One icon per chip color, not per status -- same visual vocabulary as
 // CRED_CHIP's cls values (comp-cleared/comp-action/comp-blocked/comp-unknown).
 const CHIP_ICON = {
@@ -8293,12 +8298,16 @@ const CHIP_ICON = {
   'comp-unknown': '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
 };
 
-function renderCredChip(cred) {
-  const info = CRED_CHIP[cred?.status] ?? CRED_CHIP.not_on_file;
+function renderCredChip(cred, kind) {
+  const info = cred?.status === 'blocked'
+    ? { cls: 'comp-blocked', label: kind === 'bg' ? 'Not allowed to chaperone' : 'Not allowed to drive' }
+    : CRED_CHIP[cred?.status] ?? CRED_CHIP.not_on_file;
   const dateStr = cred?.date ? new Date(cred.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
   const tooltip = cred?.status === 'needs_followup'
     ? (cred.note || 'The background check vendor needs to hear from this person directly to resolve something. This is not something the school office can act on.')
-    : '';
+    : cred?.status === 'blocked'
+      ? (kind === 'bg' ? 'Flagged not allowed to chaperone (May chaperone is unchecked in Compliance -> Volunteers).' : 'Flagged not allowed to drive (May drive is unchecked in Compliance -> Volunteers).')
+      : '';
   return `<span class="comp-chip ${info.cls}"${tooltip ? ` title="${escHtml(tooltip)}"` : ''}>${CHIP_ICON[info.cls]}${info.label}</span>${dateStr ? `<span class="cr-chip-date">${escHtml(dateStr)}</span>` : ''}`;
 }
 
@@ -8430,10 +8439,10 @@ function renderComplianceReportTable() {
       tr.innerHTML = `
         ${leadCells}
         ${guardianCell}
-        <td>${row.guardian_id ? renderCredChip(row.bg) : '<span class="muted">—</span>'}</td>
-        <td>${row.guardian_id ? renderCredChip(row.mvr) : '<span class="muted">—</span>'}</td>
-        <td>${row.guardian_id ? renderCredChip(row.dl) : '<span class="muted">—</span>'}</td>
-        <td>${row.guardian_id ? renderCredChip(row.insurance) : '<span class="muted">—</span>'}</td>
+        <td>${row.guardian_id ? renderCredChip(row.bg, 'bg') : '<span class="muted">—</span>'}</td>
+        <td>${row.guardian_id ? renderCredChip(row.mvr, 'mvr') : '<span class="muted">—</span>'}</td>
+        <td>${row.guardian_id ? renderCredChip(row.dl, 'dl') : '<span class="muted">—</span>'}</td>
+        <td>${row.guardian_id ? renderCredChip(row.insurance, 'insurance') : '<span class="muted">—</span>'}</td>
         ${formCells}
         ${restrictCell}
       `;
@@ -8448,7 +8457,9 @@ function exportComplianceReportCsv() {
   if (!compReportData?.rows?.length) return;
 
   const { templates, rows } = compReportData;
-  const credLabel = c => CRED_CHIP[c?.status]?.label ?? 'Not on file';
+  const credLabel = (c, kind) => c?.status === 'blocked'
+    ? (kind === 'bg' ? 'Not allowed to chaperone' : 'Not allowed to drive')
+    : (CRED_CHIP[c?.status]?.label ?? 'Not on file');
   const headers = [
     'Student', 'Grade', 'Teacher', 'Guardian', 'Guardian Email',
     'BG Check', 'BG Expires', 'MVR', 'MVR Expires', 'DL', 'DL Expires', 'Insurance', 'Insurance Expires',
@@ -8475,13 +8486,13 @@ function exportComplianceReportCsv() {
       JSON.stringify(row.teacher_name),
       JSON.stringify(row.guardian_name ?? ''),
       JSON.stringify(row.guardian_email ?? ''),
-      JSON.stringify(row.guardian_id ? credLabel(row.bg) : ''),
+      JSON.stringify(row.guardian_id ? credLabel(row.bg, 'bg') : ''),
       JSON.stringify(row.bg?.date ?? ''),
-      JSON.stringify(row.guardian_id ? credLabel(row.mvr) : ''),
+      JSON.stringify(row.guardian_id ? credLabel(row.mvr, 'mvr') : ''),
       JSON.stringify(row.mvr?.date ?? ''),
-      JSON.stringify(row.guardian_id ? credLabel(row.dl) : ''),
+      JSON.stringify(row.guardian_id ? credLabel(row.dl, 'dl') : ''),
       JSON.stringify(row.dl?.date ?? ''),
-      JSON.stringify(row.guardian_id ? credLabel(row.insurance) : ''),
+      JSON.stringify(row.guardian_id ? credLabel(row.insurance, 'insurance') : ''),
       JSON.stringify(row.insurance?.date ?? ''),
       ...formCols,
       JSON.stringify(parts.join('; ')),
