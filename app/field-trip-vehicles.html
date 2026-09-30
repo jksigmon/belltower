@@ -444,20 +444,21 @@
       font-size: 22px; font-weight: 800; color: #0b2d4f; margin: 0 0 4px 0;
     }
     .print-meta { font-size: 13px; color: #6b7280; margin-bottom: 22px; }
-    /* Flex, not grid -- Chrome's print pagination doesn't reliably honor
-       break-inside: avoid on grid items, which was splitting boxes across
-       pages. Flex-wrapped boxes paginate correctly. */
-    .print-vehicles { display: flex; flex-wrap: wrap; gap: 16px; }
+    /* Single column, plain block flow -- both the earlier 2-column grid and
+       a flex-wrap retry still let Chrome and Safari split a box across a
+       page break despite break-inside: avoid. Block-level siblings are the
+       one layout both browsers paginate correctly, so trade the 2-column
+       layout for print reliability. */
+    .print-vehicles { display: block; }
     .print-vehicle-box {
       border: 1px solid #e5e7eb; border-radius: 10px;
       padding: 14px 16px; break-inside: avoid; page-break-inside: avoid;
-      width: calc(50% - 8px);
+      margin-bottom: 12px;
     }
     .print-vehicle-name { font-size: 14px; font-weight: 800; color: #0b2d4f; margin-bottom: 2px; }
     .print-vehicle-group { font-size: 11px; font-weight: 700; color: #6d28d9; margin-bottom: 2px; }
     .print-vehicle-cap  { font-size: 11px; color: #6b7280; margin-bottom: 10px; }
     .print-group-header {
-      width: 100%;
       font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;
       color: #6d28d9; margin: 14px 0 2px 0;
     }
