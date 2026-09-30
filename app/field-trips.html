@@ -248,6 +248,18 @@
       }
       body.dayof-print-open #ftDayOfPrintBtn,
       body.dayof-print-open #ftDayOfCloseBtn { display: none !important; }
+      /* .dayof-row is a flex container on screen (name left, phone right);
+         printing was fragmenting it mid-row -- the same flex/grid pagination
+         bug the Plan Vehicles roster hit, where a box gets cut across a page
+         break despite break-inside: avoid. Swap to block + floats for print,
+         the one layout both Chrome and Safari paginate as a single unit. */
+      body.dayof-print-open .dayof-row {
+        display: block; break-inside: avoid; page-break-inside: avoid;
+      }
+      body.dayof-print-open .dayof-row::after { content: ""; display: table; clear: both; }
+      body.dayof-print-open .dayof-row .name { float: left; }
+      body.dayof-print-open .dayof-row .meta { float: right; }
+      body.dayof-print-open .dayof-group-title { break-after: avoid; page-break-after: avoid; }
     }
 
     /* ── Students tab toolbar + grade breakdown ── */
