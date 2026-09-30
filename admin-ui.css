@@ -1112,6 +1112,20 @@ table {
   border-collapse: collapse;
 }
 
+/* .table-wrap surrounds every admin table (compliance report, field trips,
+   licensure, etc.) -- without this, a table with enough nowrap content
+   (long status chips, many columns) grows past its container and gets
+   clipped by the page instead of scrolling, since `table { width: 100% }`
+   only sets a minimum, not a cap. min-width: 0 is needed alongside
+   overflow-x because .table-wrap's parent (.panel) is a flex column --
+   a flex item's default min-width:auto would otherwise stop it from ever
+   shrinking below the table's content width, so overflow-x would never
+   actually trigger. */
+.table-wrap {
+  overflow-x: auto;
+  min-width: 0;
+}
+
 th, td {
   text-align: left;
   padding: 8px 10px;
