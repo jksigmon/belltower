@@ -3717,6 +3717,10 @@ function initResCalendar() {
     fixedWeekCount: false,
     dayMaxEvents: 3,
     headerToolbar: resCalToolbar(),
+    // Pinned to the school's timezone rather than the browser's, so a device
+    // with the wrong OS timezone (e.g. a kiosk iPad) can't render bookings
+    // shifted from what everyone else sees.
+    timeZone: schoolTimeZone(),
 
     windowResize() {
       resCalendar.setOption('headerToolbar', resCalToolbar());
@@ -3873,6 +3877,36 @@ function daysBetweenISO(a, b) {
   const [ay, am, ad] = a.split('-').map(Number);
   const [by, bm, bd] = b.split('-').map(Number);
   return Math.round((new Date(by, bm - 1, bd) - new Date(ay, am - 1, ad)) / 86400000);
+}
+
+function schoolTimeZone() {
+  return currentProfile?.schools?.timezone || 'America/New_York';
+}
+
+// Interprets a date + time-of-day as wall-clock time in the *school's*
+// timezone (not the viewing device's) and returns the matching UTC instant.
+// Needed because a shared/kiosk device's OS timezone can be wrong -- without
+// this, the same "7:15 AM" typed on two devices with different clocks would
+// be stored as two different absolute instants, which is how a reservation
+// can look booked to one person and free to another for the same slot.
+function schoolWallTimeToUTC(dateStr, timeStr) {
+  const tz = schoolTimeZone();
+  const hms = timeStr.length === 5 ? `${timeStr}:00` : timeStr;
+  const guess = new Date(`${dateStr}T${hms}.000Z`);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(guess).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+  const guessShownAt = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}.000Z`);
+  return new Date(guess.getTime() + (guess.getTime() - guessShownAt.getTime()));
+}
+
+// Formats an absolute instant in the school's timezone so every viewer sees
+// the same wall-clock time, regardless of their own device's clock/timezone.
+function fmtInSchoolTz(d, opts) {
+  return new Date(d).toLocaleString('en-US', { ...opts, timeZone: schoolTimeZone() });
 }
 
 function fmtOccurrenceDate(dateStr) {
@@ -4053,7 +4087,7 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
     }
     for (const d of datesInRange(dateVal, dateEndVal)) {
       for (const block of blocks) {
-        windows.push({ starts: new Date(`${d}T${block.start_time}`), ends: new Date(`${d}T${block.end_time}`) });
+        windows.push({ starts: schoolWallTimeToUTC(d, block.start_time), ends: schoolWallTimeToUTC(d, block.end_time) });
       }
     }
   } else {
@@ -4112,12 +4146,12 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
 
       for (const d of dates) {
         windows.push({
-          starts: new Date(`${d}T${startTimeVal}`),
-          ends: new Date(`${addDaysISO(d, dayOffset)}T${endTimeVal}`),
+          starts: schoolWallTimeToUTC(d, startTimeVal),
+          ends: schoolWallTimeToUTC(addDaysISO(d, dayOffset), endTimeVal),
         });
       }
     } else {
-      windows.push({ starts: new Date(`${startDateVal}T${startTimeVal}`), ends: new Date(`${endDateVal}T${endTimeVal}`) });
+      windows.push({ starts: schoolWallTimeToUTC(startDateVal, startTimeVal), ends: schoolWallTimeToUTC(endDateVal, endTimeVal) });
     }
   }
 
@@ -4156,7 +4190,7 @@ document.getElementById('resBookSaveBtn')?.addEventListener('click', async () =>
     return;
   }
 
-  const timeFmt = d => new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const timeFmt = d => fmtInSchoolTz(d, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   const conflict = windows
     .map(w => (existing || []).find(e => new Date(e.starts_at) < w.ends && new Date(e.ends_at) > w.starts))
     .find(Boolean);
@@ -4215,7 +4249,7 @@ function openResDetailModal(event) {
   document.getElementById('resDetailResource').textContent = p.resourceName;
   document.getElementById('resDetailBy').textContent = p.reservedByName;
 
-  const timeFmt = d => d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const timeFmt = d => fmtInSchoolTz(d, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   document.getElementById('resDetailTime').textContent = `${timeFmt(event.start)} – ${timeFmt(event.end)}`;
 
   const statusLabelMap = { confirmed: 'Confirmed', pending: 'Pending approval', denied: 'Denied', cancelled: 'Cancelled' };

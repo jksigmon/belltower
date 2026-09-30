@@ -1,6 +1,6 @@
 // admin.reservations.js
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, dbError, fmtShortDate } from './admin.shared.js?v=4';
+import { esc, dbError } from './admin.shared.js?v=4';
 
 let profile = null;
 let initialized = false;
@@ -745,25 +745,46 @@ function seriesCardHtml({ seriesId, items }) {
 
 const WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+// All of these render an absolute instant (starts_at/ends_at are
+// timestamptz), so they're pinned to the school's timezone rather than the
+// admin's device -- otherwise an admin whose device clock/timezone is wrong
+// would see approval times shifted from what the booker actually requested.
+function schoolTimeZone() {
+  return profile?.schools?.timezone || 'America/New_York';
+}
+
+function fmtDateInSchoolTz(d) {
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: schoolTimeZone() });
+}
+
+// getDay() reads the device's own local calendar date; rebuilding the Date
+// from the school-tz-formatted y/m/d parts keeps the weekday correct even if
+// the viewer's device is near a day boundary in a different timezone.
+function weekdayIndexInSchoolTz(instant) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: schoolTimeZone(), year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(new Date(instant))
+    .reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+  return new Date(Number(parts.year), Number(parts.month) - 1, Number(parts.day)).getDay();
+}
+
 function seriesSummary(items) {
-  const days = [...new Set(items.map(r => new Date(r.starts_at).getDay()))]
+  const days = [...new Set(items.map(r => weekdayIndexInSchoolTz(r.starts_at)))]
     .sort((a, b) => a - b)
     .map(d => WEEKDAY_ABBR[d])
     .join(', ');
 
-  const first = fmtShortDate(items[0].starts_at);
-  const last = fmtShortDate(items[items.length - 1].starts_at);
+  const first = fmtDateInSchoolTz(items[0].starts_at);
+  const last = fmtDateInSchoolTz(items[items.length - 1].starts_at);
   const span = first === last ? first : `${first} through ${last}`;
 
   return `${items.length} bookings · ${days} · ${span}`;
 }
 
 function fmtRange(startsAt, endsAt) {
-  const s = new Date(startsAt);
-  const e = new Date(endsAt);
-  const dateStr = fmtShortDate(startsAt);
-  const timeFmt = d => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  return `${dateStr}, ${timeFmt(s)} – ${timeFmt(e)}`;
+  const tz = schoolTimeZone();
+  const dateStr = fmtDateInSchoolTz(startsAt);
+  const timeFmt = d => new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: tz });
+  return `${dateStr}, ${timeFmt(startsAt)} – ${timeFmt(endsAt)}`;
 }
 
 async function decidePending(id, status) {
