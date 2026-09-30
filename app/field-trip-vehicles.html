@@ -425,10 +425,13 @@
     }
 
     /* ── Print ── */
-    /* Zero page margin so Chrome has no room to draw its default header/footer
-       (page title, URL, date, page number); .print-roster's own padding below
-       takes over as the visual margin. */
-    @page { margin: 0; }
+    /* A real margin so physical printers don't clip edge content -- most
+       can't print edge-to-edge. (Zeroing this to hide the browser's default
+       header/footer was tried and reverted: it doesn't even suppress
+       Safari's, which is an OS print-panel checkbox, not CSS-controllable,
+       and it isn't worth trading away safe margins for the browsers where
+       it does work.) */
+    @page { margin: 0.5in; }
     @media print {
       html, body {
         height: auto !important;
