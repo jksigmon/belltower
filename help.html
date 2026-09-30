@@ -638,6 +638,16 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
 
     <div class="faq-item">
       <button class="faq-question">
+        What happens if I request more leave than I have available?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>If a request would leave you with a negative balance for that leave type, you'll see a warning showing how many hours you're over. Depending on your school's settings, you may still be able to submit it (it will also be flagged for your approver), or submission may be blocked until you reduce the request or talk to your approver.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
         How do I cancel a leave request?
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
@@ -701,6 +711,22 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <p>In Leave Management, go to the <strong>Adjust Balances</strong> tab. Select the staff member, the leave type, the number of hours to add or subtract, and a reason. All adjustments are logged in the ledger.</p>
+      </div>
+    </div>
+
+    <div class="faq-item">
+      <button class="faq-question">
+        What is the Leave Balance Enforcement setting?
+        <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="faq-answer">
+        <p>In Leave Management, go to <strong>Leave Policies</strong>. The <strong>Leave Balance Enforcement</strong> setting controls what happens when approving a request would leave an employee with a negative balance, for any leave type that counts against balance:</p>
+        <ul>
+          <li><strong>Warn, but allow (default):</strong> you'll see a confirmation showing the resulting negative balance before approving, but you can proceed.</li>
+          <li><strong>Block:</strong> neither the employee nor you can submit or approve a request that would go negative. This effectively requires a manual balance adjustment first.</li>
+          <li><strong>Allow silently:</strong> no warning at either step. Use the negative balances report to catch these after the fact.</li>
+        </ul>
+        <p>This is a per-school setting, only visible to staff with permission to manage leave balances.</p>
       </div>
     </div>
 

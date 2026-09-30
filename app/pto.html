@@ -1323,6 +1323,19 @@
     <div class="panel panel-history">
       <h3>Leave Policies</h3>
 
+      <!-- Negative Balance Policy -->
+      <div style="margin-bottom:24px;">
+        <h4 style="margin:0 0 8px;">Leave Balance Enforcement</h4>
+        <div class="muted" style="margin-bottom:10px; font-size:13px;">
+          Controls what happens when a leave request would leave an employee with a negative balance, for any leave type that counts against balance.
+        </div>
+        <select id="negativeBalancePolicySelect" style="max-width:420px;">
+          <option value="warn">Warn, but allow (default)</option>
+          <option value="block">Block, can't submit or approve into negative</option>
+          <option value="allow">Allow silently, no warning</option>
+        </select>
+      </div>
+
       <!-- Leave Type Settings -->
       <div style="margin-bottom:24px;">
         <h4 style="margin:0 0 8px;">Leave Type Settings</h4>

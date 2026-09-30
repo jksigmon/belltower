@@ -9,6 +9,7 @@ import { SUPABASE_URL } from '/app/config.js';
 ============================================= */
 let currentSchoolPtoTypes = [];
 let currentSchoolPtoTypeMeta = {};
+let negativeBalancePolicy = 'warn'; // 'allow' | 'warn' | 'block'
 let lastPendingPtoCount = 0;
 let lastCancelPtoCount = 0;
 let currentPtoHistoryEmployeeId = null;
@@ -189,7 +190,7 @@ if (!ptoModule?.enabled) {
 /* =============================================
    STARTUP
 ============================================= */
-const startupLoads = [loadSchoolPtoTypes(), loadPtoRequestCounts()];
+const startupLoads = [loadSchoolPtoTypes(), loadPtoRequestCounts(), loadNegativeBalancePolicy()];
 if (currentProfile.can_approve_pto) startupLoads.push(loadPto());
 await Promise.all(startupLoads);
 if (currentProfile.can_approve_pto) ptoViewCache.add('pending');
@@ -377,6 +378,9 @@ async function approveIds(ids) {
     showToast('You are not authorized to approve leave requests.', 'error');
     return;
   }
+
+  if (!await confirmNegativeBalanceImpact(ids)) return;
+
   if (!await showConfirm({
     title: `Approve ${ids.length} Request${ids.length !== 1 ? 's' : ''}`,
     body: `Approve ${ids.length} leave request${ids.length !== 1 ? 's' : ''}?`,
@@ -570,6 +574,103 @@ async function loadSchoolPtoTypes() {
       countsAgainstBalance: r.counts_against_balance,
       notesRequired: r.notes_required
     };
+  });
+}
+
+async function loadNegativeBalancePolicy() {
+  const { data, error } = await supabase
+    .from('school_settings')
+    .select('negative_balance_policy')
+    .eq('school_id', currentProfile.school_id)
+    .single();
+
+  if (!error && data?.negative_balance_policy) {
+    negativeBalancePolicy = data.negative_balance_policy;
+  }
+}
+
+/**
+ * Checks whether approving the given pto_requests ids would push any
+ * employee/type balance negative, per the school's negative_balance_policy.
+ * Returns true if approveIds()/updatePtoStatus() should proceed, false if
+ * the approval should be aborted (block policy, or the approver declined
+ * the warn confirmation).
+ *
+ * Balances aren't debited until approval, so a bulk batch that hits the
+ * same employee/type more than once is checked cumulatively within the
+ * batch, not just against the balance as it stands right now.
+ */
+async function confirmNegativeBalanceImpact(ids) {
+  if (!ids.length || negativeBalancePolicy === 'allow') return true;
+
+  const { data: requests, error } = await supabase
+    .from('pto_requests')
+    .select(`
+      id, employee_id, pto_type, requested_hours,
+      employees!pto_requests_employee_id_fkey (first_name, last_name)
+    `)
+    .in('id', ids);
+
+  if (error || !requests) {
+    console.error('Balance impact lookup failed, skipping negative-balance check:', error);
+    return true;
+  }
+
+  const balanceCounting = requests.filter(r =>
+    currentSchoolPtoTypeMeta[r.pto_type]?.countsAgainstBalance !== false);
+  if (!balanceCounting.length) return true;
+
+  const empIds = [...new Set(balanceCounting.map(r => r.employee_id))];
+  const { data: balances, error: balErr } = await supabase
+    .from('pto_balances')
+    .select('employee_id, pto_type, balance_hours')
+    .eq('school_id', currentProfile.school_id)
+    .in('employee_id', empIds);
+
+  if (balErr) {
+    console.error('Balance lookup failed, skipping negative-balance check:', balErr);
+    return true;
+  }
+
+  const runningBalance = {};
+  (balances ?? []).forEach(b => {
+    runningBalance[`${b.employee_id}::${b.pto_type}`] = b.balance_hours;
+  });
+
+  const overages = [];
+  balanceCounting.forEach(r => {
+    const key = `${r.employee_id}::${r.pto_type}`;
+    const before = runningBalance[key] ?? 0;
+    const after = before - Number(r.requested_hours ?? 0);
+    runningBalance[key] = after;
+    if (after < 0) {
+      const name = r.employees ? `${r.employees.first_name} ${r.employees.last_name}` : 'This employee';
+      overages.push({ name, type: r.pto_type, after });
+    }
+  });
+
+  if (!overages.length) return true;
+
+  const lines = overages
+    .map(o => `${o.name} (${ptoTypeLabel(o.type)}): ${o.after.toFixed(2)} hrs`)
+    .join('\n');
+
+  if (negativeBalancePolicy === 'block') {
+    showToast(
+      overages.length === 1
+        ? `Can't approve: this would leave ${overages[0].name} at ${overages[0].after.toFixed(2)} hrs for ${ptoTypeLabel(overages[0].type)}. Adjust their balance first or deny the request.`
+        : `Can't approve: ${overages.length} of these would leave a negative balance. Adjust balances first or deny those requests individually.`,
+      'error'
+    );
+    return false;
+  }
+
+  // warn
+  return showConfirm({
+    title: 'Approving Will Create a Negative Balance',
+    body: `${lines}\n\nApprove anyway?`,
+    confirmText: 'Approve Anyway',
+    danger: true
   });
 }
 
@@ -1154,6 +1255,8 @@ async function updatePtoStatus(requestId, newStatus, rowEl = null) {
     return;
   }
 
+  if (newStatus === 'APPROVED' && !await confirmNegativeBalanceImpact([requestId])) return;
+
   if (!await showConfirm({
     title: newStatus === 'APPROVED' ? 'Approve Leave Request' : 'Deny Leave Request',
     body:  newStatus === 'APPROVED' ? 'Approve this leave request?' : 'Deny this leave request?',
@@ -1703,6 +1806,31 @@ async function savePtoTypeSortOrder(input) {
   showToast('Order saved. Reload to see updated column order.', 'success');
 }
 
+function initNegativeBalancePolicySelect() {
+  const select = document.getElementById('negativeBalancePolicySelect');
+  if (!select) return;
+
+  select.value = negativeBalancePolicy;
+  select.disabled = !_canManagePtoBalances;
+
+  select.addEventListener('change', async () => {
+    const value = select.value;
+    const { error } = await supabase
+      .from('school_settings')
+      .update({ negative_balance_policy: value })
+      .eq('school_id', currentProfile.school_id);
+
+    if (error) {
+      showToast('Failed to save leave balance enforcement setting.', 'error');
+      select.value = negativeBalancePolicy;
+      return;
+    }
+
+    negativeBalancePolicy = value;
+    showToast('Leave balance enforcement setting saved.', 'success');
+  });
+}
+
 /* =============================================
    PTO POLICIES
 ============================================= */
@@ -1710,6 +1838,7 @@ async function loadPtoPolicies() {
   if (!currentProfile || !currentProfile.school_id) return;
 
   await loadPtoTypeSettings();
+  initNegativeBalancePolicySelect();
 
   const tbody = document.querySelector('#ptoPoliciesTable tbody');
   const headerRow = document.getElementById('ptoPoliciesHeader');

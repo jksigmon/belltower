@@ -489,6 +489,18 @@
   color: #1e40af;
 }
 .pto-deduction-summary.pto-deduction-tracking-only svg { color: #1e40af; }
+.pto-deduction-summary.pto-deduction-negative-warn {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+}
+.pto-deduction-summary.pto-deduction-negative-warn svg { color: #b45309; }
+.pto-deduction-summary.pto-deduction-negative-block {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+.pto-deduction-summary.pto-deduction-negative-block svg { color: #991b1b; }
 
 /* ─── Field Trips ─────────────────────────────────── */
 .trip-badge { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; }
@@ -2538,10 +2550,58 @@ let SCHOOL_WORKDAY_HOURS = 8;
 let PTO_INCREMENT_MINUTES = 30;
 let DAY_START_TIME = "08:00";
 let DAY_END_TIME = "16:00";
+let NEGATIVE_BALANCE_POLICY = 'warn'; // 'allow' | 'warn' | 'block'
 
 // ---------- PTO Cancel Modal Helpers ----------
 let pendingCancel = null;
 let schoolPtoTypeMeta = {};
+
+// Current balances and same-type PENDING totals for this employee, used to
+// warn about a leave request that would exceed what's actually available.
+// Pending hours aren't debited yet (that happens at approval), but counting
+// them here stops someone from submitting several requests that are each
+// individually under balance but add up to more than they have.
+let currentStaffBalanceMap = {};
+let currentStaffPendingByType = {};
+
+function availableBalanceFor(type) {
+  const balance = currentStaffBalanceMap[type] ?? 0;
+  const pending = currentStaffPendingByType[type] ?? 0;
+  return balance - pending;
+}
+
+// Popup confirmation shown at submit time when NEGATIVE_BALANCE_POLICY is
+// 'warn' and the request would exceed available balance. Resolves true if
+// the employee chooses to submit anyway, false if they back out.
+function confirmNegativeBalanceSubmit(overBy, type) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('negativeBalanceModal');
+    const body = document.getElementById('negativeBalanceModalBody');
+    const confirmBtn = document.getElementById('negativeBalanceModalConfirm');
+    const cancelBtn = document.getElementById('negativeBalanceModalCancel');
+    const closeBtn = document.getElementById('negativeBalanceModalClose');
+    if (!modal || !body || !confirmBtn || !cancelBtn) { resolve(true); return; }
+
+    const label = type.charAt(0) + type.slice(1).toLowerCase();
+    body.textContent = `This request exceeds your available ${label} balance by ${overBy.toFixed(2)} hours. Submitting will leave you with a negative balance if it's approved, and your approver will see the same warning.`;
+
+    modal.classList.add('open');
+
+    function finish(result) {
+      modal.classList.remove('open');
+      confirmBtn.removeEventListener('click', onConfirm);
+      cancelBtn.removeEventListener('click', onCancel);
+      closeBtn?.removeEventListener('click', onCancel);
+      resolve(result);
+    }
+    function onConfirm() { finish(true); }
+    function onCancel() { finish(false); }
+
+    confirmBtn.addEventListener('click', onConfirm);
+    cancelBtn.addEventListener('click', onCancel);
+    closeBtn?.addEventListener('click', onCancel);
+  });
+}
 
 
 function isPastPto(startDateStr) {
@@ -5777,6 +5837,9 @@ async function loadPtoBalances() {
     return;
   }
 
+  currentStaffBalanceMap = {};
+  (data || []).forEach(b => { currentStaffBalanceMap[b.pto_type] = b.balance_hours; });
+
   if (!data || data.length === 0) {
     container.innerHTML = '<span class="muted">No balances yet.</span>';
     return;
@@ -5805,12 +5868,19 @@ async function loadPtoStats() {
       .eq('employee_id', currentProfile.employee_id),
     supabase
       .from('pto_requests')
-      .select('status, requested_hours')
+      .select('status, requested_hours, pto_type')
       .eq('school_id', currentProfile.school_id)
       .eq('employee_id', currentProfile.employee_id)
   ]);
 
   if (ledgerError || error || !ledger || !data) return;
+
+  currentStaffPendingByType = {};
+  data.forEach(r => {
+    if (r.status !== 'PENDING') return;
+    currentStaffPendingByType[r.pto_type] =
+      (currentStaffPendingByType[r.pto_type] ?? 0) + Number(r.requested_hours ?? 0);
+  });
 
   // Approved/Cancelled come from the ledger (actual balance debits/credits),
   // not request status -- a request withdrawn while still PENDING never
@@ -6197,6 +6267,22 @@ const requestedHours = calculateRequestedHours({
     return;
   }
 
+  const typeMeta = schoolPtoTypeMeta[type];
+  const typeCountsAgainstBalance = !typeMeta || typeMeta.countsAgainstBalance !== false;
+  if (typeCountsAgainstBalance) {
+    const overBy = requestedHours - availableBalanceFor(type);
+    if (overBy > 0) {
+      if (NEGATIVE_BALANCE_POLICY === 'block') {
+        message.textContent = `This exceeds your available balance by ${overBy.toFixed(2)} hours. Your school doesn't allow leave requests that go negative.`;
+        return;
+      }
+      if (NEGATIVE_BALANCE_POLICY === 'warn') {
+        const proceed = await confirmNegativeBalanceSubmit(overBy, type);
+        if (!proceed) return;
+      }
+    }
+  }
+
   let durationLabel;
   if (isHalfDay) {
     durationLabel = 'Half Day';
@@ -6483,7 +6569,7 @@ function hasAnyEnabledModule() {
 async function loadSchoolSettings(schoolId) {
   const { data, error } = await supabase
     .from('school_settings')
-    .select('workday_hours, pto_time_increment_minutes, day_start_time, day_end_time')
+    .select('workday_hours, pto_time_increment_minutes, day_start_time, day_end_time, negative_balance_policy')
     .eq('school_id', schoolId)
     .single();
 
@@ -6493,11 +6579,13 @@ async function loadSchoolSettings(schoolId) {
     PTO_INCREMENT_MINUTES = 30;
     DAY_START_TIME = "08:00";
     DAY_END_TIME = "16:00";
+    NEGATIVE_BALANCE_POLICY = 'warn';
   } else {
     SCHOOL_WORKDAY_HOURS = data.workday_hours ?? 8;
     PTO_INCREMENT_MINUTES = data.pto_time_increment_minutes ?? 30;
     DAY_START_TIME = (data.day_start_time ?? "08:00").slice(0, 5);
     DAY_END_TIME   = (data.day_end_time   ?? "16:00").slice(0, 5);
+    NEGATIVE_BALANCE_POLICY = data.negative_balance_policy ?? 'warn';
 
     // Apply campus overrides from data already loaded in the profile query
     const campus = currentProfile?.employees?.campuses;
@@ -6654,11 +6742,29 @@ function updateDeductionSummary() {
   const breakdown = isHalfDay ? 'Half Day' : formatHoursAsDays(hours);
 
   el.style.display = 'flex';
+  el.classList.remove('pto-deduction-negative-warn', 'pto-deduction-negative-block');
   el.classList.toggle('pto-deduction-tracking-only', !!trackingOnly);
 
-  textEl.innerHTML = trackingOnly
-    ? `This request is <strong>${hours} hours (${breakdown})</strong> — tracking only, it will <strong>not</strong> count against your leave balance.`
-    : `If approved, this will deduct <strong>${hours} hours (${breakdown})</strong> from your balance.`;
+  if (trackingOnly) {
+    textEl.innerHTML = `This request is <strong>${hours} hours (${breakdown})</strong>, tracking only: it will <strong>not</strong> count against your leave balance.`;
+    return;
+  }
+
+  // Non-tracking type -- check whether this would exceed what's actually
+  // available (current balance minus other same-type PENDING requests).
+  const overBy = type ? (hours - availableBalanceFor(type)) : 0;
+
+  if (overBy > 0 && NEGATIVE_BALANCE_POLICY !== 'allow') {
+    const blocked = NEGATIVE_BALANCE_POLICY === 'block';
+    el.classList.toggle('pto-deduction-negative-warn', !blocked);
+    el.classList.toggle('pto-deduction-negative-block', blocked);
+    textEl.innerHTML = blocked
+      ? `This exceeds your available balance by <strong>${overBy.toFixed(2)} hours</strong>. Your school doesn't allow leave requests that go negative, reduce the request or talk to your approver.`
+      : `This exceeds your available balance by <strong>${overBy.toFixed(2)} hours</strong>. You can still submit it, but it will leave you with a negative balance if approved.`;
+    return;
+  }
+
+  textEl.innerHTML = `If approved, this will deduct <strong>${hours} hours (${breakdown})</strong> from your balance.`;
 }
 
 function updateComputedHoursUI() {
@@ -8755,6 +8861,20 @@ if (past) {
     <div class="modal-actions">
       <button class="btn" id="cancelModalAbort">Back</button>
       <button class="btn warn" id="cancelModalConfirm">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="negativeBalanceModal" class="modal modal-sm">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>This Will Leave a Negative Balance</h3>
+      <span class="modal-close" id="negativeBalanceModalClose">&times;</span>
+    </div>
+    <p id="negativeBalanceModalBody" style="font-size:0.9rem;color:#334155;margin:0 0 4px;"></p>
+    <div class="modal-actions">
+      <button class="btn" id="negativeBalanceModalCancel">Go Back</button>
+      <button class="btn btn-primary" id="negativeBalanceModalConfirm">Submit Anyway</button>
     </div>
   </div>
 </div>
