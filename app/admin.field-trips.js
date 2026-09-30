@@ -99,11 +99,22 @@ async function init() {
   document.getElementById('sideNav')?.classList.remove('hidden');
 
   await loadRequiredForms();
-  setActive('#trips');
+
+  // A trip id in the URL (e.g. returning from the Plan Vehicles page) means
+  // the user wants that trip's detail view, not the list -- skip the list's
+  // own auto-load so it doesn't race the deep-link load below.
+  const deepLinkTripId = new URLSearchParams(location.search).get('trip');
+  setActive('#trips', { skipAutoLoad: !!deepLinkTripId });
+
+  if (deepLinkTripId) {
+    await loadTrips();
+    const trip = tripCache.find(t => t.id === deepLinkTripId);
+    if (trip) openTrip(deepLinkTripId);
+  }
 }
 
 // ── Routing ─────────────────────────────────────────────────────────────
-function setActive(hash) {
+function setActive(hash, opts = {}) {
   history.replaceState(null, '', '#trips');
 
   document.querySelectorAll('#sideNav a').forEach(a => {
@@ -115,7 +126,7 @@ function setActive(hash) {
   if (section) section.style.display = 'block';
 
   showListView();
-  if (!tripCache.length) loadTrips();
+  if (!tripCache.length && !opts.skipAutoLoad) loadTrips();
 }
 
 function wireNav() {

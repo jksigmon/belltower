@@ -47,6 +47,11 @@ async function init() {
     return;
   }
 
+  // Carry the trip id back so "Field Trips" reopens this trip's detail view
+  // instead of dropping the user at the top of the list.
+  const backBtn = document.getElementById('vehBackBtn');
+  if (backBtn) backBtn.href = `/app/field-trips.html?trip=${encodeURIComponent(tripId)}`;
+
   profile = await initPage();
   if (!profile) return;
 
