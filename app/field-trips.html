@@ -225,6 +225,11 @@
     }
     .dayof-row .name { font-weight: 600; color: #0f172a; }
     .dayof-row .meta { color: #6b7280; font-size: 12px; text-align: right; }
+    /* Zero page margin so Chrome has no room to draw its default header/footer
+       (page title, URL, date, page number); the modal card's own padding
+       takes over as the visual margin. Safari ignores this -- its header/
+       footer is an OS print-panel checkbox the user has to uncheck instead. */
+    @page { margin: 0; }
     /* Scoped to body.dayof-print-open (set only while printing the sheet)
        so a normal Cmd+P elsewhere on the page is untouched -- same pattern
        as the resource-viewer print isolation in staff.html. */
@@ -233,7 +238,14 @@
       body.dayof-print-open #ftDayOfOverlay,
       body.dayof-print-open #ftDayOfOverlay * { visibility: visible; }
       body.dayof-print-open #ftDayOfOverlay { position: absolute; top: 0; left: 0; width: 100%; background: #fff; }
-      body.dayof-print-open #ftDayOfOverlay .ft-modal-card { box-shadow: none; max-height: none; width: 100%; max-width: 100%; }
+      /* The card carries an inline max-height:85vh;overflow-y:auto (so it
+         scrolls on screen); inline styles beat a plain class rule, so these
+         need !important or printing clips the sheet to one modal's-worth of
+         content instead of flowing across pages. */
+      body.dayof-print-open #ftDayOfOverlay .ft-modal-card {
+        box-shadow: none; width: 100%; max-width: 100%;
+        max-height: none !important; overflow: visible !important;
+      }
       body.dayof-print-open #ftDayOfPrintBtn,
       body.dayof-print-open #ftDayOfCloseBtn { display: none !important; }
     }
