@@ -3777,10 +3777,17 @@ function initResCalendar() {
     fixedWeekCount: false,
     dayMaxEvents: 3,
     headerToolbar: resCalToolbar(),
-    // Pinned to the school's timezone rather than the browser's, so a device
-    // with the wrong OS timezone (e.g. a kiosk iPad) can't render bookings
-    // shifted from what everyone else sees.
-    timeZone: schoolTimeZone(),
+    // The core FullCalendar bundle has no built-in support for named IANA
+    // zones (e.g. 'America/New_York') -- that requires a separate
+    // moment-timezone/luxon plugin we don't load, and without it FullCalendar
+    // silently treats any non-'local'/'UTC' zone as if it had zero offset.
+    // Instead we pre-shift every event's start/end (and the fetch range, and
+    // "now") to the school's wall-clock digits via wallTimePartsAsUTC() and
+    // tell FullCalendar it's looking at plain UTC, which it natively handles
+    // correctly -- so the calendar always shows the school's wall-clock time
+    // regardless of the viewing device's own clock/timezone.
+    timeZone: 'UTC',
+    now: () => wallTimePartsAsUTC(Date.now()),
 
     windowResize() {
       resCalendar.setOption('headerToolbar', resCalToolbar());
@@ -3788,13 +3795,15 @@ function initResCalendar() {
 
     events: async (info, success, failure) => {
       try {
+        const rangeStart = fakeUtcToRealInstant(info.start).toISOString();
+        const rangeEnd = fakeUtcToRealInstant(info.end).toISOString();
         const { data, error } = await supabase
           .from('reservations')
           .select('id, title, notes, starts_at, ends_at, status, reserved_by_name, reserved_by_profile_id, resource_id, series_id, reservable_resources(name, color, group_id)')
           .eq('school_id', currentProfile.school_id)
           .in('status', ['confirmed', 'pending'])
-          .lt('starts_at', info.endStr)
-          .gt('ends_at', info.startStr);
+          .lt('starts_at', rangeEnd)
+          .gt('ends_at', rangeStart);
 
         if (error) throw error;
 
@@ -3813,8 +3822,8 @@ function initResCalendar() {
           return {
             id: r.id,
             title: `${r.title} — ${r.reservable_resources?.name ?? ''}`,
-            start: r.starts_at,
-            end: r.ends_at,
+            start: wallTimePartsAsUTC(r.starts_at),
+            end: wallTimePartsAsUTC(r.ends_at),
             backgroundColor: isPending ? '#f59e0b' : color,
             borderColor: isPending ? '#d97706' : color,
             classNames: isPending ? ['pto-cal-pending'] : [],
@@ -3943,6 +3952,34 @@ function schoolTimeZone() {
   return currentProfile?.schools?.timezone || 'America/New_York';
 }
 
+// Given an absolute instant, returns a Date whose UTC getters (getUTCHours(),
+// toISOString(), etc.) read the same y/m/d/h/m/s as the wall-clock time in
+// the school's timezone. Used both to convert user-entered wall-clock input
+// to a real UTC instant (paired with fakeUtcToRealInstant below) and to hand
+// FullCalendar pre-shifted timestamps under a `timeZone: 'UTC'` config --
+// the core FullCalendar bundle we load has no built-in support for named IANA
+// zones (that requires the separate moment-timezone/luxon plugin), and
+// silently renders any zone name other than 'local'/'UTC' as if it had zero
+// offset, which is what previously showed an 8:30 AM booking as "12:30p".
+function wallTimePartsAsUTC(instant) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: schoolTimeZone(),
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(instant)).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+  return new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}.000Z`);
+}
+
+// Inverse of wallTimePartsAsUTC: given a Date/instant whose UTC getters
+// already read as the school's wall-clock digits, returns the real absolute
+// instant they correspond to.
+function fakeUtcToRealInstant(fakeUtc) {
+  const guess = new Date(fakeUtc);
+  const guessShownAt = wallTimePartsAsUTC(guess);
+  return new Date(guess.getTime() + (guess.getTime() - guessShownAt.getTime()));
+}
+
 // Interprets a date + time-of-day as wall-clock time in the *school's*
 // timezone (not the viewing device's) and returns the matching UTC instant.
 // Needed because a shared/kiosk device's OS timezone can be wrong -- without
@@ -3950,17 +3987,8 @@ function schoolTimeZone() {
 // be stored as two different absolute instants, which is how a reservation
 // can look booked to one person and free to another for the same slot.
 function schoolWallTimeToUTC(dateStr, timeStr) {
-  const tz = schoolTimeZone();
   const hms = timeStr.length === 5 ? `${timeStr}:00` : timeStr;
-  const guess = new Date(`${dateStr}T${hms}.000Z`);
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(guess).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
-  const guessShownAt = new Date(`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}.000Z`);
-  return new Date(guess.getTime() + (guess.getTime() - guessShownAt.getTime()));
+  return fakeUtcToRealInstant(new Date(`${dateStr}T${hms}.000Z`));
 }
 
 // Formats an absolute instant in the school's timezone so every viewer sees
@@ -4309,7 +4337,10 @@ function openResDetailModal(event) {
   document.getElementById('resDetailResource').textContent = p.resourceName;
   document.getElementById('resDetailBy').textContent = p.reservedByName;
 
-  const timeFmt = d => fmtInSchoolTz(d, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  // event.start/end are FullCalendar Date objects already shifted to the
+  // school's wall-clock digits (see initResCalendar) -- format their UTC
+  // fields directly rather than fmtInSchoolTz, which would shift them again.
+  const timeFmt = d => new Date(d).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'UTC' });
   document.getElementById('resDetailTime').textContent = `${timeFmt(event.start)} – ${timeFmt(event.end)}`;
 
   const statusLabelMap = { confirmed: 'Confirmed', pending: 'Pending approval', denied: 'Denied', cancelled: 'Cancelled' };
