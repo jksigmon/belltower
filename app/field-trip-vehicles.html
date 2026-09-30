@@ -451,20 +451,28 @@
        Safari split a box across a page break despite break-inside: avoid
        (the same fragmentation bug hit on the Day-of Sheet's rows). Floated
        blocks are the one layout both browsers paginate correctly, and it's
-       what fixed the Day-of Sheet rows, so reuse it here. Each box gets a
-       symmetric 1% side margin (not alternating nth-child margins) so the
-       2-per-row wrap stays correct regardless of a group header resetting
-       the row in between -- nth-child parity would drift once a header
-       (not a .print-vehicle-box) is counted as a sibling. */
+       what fixed the Day-of Sheet rows, so reuse it here.
+       Letting same-direction floats wrap purely on width left visible gaps
+       whenever two adjacent boxes had very different heights -- a later
+       box can't back-fill a shorter column's freed space while an earlier,
+       taller box still holds the other column open. field-trip-vehicles.js
+       computes real pairing instead and marks every row's first box with
+       .row-start, which forces a clean clear:left new row every 2 boxes. */
     .print-vehicles::after { content: ""; display: table; clear: both; }
     .print-vehicle-box {
       float: left; width: 48%; margin: 0 1% 12px 1%;
       border: 1px solid #e5e7eb; border-radius: 10px;
       padding: 14px 16px; break-inside: avoid; page-break-inside: avoid;
     }
+    .print-vehicle-box.row-start { clear: left; }
     .print-vehicle-name { font-size: 14px; font-weight: 800; color: #0b2d4f; margin-bottom: 2px; }
     .print-vehicle-group { font-size: 11px; font-weight: 700; color: #6d28d9; margin-bottom: 2px; }
     .print-vehicle-cap  { font-size: 11px; color: #6b7280; margin-bottom: 10px; }
+    /* No break-after:avoid here -- tried it to stop the header orphaning
+       alone at a page bottom, but combined with the floated boxes below it,
+       it made Chrome shove the ENTIRE next group onto the following page,
+       leaving most of the current page blank. An occasionally orphaned
+       header is a much smaller problem than that. */
     .print-group-header {
       clear: both; width: 100%;
       font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;

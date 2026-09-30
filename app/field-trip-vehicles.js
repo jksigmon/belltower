@@ -929,7 +929,12 @@ function preparePrintRoster() {
       })
     : '';
 
-  const driverBoxHtml = driver => {
+  // rowStart forces a clear:left in CSS so each pair of boxes forms a real
+  // row -- letting same-direction floats wrap on their own (relying on
+  // width alone) leaves gaps when heights vary, since a later box can't
+  // back-fill a shorter column's freed space once an earlier, taller box
+  // is still holding the other column open.
+  const driverBoxHtml = (driver, rowStart) => {
     const name  = driverName(driver);
     const cap   = capacities.get(driver.id);
     const label = groupLabels.get(driver.id);
@@ -937,7 +942,7 @@ function preparePrintRoster() {
       .filter(s => assignments.get(s.id) === driver.id)
       .sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
 
-    let box = `<div class="print-vehicle-box">
+    let box = `<div class="print-vehicle-box${rowStart ? ' row-start' : ''}">
       <div class="print-vehicle-name">${esc(name)}</div>
       ${label ? `<div class="print-vehicle-group">${esc(label)}</div>` : ''}
       <div class="print-vehicle-cap">${cap ? `${studs.length} of ${cap} seats` : `${studs.length} student${studs.length !== 1 ? 's' : ''}`}</div>`;
@@ -960,10 +965,10 @@ function preparePrintRoster() {
   if (groupByLabel) {
     groupDrivers(drivers).forEach(({ label, drivers: bucketDrivers }) => {
       html += `<div class="print-group-header">${esc(label ?? 'Ungrouped')}</div>`;
-      bucketDrivers.forEach(driver => { html += driverBoxHtml(driver); });
+      bucketDrivers.forEach((driver, i) => { html += driverBoxHtml(driver, i % 2 === 0); });
     });
   } else {
-    drivers.forEach(driver => { html += driverBoxHtml(driver); });
+    drivers.forEach((driver, i) => { html += driverBoxHtml(driver, i % 2 === 0); });
   }
 
   html += `</div>`;
