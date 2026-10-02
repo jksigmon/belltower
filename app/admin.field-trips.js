@@ -1079,8 +1079,9 @@ function renderComplianceStats() {
     else blocked++;
   });
 
-  document.getElementById('ftStatTotal').textContent   = chaperoneList.length;
-  document.getElementById('ftStatCleared').textContent = cleared;
+  const totalCount = chaperoneList.length;
+  document.getElementById('ftStatTotal').textContent   = currentTrip?.max_chaperones ? `${totalCount}/${currentTrip.max_chaperones}` : totalCount;
+  document.getElementById('ftStatCleared').textContent = `${cleared}/${totalCount}`;
   document.getElementById('ftStatAction').textContent  = action;
   document.getElementById('ftStatBlocked').textContent = blocked;
   document.getElementById('ftStatActionCard').style.display  = action  ? '' : 'none';
