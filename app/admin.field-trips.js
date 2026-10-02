@@ -47,6 +47,7 @@ let paymentStudentMap    = new Map();
 let paymentChaperoneMap  = new Map();
 let pendingPaymentId     = null; // payment row targeted by the record-payment modal
 let paymentsLoaded       = false;
+let payHomeroomFilter    = '';   // homeroom_teacher_id currently narrowing the Payments tab, or ''
 let permissionSlipMap    = new Map(); // student_id -> { id, status, note }
 let doubleBookingMap     = new Map(); // student_id -> [conflicting trip names]
 let attendingCount       = null;      // attending-student count for the current trip; null until loaded
@@ -393,6 +394,7 @@ async function openTrip(id) {
 
   paymentsLoaded  = false;
   paymentCache    = [];
+  payHomeroomFilter = '';
   studentList     = [];
   attendingCount  = null;
   activeTeacherFilterId = null;
@@ -2561,9 +2563,11 @@ async function toggleTeacherFilter(employeeId) {
   const val = activeTeacherFilterId ?? '';
   if (chapSel) chapSel.value = [...chapSel.options].some(o => o.value === val) ? val : '';
   if (studSel) studSel.value = [...studSel.options].some(o => o.value === val) ? val : '';
+  payHomeroomFilter = val;
   renderManagerChips();
   renderChaperoneTable();
   renderStudentTable();
+  if (paymentsLoaded) renderPaymentTab(document.getElementById('ftTabPayments'));
 }
 
 // Search employees by name/email, matched to their profile if one exists.
@@ -2746,15 +2750,22 @@ async function loadPayments() {
 
   const [studRes, chapRes] = await Promise.all([
     studentIds.length
-      ? supabase.from('students').select('id, first_name, last_name, grade_level').in('id', studentIds)
+      ? supabase.from('students').select('id, first_name, last_name, grade_level, homeroom_teacher_id, employees!left(first_name, last_name)').in('id', studentIds)
       : Promise.resolve({ data: [] }),
     chaperoneIds.length
-      ? supabase.from('field_trip_chaperones').select('id, guardian:guardians(first_name, last_name, email)').in('id', chaperoneIds)
+      ? supabase.from('field_trip_chaperones').select(`
+          id, guardian_id, employee_id, volunteer_id,
+          guardian:guardians(first_name, last_name, email,
+            family:families(students(homeroom_teacher_id, employees!left(first_name, last_name)))
+          ),
+          employee:employees(first_name, last_name),
+          volunteer:compliance_volunteers(first_name, last_name)
+        `).in('id', chaperoneIds)
       : Promise.resolve({ data: [] }),
   ]);
 
   paymentStudentMap   = new Map((studRes.data ?? []).map(s => [s.id, s]));
-  paymentChaperoneMap = new Map((chapRes.data ?? []).map(c => [c.id, c.guardian]));
+  paymentChaperoneMap = new Map((chapRes.data ?? []).map(c => [c.id, c]));
 
   renderPaymentTab(wrap);
 }
@@ -2800,10 +2811,6 @@ function renderPaymentTab(wrap) {
   const chaperones = paymentCache.filter(p => p.payer_type === 'chaperone');
   const today      = new Date(); today.setHours(0, 0, 0, 0);
 
-  const countByStatus = s => paymentCache.filter(p => p.status === s).length;
-  const paid = countByStatus('paid'), partial = countByStatus('partial'),
-        unpaid = countByStatus('unpaid'), waived = countByStatus('waived');
-
   let html = '';
 
   // Installment schedule bar
@@ -2825,9 +2832,41 @@ function renderPaymentTab(wrap) {
     html += `</div>`;
   }
 
-  // Summary strip
-  const totalDue  = paymentCache.reduce((sum, p) => sum + (parseFloat(p.amount_due)  || 0), 0);
-  const totalPaid = paymentCache.reduce((sum, p) => sum + (parseFloat(p.amount_paid) || 0), 0);
+  // Homerooms, gathered from both sections -- same "filter by class" concept
+  // as the Chaperones/Students tabs. Guardian chaperones are narrowed by
+  // their family's homeroom same as there; staff/volunteer chaperones and
+  // payment rows always stay visible since they aren't class-specific.
+  const homerooms = new Map();
+  students.forEach(p => {
+    const s = paymentStudentMap.get(p.student_id);
+    if (s?.homeroom_teacher_id && s.employees) homerooms.set(s.homeroom_teacher_id, `${s.employees.first_name} ${s.employees.last_name}`);
+  });
+  chaperones.forEach(p => {
+    (paymentChaperoneMap.get(p.chaperone_id)?.guardian?.family?.students ?? []).forEach(s => {
+      if (s.homeroom_teacher_id && s.employees) homerooms.set(s.homeroom_teacher_id, `${s.employees.first_name} ${s.employees.last_name}`);
+    });
+  });
+  if (payHomeroomFilter && !homerooms.has(payHomeroomFilter)) payHomeroomFilter = '';
+  const sortedHomerooms = [...homerooms.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+
+  const filteredStudents = payHomeroomFilter
+    ? students.filter(p => paymentStudentMap.get(p.student_id)?.homeroom_teacher_id === payHomeroomFilter)
+    : students;
+  const filteredChaperones = payHomeroomFilter
+    ? chaperones.filter(p => {
+        const c = paymentChaperoneMap.get(p.chaperone_id);
+        if (!c?.guardian_id) return true;
+        return (c.guardian?.family?.students ?? []).some(s => s.homeroom_teacher_id === payHomeroomFilter);
+      })
+    : chaperones;
+
+  // Summary strip -- reflects whichever rows the homeroom filter currently shows.
+  const visibleRows = [...filteredStudents, ...filteredChaperones];
+  const countByStatus = s => visibleRows.filter(p => p.status === s).length;
+  const paid = countByStatus('paid'), partial = countByStatus('partial'),
+        unpaid = countByStatus('unpaid'), waived = countByStatus('waived');
+  const totalDue  = visibleRows.reduce((sum, p) => sum + (parseFloat(p.amount_due)  || 0), 0);
+  const totalPaid = visibleRows.reduce((sum, p) => sum + (parseFloat(p.amount_paid) || 0), 0);
   const collectionPct = totalDue > 0 ? Math.round((totalPaid / totalDue) * 100) : 0;
 
   html += `<div class="pay-summary-strip">
@@ -2841,7 +2880,14 @@ function renderPaymentTab(wrap) {
     ${waived ? `<div class="pay-summary-card"><div class="val">${waived}</div><div class="lbl">Waived</div></div>` : ''}
   </div>`;
 
-  const sortedStudents = [...students].sort((a, b) => {
+  html += `<div class="ft-export-bar" style="justify-content:flex-start;">
+    <select id="ftPayHomeroomFilter" class="admin-input" style="width:170px;">
+      <option value="">All homerooms</option>
+      ${sortedHomerooms.map(([id, name]) => `<option value="${esc(id)}" ${id === payHomeroomFilter ? 'selected' : ''}>${esc(name)}</option>`).join('')}
+    </select>
+  </div>`;
+
+  const sortedStudents = [...filteredStudents].sort((a, b) => {
     const sa = paymentStudentMap.get(a.student_id);
     const sb = paymentStudentMap.get(b.student_id);
     const last  = (sa?.last_name  ?? '').localeCompare(sb?.last_name  ?? '');
@@ -2852,14 +2898,18 @@ function renderPaymentTab(wrap) {
   if (sortedStudents.length) {
     html += `<h4 style="font-size:12px;font-weight:700;color:#374151;margin:0 0 10px 0;text-transform:uppercase;letter-spacing:0.05em;">Students</h4>`;
     html += buildPaymentTable(sortedStudents, 'student');
+  } else if (students.length) {
+    html += `<p class="muted" style="font-size:13px;margin-bottom:16px;">No students match the selected homeroom.</p>`;
   } else if (!(currentTrip.grade_levels?.length)) {
     html += `<p class="muted" style="font-size:13px;margin-bottom:16px;">Set grade levels on this trip to auto-populate student payment records.</p>`;
   }
 
   if (currentTrip.chaperone_payment_required) {
-    if (chaperones.length) {
+    if (filteredChaperones.length) {
       html += `<h4 style="font-size:12px;font-weight:700;color:#374151;margin:16px 0 10px 0;text-transform:uppercase;letter-spacing:0.05em;">Chaperones</h4>`;
-      html += buildPaymentTable(chaperones, 'chaperone');
+      html += buildPaymentTable(filteredChaperones, 'chaperone');
+    } else if (chaperones.length) {
+      html += `<p class="muted" style="font-size:13px;margin-top:8px;">No chaperones match the selected homeroom.</p>`;
     } else {
       html += `<p class="muted" style="font-size:13px;margin-top:8px;">No active chaperones to track.</p>`;
     }
@@ -2867,6 +2917,12 @@ function renderPaymentTab(wrap) {
 
   wrap.innerHTML = html;
 
+  document.getElementById('ftPayHomeroomFilter')?.addEventListener('change', (e) => {
+    payHomeroomFilter = e.target.value;
+    activeTeacherFilterId = null;
+    renderManagerChips();
+    renderPaymentTab(wrap);
+  });
   wrap.querySelectorAll('[data-record-payment]').forEach(btn => {
     btn.addEventListener('click', () => openPaymentModal(btn.dataset.recordPayment, btn.dataset.name, parseFloat(btn.dataset.balance)));
   });
@@ -2898,8 +2954,9 @@ function buildPaymentTable(rows, type) {
       const s = paymentStudentMap.get(p.student_id);
       if (s) { name = `${esc(s.last_name)}, ${esc(s.first_name)}`; grade = esc(s.grade_level ?? '—'); }
     } else {
-      const g = paymentChaperoneMap.get(p.chaperone_id);
-      if (g) name = `${esc(g.first_name)} ${esc(g.last_name)}`;
+      const c = paymentChaperoneMap.get(p.chaperone_id);
+      const person = c ? (c.employee_id ? c.employee : c.volunteer_id ? c.volunteer : c.guardian) : null;
+      if (person) name = `${esc(person.first_name)} ${esc(person.last_name)}`;
     }
     const canAct = p.status !== 'paid' && p.status !== 'waived';
     const actions = canAct
