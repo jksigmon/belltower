@@ -876,14 +876,22 @@ function renderFormsChip(guardian) {
   return `<span class="comp-chip comp-action" title="Missing: ${esc(names)}">${esc(label)}</span>`;
 }
 
+// The homeroom filters (Chaperones/Students/Payments) only ever offer this
+// trip's Managing Teachers as options -- a trip's grade levels can span far
+// more homerooms than the teachers actually signed on to it.
+function getManagerHomeroomIds() {
+  return new Set(currentManagers.filter(m => m.employee_id).map(m => m.employee_id));
+}
+
 function populateChapHomeroomFilter() {
   const sel = document.getElementById('ftChapHomeroomFilter');
   if (!sel) return;
   const current = sel.value;
+  const managerIds = getManagerHomeroomIds();
   const homerooms = new Map();
   chaperoneList.forEach(c => {
     (c.guardian?.family?.students ?? []).forEach(s => {
-      if (s.homeroom_teacher_id && s.employees) {
+      if (s.homeroom_teacher_id && s.employees && managerIds.has(s.homeroom_teacher_id)) {
         homerooms.set(s.homeroom_teacher_id, `${s.employees.first_name} ${s.employees.last_name}`);
       }
     });
@@ -1294,9 +1302,10 @@ function populateHomeroomFilter() {
   const sel = document.getElementById('ftStudHomeroomFilter');
   if (!sel) return;
   const current = sel.value;
+  const managerIds = getManagerHomeroomIds();
   const homerooms = new Map();
   studentList.forEach(s => {
-    if (s.homeroom_teacher_id && s.employees) {
+    if (s.homeroom_teacher_id && s.employees && managerIds.has(s.homeroom_teacher_id)) {
       homerooms.set(s.homeroom_teacher_id, `${s.employees.first_name} ${s.employees.last_name}`);
     }
   });
@@ -2512,6 +2521,12 @@ async function loadManagers(tripId) {
       employee_id: r.employee_id ?? null,
     }));
   renderManagerChips();
+  // loadManagers runs in parallel with loadChaperones/loadStudents, so the
+  // homeroom filters (scoped to Managing Teachers) may have been built with
+  // no managers yet known -- refresh them now that currentManagers is set.
+  populateChapHomeroomFilter();
+  if (studentList.length) populateHomeroomFilter();
+  if (paymentsLoaded) renderPaymentTab(document.getElementById('ftTabPayments'));
 }
 
 async function removeManager(profileId) {
@@ -2833,17 +2848,19 @@ function renderPaymentTab(wrap) {
   }
 
   // Homerooms, gathered from both sections -- same "filter by class" concept
-  // as the Chaperones/Students tabs. Guardian chaperones are narrowed by
-  // their family's homeroom same as there; staff/volunteer chaperones and
-  // payment rows always stay visible since they aren't class-specific.
+  // as the Chaperones/Students tabs, narrowed to this trip's Managing
+  // Teachers. Guardian chaperones are narrowed by their family's homeroom
+  // same as there; staff/volunteer chaperones and payment rows always stay
+  // visible since they aren't class-specific.
+  const managerIds = getManagerHomeroomIds();
   const homerooms = new Map();
   students.forEach(p => {
     const s = paymentStudentMap.get(p.student_id);
-    if (s?.homeroom_teacher_id && s.employees) homerooms.set(s.homeroom_teacher_id, `${s.employees.first_name} ${s.employees.last_name}`);
+    if (s?.homeroom_teacher_id && s.employees && managerIds.has(s.homeroom_teacher_id)) homerooms.set(s.homeroom_teacher_id, `${s.employees.first_name} ${s.employees.last_name}`);
   });
   chaperones.forEach(p => {
     (paymentChaperoneMap.get(p.chaperone_id)?.guardian?.family?.students ?? []).forEach(s => {
-      if (s.homeroom_teacher_id && s.employees) homerooms.set(s.homeroom_teacher_id, `${s.employees.first_name} ${s.employees.last_name}`);
+      if (s.homeroom_teacher_id && s.employees && managerIds.has(s.homeroom_teacher_id)) homerooms.set(s.homeroom_teacher_id, `${s.employees.first_name} ${s.employees.last_name}`);
     });
   });
   if (payHomeroomFilter && !homerooms.has(payHomeroomFilter)) payHomeroomFilter = '';
