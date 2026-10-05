@@ -883,8 +883,8 @@ function getManagerHomeroomIds() {
   return new Set(currentManagers.filter(m => m.employee_id).map(m => m.employee_id));
 }
 
-function populateChapHomeroomFilter() {
-  const sel = document.getElementById('ftChapHomeroomFilter');
+function populateHomeroomFilterSelect(selectId) {
+  const sel = document.getElementById(selectId);
   if (!sel) return;
   const current = sel.value;
   const managerIds = getManagerHomeroomIds();
@@ -902,16 +902,24 @@ function populateChapHomeroomFilter() {
   if (homerooms.has(current)) sel.value = current;
 }
 
+function populateChapHomeroomFilter() {
+  populateHomeroomFilterSelect('ftChapHomeroomFilter');
+}
+
 // Staff and volunteer chaperones aren't tied to any one family's homeroom,
 // so a homeroom filter only narrows guardian chaperones -- staff/volunteers
 // always stay visible since they're general trip help, not class-specific.
-function getFilteredChaperones() {
-  const homeroomVal = document.getElementById('ftChapHomeroomFilter')?.value ?? '';
-  if (!homeroomVal) return chaperoneList;
-  return chaperoneList.filter(c => {
+function filterChaperonesByHomeroom(list, homeroomVal) {
+  if (!homeroomVal) return list;
+  return list.filter(c => {
     if (!c.guardian_id) return true;
     return (c.guardian?.family?.students ?? []).some(s => s.homeroom_teacher_id === homeroomVal);
   });
+}
+
+function getFilteredChaperones() {
+  const homeroomVal = document.getElementById('ftChapHomeroomFilter')?.value ?? '';
+  return filterChaperonesByHomeroom(chaperoneList, homeroomVal);
 }
 
 function wireChaperoneToolbar() {
@@ -3090,11 +3098,14 @@ function computePaymentStatus(paid, due) {
 // A printable roster + emergency-contact sheet built entirely from data
 // Belltower already has (no medical/allergy fields exist in the schema).
 // Grouped by vehicle assignment when one exists, otherwise by grade.
+let dayOfCache = null;
+
 function wireDayOfSheet() {
   document.getElementById('ftDayOfCloseBtn')?.addEventListener('click', closeDayOfSheet);
   document.getElementById('ftDayOfOverlay')?.addEventListener('click', e => {
     if (e.target.id === 'ftDayOfOverlay') closeDayOfSheet();
   });
+  document.getElementById('ftDayOfHomeroomFilter')?.addEventListener('change', renderDayOfSheet);
   document.getElementById('ftDayOfPrintBtn')?.addEventListener('click', () => {
     document.body.classList.add('dayof-print-open');
     // The print stylesheet now display:none's the whole rest of the app
@@ -3156,10 +3167,21 @@ async function openDayOfSheet(trip) {
 
   const assignMap = new Map((assignments ?? []).map(a => [a.student_id, a.chaperone_id]));
 
-  body.innerHTML = buildDayOfHtml(trip, attending, contactByFamily, assignMap, slipMap);
+  dayOfCache = { trip, students: attending, contactByFamily, assignMap, slipMap };
+  populateHomeroomFilterSelect('ftDayOfHomeroomFilter');
+  renderDayOfSheet();
 }
 
-function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap) {
+function renderDayOfSheet() {
+  const body = document.getElementById('ftDayOfBody');
+  if (!body || !dayOfCache) return;
+  const homeroomVal = document.getElementById('ftDayOfHomeroomFilter')?.value ?? '';
+  const chaperones = filterChaperonesByHomeroom(chaperoneList, homeroomVal);
+  const { trip, students, contactByFamily, assignMap, slipMap } = dayOfCache;
+  body.innerHTML = buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, chaperones);
+}
+
+function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, chaperones) {
   const dateStr = trip.start_date
     ? new Date(trip.start_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     : '';
@@ -3180,9 +3202,9 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap) {
   };
 
   let rosterHtml = '';
-  const hasAssignments = assignMap.size > 0 && chaperoneList.some(c => c.is_driver);
+  const hasAssignments = assignMap.size > 0 && chaperones.some(c => c.is_driver);
   if (hasAssignments) {
-    const drivers = chaperoneList.filter(c => c.is_driver);
+    const drivers = chaperones.filter(c => c.is_driver);
     drivers.forEach(d => {
       const person = d.guardian ?? d.employee ?? d.volunteer ?? {};
       const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim() || 'Driver';
@@ -3209,8 +3231,8 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap) {
     });
   }
 
-  const chapHtml = chaperoneList.length
-    ? chaperoneList.map(c => {
+  const chapHtml = chaperones.length
+    ? chaperones.map(c => {
         const isStaff     = !!c.employee_id;
         const isVolunteer = !!c.volunteer_id;
         const person  = isStaff ? (c.employee ?? {}) : isVolunteer ? (c.volunteer ?? {}) : (c.guardian ?? {});
@@ -3226,7 +3248,7 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap) {
       <div>${dateStr}${trip.destination ? ' — ' + esc(trip.destination) : ''}</div>
       ${timeStr ? `<div>${timeStr}</div>` : ''}
     </div>
-    <div class="dayof-section-title">Chaperones (${chaperoneList.length})</div>
+    <div class="dayof-section-title">Chaperones (${chaperones.length})</div>
     ${chapHtml}
     <div class="dayof-section-title">Student Roster (${students.length})</div>
     ${rosterHtml || '<p class="muted" style="font-size:13px;">No attending students found — set grade levels on this trip.</p>'}

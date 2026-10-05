@@ -264,7 +264,8 @@
         max-height: none !important; overflow: visible !important;
       }
       body.dayof-print-open #ftDayOfPrintBtn,
-      body.dayof-print-open #ftDayOfCloseBtn { display: none !important; }
+      body.dayof-print-open #ftDayOfCloseBtn,
+      body.dayof-print-open #ftDayOfHomeroomFilter { display: none !important; }
       /* .dayof-row is a flex container on screen (name left, phone right);
          printing was fragmenting it mid-row -- the same flex/grid pagination
          bug the Plan Vehicles roster hit, where a box gets cut across a page
@@ -721,6 +722,9 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <h3 style="margin:0;font-size:16px;font-weight:800;color:#0b2d4f;">Day-of Sheet</h3>
       <div style="display:flex;gap:8px;">
+        <select id="ftDayOfHomeroomFilter" class="admin-input" style="width:170px;">
+          <option value="">All homerooms</option>
+        </select>
         <button class="btn btn-sm" id="ftDayOfPrintBtn">Print</button>
         <button class="btn btn-sm" id="ftDayOfCloseBtn">Close</button>
       </div>
