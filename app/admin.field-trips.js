@@ -3134,7 +3134,7 @@ async function openDayOfSheet(trip) {
   const studentQuery = () => {
     let q = supabase
       .from('students')
-      .select('id, first_name, last_name, grade_level, family_id')
+      .select('id, first_name, last_name, grade_level, family_id, homeroom_teacher_id')
       .eq('school_id', profile.school_id)
       .eq('active', true)
       .order('last_name', { ascending: true });
@@ -3177,7 +3177,8 @@ function renderDayOfSheet() {
   if (!body || !dayOfCache) return;
   const homeroomVal = document.getElementById('ftDayOfHomeroomFilter')?.value ?? '';
   const chaperones = filterChaperonesByHomeroom(chaperoneList, homeroomVal);
-  const { trip, students, contactByFamily, assignMap, slipMap } = dayOfCache;
+  const { trip, students: allStudents, contactByFamily, assignMap, slipMap } = dayOfCache;
+  const students = homeroomVal ? allStudents.filter(s => s.homeroom_teacher_id === homeroomVal) : allStudents;
   body.innerHTML = buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, chaperones);
 }
 
