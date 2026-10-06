@@ -923,7 +923,7 @@ async function loadExistingCalls() {
   if (eventsError) { console.error('loadExistingCalls: events lookup failed, keeping last known state', eventsError); return; }
 
   const eventIds = (events || []).map(ev => ev.id);
-  if (!eventIds.length) return;
+  if (!eventIds.length) { markCallsSynced(); return; }
 
   const data = await fetchAllRowsOrNull(() => supabase
     .from('carline_calls')
@@ -931,6 +931,7 @@ async function loadExistingCalls() {
     .in('carline_event_id', eventIds)
     .order('id'));
   if (data === null) { console.error('loadExistingCalls: calls fetch failed, keeping last known state'); return; }
+  markCallsSynced();
 
   // Something changed locally (a broadcast) while this fetch was in flight --
   // this snapshot predates it. Discard rather than apply; see the comment at
@@ -1853,6 +1854,8 @@ async function pollForEvent() {
 }
 
 async function onEventStarted(ev) {
+  // Two pollers (timer + resume handler) can find the same event at once.
+  if (currentEvent) return;
   clearInterval(eventPollTimer); eventPollTimer = null;
   currentEvent = ev;
   updateEventUI();
@@ -1865,30 +1868,113 @@ async function onEventStarted(ev) {
   playDismissalStartSound();
 }
 
+// A poll that has not answered after this long is treated as hung. Without a
+// cap, one request that never completes leaves pollInFlight stuck true and
+// every later tick is skipped, so the board freezes with nothing logged.
+// Generous on purpose: a slow-but-working poll under load (up to three
+// sequential queries, each bounded by Postgres statement_timeout) must still
+// be allowed to finish, since abandoning it discards its snapshot.
+const POLL_TIMEOUT_MS = 30_000;
+// No successful sync for this long while dismissal is open shows the banner.
+const STALE_AFTER_MS = 60_000;
+
+let lastCallsSyncAt = Date.now();
+
+function markCallsSynced() {
+  lastCallsSyncAt = Date.now();
+  setStaleBanner(false);
+}
+
+function setStaleBanner(show) {
+  let el = document.getElementById('clStaleBanner');
+  // Toggle display directly: the inline display:flex below would override the
+  // [hidden] attribute, leaving the banner stuck on screen after recovery.
+  if (!show) { if (el) el.style.display = 'none'; return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'clStaleBanner';
+    el.setAttribute('role', 'status');
+    el.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;' +
+      'background:#b45309;color:#fff;padding:10px 14px;border-radius:10px;font:600 14px system-ui,sans-serif;' +
+      'box-shadow:0 4px 16px rgba(0,0,0,.35);display:flex;gap:12px;align-items:center;';
+    el.innerHTML = '<span>Connection lost, retrying. This board may be out of date.</span>' +
+      '<button type="button" style="background:#fff;color:#b45309;border:0;border-radius:6px;padding:4px 10px;font-weight:700;cursor:pointer;">Reload</button>';
+    el.querySelector('button').addEventListener('click', () => window.location.reload());
+    document.body.appendChild(el);
+  }
+  el.style.display = 'flex';
+}
+
+// One poll cycle. Shared by the interval, the resume/online handlers and the
+// watchdog so they all obey the same single-flight and timeout rules.
+async function pollCallsNow() {
+  if (!currentEvent || currentEvent.status === 'CLOSED') return;
+  // A slow response (DB under load) shouldn't pile up overlapping requests
+  // on top of an already-strained DB -- skip this tick rather than queue.
+  if (pollInFlight) return;
+  pollInFlight = true;
+  const prev = new Map(callStatus);
+  let timer;
+  try {
+    const timedOut = new Promise(resolve => {
+      timer = setTimeout(() => {
+        // Bumping localVersion makes the abandoned request discard its
+        // snapshot if it ever does answer, so it can't stomp newer state.
+        localVersion++;
+        console.error('loadExistingCalls: no response in ' + POLL_TIMEOUT_MS + 'ms, abandoning and retrying next cycle');
+        resolve();
+      }, POLL_TIMEOUT_MS);
+    });
+    await Promise.race([loadExistingCalls(), timedOut]);
+  } catch (err) {
+    console.error('loadExistingCalls threw, keeping last known state', err);
+  } finally {
+    clearTimeout(timer);
+    pollInFlight = false;
+  }
+  // Only re-render if something actually changed
+  let changed = false;
+  callStatus.forEach((v, k) => { if (prev.get(k) !== v) changed = true; });
+  if (prev.size !== callStatus.size) changed = true;
+  if (changed) renderColumns();
+}
+
 function startCallsPoller() {
   clearInterval(callsPollTimer);
-  callsPollTimer = setInterval(async () => {
+  lastCallsSyncAt = Date.now();
+  callsPollTimer = setInterval(() => {
     if (!currentEvent || currentEvent.status === 'CLOSED') {
       clearInterval(callsPollTimer); callsPollTimer = null;
+      setStaleBanner(false);
       return;
     }
-    // A slow response (DB under load) shouldn't pile up overlapping requests
-    // on top of an already-strained DB -- skip this tick rather than queue.
-    if (pollInFlight) return;
-    pollInFlight = true;
-    const prev = new Map(callStatus);
-    try {
-      await loadExistingCalls();
-    } finally {
-      pollInFlight = false;
-    }
-    // Only re-render if something actually changed
-    let changed = false;
-    callStatus.forEach((v, k) => { if (prev.get(k) !== v) changed = true; });
-    if (prev.size !== callStatus.size) changed = true;
-    if (changed) renderColumns();
+    pollCallsNow();
   }, 8000);
+  startStaleWatchdog();
 }
+
+let staleWatchdogTimer = null;
+function startStaleWatchdog() {
+  if (staleWatchdogTimer) return;
+  staleWatchdogTimer = setInterval(() => {
+    if (!callsPollTimer) { setStaleBanner(false); return; }
+    if (Date.now() - lastCallsSyncAt > STALE_AFTER_MS) setStaleBanner(true);
+  }, 5000);
+}
+
+// A sleeping device or a dropped network can leave timers and the websocket
+// stalled. Re-sync the moment the board is visible or back online instead of
+// waiting for the next tick. Display-only: nothing here writes to the DB.
+function resyncNow() {
+  if (document.visibilityState === 'hidden') return;
+  // pageshow also fires on first load; stay out of boot()'s way until it is done.
+  if (document.getElementById('clApp').hidden) return;
+  if (currentEvent) pollCallsNow();
+  else pollForEvent().catch(err => console.error('pollForEvent failed', err));
+}
+document.addEventListener('visibilitychange', resyncNow);
+window.addEventListener('online', resyncNow);
+window.addEventListener('pageshow', resyncNow);
 
 // Total pulse duration — must match the animation in carline.css
 // (.cl-student-card.new-call / .new-recall).
