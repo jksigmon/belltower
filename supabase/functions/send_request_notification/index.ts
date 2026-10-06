@@ -22,6 +22,21 @@ function esc(value: unknown): string {
     .replace(/'/g, "&#39;");
 }
 
+// request-attachments is a private bucket; "file" field values are bare
+// storage paths (or, for rows saved before that change, a legacy public
+// URL). Resolve to a signed URL before linking it in an email -- give it a
+// week rather than the 1-hour signed URLs used for in-app viewing, since a
+// notification email is read later, not immediately.
+const REQUEST_ATTACHMENTS_BUCKET = "request-attachments";
+const REQUEST_ATTACHMENTS_PUBLIC_MARKER = `/object/public/${REQUEST_ATTACHMENTS_BUCKET}/`;
+const EMAIL_ATTACHMENT_LINK_TTL = 60 * 60 * 24 * 7;
+
+function requestAttachmentPath(value: string): string | null {
+  if (!value) return null;
+  const idx = value.indexOf(REQUEST_ATTACHMENTS_PUBLIC_MARKER);
+  return idx === -1 ? value : decodeURIComponent(value.slice(idx + REQUEST_ATTACHMENTS_PUBLIC_MARKER.length));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -86,6 +101,23 @@ serve(async (req) => {
       hour: "numeric", minute: "2-digit"
     });
 
+    const fileValues = (responses ?? [])
+      .filter((r: any) => r.request_category_fields?.field_type === "file" && r.value)
+      .map((r: any) => r.value as string);
+
+    const signedUrlByPath = new Map<string, string>();
+    if (fileValues.length) {
+      const paths = [...new Set(fileValues.map(requestAttachmentPath).filter((p): p is string => !!p))];
+      const { data: signedData } = await supabase.storage
+        .from(REQUEST_ATTACHMENTS_BUCKET)
+        .createSignedUrls(paths, EMAIL_ATTACHMENT_LINK_TTL);
+      // Keyed off each result's own `path` rather than array position --
+      // safer than assuming createSignedUrls preserves input order.
+      (signedData ?? []).forEach((d: any) => {
+        if (!d.error && d.signedUrl && d.path) signedUrlByPath.set(d.path, d.signedUrl);
+      });
+    }
+
     const responsesHtml = (responses ?? []).map((r: any) => {
       const label = r.request_category_fields?.label ?? "Field";
       const type  = r.request_category_fields?.field_type;
@@ -94,7 +126,11 @@ serve(async (req) => {
         val = "(no response)";
       } else if (type === "boolean") {
         val = r.value === "true" ? "Yes" : "No";
-      } else if ((type === "file" || type === "url") && /^https?:\/\//i.test(r.value)) {
+      } else if (type === "file") {
+        const path   = requestAttachmentPath(r.value);
+        const signed = path ? signedUrlByPath.get(path) : undefined;
+        val = signed ? `<a href="${esc(signed)}">View Attachment</a>` : "(attachment unavailable)";
+      } else if (type === "url" && /^https?:\/\//i.test(r.value)) {
         val = `<a href="${esc(r.value)}">${esc(r.value)}</a>`;
       } else {
         val = esc(r.value);

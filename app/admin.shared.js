@@ -733,3 +733,58 @@ export function noSchoolDaysInRange(noSchoolDays, startISO, endISO) {
     return d.event_date <= endISO && end >= startISO;
   });
 }
+
+/* ===============================
+   REQUEST ATTACHMENTS (private bucket, signed URLs)
+================================ */
+
+const REQUEST_ATTACHMENTS_BUCKET = 'request-attachments';
+// Rows saved before the bucket was made private stored the full public URL
+// rather than a bare path; strip that prefix so old and new rows both
+// resolve to a storage path we can sign.
+const REQUEST_ATTACHMENTS_PUBLIC_MARKER = `/object/public/${REQUEST_ATTACHMENTS_BUCKET}/`;
+
+export function requestAttachmentPath(value) {
+  if (!value) return null;
+  const idx = value.indexOf(REQUEST_ATTACHMENTS_PUBLIC_MARKER);
+  return idx === -1 ? value : decodeURIComponent(value.slice(idx + REQUEST_ATTACHMENTS_PUBLIC_MARKER.length));
+}
+
+// Resolves a stored request-attachment value (bare path, or a legacy public
+// URL) to a short-lived signed URL. Returns '' if there's nothing to sign or
+// signing fails, so callers can fall back to showing no link.
+export async function getRequestAttachmentUrl(value, { expiresIn = 3600 } = {}) {
+  const path = requestAttachmentPath(value);
+  if (!path) return '';
+  const { data, error } = await supabase.storage
+    .from(REQUEST_ATTACHMENTS_BUCKET)
+    .createSignedUrl(path, expiresIn);
+  return error ? '' : (data?.signedUrl ?? '');
+}
+
+// Batch variant for CSV export, where one export can touch many
+// file-attachment values at once -- one storage call instead of one per
+// value. Returns a Map from the original stored value to its signed URL
+// (values with nothing to sign, or that fail to sign, are simply absent).
+export async function getRequestAttachmentUrls(values, { expiresIn = 3600 } = {}) {
+  const result = new Map();
+  const uniquePaths = [...new Set(values.map(requestAttachmentPath).filter(Boolean))];
+  if (!uniquePaths.length) return result;
+
+  const { data } = await supabase.storage
+    .from(REQUEST_ATTACHMENTS_BUCKET)
+    .createSignedUrls(uniquePaths, expiresIn);
+
+  // Keyed off each result's own `path` rather than array position -- safer
+  // than assuming createSignedUrls preserves input order.
+  const pathToSignedUrl = new Map();
+  (data ?? []).forEach(d => {
+    if (!d.error && d.signedUrl && d.path) pathToSignedUrl.set(d.path, d.signedUrl);
+  });
+
+  values.forEach(v => {
+    const path = requestAttachmentPath(v);
+    if (path && pathToSignedUrl.has(path)) result.set(v, pathToSignedUrl.get(path));
+  });
+  return result;
+}

@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
-import { esc, fmtShortDate, fmtTime, showToast } from './admin.shared.js?v=4';
+import { esc, fmtShortDate, fmtTime, showToast, getRequestAttachmentUrl } from './admin.shared.js?v=5';
 
 let currentProfile = null;
 let categories     = [];
@@ -385,10 +385,10 @@ async function handleSubmit(e) {
           fileUploadFailed = true;
           showToast(`File upload failed: ${upErr.message}`, 'error', 7000);
         } else {
-          const { data: urlData } = supabase.storage
-            .from('request-attachments')
-            .getPublicUrl(path);
-          value = urlData?.publicUrl ?? '';
+          // Bucket is private (see migration ...request_attachments_make_private.sql) --
+          // store the bare path, not a public URL. Viewers resolve a fresh
+          // signed URL via getRequestAttachmentUrl() at render time.
+          value = path;
         }
       }
     } else if (f.field_type === 'boolean') {
@@ -521,16 +521,27 @@ async function renderHistory(data) {
   });
 }
 
-function openDetailDrawer(r) {
+async function openDetailDrawer(r) {
   const titleEl = document.getElementById('reqDetailDrawerTitle');
   const bodyEl  = document.getElementById('reqDetailDrawerBody');
   if (!titleEl || !bodyEl) return;
 
   titleEl.textContent = r.request_categories?.name ?? 'Request';
+  bodyEl.innerHTML = '<p style="color:#9ca3af;padding:16px;">Loading…</p>';
+  document.getElementById('reqDetailDrawer').classList.add('open');
+  document.getElementById('reqDetailOverlay').classList.add('open');
 
   const responses = (r.staff_request_responses ?? [])
     .slice()
     .sort((a, b) => (a.request_category_fields?.sort_order ?? 0) - (b.request_category_fields?.sort_order ?? 0));
+
+  // request-attachments is a private bucket; resolve a fresh signed URL per
+  // open rather than mutating resp.value, so reopening the drawer re-signs
+  // instead of trying to re-sign an already-signed URL.
+  const signedUrls = new Map();
+  await Promise.all(responses
+    .filter(resp => resp.request_category_fields?.field_type === 'file' && resp.value)
+    .map(async resp => { signedUrls.set(resp, await getRequestAttachmentUrl(resp.value)); }));
 
   bodyEl.innerHTML = `
     <div style="margin-bottom:16px;">
@@ -540,11 +551,13 @@ function openDetailDrawer(r) {
     <div class="req-responses">
       ${responses.map(resp => {
         const label = resp.request_category_fields?.label ?? 'Field';
-        const val   = formatResponseValue(resp.value, resp.request_category_fields?.field_type);
+        const type  = resp.request_category_fields?.field_type;
+        const val   = type === 'file' ? (signedUrls.get(resp) || '') : resp.value;
+        const html  = formatResponseValue(val, type);
         return `
           <div class="req-response-row">
             <div class="req-response-label">${esc(label)}</div>
-            <div class="req-response-value">${val}</div>
+            <div class="req-response-value">${html}</div>
           </div>`;
       }).join('') || '<p style="color:#9ca3af;">No details recorded.</p>'}
     </div>
@@ -560,9 +573,6 @@ function openDetailDrawer(r) {
         <div style="font-size:14px;color:#111827;">${esc(r.manager_notes)}</div>
       </div>` : ''}
   `;
-
-  document.getElementById('reqDetailDrawer').classList.add('open');
-  document.getElementById('reqDetailOverlay').classList.add('open');
 }
 
 function closeDetailDrawer() {
@@ -583,8 +593,11 @@ function formatResponseValue(val, type) {
       : esc(val);
   }
   if (type === 'file') {
+    if (!/^https?:\/\//i.test(val)) return '—'; // signing failed or not yet resolved
     const url = esc(val);
-    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(val);
+    // Signed URLs carry a ?token=... query string after the extension, so
+    // match the extension anywhere before end-of-string or a query string.
+    const isImage = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(val);
     if (isImage) return `<a href="${url}" target="_blank" rel="noopener noreferrer"><img src="${url}" alt="Attachment" style="max-width:220px;max-height:180px;border-radius:6px;display:block;margin-top:4px;cursor:pointer;" /></a>`;
     return `<a href="${url}" target="_blank" rel="noopener noreferrer">View Attachment</a>`;
   }

@@ -1,4 +1,8 @@
-import { downloadCSV, fmtShortDate, toLocalISODate } from './admin.shared.js?v=4';
+import { downloadCSV, fmtShortDate, toLocalISODate, getRequestAttachmentUrls } from './admin.shared.js?v=5';
+
+// Exports are meant to be opened later, not immediately -- sign file-field
+// links for a week rather than the 1-hour default used for in-app viewing.
+const EXPORT_ATTACHMENT_LINK_TTL = 60 * 60 * 24 * 7;
 
 /**
  * CSV export for request submissions, shared by the admin panel's Requests
@@ -45,7 +49,7 @@ function sortedResponses(sub) {
 /**
  * Pivot submissions into { header, rows } ready for downloadCSV.
  */
-export function buildSubmissionsCSV(submissions) {
+export async function buildSubmissionsCSV(submissions) {
   // Discover field columns in a stable order.
   const fieldLabels = [];
   const seen = new Set();
@@ -58,6 +62,20 @@ export function buildSubmissionsCSV(submissions) {
     }
   }
 
+  // request-attachments is a private bucket -- file-field values are bare
+  // storage paths (or, for rows saved before that change, a legacy public
+  // URL), neither of which is useful pasted into a browser. Resolve them
+  // all in one batch call to a signed URL a reviewer can actually open.
+  const fileValues = [];
+  for (const sub of submissions) {
+    for (const r of sortedResponses(sub)) {
+      if (r.request_category_fields?.field_type === 'file' && r.value) fileValues.push(r.value);
+    }
+  }
+  const signedUrls = fileValues.length
+    ? await getRequestAttachmentUrls(fileValues, { expiresIn: EXPORT_ATTACHMENT_LINK_TTL })
+    : new Map();
+
   const rows = submissions.map(sub => {
     const byLabel = new Map();
     for (const r of sortedResponses(sub)) {
@@ -66,7 +84,10 @@ export function buildSubmissionsCSV(submissions) {
       // A duplicate label within one form would collide; keep the first
       // non-empty answer rather than letting a later blank overwrite it.
       if (byLabel.has(label) && !r.value) continue;
-      byLabel.set(label, r.value ?? '');
+      const value = r.request_category_fields?.field_type === 'file' && r.value
+        ? (signedUrls.get(r.value) || '')
+        : (r.value ?? '');
+      byLabel.set(label, value);
     }
 
     return [
@@ -94,9 +115,9 @@ function safeFilePart(s) {
  * be mistaken for a complete history. Returns false if there was nothing
  * to export.
  */
-export function exportSubmissions(submissions, contextName = 'All Forms', statusName = '') {
+export async function exportSubmissions(submissions, contextName = 'All Forms', statusName = '') {
   if (!submissions?.length) return false;
-  const { header, rows } = buildSubmissionsCSV(submissions);
+  const { header, rows } = await buildSubmissionsCSV(submissions);
   // Local date, not toISOString() — an evening export shouldn't be stamped
   // with tomorrow's date.
   const stamp = toLocalISODate(new Date());
@@ -109,10 +130,10 @@ export function exportSubmissions(submissions, contextName = 'All Forms', status
  * Export a single submission. Same column layout as the bulk export, so the
  * row pastes cleanly into a sheet built from one.
  */
-export function exportOneSubmission(sub) {
+export async function exportOneSubmission(sub) {
   if (!sub) return false;
   const who = sub.profiles?.display_name ?? sub.profiles?.email ?? 'submission';
-  const { header, rows } = buildSubmissionsCSV([sub]);
+  const { header, rows } = await buildSubmissionsCSV([sub]);
   const when = sub.created_at ? toLocalISODate(new Date(sub.created_at)) : '';
   downloadCSV(
     `${safeFilePart(sub.request_categories?.name)}-${safeFilePart(who)}-${when}.csv`,

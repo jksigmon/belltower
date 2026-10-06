@@ -1,7 +1,7 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
-import { esc, fmtShortDate, showToast, fetchAllRows } from './admin.shared.js?v=4';
-import { exportSubmissions, exportOneSubmission } from './requests.export.js?v=1';
+import { esc, fmtShortDate, showToast, fetchAllRows, getRequestAttachmentUrl } from './admin.shared.js?v=5';
+import { exportSubmissions, exportOneSubmission } from './requests.export.js?v=2';
 import { renderPager, pageSlice, pageCount } from './requests.pager.js';
 
 const OPEN_STATUSES = ['pending', 'in_review'];
@@ -214,7 +214,7 @@ function wireFilters() {
     await loadSubmissions();
     renderList();
   });
-  document.getElementById('reqmExportBtn').addEventListener('click', () => {
+  document.getElementById('reqmExportBtn').addEventListener('click', async () => {
     // Exports exactly what's on screen — same RLS scope, same filters.
     const sel = document.getElementById('reqmFilterCat');
     const contextName = filterCatId
@@ -222,7 +222,7 @@ function wireFilters() {
       : 'All Forms';
     const statusSel = document.getElementById('reqmFilterStatus');
     const statusName = filterStatus ? statusSel?.options[statusSel.selectedIndex]?.text : '';
-    if (!exportSubmissions(submissions, contextName, statusName)) {
+    if (!await exportSubmissions(submissions, contextName, statusName)) {
       showToast('Nothing to export with the current filters.', 'error');
     }
   });
@@ -266,17 +266,30 @@ async function openDrawer(sub) {
 
   const name = sub.profiles?.display_name ?? sub.profiles?.email ?? 'Unknown';
 
+  // request-attachments is a private bucket; resolve a fresh signed URL per
+  // open rather than mutating r.value, so reopening the drawer (or the
+  // "Export CSV" click just below, which reuses `responses`) re-signs
+  // instead of trying to re-sign an already-signed URL.
+  const signedUrls = new Map();
+  await Promise.all((responses ?? [])
+    .filter(r => r.request_category_fields?.field_type === 'file' && r.value)
+    .map(async r => { signedUrls.set(r, await getRequestAttachmentUrl(r.value)); }));
+
   bodyEl.innerHTML = `
     <div class="reqm-meta">
       Submitted by <strong>${esc(name)}</strong> on ${fmtShortDate(sub.created_at)}
     </div>
 
     <div class="req-responses">
-      ${(responses ?? []).map(r => `
+      ${(responses ?? []).map(r => {
+        const type = r.request_category_fields?.field_type;
+        const val  = type === 'file' ? (signedUrls.get(r) || '') : r.value;
+        return `
         <div class="req-response-row">
           <div class="req-response-label">${esc(r.request_category_fields?.label ?? 'Field')}</div>
-          <div class="req-response-value">${formatVal(r.value, r.request_category_fields?.field_type)}</div>
-        </div>`).join('') || '<p style="color:#9ca3af;">No responses recorded.</p>'}
+          <div class="req-response-value">${formatVal(val, type)}</div>
+        </div>`;
+      }).join('') || '<p style="color:#9ca3af;">No responses recorded.</p>'}
     </div>
 
     <hr class="drawer-divider" />
@@ -487,8 +500,11 @@ function formatVal(val, type) {
       : esc(val);
   }
   if (type === 'file') {
+    if (!/^https?:\/\//i.test(val)) return '—'; // signing failed or not yet resolved
     const url = esc(val);
-    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(val);
+    // Signed URLs carry a ?token=... query string after the extension, so
+    // match the extension anywhere before end-of-string or a query string.
+    const isImage = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(val);
     if (isImage) return `<a href="${url}" target="_blank" rel="noopener noreferrer"><img src="${url}" alt="Attachment" style="max-width:220px;max-height:180px;border-radius:6px;display:block;margin-top:4px;cursor:pointer;" /></a>`;
     return `<a href="${url}" target="_blank" rel="noopener noreferrer">View Attachment</a>`;
   }

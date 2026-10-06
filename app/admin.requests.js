@@ -1,6 +1,6 @@
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, debounce, getAvatarColor, fmtShortDate, showToast, fetchAllRows } from './admin.shared.js?v=4';
-import { exportSubmissions, exportOneSubmission } from './requests.export.js?v=1';
+import { esc, debounce, getAvatarColor, fmtShortDate, showToast, fetchAllRows, getRequestAttachmentUrl } from './admin.shared.js?v=5';
+import { exportSubmissions, exportOneSubmission } from './requests.export.js?v=2';
 import { renderForwardingView } from './admin.requests.forwarding.js';
 
 let currentProfile = null;
@@ -1065,14 +1065,14 @@ function renderSubmissionsView() {
 
   renderSubmissionsList();
 
-  document.getElementById('reqExportBtn').addEventListener('click', () => {
+  document.getElementById('reqExportBtn').addEventListener('click', async () => {
     // Exports exactly what the current filters show, not the whole table.
     const contextName = filterCatId
       ? (categories.find(c => c.id === filterCatId)?.name ?? 'Requests')
       : 'All Forms';
     const statusSel = document.getElementById('reqFilterStatus');
     const statusName = filterStatus ? statusSel?.options[statusSel.selectedIndex]?.text : '';
-    if (!exportSubmissions(submissions, contextName, statusName)) {
+    if (!await exportSubmissions(submissions, contextName, statusName)) {
       showToast('Nothing to export with the current filters.', 'error');
     }
   });
@@ -1176,6 +1176,15 @@ async function openSubDrawer(sub) {
   const submitter = sub.profiles;
   const name      = submitter?.display_name ?? submitter?.email ?? 'Unknown';
 
+  // request-attachments is a private bucket; resolve a fresh signed URL per
+  // open rather than mutating r.value, so reopening the drawer (or the
+  // "Export CSV" click just below, which reuses `responses`) re-signs
+  // instead of trying to re-sign an already-signed URL.
+  const signedUrls = new Map();
+  await Promise.all((responses ?? [])
+    .filter(r => r.request_category_fields?.field_type === 'file' && r.value)
+    .map(async r => { signedUrls.set(r, await getRequestAttachmentUrl(r.value)); }));
+
   bodyEl.innerHTML = `
     <div style="margin-bottom:16px;">
       <div style="font-size:13px;color:#6b7280;">Submitted by <strong>${esc(name)}</strong> on ${fmtShortDate(sub.created_at)}</div>
@@ -1184,11 +1193,13 @@ async function openSubDrawer(sub) {
     <div class="req-responses">
       ${(responses ?? []).map(r => {
         const label = r.request_category_fields?.label ?? 'Field';
-        const val   = formatResponseValue(r.value, r.request_category_fields?.field_type);
+        const type  = r.request_category_fields?.field_type;
+        const val   = type === 'file' ? (signedUrls.get(r) || '') : r.value;
+        const html  = formatResponseValue(val, type);
         return `
           <div class="req-response-row">
             <div class="req-response-label">${esc(label)}</div>
-            <div class="req-response-value">${val}</div>
+            <div class="req-response-value">${html}</div>
           </div>`;
       }).join('') || '<p style="color:#9ca3af;">No responses recorded.</p>'}
     </div>
@@ -1313,8 +1324,11 @@ function formatResponseValue(val, type) {
       : esc(val);
   }
   if (type === 'file') {
+    if (!/^https?:\/\//i.test(val)) return '—'; // signing failed or not yet resolved
     const url = esc(val);
-    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(val);
+    // Signed URLs carry a ?token=... query string after the extension, so
+    // match the extension anywhere before end-of-string or a query string.
+    const isImage = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(val);
     if (isImage) return `<a href="${url}" target="_blank" rel="noopener noreferrer"><img src="${url}" alt="Attachment" style="max-width:220px;max-height:180px;border-radius:6px;display:block;margin-top:4px;cursor:pointer;" /></a>`;
     return `<a href="${url}" target="_blank" rel="noopener noreferrer">View Attachment</a>`;
   }
