@@ -615,6 +615,10 @@ async function loadAgreements(chaperones) {
   const emails       = chaperones.map(c => (c.guardian?.email ?? c.volunteer?.email ?? '').toLowerCase()).filter(Boolean);
   const guardianIds  = chaperones.map(c => c.guardian?.id).filter(Boolean);
 
+  // Agreements expire at the next school-year cutover (see compliance_form_submit) --
+  // a lapsed signature from a prior school year must not satisfy this trip's requirement.
+  const today = todayISO();
+
   const queries = [];
   if (emails.length) {
     queries.push(
@@ -624,6 +628,7 @@ async function loadAgreements(chaperones) {
         .in('signer_email', emails)
         .in('template_id', templateIds)
         .is('voided_at', null)
+        .or(`expires_at.is.null,expires_at.gt.${today}`)
     );
   }
   if (guardianIds.length) {
