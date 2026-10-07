@@ -3204,7 +3204,7 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, cha
     const slipFlag = slipStatus !== 'signed'
       ? ` <span style="color:#dc2626;font-size:11px;font-weight:700;" title="Permission slip not marked signed">NO SLIP</span>`
       : '';
-    return `<div class="dayof-row"><span class="name">${esc(s.last_name)}, ${esc(s.first_name)}${s.grade_level ? ` <span style="color:#9ca3af;font-weight:400;">(${esc(s.grade_level)})</span>` : ''}${slipFlag}</span><span class="meta">${meta}</span></div>`;
+    return `<div class="dayof-stu"><span class="box"></span><span class="name">${esc(s.last_name)}, ${esc(s.first_name)}</span>${s.grade_level ? ` <span style="color:#9ca3af;">(${esc(s.grade_level)})</span>` : ''}${slipFlag}${meta ? `<span class="meta">${meta}</span>` : ''}</div>`;
   };
 
   let rosterHtml = '';
@@ -3216,12 +3216,12 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, cha
       const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim() || 'Driver';
       const studs = students.filter(s => assignMap.get(s.id) === d.id).sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
       rosterHtml += `<div class="dayof-group-title">${esc(name)} (${studs.length})</div>`;
-      rosterHtml += studs.length ? studs.map(studentRow).join('') : '<div class="muted" style="font-size:12px;padding:4px 0;">No students assigned</div>';
+      rosterHtml += studs.length ? `<div>${studs.map(studentRow).join('')}</div>` : '<div class="muted" style="font-size:12px;padding:4px 0;">No students assigned</div>';
     });
     const unassigned = students.filter(s => !assignMap.get(s.id)).sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
     if (unassigned.length) {
       rosterHtml += `<div class="dayof-group-title" style="color:#dc2626;">Unassigned (${unassigned.length})</div>`;
-      rosterHtml += unassigned.map(studentRow).join('');
+      rosterHtml += `<div>${unassigned.map(studentRow).join('')}</div>`;
     }
   } else {
     const byGrade = new Map();
@@ -3233,7 +3233,7 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, cha
     [...byGrade.entries()].forEach(([grade, studs]) => {
       studs.sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
       rosterHtml += `<div class="dayof-group-title">${esc(grade)} (${studs.length})</div>`;
-      rosterHtml += studs.map(studentRow).join('');
+      rosterHtml += `<div>${studs.map(studentRow).join('')}</div>`;
     });
   }
 
