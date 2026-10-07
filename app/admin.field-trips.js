@@ -3108,6 +3108,7 @@ function wireDayOfSheet() {
   });
   document.getElementById('ftDayOfHomeroomFilter')?.addEventListener('change', renderDayOfSheet);
   document.getElementById('ftDayOfStudentContacts')?.addEventListener('change', renderDayOfSheet);
+  document.getElementById('ftDayOfDownloadBtn')?.addEventListener('click', downloadDayOfPdf);
   document.getElementById('ftDayOfPrintBtn')?.addEventListener('click', () => {
     document.body.classList.add('dayof-print-open');
     // The print stylesheet now display:none's the whole rest of the app
@@ -3185,13 +3186,57 @@ function renderDayOfSheet() {
   body.innerHTML = buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, chaperones, showStudentContacts);
 }
 
-function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, chaperones, showStudentContacts = true) {
+function dayOfHeaderText(trip) {
   const dateStr = trip.start_date
     ? new Date(trip.start_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     : '';
   let timeStr = '';
   if (trip.depart_at) timeStr += `Departs ${fmtTime(trip.depart_at)}`;
   if (trip.return_at) timeStr += (timeStr ? ' · ' : '') + `Returns ${fmtTime(trip.return_at)}`;
+  return { dateLine: `${dateStr}${trip.destination ? ' — ' + trip.destination : ''}`, timeStr };
+}
+
+// Roster groups shared by the on-screen/print sheet and the PDF download:
+// one per driver (when vehicles are assigned) plus Unassigned, else one per grade.
+function dayOfStudentGroups(students, assignMap, chaperones) {
+  const byLast = (a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? '');
+  const groups = [];
+  const hasAssignments = assignMap.size > 0 && chaperones.some(c => c.is_driver);
+  if (hasAssignments) {
+    chaperones.filter(c => c.is_driver).forEach(d => {
+      const person = d.guardian ?? d.employee ?? d.volunteer ?? {};
+      const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim() || 'Driver';
+      groups.push({ title: name, students: students.filter(s => assignMap.get(s.id) === d.id).sort(byLast), emptyText: 'No students assigned' });
+    });
+    const unassigned = students.filter(s => !assignMap.get(s.id)).sort(byLast);
+    if (unassigned.length) groups.push({ title: 'Unassigned', red: true, students: unassigned });
+  } else {
+    const byGrade = new Map();
+    students.forEach(s => {
+      const key = s.grade_level ?? 'Ungraded';
+      if (!byGrade.has(key)) byGrade.set(key, []);
+      byGrade.get(key).push(s);
+    });
+    [...byGrade.entries()].forEach(([grade, studs]) => groups.push({ title: grade, students: studs.sort(byLast) }));
+  }
+  return groups;
+}
+
+function dayOfChaperoneRows(chaperones) {
+  return chaperones.map(c => {
+    const isStaff     = !!c.employee_id;
+    const isVolunteer = !!c.volunteer_id;
+    const person  = isStaff ? (c.employee ?? {}) : isVolunteer ? (c.volunteer ?? {}) : (c.guardian ?? {});
+    return {
+      name: `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim(),
+      isDriver: !!c.is_driver,
+      contact: isStaff ? (person.email ?? '') : isVolunteer ? (c.volunteer?.email ?? '') : (c.guardian?.phone ?? c.guardian?.email ?? '')
+    };
+  });
+}
+
+function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, chaperones, showStudentContacts = true) {
+  const { dateLine, timeStr } = dayOfHeaderText(trip);
 
   const studentRow = s => {
     const contact = contactByFamily.get(s.family_id);
@@ -3207,51 +3252,23 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, cha
     return `<div class="dayof-stu"><span class="box"></span><span class="name">${esc(s.last_name)}, ${esc(s.first_name)}</span>${s.grade_level ? ` <span style="color:#9ca3af;">(${esc(s.grade_level)})</span>` : ''}${slipFlag}${meta ? `<span class="meta">${meta}</span>` : ''}</div>`;
   };
 
-  let rosterHtml = '';
-  const hasAssignments = assignMap.size > 0 && chaperones.some(c => c.is_driver);
-  if (hasAssignments) {
-    const drivers = chaperones.filter(c => c.is_driver);
-    drivers.forEach(d => {
-      const person = d.guardian ?? d.employee ?? d.volunteer ?? {};
-      const name = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim() || 'Driver';
-      const studs = students.filter(s => assignMap.get(s.id) === d.id).sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
-      rosterHtml += `<div class="dayof-group-title">${esc(name)} (${studs.length})</div>`;
-      rosterHtml += studs.length ? `<div>${studs.map(studentRow).join('')}</div>` : '<div class="muted" style="font-size:12px;padding:4px 0;">No students assigned</div>';
-    });
-    const unassigned = students.filter(s => !assignMap.get(s.id)).sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
-    if (unassigned.length) {
-      rosterHtml += `<div class="dayof-group-title" style="color:#dc2626;">Unassigned (${unassigned.length})</div>`;
-      rosterHtml += `<div>${unassigned.map(studentRow).join('')}</div>`;
-    }
-  } else {
-    const byGrade = new Map();
-    students.forEach(s => {
-      const key = s.grade_level ?? 'Ungraded';
-      if (!byGrade.has(key)) byGrade.set(key, []);
-      byGrade.get(key).push(s);
-    });
-    [...byGrade.entries()].forEach(([grade, studs]) => {
-      studs.sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
-      rosterHtml += `<div class="dayof-group-title">${esc(grade)} (${studs.length})</div>`;
-      rosterHtml += `<div>${studs.map(studentRow).join('')}</div>`;
-    });
-  }
+  const rosterHtml = dayOfStudentGroups(students, assignMap, chaperones).map(g =>
+    `<div class="dayof-group-title"${g.red ? ' style="color:#dc2626;"' : ''}>${esc(g.title)} (${g.students.length})</div>` +
+    (g.students.length
+      ? `<div>${g.students.map(studentRow).join('')}</div>`
+      : `<div class="muted" style="font-size:12px;padding:4px 0;">${esc(g.emptyText ?? '')}</div>`)
+  ).join('');
 
   const chapHtml = chaperones.length
-    ? chaperones.map(c => {
-        const isStaff     = !!c.employee_id;
-        const isVolunteer = !!c.volunteer_id;
-        const person  = isStaff ? (c.employee ?? {}) : isVolunteer ? (c.volunteer ?? {}) : (c.guardian ?? {});
-        const name    = `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim();
-        const contact = isStaff ? (person.email ?? '') : isVolunteer ? (c.volunteer?.email ?? '') : (c.guardian?.phone ?? c.guardian?.email ?? '');
-        return `<div class="dayof-row"><span class="name">${esc(name)}${c.is_driver ? ' <span style="color:#d97706;font-weight:700;font-size:11px;">DRIVER</span>' : ''}</span><span class="meta">${esc(contact) || '<span class="muted">No contact on file</span>'}</span></div>`;
-      }).join('')
+    ? dayOfChaperoneRows(chaperones).map(c =>
+        `<div class="dayof-row"><span class="name">${esc(c.name)}${c.isDriver ? ' <span style="color:#d97706;font-weight:700;font-size:11px;">DRIVER</span>' : ''}</span><span class="meta">${esc(c.contact) || '<span class="muted">No contact on file</span>'}</span></div>`
+      ).join('')
     : '<p class="muted" style="font-size:13px;">No chaperones added.</p>';
 
   return `
     <div class="dayof-hdr">
       <h2>${esc(trip.name)}</h2>
-      <div>${dateStr}${trip.destination ? ' — ' + esc(trip.destination) : ''}</div>
+      <div>${esc(dateLine)}</div>
       ${timeStr ? `<div>${timeStr}</div>` : ''}
     </div>
     <div class="dayof-section-title">Chaperones (${chaperones.length})</div>
@@ -3259,6 +3276,94 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, cha
     <div class="dayof-section-title">Student Roster (${students.length})</div>
     ${rosterHtml || '<p class="muted" style="font-size:13px;">No attending students found — set grade levels on this trip.</p>'}
   `;
+}
+
+// Download the day-of sheet as a PDF (same content/filters as the on-screen sheet).
+async function downloadDayOfPdf() {
+  if (!dayOfCache) return;
+  const btn = document.getElementById('ftDayOfDownloadBtn');
+  const label = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparing…'; }
+  try {
+    const { loadJsPdf } = await import('./roster-print.js?v=8');
+    const { JsPDF } = await loadJsPdf();
+    const homeroomVal = document.getElementById('ftDayOfHomeroomFilter')?.value ?? '';
+    const showContacts = document.getElementById('ftDayOfStudentContacts')?.checked ?? true;
+    const { trip, students: allStudents, contactByFamily, assignMap, slipMap } = dayOfCache;
+    const chaperones = filterChaperonesByHomeroom(chaperoneList, homeroomVal);
+    const students = homeroomVal ? allStudents.filter(s => s.homeroom_teacher_id === homeroomVal) : allStudents;
+    const { dateLine, timeStr } = dayOfHeaderText(trip);
+
+    const doc = new JsPDF({ unit: 'pt', format: 'letter' });
+    const margin = 36;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const colW = (pageW - margin * 2) / 2;
+    let y = margin;
+    const ensure = h => { if (y + h > pageH - margin) { doc.addPage(); y = margin; } };
+    const text = (str, x, size, style, color) => {
+      doc.setFont('helvetica', style).setFontSize(size).setTextColor(...color);
+      doc.text(String(str), x, y);
+    };
+
+    text(trip.name ?? 'Field Trip', margin, 16, 'bold', [11, 45, 79]); y += 14;
+    if (dateLine) { text(dateLine, margin, 9.5, 'normal', [107, 114, 128]); y += 12; }
+    if (timeStr)  { text(timeStr, margin, 9.5, 'normal', [107, 114, 128]); y += 12; }
+    y += 6;
+
+    text(`CHAPERONES (${chaperones.length})`, margin, 8.5, 'bold', [55, 65, 81]); y += 12;
+    dayOfChaperoneRows(chaperones).forEach(c => {
+      ensure(14);
+      text(c.name, margin, 9.5, 'bold', [15, 23, 42]);
+      if (c.isDriver) text('DRIVER', margin + doc.getTextWidth(c.name) + 6, 7, 'bold', [217, 119, 6]);
+      text(c.contact || 'No contact on file', pageW - margin - doc.getTextWidth(c.contact || 'No contact on file'), 9, 'normal', [107, 114, 128]);
+      y += 13;
+    });
+    y += 8;
+
+    ensure(24);
+    text(`STUDENT ROSTER (${students.length})`, margin, 8.5, 'bold', [55, 65, 81]); y += 6;
+
+    dayOfStudentGroups(students, assignMap, chaperones).forEach(g => {
+      ensure(40);
+      y += 12;
+      text(`${g.title} (${g.students.length})`, margin, 10, 'bold', g.red ? [220, 38, 38] : [11, 45, 79]);
+      doc.setDrawColor(226, 232, 240).setLineWidth(0.5).line(margin, y + 3, pageW - margin, y + 3);
+      y += 8;
+      if (!g.students.length) { y += 4; text(g.emptyText ?? '', margin, 8.5, 'italic', [107, 114, 128]); y += 6; return; }
+      for (let i = 0; i < g.students.length; i += 2) {
+        const pair = g.students.slice(i, i + 2);
+        const rowH = showContacts ? 24 : 14;
+        ensure(rowH);
+        y += 10;
+        pair.forEach((s, j) => {
+          const x = margin + j * colW;
+          doc.setDrawColor(55, 65, 81).setLineWidth(0.8).roundedRect(x, y - 8, 8, 8, 1, 1);
+          const nm = `${s.last_name}, ${s.first_name}`;
+          text(nm, x + 13, 9, 'bold', [15, 23, 42]);
+          let cx = x + 13 + doc.getTextWidth(nm) + 4;
+          if (s.grade_level) { text(`(${s.grade_level})`, cx, 8, 'normal', [156, 163, 175]); cx += doc.getTextWidth(`(${s.grade_level})`) + 4; }
+          if ((slipMap.get(s.id) ?? 'pending') !== 'signed') text('NO SLIP', cx, 7, 'bold', [220, 38, 38]);
+          if (showContacts) {
+            const contact = contactByFamily.get(s.family_id);
+            const meta = contact ? `${contact.first_name} ${contact.last_name} - ${contact.phone ?? ''}` : 'No contact on file';
+            y += 9;
+            text(meta, x + 13, 7.5, 'normal', contact ? [107, 114, 128] : [220, 38, 38]);
+            y -= 9;
+          }
+        });
+        y += showContacts ? 12 : 4;
+      }
+    });
+
+    const safe = String(trip.name ?? 'Field-Trip').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'Field-Trip';
+    doc.save(`${safe}-Day-of-Sheet.pdf`);
+  } catch (err) {
+    console.error('Day-of PDF failed', err);
+    showToast('Could not create the PDF. Try Print and choose "Save as PDF".', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
 }
 
 // ── Boot ─────────────────────────────────────────────────────────────────

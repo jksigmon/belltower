@@ -302,7 +302,7 @@ async function loadViaUmd() {
 
 let jsPdfPromise = null;
 
-function loadJsPdf() {
+export function loadJsPdf() {
   // Cached so repeated clicks reuse one load instead of refetching.
   if (!jsPdfPromise) {
     jsPdfPromise = loadViaEsm().catch(async esmErr => {
