@@ -634,6 +634,7 @@ async function loadAgreements(chaperones) {
         .in('guardian_id', guardianIds)
         .in('template_id', templateIds)
         .is('voided_at', null)
+        .or(`expires_at.is.null,expires_at.gt.${today}`)
     );
   }
 
@@ -3106,6 +3107,7 @@ function wireDayOfSheet() {
     if (e.target.id === 'ftDayOfOverlay') closeDayOfSheet();
   });
   document.getElementById('ftDayOfHomeroomFilter')?.addEventListener('change', renderDayOfSheet);
+  document.getElementById('ftDayOfStudentContacts')?.addEventListener('change', renderDayOfSheet);
   document.getElementById('ftDayOfPrintBtn')?.addEventListener('click', () => {
     document.body.classList.add('dayof-print-open');
     // The print stylesheet now display:none's the whole rest of the app
@@ -3179,10 +3181,11 @@ function renderDayOfSheet() {
   const chaperones = filterChaperonesByHomeroom(chaperoneList, homeroomVal);
   const { trip, students: allStudents, contactByFamily, assignMap, slipMap } = dayOfCache;
   const students = homeroomVal ? allStudents.filter(s => s.homeroom_teacher_id === homeroomVal) : allStudents;
-  body.innerHTML = buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, chaperones);
+  const showStudentContacts = document.getElementById('ftDayOfStudentContacts')?.checked ?? true;
+  body.innerHTML = buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, chaperones, showStudentContacts);
 }
 
-function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, chaperones) {
+function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, chaperones, showStudentContacts = true) {
   const dateStr = trip.start_date
     ? new Date(trip.start_date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     : '';
@@ -3192,7 +3195,9 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, cha
 
   const studentRow = s => {
     const contact = contactByFamily.get(s.family_id);
-    const meta = contact
+    const meta = !showStudentContacts
+      ? ''
+      : contact
       ? `${esc(contact.first_name)} ${esc(contact.last_name)} — ${esc(contact.phone)}`
       : '<span style="color:#dc2626;">No contact on file</span>';
     const slipStatus = slipMap.get(s.id) ?? 'pending';

@@ -265,6 +265,7 @@
       }
       body.dayof-print-open #ftDayOfPrintBtn,
       body.dayof-print-open #ftDayOfCloseBtn,
+      body.dayof-print-open #ftDayOfPhonesLabel,
       body.dayof-print-open #ftDayOfHomeroomFilter { display: none !important; }
       /* .dayof-row is a flex container on screen (name left, phone right);
          printing was fragmenting it mid-row -- the same flex/grid pagination
@@ -725,6 +726,9 @@
         <select id="ftDayOfHomeroomFilter" class="admin-input" style="width:170px;">
           <option value="">All homerooms</option>
         </select>
+        <label id="ftDayOfPhonesLabel" style="display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;white-space:nowrap;cursor:pointer;">
+          <input type="checkbox" id="ftDayOfStudentContacts" checked> Student contacts
+        </label>
         <button class="btn btn-sm" id="ftDayOfPrintBtn">Print</button>
         <button class="btn btn-sm" id="ftDayOfCloseBtn">Close</button>
       </div>
