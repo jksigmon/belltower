@@ -697,13 +697,18 @@ function updateAggregateStats() {
 // ── Search ────────────────────────────────────────────────────────────────
 
 function applySearchFilter() {
+  // Toolbar homeroom select: filters the whole board on screen, and is also
+  // what the printed roster / PDF use.
+  const toolbarHomeroom = document.getElementById('vehPrintHomeroom')?.value || '';
   document.querySelectorAll('.veh-card').forEach(card => {
     const student = students.find(s => s.id === card.dataset.sid);
     const full = `${student?.first_name ?? ''} ${student?.last_name ?? ''}`.toLowerCase();
     const inUnassigned = card.closest('#veh-cards-unassigned') != null;
     const matchesGlobal = !searchTerm || full.includes(searchTerm);
     const matchesLocal  = !inUnassigned || !unassignedSearchTerm || full.includes(unassignedSearchTerm);
-    card.style.display = (matchesGlobal && matchesLocal) ? '' : 'none';
+    const matchesHomeroom = !toolbarHomeroom || !student
+      || (toolbarHomeroom === NO_HOMEROOM_KEY ? !student.homeroom_teacher_id : student.homeroom_teacher_id === toolbarHomeroom);
+    card.style.display = (matchesGlobal && matchesLocal && matchesHomeroom) ? '' : 'none';
   });
   // Homeroom group headers in Unassigned should disappear along with every
   // card in that group once search filters them all out.
@@ -1109,6 +1114,7 @@ async function downloadRosterPdf() {
 
 function wireActions() {
   populatePrintHomeroomSelect();
+  document.getElementById('vehPrintHomeroom')?.addEventListener('change', applySearchFilter);
   document.getElementById('vehDownloadBtn')?.addEventListener('click', downloadRosterPdf);
   document.getElementById('vehAutoAssignBtn')?.addEventListener('click', autoAssign);
   document.getElementById('vehClearBtn')?.addEventListener('click', clearAssignments);
