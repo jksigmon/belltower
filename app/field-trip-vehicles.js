@@ -919,36 +919,87 @@ function autoAssign() {
 
 // ── Print roster ──────────────────────────────────────────────────────────
 
-function preparePrintRoster() {
-  const wrap = document.getElementById('printRoster');
-  if (!wrap) return;
+// Fills the print-only homeroom select. Keeps the current choice if it is
+// still a valid option; hidden when the trip/school has no homeroom data.
+function populatePrintHomeroomSelect() {
+  const sel = document.getElementById('vehPrintHomeroom');
+  if (!sel) return;
+  const { homerooms, hasNoHomeroom } = getUnassignedHomeroomOptions();
+  if (!homerooms.length) { sel.hidden = true; sel.value = ''; return; }
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">All homerooms</option>' +
+    homerooms.map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('') +
+    (hasNoHomeroom ? `<option value="${NO_HOMEROOM_KEY}">No homeroom</option>` : '');
+  sel.value = [...sel.options].some(o => o.value === prev) ? prev : '';
+  sel.hidden = false;
+}
+
+// Single source for both the printed roster and the PDF download, so the
+// two never diverge. Honors the print homeroom select.
+function buildRosterModel() {
+  const hrFilter = document.getElementById('vehPrintHomeroom')?.value || '';
+  const inHomeroom = s => !hrFilter
+    || (hrFilter === NO_HOMEROOM_KEY ? !s.homeroom_teacher_id : s.homeroom_teacher_id === hrFilter);
+  const hrLabel = !hrFilter ? '' : (hrFilter === NO_HOMEROOM_KEY
+    ? 'No homeroom'
+    : (() => {
+        const t = students.find(s => s.homeroom_teacher_id === hrFilter)?.employees;
+        return t ? `${t.first_name} ${t.last_name}` : '';
+      })());
+
+  const byLast = (a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? '');
 
   const startDate = trip.start_date
     ? new Date(trip.start_date + 'T12:00:00').toLocaleDateString('en-US', {
         weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
       })
     : '';
+  const meta = [startDate, trip.destination, hrLabel ? `Homeroom: ${hrLabel}` : '']
+    .filter(Boolean).join(' - ');
+
+  const boxFor = driver => {
+    const cap  = capacities.get(driver.id);
+    const studs = students
+      .filter(s => assignments.get(s.id) === driver.id && inHomeroom(s))
+      .sort(byLast);
+    return {
+      name: driverName(driver),
+      label: groupLabels.get(driver.id) || '',
+      capText: cap ? `${studs.length} of ${cap} seats` : `${studs.length} student${studs.length !== 1 ? 's' : ''}`,
+      studs,
+    };
+  };
+
+  // When filtering by homeroom, skip cars carrying none of those students.
+  const shown = hrFilter
+    ? drivers.filter(d => students.some(s => assignments.get(s.id) === d.id && inHomeroom(s)))
+    : drivers;
+
+  const sections = groupByLabel
+    ? groupDrivers(shown).map(({ label, drivers: ds }) => ({ header: label ?? 'Ungrouped', boxes: ds.map(boxFor) }))
+    : [{ header: null, boxes: shown.map(boxFor) }];
+
+  const unassigned = students.filter(s => !assignments.get(s.id) && inHomeroom(s)).sort(byLast);
+  return { title: trip.name ?? 'Field Trip', meta, sections, unassigned };
+}
+
+function preparePrintRoster() {
+  const wrap = document.getElementById('printRoster');
+  if (!wrap) return;
+  const { title, meta, sections, unassigned } = buildRosterModel();
 
   // rowStart forces a clear:left in CSS so each pair of boxes forms a real
   // row -- letting same-direction floats wrap on their own (relying on
   // width alone) leaves gaps when heights vary, since a later box can't
   // back-fill a shorter column's freed space once an earlier, taller box
   // is still holding the other column open.
-  const driverBoxHtml = (driver, rowStart) => {
-    const name  = driverName(driver);
-    const cap   = capacities.get(driver.id);
-    const label = groupLabels.get(driver.id);
-    const studs = students
-      .filter(s => assignments.get(s.id) === driver.id)
-      .sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
-
+  const boxHtml = (b, rowStart) => {
     let box = `<div class="print-vehicle-box${rowStart ? ' row-start' : ''}">
-      <div class="print-vehicle-name">${esc(name)}</div>
-      ${label ? `<div class="print-vehicle-group">${esc(label)}</div>` : ''}
-      <div class="print-vehicle-cap">${cap ? `${studs.length} of ${cap} seats` : `${studs.length} student${studs.length !== 1 ? 's' : ''}`}</div>`;
-
-    if (studs.length) {
-      studs.forEach(s => {
+      <div class="print-vehicle-name">${esc(b.name)}</div>
+      ${b.label ? `<div class="print-vehicle-group">${esc(b.label)}</div>` : ''}
+      <div class="print-vehicle-cap">${esc(b.capText)}</div>`;
+    if (b.studs.length) {
+      b.studs.forEach(s => {
         box += `<div class="print-vehicle-student">${esc(s.last_name)}, ${esc(s.first_name)}${s.grade_level ? ` <span style="color:#9ca3af;font-size:11px;">(${esc(s.grade_level)})</span>` : ''}</div>`;
       });
     } else {
@@ -958,24 +1009,14 @@ function preparePrintRoster() {
   };
 
   let html = `
-    <h1>${esc(trip.name)}</h1>
-    <div class="print-meta">${startDate}${trip.destination ? ' &mdash; ' + esc(trip.destination) : ''}</div>
+    <h1>${esc(title)}</h1>
+    <div class="print-meta">${esc(meta)}</div>
     <div class="print-vehicles">`;
-
-  if (groupByLabel) {
-    groupDrivers(drivers).forEach(({ label, drivers: bucketDrivers }) => {
-      html += `<div class="print-group-header">${esc(label ?? 'Ungrouped')}</div>`;
-      bucketDrivers.forEach((driver, i) => { html += driverBoxHtml(driver, i % 2 === 0); });
-    });
-  } else {
-    drivers.forEach((driver, i) => { html += driverBoxHtml(driver, i % 2 === 0); });
-  }
-
+  sections.forEach(sec => {
+    if (sec.header) html += `<div class="print-group-header">${esc(sec.header)}</div>`;
+    sec.boxes.forEach((b, i) => { html += boxHtml(b, i % 2 === 0); });
+  });
   html += `</div>`;
-
-  const unassigned = students
-    .filter(s => !assignments.get(s.id))
-    .sort((a, b) => (a.last_name ?? '').localeCompare(b.last_name ?? ''));
 
   if (unassigned.length) {
     html += `<div class="print-unassigned">
@@ -989,9 +1030,86 @@ function preparePrintRoster() {
   wrap.innerHTML = html;
 }
 
+async function downloadRosterPdf() {
+  const btn = document.getElementById('vehDownloadBtn');
+  const label = btn?.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = 'Preparing...'; }
+  try {
+    const { loadJsPdf } = await import('./roster-print.js?v=8');
+    const { JsPDF } = await loadJsPdf();
+    const { title, meta, sections, unassigned } = buildRosterModel();
+
+    const doc = new JsPDF({ unit: 'pt', format: 'letter' });
+    const margin = 36;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const gap = 14;
+    const colW = (pageW - margin * 2 - gap) / 2;
+    let y = margin;
+    const ensure = h => { if (y + h > pageH - margin) { doc.addPage(); y = margin; } };
+    const text = (str, x, size, style, color) => {
+      doc.setFont('helvetica', style).setFontSize(size).setTextColor(...color);
+      doc.text(String(str), x, y);
+    };
+    const studLine = s => `${s.last_name}, ${s.first_name}${s.grade_level ? ` (${s.grade_level})` : ''}`;
+
+    text(title, margin, 16, 'bold', [11, 45, 79]); y += 14;
+    if (meta) { text(meta, margin, 9.5, 'normal', [107, 114, 128]); y += 12; }
+    y += 8;
+
+    // Same two-column row layout as the printed page: boxes pair up and the
+    // row advances by the taller of the two.
+    const boxHeight = b => 14 + (b.label ? 11 : 0) + 13 + Math.max(b.studs.length, 1) * 12 + 10;
+    const drawBox = (b, x, top) => {
+      let yy = top;
+      const at = (str, size, style, color) => {
+        doc.setFont('helvetica', style).setFontSize(size).setTextColor(...color);
+        doc.text(String(str), x + 8, yy);
+      };
+      yy += 14; at(b.name, 10.5, 'bold', [11, 45, 79]);
+      if (b.label) { yy += 11; at(b.label, 8.5, 'normal', [107, 114, 128]); }
+      yy += 13; at(b.capText, 8.5, 'normal', [107, 114, 128]);
+      if (b.studs.length) b.studs.forEach(s => { yy += 12; at(studLine(s), 9.5, 'normal', [15, 23, 42]); });
+      else { yy += 12; at('No students assigned', 9, 'italic', [156, 163, 175]); }
+      yy += 10;
+      doc.setDrawColor(209, 213, 219).rect(x, top - 2, colW, yy - top + 2 - 6);
+    };
+
+    sections.forEach(sec => {
+      if (sec.header) {
+        ensure(30); text(sec.header.toUpperCase(), margin, 9, 'bold', [55, 65, 81]); y += 12;
+      }
+      for (let i = 0; i < sec.boxes.length; i += 2) {
+        const pair = sec.boxes.slice(i, i + 2);
+        const h = Math.max(...pair.map(boxHeight));
+        ensure(h);
+        pair.forEach((b, k) => drawBox(b, margin + k * (colW + gap), y));
+        y += h + 4;
+      }
+    });
+
+    if (unassigned.length) {
+      ensure(40);
+      y += 6;
+      text(`UNASSIGNED (${unassigned.length})`, margin, 9, 'bold', [55, 65, 81]); y += 13;
+      unassigned.forEach(s => { ensure(13); text(studLine(s), margin, 9.5, 'normal', [15, 23, 42]); y += 12; });
+    }
+
+    const safe = String(trip.name ?? 'Vehicles').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'Vehicles';
+    doc.save(`${safe}-Vehicle-Roster.pdf`);
+  } catch (err) {
+    console.error('Roster PDF failed', err);
+    alert('Could not create the PDF. Check your connection and try again, or use Print Roster and choose "Save as PDF".');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = label; }
+  }
+}
+
 // ── Wire toolbar ──────────────────────────────────────────────────────────
 
 function wireActions() {
+  populatePrintHomeroomSelect();
+  document.getElementById('vehDownloadBtn')?.addEventListener('click', downloadRosterPdf);
   document.getElementById('vehAutoAssignBtn')?.addEventListener('click', autoAssign);
   document.getElementById('vehClearBtn')?.addEventListener('click', clearAssignments);
   document.getElementById('vehPrintBtn')?.addEventListener('click', () => {

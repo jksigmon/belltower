@@ -3254,7 +3254,7 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, cha
     const slipFlag = slipStatus !== 'signed'
       ? ` <span style="color:#dc2626;font-size:11px;font-weight:700;" title="Permission slip not marked signed">NO SLIP</span>`
       : '';
-    return `<div class="dayof-stu"><span class="box"></span><span class="name">${esc(s.last_name)}, ${esc(s.first_name)}</span>${s.grade_level ? ` <span style="color:#9ca3af;">(${esc(s.grade_level)})</span>` : ''}${slipFlag}${meta ? `<span class="meta">${meta}</span>` : ''}</div>`;
+    return `<div class="dayof-stu"><span class="name">${esc(s.last_name)}, ${esc(s.first_name)}</span>${s.grade_level ? ` <span style="color:#9ca3af;">(${esc(s.grade_level)})</span>` : ''}${slipFlag}${meta ? `<span class="meta">${meta}</span>` : ''}</div>`;
   };
 
   const rosterHtml = dayOfStudentGroups(students, assignMap, chaperones).map(g =>
@@ -3303,7 +3303,6 @@ async function downloadDayOfPdf() {
     const margin = 36;
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
-    const colW = (pageW - margin * 2) / 2;
     let y = margin;
     const ensure = h => { if (y + h > pageH - margin) { doc.addPage(); y = margin; } };
     const text = (str, x, size, style, color) => {
@@ -3336,27 +3335,25 @@ async function downloadDayOfPdf() {
       doc.setDrawColor(226, 232, 240).setLineWidth(0.5).line(margin, y + 3, pageW - margin, y + 3);
       y += 8;
       if (!g.students.length) { y += 4; text(g.emptyText ?? '', margin, 8.5, 'italic', [107, 114, 128]); y += 6; return; }
-      for (let i = 0; i < g.students.length; i += 2) {
-        const pair = g.students.slice(i, i + 2);
+      for (const s of g.students) {
         const rowH = showContacts ? 24 : 14;
         ensure(rowH);
         y += 10;
-        pair.forEach((s, j) => {
-          const x = margin + j * colW;
-          doc.setDrawColor(55, 65, 81).setLineWidth(0.8).roundedRect(x, y - 8, 8, 8, 1, 1);
+        {
+          const x = margin;
           const nm = `${s.last_name}, ${s.first_name}`;
-          text(nm, x + 13, 9, 'bold', [15, 23, 42]);
-          let cx = x + 13 + doc.getTextWidth(nm) + 4;
+          text(nm, x, 9, 'bold', [15, 23, 42]);
+          let cx = x + doc.getTextWidth(nm) + 4;
           if (s.grade_level) { text(`(${s.grade_level})`, cx, 8, 'normal', [156, 163, 175]); cx += doc.getTextWidth(`(${s.grade_level})`) + 4; }
           if ((slipMap.get(s.id) ?? 'pending') !== 'signed') text('NO SLIP', cx, 7, 'bold', [220, 38, 38]);
           if (showContacts) {
             const contact = contactByFamily.get(s.family_id);
             const meta = contact ? `${contact.first_name} ${contact.last_name} - ${contact.phone ?? ''}` : 'No contact on file';
             y += 9;
-            text(meta, x + 13, 7.5, 'normal', contact ? [107, 114, 128] : [220, 38, 38]);
+            text(meta, x, 7.5, 'normal', contact ? [107, 114, 128] : [220, 38, 38]);
             y -= 9;
           }
-        });
+        }
         y += showContacts ? 12 : 4;
       }
     });
