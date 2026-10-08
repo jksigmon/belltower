@@ -973,7 +973,7 @@ function buildRosterModel() {
         weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
       })
     : '';
-  const meta = [startDate, trip.destination, hrLabel ? `Homeroom: ${hrLabel}` : '']
+  const meta = [startDate, trip.destination, trip.destination_address, hrLabel ? `Homeroom: ${hrLabel}` : '']
     .filter(Boolean).join(' - ');
 
   const boxFor = driver => {

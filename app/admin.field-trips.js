@@ -177,7 +177,7 @@ async function loadTrips() {
 
   let query = supabase
     .from('field_trips')
-    .select('id, name, destination, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, chaperones_needed, notes, parent_notes, status, created_at, payment_required, student_cost, chaperone_payment_required, chaperone_cost, allow_installments, installment_schedule, payment_due_date')
+    .select('id, name, destination, destination_address, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, chaperones_needed, notes, parent_notes, status, created_at, payment_required, student_cost, chaperone_payment_required, chaperone_cost, allow_installments, installment_schedule, payment_due_date')
     .eq('school_id', profile.school_id)
     .order('start_date', { ascending: false });
   if (tripIds) query = query.in('id', tripIds);
@@ -2275,6 +2275,7 @@ function openTripDrawer(trip) {
   document.getElementById('ftDrawerTripId').value  = trip?.id ?? '';
   document.getElementById('ftDrawerName').value    = trip?.name ?? '';
   document.getElementById('ftDrawerDest').value    = trip?.destination ?? '';
+  document.getElementById('ftDrawerAddress').value = trip?.destination_address ?? '';
   document.getElementById('ftDrawerDate').value    = trip?.start_date ?? '';
   document.getElementById('ftDrawerEndDate').value = trip?.end_date ?? '';
   document.getElementById('ftDrawerDepart').value  = trip?.depart_at ?? '';
@@ -2356,6 +2357,7 @@ function buildParentEmailDraft(trip) {
   if (trip.depart_at) times.push(`Departs ${fmtTime(trip.depart_at)}`);
   if (trip.return_at) times.push(`Returns ${fmtTime(trip.return_at)}`);
   if (times.length) lines.push(times.join(' · '));
+  if (trip.destination_address) lines.push(`Address: ${trip.destination_address}`);
 
   if (trip.payment_required && trip.student_cost) {
     const due = trip.payment_due_date
@@ -2429,6 +2431,7 @@ async function saveTrip() {
     school_id:                  profile.school_id,
     name,
     destination:                document.getElementById('ftDrawerDest').value.trim() || null,
+    destination_address:        document.getElementById('ftDrawerAddress').value.trim() || null,
     start_date:                 startDate,
     end_date:                   endDate || null,
     depart_at:                  document.getElementById('ftDrawerDepart').value  || null,
@@ -3202,7 +3205,7 @@ function dayOfHeaderText(trip) {
   let timeStr = '';
   if (trip.depart_at) timeStr += `Departs ${fmtTime(trip.depart_at)}`;
   if (trip.return_at) timeStr += (timeStr ? ' · ' : '') + `Returns ${fmtTime(trip.return_at)}`;
-  return { dateLine: `${dateStr}${trip.destination ? ' — ' + trip.destination : ''}`, timeStr };
+  return { dateLine: `${dateStr}${trip.destination ? ' — ' + trip.destination : ''}`, timeStr, address: trip.destination_address ?? '' };
 }
 
 // Roster groups shared by the on-screen/print sheet and the PDF download:
@@ -3245,7 +3248,7 @@ function dayOfChaperoneRows(chaperones) {
 }
 
 function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, chaperones, showStudentContacts = true) {
-  const { dateLine, timeStr } = dayOfHeaderText(trip);
+  const { dateLine, timeStr, address } = dayOfHeaderText(trip);
 
   const studentRow = s => {
     const contacts = contactByFamily.get(s.family_id) ?? [];
@@ -3278,6 +3281,7 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, cha
     <div class="dayof-hdr">
       <h2>${esc(trip.name)}</h2>
       <div>${esc(dateLine)}</div>
+      ${address ? `<div>${esc(address)}</div>` : ''}
       ${timeStr ? `<div>${timeStr}</div>` : ''}
     </div>
     <div class="dayof-section-title">Chaperones (${chaperones.length})</div>
@@ -3301,7 +3305,7 @@ async function downloadDayOfPdf() {
     const { trip, students: allStudents, contactByFamily, assignMap, slipMap } = dayOfCache;
     const chaperones = filterChaperonesByHomeroom(chaperoneList, homeroomVal);
     const students = homeroomVal ? allStudents.filter(s => s.homeroom_teacher_id === homeroomVal) : allStudents;
-    const { dateLine, timeStr } = dayOfHeaderText(trip);
+    const { dateLine, timeStr, address } = dayOfHeaderText(trip);
 
     const doc = new JsPDF({ unit: 'pt', format: 'letter' });
     const margin = 36;
@@ -3316,6 +3320,7 @@ async function downloadDayOfPdf() {
 
     text(trip.name ?? 'Field Trip', margin, 16, 'bold', [11, 45, 79]); y += 14;
     if (dateLine) { text(dateLine, margin, 9.5, 'normal', [107, 114, 128]); y += 12; }
+    if (address)  { text(address, margin, 9.5, 'normal', [107, 114, 128]); y += 12; }
     if (timeStr)  { text(timeStr, margin, 9.5, 'normal', [107, 114, 128]); y += 12; }
     y += 6;
 

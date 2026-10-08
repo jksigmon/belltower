@@ -2115,6 +2115,7 @@ CREATE TABLE IF NOT EXISTS "public"."field_trips" (
     "campus_id" "uuid",
     "name" "text" NOT NULL,
     "destination" "text",
+    "destination_address" "text",
     "start_date" "date" NOT NULL,
     "depart_at" time without time zone,
     "return_at" time without time zone,
