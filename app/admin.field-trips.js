@@ -3166,12 +3166,16 @@ async function openDayOfSheet(trip) {
         .eq('school_id', profile.school_id).in('family_id', familyIds).eq('active', true)
     : { data: [] };
 
+  // family_id -> every active guardian, primary contact first
   const contactByFamily = new Map();
   (guardians ?? []).forEach(g => {
-    if (!g.phone) return;
-    const existing = contactByFamily.get(g.family_id);
-    if (!existing || (g.is_primary_contact && !existing.is_primary_contact)) contactByFamily.set(g.family_id, g);
+    if (!contactByFamily.has(g.family_id)) contactByFamily.set(g.family_id, []);
+    contactByFamily.get(g.family_id).push(g);
   });
+  contactByFamily.forEach(list => list.sort((a, b) =>
+    (b.is_primary_contact ? 1 : 0) - (a.is_primary_contact ? 1 : 0)
+    || (a.last_name ?? '').localeCompare(b.last_name ?? '')
+    || (a.first_name ?? '').localeCompare(b.first_name ?? '')));
 
   const assignMap = new Map((assignments ?? []).map(a => [a.student_id, a.chaperone_id]));
 
@@ -3244,11 +3248,11 @@ function buildDayOfHtml(trip, students, contactByFamily, assignMap, slipMap, cha
   const { dateLine, timeStr } = dayOfHeaderText(trip);
 
   const studentRow = s => {
-    const contact = contactByFamily.get(s.family_id);
+    const contacts = contactByFamily.get(s.family_id) ?? [];
     const meta = !showStudentContacts
       ? ''
-      : contact
-      ? `${esc(contact.first_name)} ${esc(contact.last_name)} — ${esc(contact.phone)}`
+      : contacts.length
+      ? contacts.map(c => `<span style="display:block;">${esc(c.first_name)} ${esc(c.last_name)}: ${c.phone ? esc(c.phone) : '<span style="color:#dc2626;">no number</span>'}</span>`).join('')
       : '<span style="color:#dc2626;">No contact on file</span>';
     const slipStatus = slipMap.get(s.id) ?? 'pending';
     const slipFlag = slipStatus !== 'signed'
@@ -3336,7 +3340,7 @@ async function downloadDayOfPdf() {
       y += 8;
       if (!g.students.length) { y += 4; text(g.emptyText ?? '', margin, 8.5, 'italic', [107, 114, 128]); y += 6; return; }
       for (const s of g.students) {
-        const rowH = showContacts ? 24 : 14;
+        const rowH = showContacts ? 14 + Math.max(1, (contactByFamily.get(s.family_id) ?? []).length) * 9 : 14;
         ensure(rowH);
         y += 10;
         {
@@ -3347,14 +3351,17 @@ async function downloadDayOfPdf() {
           if (s.grade_level) { text(`(${s.grade_level})`, cx, 8, 'normal', [156, 163, 175]); cx += doc.getTextWidth(`(${s.grade_level})`) + 4; }
           if ((slipMap.get(s.id) ?? 'pending') !== 'signed') text('NO SLIP', cx, 7, 'bold', [220, 38, 38]);
           if (showContacts) {
-            const contact = contactByFamily.get(s.family_id);
-            const meta = contact ? `${contact.first_name} ${contact.last_name} - ${contact.phone ?? ''}` : 'No contact on file';
-            y += 9;
-            text(meta, x, 7.5, 'normal', contact ? [107, 114, 128] : [220, 38, 38]);
-            y -= 9;
+            const contacts = contactByFamily.get(s.family_id) ?? [];
+            const lines = contacts.length
+              ? contacts.map(c => ({ t: `${c.first_name} ${c.last_name}: ${c.phone || 'no number'}`, red: !c.phone }))
+              : [{ t: 'No contact on file', red: true }];
+            lines.forEach(l => {
+              y += 9;
+              text(l.t, x, 7.5, 'normal', l.red ? [220, 38, 38] : [107, 114, 128]);
+            });
           }
         }
-        y += showContacts ? 12 : 4;
+        y += 4;
       }
     });
 
