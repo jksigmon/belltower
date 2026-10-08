@@ -973,8 +973,13 @@ function buildRosterModel() {
         weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
       })
     : '';
-  const meta = [startDate, trip.destination, trip.destination_address, hrLabel ? `Homeroom: ${hrLabel}` : '']
-    .filter(Boolean).join(' - ');
+  // One row each: date, destination, address, homeroom filter.
+  const meta = [
+    startDate && { text: startDate, primary: true },
+    trip.destination && { label: 'Destination', text: trip.destination },
+    trip.destination_address && { label: 'Address', text: trip.destination_address },
+    hrLabel && { label: 'Homeroom', text: hrLabel },
+  ].filter(Boolean);
 
   const boxFor = driver => {
     const cap  = capacities.get(driver.id);
@@ -1014,22 +1019,27 @@ function preparePrintRoster() {
   // is still holding the other column open.
   const boxHtml = (b, rowStart) => {
     let box = `<div class="print-vehicle-box${rowStart ? ' row-start' : ''}">
-      <div class="print-vehicle-name">${esc(b.name)}</div>
-      ${b.label ? `<div class="print-vehicle-group">${esc(b.label)}</div>` : ''}
-      <div class="print-vehicle-cap">${esc(b.capText)}</div>`;
+      <div class="print-vehicle-head">
+        <div>
+          <div class="print-vehicle-name">${esc(b.name)}</div>
+          ${b.label ? `<div class="print-vehicle-group">${esc(b.label)}</div>` : ''}
+        </div>
+        <div class="print-vehicle-cap">${esc(b.capText)}</div>
+      </div>
+      <div class="print-vehicle-body">`;
     if (b.studs.length) {
       b.studs.forEach(s => {
-        box += `<div class="print-vehicle-student">${esc(s.last_name)}, ${esc(s.first_name)}${s.grade_level ? ` <span style="color:#9ca3af;font-size:11px;">(${esc(s.grade_level)})</span>` : ''}</div>`;
+        box += `<div class="print-vehicle-student"><span>${esc(s.last_name)}, ${esc(s.first_name)}</span>${s.grade_level ? `<span class="grade">Grade ${esc(s.grade_level)}</span>` : ''}</div>`;
       });
     } else {
-      box += `<div style="font-size:12px;color:#9ca3af;font-style:italic;">No students assigned</div>`;
+      box += `<div style="font-size:12px;color:#9ca3af;font-style:italic;padding:4px 0;">No students assigned</div>`;
     }
-    return box + `</div>`;
+    return box + `</div></div>`;
   };
 
   let html = `
     <h1>${esc(title)}</h1>
-    <div class="print-meta">${esc(meta)}</div>
+    <div class="print-meta">${meta.map(m => `<div class="print-meta-row${m.primary ? ' primary' : ''}">${m.label ? `<b>${esc(m.label)}:</b> ` : ''}${esc(m.text)}</div>`).join('')}</div>
     <div class="print-vehicles">`;
   sections.forEach(sec => {
     if (sec.header) html += `<div class="print-group-header">${esc(sec.header)}</div>`;
@@ -1041,7 +1051,7 @@ function preparePrintRoster() {
     html += `<div class="print-unassigned">
       <div class="print-unassigned-title">Unassigned (${unassigned.length})</div>`;
     unassigned.forEach(s => {
-      html += `<div class="print-vehicle-student">${esc(s.last_name)}, ${esc(s.first_name)}${s.grade_level ? ` (${esc(s.grade_level)})` : ''}</div>`;
+      html += `<div class="print-vehicle-student">${esc(s.last_name)}, ${esc(s.first_name)}${s.grade_level ? ` <span class="grade">(Grade ${esc(s.grade_level)})</span>` : ''}</div>`;
     });
     html += `</div>`;
   }
@@ -1070,48 +1080,94 @@ async function downloadRosterPdf() {
       doc.setFont('helvetica', style).setFontSize(size).setTextColor(...color);
       doc.text(String(str), x, y);
     };
-    const studLine = s => `${s.last_name}, ${s.first_name}${s.grade_level ? ` (${s.grade_level})` : ''}`;
+    const NAVY = [11, 45, 79], GRAY = [107, 114, 128], INK = [31, 41, 55];
 
-    text(title, margin, 16, 'bold', [11, 45, 79]); y += 14;
-    if (meta) { text(meta, margin, 9.5, 'normal', [107, 114, 128]); y += 12; }
-    y += 8;
+    // Header: title, one row per meta item, navy rule.
+    text(title, margin, 18, 'bold', NAVY); y += 16;
+    meta.forEach(m => {
+      if (m.primary) { text(m.text, margin, 10.5, 'bold', INK); }
+      else {
+        const lbl = `${m.label}: `;
+        text(lbl, margin, 9.5, 'bold', NAVY);
+        text(m.text, margin + doc.getTextWidth(lbl), 9.5, 'normal', [75, 85, 99]);
+      }
+      y += 13;
+    });
+    y += 1;
+    doc.setDrawColor(...NAVY).setLineWidth(2).line(margin, y, pageW - margin, y);
+    y += 16;
 
     // Same two-column row layout as the printed page: boxes pair up and the
-    // row advances by the taller of the two.
-    const boxHeight = b => 14 + (b.label ? 11 : 0) + 13 + Math.max(b.studs.length, 1) * 12 + 10;
+    // row advances by the taller of the two. Each box has a tinted header
+    // band (name, class label, seat pill) over a ruled student list.
+    const headH = 32;
+    const rowH = 16;
+    const boxHeight = b => headH + 6 + Math.max(b.studs.length, 1) * rowH + 8;
     const drawBox = (b, x, top) => {
-      let yy = top;
-      const at = (str, size, style, color) => {
-        doc.setFont('helvetica', style).setFontSize(size).setTextColor(...color);
-        doc.text(String(str), x + 8, yy);
-      };
-      yy += 14; at(b.name, 10.5, 'bold', [11, 45, 79]);
-      if (b.label) { yy += 11; at(b.label, 8.5, 'normal', [107, 114, 128]); }
-      yy += 13; at(b.capText, 8.5, 'normal', [107, 114, 128]);
-      if (b.studs.length) b.studs.forEach(s => { yy += 12; at(studLine(s), 9.5, 'normal', [15, 23, 42]); });
-      else { yy += 12; at('No students assigned', 9, 'italic', [156, 163, 175]); }
-      yy += 10;
-      doc.setDrawColor(209, 213, 219).rect(x, top - 2, colW, yy - top + 2 - 6);
+      const h = boxHeight(b);
+      doc.setFillColor(238, 242, 247).setDrawColor(213, 219, 229).setLineWidth(0.8);
+      doc.roundedRect(x, top, colW, h, 4, 4, 'S');
+      doc.setFillColor(238, 242, 247).roundedRect(x, top, colW, headH, 4, 4, 'F');
+      doc.rect(x, top + headH - 4, colW, 4, 'F');           // square off the band's bottom corners
+      doc.setDrawColor(213, 219, 229).line(x, top + headH, x + colW, top + headH);
+      doc.roundedRect(x, top, colW, h, 4, 4, 'S');
+
+      doc.setFont('helvetica', 'bold').setFontSize(10.5).setTextColor(...NAVY);
+      doc.text(b.name, x + 10, top + (b.label ? 14 : 20));
+      if (b.label) { doc.setFont('helvetica', 'bold').setFontSize(8).setTextColor(109, 40, 217); doc.text(b.label, x + 10, top + 25); }
+
+      doc.setFont('helvetica', 'bold').setFontSize(8);
+      const pw = doc.getTextWidth(b.capText) + 14;
+      doc.setFillColor(255, 255, 255).setDrawColor(195, 204, 218).roundedRect(x + colW - pw - 10, top + 8, pw, 16, 8, 8, 'FD');
+      doc.setTextColor(...NAVY).text(b.capText, x + colW - pw - 3, top + 19);
+
+      let yy = top + headH + 6;
+      if (!b.studs.length) {
+        doc.setFont('helvetica', 'italic').setFontSize(9).setTextColor(156, 163, 175);
+        doc.text('No students assigned', x + 10, yy + 11);
+      }
+      b.studs.forEach((s, k) => {
+        doc.setFont('helvetica', 'normal').setFontSize(9.5).setTextColor(...INK);
+        doc.text(`${s.last_name}, ${s.first_name}`, x + 10, yy + 11);
+        if (s.grade_level) {
+          const g = `Grade ${s.grade_level}`;
+          doc.setFontSize(8).setTextColor(156, 163, 175);
+          doc.text(g, x + colW - 10 - doc.getTextWidth(g), yy + 11);
+        }
+        if (k < b.studs.length - 1) doc.setDrawColor(241, 243, 246).setLineWidth(0.5).line(x + 10, yy + rowH - 1, x + colW - 10, yy + rowH - 1);
+        yy += rowH;
+      });
     };
 
     sections.forEach(sec => {
       if (sec.header) {
-        ensure(30); text(sec.header.toUpperCase(), margin, 9, 'bold', [55, 65, 81]); y += 12;
+        ensure(40);
+        text(sec.header.toUpperCase(), margin, 9, 'bold', [109, 40, 217]); y += 5;
+        doc.setDrawColor(221, 214, 254).setLineWidth(0.7).line(margin, y, pageW - margin, y);
+        y += 10;
       }
       for (let i = 0; i < sec.boxes.length; i += 2) {
         const pair = sec.boxes.slice(i, i + 2);
         const h = Math.max(...pair.map(boxHeight));
         ensure(h);
         pair.forEach((b, k) => drawBox(b, margin + k * (colW + gap), y));
-        y += h + 4;
+        y += h + 12;
       }
     });
 
     if (unassigned.length) {
-      ensure(40);
-      y += 6;
-      text(`UNASSIGNED (${unassigned.length})`, margin, 9, 'bold', [55, 65, 81]); y += 13;
-      unassigned.forEach(s => { ensure(13); text(studLine(s), margin, 9.5, 'normal', [15, 23, 42]); y += 12; });
+      ensure(50);
+      y += 4;
+      doc.setDrawColor(229, 231, 235).setLineWidth(1.5).line(margin, y, pageW - margin, y);
+      y += 16;
+      text(`UNASSIGNED (${unassigned.length})`, margin, 9.5, 'bold', [220, 38, 38]); y += 6;
+      unassigned.forEach(s => {
+        ensure(rowH);
+        y += 11;
+        text(`${s.last_name}, ${s.first_name}`, margin, 9.5, 'normal', INK);
+        if (s.grade_level) text(`Grade ${s.grade_level}`, margin + 170, 8, 'normal', [156, 163, 175]);
+        y += 5;
+      });
     }
 
     const safe = String(trip.name ?? 'Vehicles').replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-') || 'Vehicles';
