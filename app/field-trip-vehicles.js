@@ -716,6 +716,20 @@ function applySearchFilter() {
     const anyVisible = [...group.querySelectorAll('.veh-card')].some(c => c.style.display !== 'none');
     group.style.display = anyVisible ? '' : 'none';
   });
+  // With a homeroom picked, cars carrying none of those students are hidden
+  // (matching the printed roster), along with any group header left empty.
+  document.querySelectorAll('.veh-col').forEach(col => {
+    const anyVisible = [...col.querySelectorAll('.veh-card')].some(c => c.style.display !== 'none');
+    col.style.display = (!toolbarHomeroom || anyVisible) ? '' : 'none';
+  });
+  document.querySelectorAll('.veh-group-section-header').forEach(h => {
+    let el = h.nextElementSibling, any = false;
+    while (el && !el.classList.contains('veh-group-section-header')) {
+      if (el.classList.contains('veh-col') && el.style.display !== 'none') any = true;
+      el = el.nextElementSibling;
+    }
+    h.style.display = any ? '' : 'none';
+  });
   updateColumnCounts();
 }
 
