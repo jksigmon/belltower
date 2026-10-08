@@ -15,6 +15,21 @@ if (!token) {
   loadForm(token);
 }
 
+// supabase-js does not populate res.data on a non-2xx response, only res.error
+// (whose .message is a generic "Edge Function returned a non-2xx status code").
+// The actual JSON body the function sent is on res.error.context, a Response.
+async function invokeErrorBody(res) {
+  if (res.data?.error) return res.data;
+  if (res.error?.context?.json) {
+    try {
+      return await res.error.context.json();
+    } catch (_) {
+      // body wasn't JSON (e.g. network-level failure) — fall through
+    }
+  }
+  return {};
+}
+
 async function loadForm(token) {
   try {
     const res = await supabase.functions.invoke('compliance_form_lookup', {
@@ -22,7 +37,8 @@ async function loadForm(token) {
     });
 
     if (res.error || res.data?.error) {
-      const msg = res.data?.error ?? res.error?.message ?? 'Unknown error';
+      const errData = await invokeErrorBody(res);
+      const msg = errData.error ?? res.error?.message ?? 'Unknown error';
       showError('Form unavailable', msg);
       return;
     }
@@ -234,7 +250,7 @@ async function submitForm() {
     });
 
     if (res.error || res.data?.error) {
-      const errData = res.data ?? {};
+      const errData = await invokeErrorBody(res);
 
       // Duplicate submission — friendly message
       if (errData.error === 'duplicate') {

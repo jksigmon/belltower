@@ -101,7 +101,7 @@ serve(async (req) => {
 
     if (existing?.length) {
       const prior = existing[0];
-      const isStillValid = !prior.expires_at || prior.expires_at >= today;
+      const isStillValid = !prior.expires_at || prior.expires_at > today;
       if (isStillValid) {
         return json(
           {
@@ -152,6 +152,8 @@ serve(async (req) => {
     }
 
     // ── Insert agreement ──────────────────────────────────────────────
+    // Agreements must be re-signed each school year. School year runs
+    // Aug 1 - Jul 31; expires_at is the first day the signature no longer counts.
     const { data: agreement, error: insertErr } = await supabase
       .from("compliance_agreements")
       .insert({
@@ -163,6 +165,7 @@ serve(async (req) => {
         signature_type,
         signature_data,
         content_hash:           contentHash,
+        expires_at:             nextSchoolYearCutover(),
         ip_address:             ipAddress,
         user_agent:             userAgent,
         guardian_id:            guardianId,
@@ -193,6 +196,13 @@ serve(async (req) => {
     return json({ error: "Internal server error" }, 500);
   }
 });
+
+function nextSchoolYearCutover(): string {
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const cutoverYear = now.getUTCMonth() >= 7 ? year + 1 : year; // getUTCMonth() 7 = August
+  return `${cutoverYear}-08-01`;
+}
 
 function json(body: unknown, status: number) {
   return new Response(JSON.stringify(body), {
