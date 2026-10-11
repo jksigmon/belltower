@@ -515,6 +515,12 @@
 .comp-unknown { background:#f1f5f9; color:#64748b; }
 
 .cr-guardian-row-alt { background:#fafafa; }
+.roster-cols-bar { display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; margin:0 0 14px; padding:10px 12px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; }
+.roster-cols-bar[hidden] { display:none; }
+.roster-cols-label { font-weight:600; color:#374151; }
+.roster-cols-bar label { display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0; }
+.roster-cols-bar input[type=checkbox] { width:auto; margin:0; }
+.roster-guardian-line { display:block; white-space:nowrap; }
 .cr-guardian-name { font-weight:600; }
 .cr-guardian-email { color:#6b7280; font-size:12px; display:block; }
 .cr-chip-date { color:#9ca3af; font-size:10px; display:block; margin-top:2px; }
@@ -1760,6 +1766,17 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
         <div id="myRosterTabs" class="roster-tab-row" hidden></div>
 
+        <div class="roster-cols-bar" id="myRosterCols" hidden>
+          <span class="roster-cols-label">Show on roster &amp; print:</span>
+          <label><input type="checkbox" data-col="grade"> Grade</label>
+          <label id="myRosterColTeacherWrap"><input type="checkbox" data-col="teacher"> Homeroom teacher</label>
+          <label><input type="checkbox" data-col="carline_tag"> Carline tag</label>
+          <label><input type="checkbox" data-col="bus_group"> Bus group</label>
+          <label><input type="checkbox" data-col="guardians"> Guardian phone numbers</label>
+          <label><input type="checkbox" data-col="check"> Check boxes</label>
+          <label><input type="checkbox" data-col="notes"> Notes column</label>
+        </div>
+
         <div class="staff-search-wrap" id="myRosterSearchWrap" style="max-width:320px;margin:0 0 14px;" hidden>
           <svg class="staff-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           <input type="search" id="myRosterSearchInput" placeholder="Search students…">
@@ -2527,7 +2544,7 @@ import { esc, GRADE_ORDER, gradeLabel, loadSchoolConfig, debounce, toLocalISODat
 import { renderInventoryGrid, buildAssignmentMap, nextStatus, updateCellStatus, statusLabel } from '/app/inventory-grid.js';
 import { initStaffResources } from '/app/staff.resources.js?v=1';
 import { VOLUNTEER_ROLES, roleCheckboxGridHTML, wireRoleDetailsRequirement, rolesRequireDetails, DETAIL_ROLE_HINT, DETAIL_ROLE_ERROR } from '/app/compliance.roles.js?v=3';
-import { printRosters, saveRostersPdf, saveRostersXlsx, printStudentSchedule, toRosterStudent, ROSTER_SELECT } from '/app/roster-print.js?v=7';
+import { printRosters, saveRostersPdf, saveRostersXlsx, printStudentSchedule, toRosterStudent, ROSTER_SELECT } from '/app/roster-print.js?v=9';
 import qrcode from '/app/vendor/qrcode.js';
 
 document.getElementById('bgRoleGrid').innerHTML = roleCheckboxGridHTML('bgRole');
@@ -7528,6 +7545,93 @@ let myRosterInitialized = false;
 let myRosterTabs = [];   // [{ session_id, tabLabel, fullLabel, session_kind, period_sort_order, schedule_updated_at, studentIds, students }]
 let myRosterActiveIdx = 0;
 
+/* Which optional columns show on screen AND in print/PDF/Excel -- one
+   selection drives all of them so the page is exactly what comes out of the
+   printer. Remembered per browser; guardians stay off until asked for since
+   a printed roster with family phone numbers is something to choose on purpose. */
+const ROSTER_COL_KEYS = ['grade', 'teacher', 'carline_tag', 'bus_group', 'guardians', 'check', 'notes'];
+const ROSTER_COL_DEFAULT = ['grade', 'carline_tag', 'bus_group'];
+const ROSTER_COL_STORE = 'belltower.myRosterColumns';
+let myRosterCols = (() => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(ROSTER_COL_STORE) ?? 'null');
+    if (Array.isArray(saved)) return new Set(saved.filter(k => ROSTER_COL_KEYS.includes(k)));
+  } catch { /* storage blocked or corrupt: fall through to defaults */ }
+  return new Set(ROSTER_COL_DEFAULT);
+})();
+let myRosterGuardiansLoaded = false;
+
+/* Pulls guardian names + phones for every student on every tab, once, the
+   first time the Guardian column is switched on. Joined by family_id the same
+   way the field trip Day-of sheet does; primary contact first. */
+async function loadRosterGuardians() {
+  if (myRosterGuardiansLoaded) return true;
+  const students = myRosterTabs.flatMap(t => t.students);
+  const familyIds = [...new Set(students.map(s => s.family_id).filter(Boolean))];
+
+  const byFamily = new Map();
+  if (familyIds.length) {
+    const { data, error } = await supabase
+      .from('guardians')
+      .select('family_id, first_name, last_name, phone, is_primary_contact')
+      .eq('school_id', currentProfile.school_id)
+      .in('family_id', familyIds)
+      .eq('active', true);
+    if (error) {
+      console.error('Roster guardians load failed', error);
+      return false;
+    }
+    (data ?? []).forEach(g => {
+      if (!byFamily.has(g.family_id)) byFamily.set(g.family_id, []);
+      byFamily.get(g.family_id).push(g);
+    });
+    byFamily.forEach(list => list.sort((a, b) =>
+      (b.is_primary_contact ? 1 : 0) - (a.is_primary_contact ? 1 : 0)
+      || (a.last_name ?? '').localeCompare(b.last_name ?? '')
+      || (a.first_name ?? '').localeCompare(b.first_name ?? '')));
+  }
+
+  // Tab student objects can be distinct copies of the same student, so set
+  // them all rather than assuming one shared reference.
+  myRosterTabs.forEach(t => t.students.forEach(s => {
+    s.guardians = (byFamily.get(s.family_id) ?? []).map(g => ({
+      name: `${g.first_name ?? ''} ${g.last_name ?? ''}`.trim() || 'Guardian',
+      phone: g.phone || ''
+    }));
+  }));
+  myRosterGuardiansLoaded = true;
+  return true;
+}
+
+function myRosterSelectedColumns() {
+  // Homeroom teacher is meaningless on the homeroom tab (every row is you),
+  // so it only ever applies to section tabs.
+  const tab = myRosterTabs[myRosterActiveIdx];
+  const isSection = tab && tab.session_kind !== 'homeroom';
+  return ROSTER_COL_KEYS.filter(k => myRosterCols.has(k) && (k !== 'teacher' || isSection));
+}
+
+function wireRosterColumnToggles() {
+  const bar = document.getElementById('myRosterCols');
+  if (!bar || bar.dataset.wired) return;
+  bar.dataset.wired = '1';
+  bar.querySelectorAll('input[data-col]').forEach(cb => {
+    cb.checked = myRosterCols.has(cb.dataset.col);
+    cb.addEventListener('change', async () => {
+      const key = cb.dataset.col;
+      if (cb.checked) myRosterCols.add(key); else myRosterCols.delete(key);
+      try { localStorage.setItem(ROSTER_COL_STORE, JSON.stringify([...myRosterCols])); } catch { /* per-viewer convenience only */ }
+
+      if (key === 'guardians' && cb.checked && !(await loadRosterGuardians())) {
+        myRosterCols.delete('guardians');
+        cb.checked = false;
+        alert('Could not load guardian contacts. Please try again.');
+      }
+      renderRosterTable();
+    });
+  });
+}
+
 /* Shared by My Roster and Class Rosters' "Your Classes" panel -- both show
    the same thing (every live board this teacher is on this year), just
    rendered into different DOM. One query, one grouping pass, no duplicated
@@ -7619,6 +7723,12 @@ async function initMyRoster() {
 
   myRosterTabs = tabs;
   myRosterActiveIdx = 0;
+  wireRosterColumnToggles();
+  // A remembered "guardians on" choice has to fetch before the first paint.
+  if (myRosterCols.has('guardians') && !(await loadRosterGuardians())) {
+    myRosterCols.delete('guardians');
+    document.querySelector('#myRosterCols input[data-col="guardians"]').checked = false;
+  }
   renderRosterTabs();
   renderRosterTab(0);
 }
@@ -7655,6 +7765,10 @@ function renderRosterTab(idx) {
   if (titleEl) titleEl.textContent = tab.session_kind === 'homeroom' ? 'My Homeroom' : tab.fullLabel;
   if (countEl) countEl.textContent = `${tab.students.length} ${tab.students.length === 1 ? 'student' : 'students'}`;
   if (searchWrap) searchWrap.hidden = tab.students.length === 0;
+  const colsBar = document.getElementById('myRosterCols');
+  if (colsBar) colsBar.hidden = tab.students.length === 0;
+  const teacherToggle = document.getElementById('myRosterColTeacherWrap');
+  if (teacherToggle) teacherToggle.hidden = tab.session_kind === 'homeroom';
   if (searchInput) searchInput.value = ''; // stale term from a previous tab shouldn't silently hide this one's roster
 
   // A published section stays editable and is read live, with no second
@@ -7682,7 +7796,10 @@ function renderRosterTab(idx) {
       sublabel: tab.session_kind === 'homeroom' ? 'Homeroom' : tab.fullLabel,
       students: tab.students
     }],
-    schoolName: currentProfile.schools?.name ?? ''
+    schoolName: currentProfile.schools?.name ?? '',
+    // Read at click time, not captured here, so toggling a column never
+    // needs the tab re-rendered to take effect in print.
+    columns: myRosterSelectedColumns()
   });
 
   // .onclick rather than addEventListener: this function re-runs on every
@@ -7727,24 +7844,43 @@ function renderRosterTable() {
   const thead = document.querySelector('#myRosterTable thead tr');
   const term  = (document.getElementById('myRosterSearchInput')?.value ?? '').trim().toLowerCase();
 
-  const isSection = tab.session_kind !== 'homeroom';
+  // Same column selection the print/PDF/Excel buttons use, so what's on
+  // screen is what comes out of the printer.
+  const colKeys = myRosterSelectedColumns();
+  const COL_HEAD = {
+    grade: 'Grade', teacher: 'Homeroom', carline_tag: 'Carline Tag', bus_group: 'Bus Group',
+    guardians: 'Guardian Contacts', check: '', notes: 'Notes'
+  };
+  const colCell = (k, s) => {
+    switch (k) {
+      case 'grade':       return `<td>${s.grade_level ? esc(gradeLabel(s.grade_level)) : '—'}</td>`;
+      case 'teacher':     return `<td>${s.teacher ? esc(s.teacher) : '—'}</td>`;
+      case 'carline_tag': return `<td>${s.carline_tag ? esc(s.carline_tag) : '—'}</td>`;
+      case 'bus_group':   return `<td>${s.bus_group ? esc(s.bus_group) : '—'}</td>`;
+      case 'guardians': {
+        const g = s.guardians ?? [];
+        return `<td>${g.length
+          ? g.map(x => `<span class="roster-guardian-line">${esc(x.name)}: ${x.phone ? esc(x.phone) : '<span class="muted">no number</span>'}</span>`).join('')
+          : '<span class="muted">No guardian on file</span>'}</td>`;
+      }
+      case 'check':       return '<td style="width:40px;text-align:center;"><span style="display:inline-block;width:14px;height:14px;border:1.5px solid #9ca3af;border-radius:3px;"></span></td>';
+      case 'notes':       return '<td style="min-width:140px;"></td>';
+      default:            return '<td></td>';
+    }
+  };
+
   if (thead) {
-    // A Homeroom column only earns its place on a section tab -- on the
-    // Homeroom tab itself it would just repeat the row's own teacher.
     thead.innerHTML = `
       <th style="width:36px;">#</th>
       <th>Student</th>
-      <th>Grade</th>
-      ${isSection ? '<th>Homeroom</th>' : ''}
-      <th>Carline Tag</th>
-      <th>Bus Group</th>`;
+      ${colKeys.map(k => `<th${k === 'check' ? ' style="width:40px;"' : ''}>${COL_HEAD[k]}</th>`).join('')}`;
   }
 
   const rows = term
     ? tab.students.filter(s => rosterDisplayName(s).toLowerCase().includes(term))
     : tab.students;
 
-  const colspan = isSection ? 6 : 5;
+  const colspan = 2 + colKeys.length;
   if (!rows.length) {
     tbody.innerHTML = `<tr><td colspan="${colspan}" class="muted" style="text-align:center;padding:24px 0;">${term ? 'No student matches your search.' : 'No students on this roster.'}</td></tr>`;
     return;
@@ -7752,10 +7888,7 @@ function renderRosterTable() {
   tbody.innerHTML = rows.map((s, i) => `<tr>
     <td class="muted">${i + 1}</td>
     <td style="font-weight:600;">${esc(rosterDisplayName(s))}</td>
-    <td>${s.grade_level ? esc(gradeLabel(s.grade_level)) : '—'}</td>
-    ${isSection ? `<td>${s.teacher ? esc(s.teacher) : '—'}</td>` : ''}
-    <td>${s.carline_tag ? esc(s.carline_tag) : '—'}</td>
-    <td>${s.bus_group ? esc(s.bus_group) : '—'}</td>
+    ${colKeys.map(k => colCell(k, s)).join('')}
   </tr>`).join('');
 }
 
