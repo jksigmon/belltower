@@ -515,11 +515,17 @@
 .comp-unknown { background:#f1f5f9; color:#64748b; }
 
 .cr-guardian-row-alt { background:#fafafa; }
-.roster-cols-bar { display:flex; flex-wrap:wrap; align-items:center; gap:6px 16px; margin:0 0 14px; padding:10px 12px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; font-size:13px; }
+.roster-cols-bar { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:0 0 12px; }
 .roster-cols-bar[hidden] { display:none; }
-.roster-cols-label { font-weight:600; color:#374151; }
-.roster-cols-bar label { display:inline-flex; align-items:center; gap:6px; cursor:pointer; margin:0; }
-.roster-cols-bar input[type=checkbox] { width:auto; margin:0; }
+.roster-cols-label { display:inline-flex; align-items:center; gap:5px; margin-right:4px; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:#6b7280; }
+.roster-chip { position:relative; margin:0; cursor:pointer; user-select:none; }
+.roster-chip[hidden] { display:none; }
+.roster-chip input { position:absolute; opacity:0; width:0; height:0; margin:0; }
+.roster-chip span { display:inline-flex; align-items:center; gap:5px; padding:4px 11px; border:1px solid #d1d5db; border-radius:999px; background:#fff; color:#4b5563; font-size:12.5px; font-weight:500; line-height:1.4; transition:background .12s,border-color .12s,color .12s; }
+.roster-chip:hover span { border-color:#9ca3af; background:#f9fafb; }
+.roster-chip input:checked + span { background:#eef2ff; border-color:#a5b4fc; color:#3730a3; font-weight:600; }
+.roster-chip input:checked + span::before { content:''; width:10px; height:10px; background:currentColor; -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/contain no-repeat; mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/contain no-repeat; }
+.roster-chip input:focus-visible + span { outline:2px solid #6366f1; outline-offset:2px; }
 .roster-guardian-line { display:block; white-space:nowrap; }
 .cr-guardian-name { font-weight:600; }
 .cr-guardian-email { color:#6b7280; font-size:12px; display:block; }
@@ -1766,15 +1772,15 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
 
         <div id="myRosterTabs" class="roster-tab-row" hidden></div>
 
-        <div class="roster-cols-bar" id="myRosterCols" hidden>
-          <span class="roster-cols-label">Show on roster &amp; print:</span>
-          <label><input type="checkbox" data-col="grade"> Grade</label>
-          <label id="myRosterColTeacherWrap"><input type="checkbox" data-col="teacher"> Homeroom teacher</label>
-          <label><input type="checkbox" data-col="carline_tag"> Carline tag</label>
-          <label><input type="checkbox" data-col="bus_group"> Bus group</label>
-          <label><input type="checkbox" data-col="guardians"> Guardian phone numbers</label>
-          <label><input type="checkbox" data-col="check"> Check boxes</label>
-          <label><input type="checkbox" data-col="notes"> Notes column</label>
+        <div class="roster-cols-bar" id="myRosterCols" role="group" aria-label="Columns shown on roster and print" hidden>
+          <span class="roster-cols-label">Columns</span>
+          <label class="roster-chip"><input type="checkbox" data-col="grade"><span>Grade</span></label>
+          <label class="roster-chip" id="myRosterColTeacherWrap"><input type="checkbox" data-col="teacher"><span>Homeroom teacher</span></label>
+          <label class="roster-chip"><input type="checkbox" data-col="carline_tag"><span>Carline tag</span></label>
+          <label class="roster-chip"><input type="checkbox" data-col="bus_group"><span>Bus group</span></label>
+          <label class="roster-chip"><input type="checkbox" data-col="guardians"><span>Guardian phones</span></label>
+          <label class="roster-chip"><input type="checkbox" data-col="check"><span>Check boxes</span></label>
+          <label class="roster-chip"><input type="checkbox" data-col="notes"><span>Notes</span></label>
         </div>
 
         <div class="staff-search-wrap" id="myRosterSearchWrap" style="max-width:320px;margin:0 0 14px;" hidden>
