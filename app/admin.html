@@ -97,6 +97,7 @@
         <a href="#resource-docs" data-cap="can_manage_resource_docs" data-module="resource_docs"><i data-lucide="folder-open"></i> Operations Manual</a>
         <a href="#reservations" data-cap="can_manage_reservations" data-module="reservations"><i data-lucide="calendar-clock"></i> Reservations</a>
         <a href="#inventory" data-cap="can_manage_inventory" data-module="inventory"><i data-lucide="package"></i> Inventory</a>
+        <a href="#bells" data-cap="can_manage_bells" data-module="bells"><i data-lucide="bell-ring"></i> Bell Schedules</a>
       </div>
 
       <button class="nav-section-toggle" data-group="directory">
@@ -532,6 +533,7 @@
           <label data-module="field_trips"><input type="checkbox" data-field="can_manage_field_trips"><span class="perm-name">Manage field trips</span><span class="perm-desc">Can create and manage all field trips across the school.</span></label>
           <label data-module="reservations"><input type="checkbox" data-field="can_manage_reservations"><span class="perm-name">Manage reservations</span><span class="perm-desc">Can manage the reservable resource catalog and approve or deny pending bookings.</span></label>
           <label data-module="inventory"><input type="checkbox" data-field="can_manage_inventory"><span class="perm-name">Manage inventory (all classrooms)</span><span class="perm-desc">Can view and edit every teacher's inventory checkout lists across the school, not just their own.</span></label>
+          <label data-module="bells"><input type="checkbox" data-field="can_manage_bells"><span class="perm-name">Manage bell schedules</span><span class="perm-desc">Can create and edit bell schedules, day types, and periods. Not needed to open the bell page: any staff member can do that.</span></label>
         </div>
       </div>
 
@@ -1252,6 +1254,95 @@
     <div class="panel" style="margin-top:16px;">
       <h4 style="margin:0 0 14px;">Past Promotion Runs</h4>
       <div id="promotionLogEntries"></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════
+     BELL SCHEDULES
+═══════════════════════════════════════════════ -->
+<section id="bells" class="admin-section">
+  <div class="admin-content fade-in" id="bellsRoot">
+
+    <div id="bellsListView">
+      <div class="panel">
+        <div class="directory-header" style="margin-bottom:12px;">
+          <h3 style="margin:0;">Bell Schedules</h3>
+          <button class="btn btn-primary btn-sm" id="bellAddScheduleBtn">+ Add Schedule</button>
+        </div>
+        <p class="muted" style="font-size:13px;margin:0 0 16px;">
+          One schedule per group that changes classes together (for example "Middle School 6-8" and "High School 9-12"). Staff open the bell page from the Staff Portal and pick the schedule for their room. Bells follow the school's timezone and stay silent on no-school days from the school calendar.
+        </p>
+        <table id="bellSchedulesTable" class="admin-table">
+          <colgroup>
+            <col>
+            <col style="width:18%">
+            <col style="width:18%">
+            <col style="width:12%">
+            <col style="width:230px">
+          </colgroup>
+          <thead><tr>
+            <th>Schedule</th><th>Grades</th><th>Campus</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody><tr><td colspan="5" class="muted" style="padding:16px;">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="bellsDetailView" style="display:none;">
+      <div class="panel">
+        <div class="directory-header" style="margin-bottom:0;">
+          <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+            <button class="btn btn-sm" id="bellBackBtn">← Back</button>
+            <h3 style="margin:0;font-size:16px;" id="bellDetailTitle"></h3>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <a class="btn btn-sm" id="bellOpenPageLink" target="_blank" rel="noopener">Open bell page</a>
+            <button class="btn btn-sm" id="bellEditScheduleBtn">Edit details</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h4 style="margin:0 0 4px;">Weekly pattern</h4>
+        <p class="muted" style="font-size:13px;margin:0 0 14px;">Which day type runs on each day of the week. Changes save as you make them.</p>
+        <div id="bellWeekGrid" class="bell-week-grid"></div>
+      </div>
+
+      <div class="panel">
+        <div class="directory-header" style="margin-bottom:12px;">
+          <h4 style="margin:0;">Day types</h4>
+          <button class="btn btn-sm" id="bellAddDayTypeBtn">+ Add Day Type</button>
+        </div>
+        <p class="muted" style="font-size:13px;margin:0 0 14px;">A day type is one version of the day: Regular, Early Release, 2-Hour Delay, Assembly. Each has its own periods.</p>
+        <div id="bellDayTypeTabs" class="bell-daytype-tabs"></div>
+
+        <div id="bellDayTypeBody" style="display:none;">
+          <div class="directory-header" style="margin:16px 0 10px;">
+            <span class="muted" style="font-size:13px;" id="bellDayTypeSummary"></span>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm" id="bellRenameDayTypeBtn">Rename</button>
+              <button class="btn btn-primary btn-sm" id="bellAddPeriodBtn">+ Add Period</button>
+            </div>
+          </div>
+          <table id="bellPeriodsTable" class="admin-table">
+            <colgroup>
+              <col>
+              <col style="width:13%">
+              <col style="width:12%">
+              <col style="width:12%">
+              <col style="width:15%">
+              <col style="width:18%">
+              <col style="width:90px">
+            </colgroup>
+            <thead><tr>
+              <th>Period</th><th>Type</th><th>Starts</th><th>Ends</th><th>Bells</th><th>Sound</th><th></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -2886,6 +2977,7 @@
         <label><input type="checkbox" id="addMod_resource_docs"> Operations Manual</label>
         <label><input type="checkbox" id="addMod_reservations"> Reservations</label>
         <label><input type="checkbox" id="addMod_inventory"> Inventory Tracking</label>
+        <label><input type="checkbox" id="addMod_bells"> Bell Schedules</label>
       </div>
     </div>
   </div>
@@ -2980,6 +3072,7 @@
         <label><input type="checkbox" id="editMod_resource_docs"> Operations Manual</label>
         <label><input type="checkbox" id="editMod_reservations"> Reservations</label>
         <label><input type="checkbox" id="editMod_inventory"> Inventory Tracking</label>
+        <label><input type="checkbox" id="editMod_bells"> Bell Schedules</label>
       </div>
     </div>
   </div>
@@ -3213,6 +3306,130 @@
     <div style="display:flex;gap:8px;">
       <button class="btn" id="tbCancelBtn">Cancel</button>
       <button id="tbSaveBtn" class="btn btn-primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
+     BELL SCHEDULE DRAWERS
+     ============================================= -->
+<div id="bellScheduleDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Bell Schedule">
+  <div class="drawer-header">
+    <h3 id="bellScheduleDrawerTitle">Add Schedule</h3>
+    <button class="drawer-close" id="bellScheduleCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Name <span class="required">*</span></label>
+      <input id="bellScheduleNameInput" class="form-input" placeholder="e.g. High School" />
+    </div>
+    <div class="drawer-field">
+      <label>Grades</label>
+      <input id="bellScheduleGradesInput" class="form-input" placeholder="e.g. Grades 9-12" />
+    </div>
+    <div class="drawer-field">
+      <label>Campus</label>
+      <select id="bellScheduleCampusInput" class="form-input">
+        <option value="">All campuses</option>
+      </select>
+    </div>
+    <div class="drawer-field" id="bellScheduleActiveRow" style="display:none;">
+      <label class="staff-active-label">
+        <input type="checkbox" id="bellScheduleActiveInput">
+        <span>Active (bell pages on this schedule keep ringing)</span>
+      </label>
+    </div>
+  </div>
+  <div class="drawer-footer" style="justify-content:space-between;">
+    <button class="btn" id="bellScheduleDeleteBtn" style="color:#dc2626;border-color:#fca5a5;display:none;">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" id="bellScheduleCancelBtn">Cancel</button>
+      <button id="bellScheduleSaveBtn" class="btn btn-primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="bellDayTypeDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Day Type">
+  <div class="drawer-header">
+    <h3 id="bellDayTypeDrawerTitle">Add Day Type</h3>
+    <button class="drawer-close" id="bellDayTypeCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Name <span class="required">*</span></label>
+      <input id="bellDayTypeNameInput" class="form-input" placeholder="e.g. Early Release" />
+    </div>
+    <div class="drawer-field" id="bellDayTypeCopyRow">
+      <label>Start from</label>
+      <select id="bellDayTypeCopyInput" class="form-input"></select>
+      <small class="muted">Copies that day type's periods so you only adjust the times that differ.</small>
+    </div>
+  </div>
+  <div class="drawer-footer" style="justify-content:space-between;">
+    <button class="btn" id="bellDayTypeDeleteBtn" style="color:#dc2626;border-color:#fca5a5;display:none;">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" id="bellDayTypeCancelBtn">Cancel</button>
+      <button id="bellDayTypeSaveBtn" class="btn btn-primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="bellPeriodDrawer" class="drawer" role="dialog" aria-modal="true" aria-label="Period">
+  <div class="drawer-header">
+    <h3 id="bellPeriodDrawerTitle">Add Period</h3>
+    <button class="drawer-close" id="bellPeriodCloseBtn" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-field">
+      <label>Name <span class="required">*</span></label>
+      <input id="bellPeriodNameInput" class="form-input" placeholder="e.g. Period 1" />
+    </div>
+    <div class="drawer-field">
+      <label>Type</label>
+      <select id="bellPeriodKindInput" class="form-input">
+        <option value="class">Class</option>
+        <option value="homeroom">Homeroom</option>
+        <option value="lunch">Lunch</option>
+        <option value="break">Break</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="admin-form-row compact two" style="gap:8px;">
+      <div class="drawer-field" style="margin:0;">
+        <label>Starts <span class="required">*</span></label>
+        <input id="bellPeriodStartInput" type="time" class="form-input" />
+      </div>
+      <div class="drawer-field" style="margin:0;">
+        <label>Ends <span class="required">*</span></label>
+        <input id="bellPeriodEndInput" type="time" class="form-input" />
+      </div>
+    </div>
+    <div class="drawer-field">
+      <label>Bell sound</label>
+      <div style="display:flex;gap:8px;">
+        <select id="bellPeriodToneInput" class="form-input" style="flex:1;min-width:0;"></select>
+        <button type="button" class="btn" id="bellPeriodTonePreviewBtn">Preview</button>
+      </div>
+      <small class="muted">Used for this period's start and end bells.</small>
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="bellPeriodRingStartInput">
+        <span>Ring when this period starts</span>
+      </label>
+    </div>
+    <div class="drawer-field">
+      <label class="staff-active-label">
+        <input type="checkbox" id="bellPeriodRingEndInput">
+        <span>Ring when this period ends</span>
+      </label>
+    </div>
+  </div>
+  <div class="drawer-footer" style="justify-content:space-between;">
+    <button class="btn" id="bellPeriodDeleteBtn" style="color:#dc2626;border-color:#fca5a5;display:none;">Delete</button>
+    <div style="display:flex;gap:8px;">
+      <button class="btn" id="bellPeriodCancelBtn">Cancel</button>
+      <button id="bellPeriodSaveBtn" class="btn btn-primary">Save</button>
     </div>
   </div>
 </div>

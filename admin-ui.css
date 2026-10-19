@@ -472,7 +472,9 @@ nav a[data-module] {
 /* Collapsible group container */
 .nav-group {
   overflow: hidden;
-  max-height: 600px;
+  /* Only a ceiling for the collapse animation: must stay taller than the
+     longest group (Operations is past 600px with every module on). */
+  max-height: 1400px;
   transition: max-height 0.25s ease;
 }
 
@@ -9438,3 +9440,57 @@ select.admin-input {
 .bg-link-desc { font-size: 12px; color: #9ca3af; margin-top: 1px; }
 .bg-link-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
 .bg-link-actions .btn-sm { white-space: nowrap; }
+
+/* ── Bell schedule editor ───────────────────────────────────── */
+.bell-week-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+}
+.bell-week-day { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.bell-week-day > span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+@media (max-width: 1100px) { .bell-week-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 640px)  { .bell-week-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.bell-daytype-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.bell-daytype-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bell-daytype-tab:hover { border-color: #cbd5e1; color: var(--text-primary); }
+.bell-daytype-tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.bell-daytype-tab.active { background: #0b2d4f; border-color: #0b2d4f; color: #ffffff; }
+.bell-daytype-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: rgba(100, 116, 139, .14);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.bell-daytype-tab.active .bell-daytype-count { background: rgba(255, 255, 255, .2); }
+.bell-overlap-flag {
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 11px;
+  font-weight: 600;
+}

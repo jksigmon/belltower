@@ -26,6 +26,7 @@ const ACCESS_ROLE_PRESETS = {
     can_manage_resource_docs: false,
     can_manage_reservations: false,
     can_manage_inventory: false,
+    can_manage_bells: false,
     can_manage_staff: false,
     can_manage_students: false,
     can_view_students: false,
@@ -61,6 +62,7 @@ const ACCESS_ROLE_PRESETS = {
     can_manage_resource_docs: false,
     can_manage_reservations: false,
     can_manage_inventory: false,
+    can_manage_bells: false,
     can_manage_students: true,
     can_view_students: true,
     can_manage_placement: false,
@@ -95,6 +97,7 @@ const ACCESS_ROLE_PRESETS = {
     can_manage_resource_docs: true,
     can_manage_reservations: true,
     can_manage_inventory: true,
+    can_manage_bells: true,
     can_manage_staff: true,
     can_manage_students: true,
     can_view_students: true,
@@ -215,7 +218,7 @@ async function loadAccessProfile(profileId) {
       can_manage_staff, can_manage_students, can_view_students, can_manage_placement,
       can_manage_families, can_view_families, can_manage_guardians, can_manage_bus_groups,
       can_manage_carpools, can_manage_substitutes, can_manage_campuses,
-      can_manage_calendar, can_manage_resource_docs, can_manage_reservations, can_manage_inventory,
+      can_manage_calendar, can_manage_resource_docs, can_manage_reservations, can_manage_inventory, can_manage_bells,
       can_bulk_upload, can_export_data, can_manage_licensure, can_manage_compliance, can_manage_chaperone_credentials, can_manage_required_training, can_manage_field_trips,
       can_manage_requests, can_review_all_requests
     `)

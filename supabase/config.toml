@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.pto_calendar_ics]
 verify_jwt = false
+
+[functions.bell_board]
+verify_jwt = false

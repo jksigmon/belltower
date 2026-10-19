@@ -1153,6 +1153,7 @@ select.admin-input { padding-right:28px; background-image:url("data:image/svg+xm
   <a href="#resources" data-module="resource_docs"><i data-lucide="folder-open"></i> Resources</a>
   <a href="#reservations" data-module="reservations"><i data-lucide="calendar-clock"></i> Reservations</a>
   <a href="#inventory" data-module="inventory"><i data-lucide="package"></i> Inventory</a>
+  <a href="/bells.html" target="_blank" rel="noopener" data-module="bells"><i data-lucide="bell-ring"></i> Bells</a>
   <a href="#access-request"><i data-lucide="key"></i> Request Access</a>
   <a href="/app/requests.html?cat=feedback" data-module="requests"><i data-lucide="message-circle"></i> Feedback / Report a Bug</a>
 </nav>
@@ -2980,6 +2981,8 @@ async function loadStaffDashboard() {
     actions.push({ label: 'Reservations', icon: 'calendar-clock', href: '#reservations' });
   if (window.staffModules['inventory'] === true)
     actions.push({ label: 'Inventory', icon: 'package', href: '#inventory' });
+  if (window.staffModules['bells'] === true)
+    actions.push({ label: 'Bells', icon: 'bell-ring', href: '/bells.html' });
   if (currentProfile?.can_manage_placement || currentProfile?.is_superadmin)
     actions.push({ label: 'Class Placement', iconSvg: QA_ICONS.classPlacement, href: '/app/placement.html' });
   if (window.staffModules['requests'] !== false)

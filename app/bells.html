@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bells · Belltower</title>
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
+  <link rel="manifest" href="/icons/site.webmanifest">
+  <link rel="icon" href="/icons/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/bells.css?v=14" id="bpStyles" />
+</head>
+<body>
+
+<!-- ── Setup: schedule picker and messages ──────────────────────────── -->
+<div id="bpSetup" class="bp-setup">
+  <!-- This logo has a white wordmark: it belongs on the navy backdrop, not on the card. -->
+  <img src="/images/belltower-logo.png" alt="Belltower" class="bp-setup-logo" />
+  <div class="bp-card bp-panel">
+    <div class="bp-card-eyebrow">Bell schedules</div>
+    <h1 id="bpSetupTitle">Bells</h1>
+    <div class="bp-panel-school" id="bpSetupSchool" hidden></div>
+    <p id="bpSetupText">Loading…</p>
+    <div id="bpScheduleList" class="bp-schedule-list"></div>
+    <button type="button" class="bp-cta" id="bpKeepBtn" hidden>
+      Keep current schedule
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </button>
+    <a id="bpSignInLink" class="bp-cta" href="/app/login.html" hidden>Sign in</a>
+  </div>
+</div>
+
+<!-- ── Bell display ─────────────────────────────────────────────────── -->
+<div id="bpApp" class="bp-app" hidden>
+  <header class="bp-header">
+    <div class="bp-brand">
+      <img src="/icons/android-chrome-192x192.png" alt="" class="bp-brand-logo" />
+      <span class="bp-brand-rule" aria-hidden="true"></span>
+      <div class="bp-brand-text">
+        <div class="bp-brand-school" id="bpSchool"></div>
+        <div class="bp-brand-schedule" id="bpSchedule"></div>
+      </div>
+    </div>
+
+    <div class="bp-header-spacer"></div>
+
+    <div class="bp-header-clock" aria-live="off">
+      <span id="bpClockMain"></span><span class="bp-header-sec" id="bpClockSec"></span>
+      <span class="bp-header-ampm" id="bpClockAmPm"></span>
+    </div>
+
+    <div class="bp-pills">
+      <button type="button" class="bp-pill" id="bpSoundPill" data-state="warn">Sound off</button>
+      <span class="bp-pill" id="bpSyncPill" data-state="warn">Syncing</span>
+    </div>
+
+    <span class="bp-header-rule" aria-hidden="true"></span>
+
+    <div class="bp-actions">
+      <button type="button" class="bp-icon-btn" id="bpTestBtn" title="Test bell" aria-label="Test bell">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+      </button>
+      <button type="button" class="bp-icon-btn" id="bpMiniBtn" title="Floating countdown window" aria-label="Floating countdown window" hidden>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><rect x="12" y="12" width="7" height="5" rx="1"/></svg>
+      </button>
+      <button type="button" class="bp-icon-btn" id="bpThemeBtn" title="Light or dark" aria-label="Switch between light and dark">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button type="button" class="bp-icon-btn" id="bpFullscreenBtn" title="Fullscreen" aria-label="Fullscreen">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      </button>
+      <button type="button" class="bp-icon-btn" id="bpChangeBtn" title="Change schedule" aria-label="Change schedule">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- One giant number in the middle of the screen: the countdown while
+       bells are running, the time of day when they are not. -->
+  <main class="bp-stage" id="bpNow" data-mode="idle">
+    <div class="bp-hero">
+      <div class="bp-now-title" id="bpNowTitle" aria-live="polite"></div>
+      <div class="bp-countdown" id="bpCountdown" aria-hidden="true"></div>
+      <div class="bp-now-sub" id="bpNowSub"></div>
+      <div class="bp-date" id="bpDate"></div>
+    </div>
+  </main>
+
+  <div class="bp-strip" id="bpStrip"></div>
+
+  <div class="bp-footer">
+    <div class="bp-status" id="bpStatus" data-tone="none"></div>
+  </div>
+</div>
+
+<!-- ── Start overlay: browsers need one tap before a page can play sound ── -->
+<div id="bpStart" class="bp-start" hidden>
+  <div class="bp-card bp-panel">
+    <div class="bp-card-eyebrow">One step left</div>
+    <h1 id="bpStartTitle">Ready to ring</h1>
+    <p>Browsers only allow sound after someone taps the page. Start the bells once and leave this tab open.</p>
+    <button type="button" class="bp-cta" id="bpStartBtn">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      Start bells
+    </button>
+    <p class="bp-card-note">You will hear one test bell. If you do not, check this device's volume.</p>
+  </div>
+</div>
+
+<!-- ── Bell flash ───────────────────────────────────────────────────── -->
+<div id="bpFlash" class="bp-flash" role="status" hidden>
+  <svg class="bp-flash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+  <div class="bp-flash-title" id="bpFlashTitle"></div>
+  <div class="bp-flash-sub" id="bpFlashSub"></div>
+</div>
+
+<script type="module" src="/app/bells.js?v=10"></script>
+</body>
+</html>

@@ -184,6 +184,7 @@ if (fade) {
     '#resource-docs':    () => import('./admin.resource-docs.js').then(m => m.initResourceDocsSection(currentProfile)),
     '#reservations':     () => import('./admin.reservations.js').then(m => m.initReservationsSection(currentProfile)),
     '#inventory':        () => import('./admin.inventory.js').then(m => m.initInventorySection(currentProfile)),
+    '#bells':            () => import('./admin.bells.js?v=3').then(m => m.initBellsSection(currentProfile)),
     '#requests':         () => import('./admin.requests.js').then(m => m.initRequestsSection(currentProfile)),
   };
 

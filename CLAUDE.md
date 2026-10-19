@@ -11,6 +11,7 @@ Belltower is a modular, multi-school internal operations tool. Current modules:
 - **Compliance** — Volunteer agreement signing and background check tracking
 - **Carline/Dismissal** — Student dismissal queue, bus groups, all-call, carline events
 - **Licensure** — Staff license tracking, expiry alerts, audit log
+- **Bell Schedules** (`bells`): class-change bells for classroom screens. Admin editor in `app/admin.bells.js`; the bell page is `app/bells.html` + `app/bells.js` + `bells.css`. Pages ring locally from a server-resolved timeline (`bell_timeline()` via the `bell_board` edge function) and never use the device clock or Realtime
 
 In progress:
 - **Field Trips** — Trip creation, vehicle/chaperone assignment, teacher participation, payment tracking
@@ -85,7 +86,7 @@ Full schema is in `schema.sql`. Key domains:
 
 **Roles:** `admin`, `staff`, `front office` (defined in `role_type` enum).
 
-**Feature flags:** `school_modules` table controls which modules are enabled per school. Known keys: `pto`, `substitutes`, `carline`, `requests`, `licensure`, `compliance`, `required_training`, `field_trips`, `resource_docs`, `reservations`, `inventory`. Always gate new module UI behind `currentModules['<module_key>']` in `admin.core.js`.
+**Feature flags:** `school_modules` table controls which modules are enabled per school. Known keys: `pto`, `substitutes`, `carline`, `requests`, `licensure`, `compliance`, `required_training`, `field_trips`, `resource_docs`, `reservations`, `inventory`, `bells`. Always gate new module UI behind `currentModules['<module_key>']` in `admin.core.js`.
 
 **Adding a new module:** whenever a new module is created, add its toggle to the Admin Panel's Schools page (`app/admin.schools.js` `MODULES` array, plus the `addMod_<key>`/`editMod_<key>` checkboxes in both the add-school and edit-school drawers in `app/admin.html`) in the same change that adds the module. A module flag that only exists in the database with no UI toggle can't be turned on or off by a superadmin.
 
@@ -121,6 +122,7 @@ All functions use the Deno runtime and `SUPABASE_SERVICE_ROLE_KEY` (bypasses RLS
 | `compliance_report` | Per-student compliance status; respects teacher/TA/manager scoping |
 | `guardian_intake_lookup` | Validate a guardian intake token |
 | `guardian_intake_submit` | Accept and persist guardian intake form submissions |
+| `bell_board` | Feed for bell pages: server time plus a schedule's resolved timeline, looked up by `bell_schedules.feed_token` and cached per schedule in memory. Must stay `verify_jwt = false` (set in `supabase/config.toml`) |
 
 ## Key Reference Documents
 - **`app/onboarding.html`** — Admin onboarding guide: step-by-step school setup, permissions reference table, module gates, and common pitfalls. Update this whenever permissions or module behavior changes.

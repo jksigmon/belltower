@@ -17,6 +17,7 @@ const MODULES = [
   { key: 'resource_docs', label: 'Operations Manual' },
   { key: 'reservations', label: 'Reservations' },
   { key: 'inventory',    label: 'Inventory Tracking' },
+  { key: 'bells',        label: 'Bell Schedules' },
 ];
 
 /* ===============================

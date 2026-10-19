@@ -1,0 +1,686 @@
+/* Bell page (app/bells.html).
+   A wall display first: everything on the stage is sized in viewport
+   units so it reads from the back of a classroom on a projector or a
+   mirrored board, and numerals are tabular so digits never jitter. */
+
+:root {
+  --bp-bg:          #eef3f9;
+  --bp-app-bg:      radial-gradient(ellipse at 50% -10%, rgba(37, 99, 235, .14), transparent 60%), #eef3f9;
+  --bp-halo:        rgba(37, 99, 235, .06);
+  --bp-surface:     #ffffff;
+  --bp-border:      #d6e0ec;
+  --bp-text:        #0b2d4f;
+  --bp-text-sub:    #3d5576;
+  --bp-text-muted:  #6b7f98;
+  --bp-primary:     #2563eb;
+  --bp-check:       #2563eb;
+  --bp-accent:      #c77700;
+  --bp-accent-soft: #fff7e6;
+  --bp-track:       #d6e0ec;
+  --bp-ok:          #15803d;
+  --bp-ok-soft:     #e8f7ee;
+  --bp-header-bg:   linear-gradient(135deg, #0b2d4f 0%, #12407a 100%);
+  --bp-font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --bp-display: Fraunces, Georgia, "Times New Roman", serif;
+}
+
+/* The default look: a deep, slightly luminous blue that reads well on a
+   projector and stays calm on a board all day. */
+:root[data-theme="dark"] {
+  --bp-bg:          #0a2350;
+  --bp-app-bg:
+    radial-gradient(ellipse at 50% -12%, rgba(59, 130, 246, .42), transparent 55%),
+    linear-gradient(180deg, #0f347a 0%, #0b2a63 45%, #091f4a 100%);
+  --bp-halo:        rgba(255, 255, 255, .035);
+  --bp-surface:     rgba(255, 255, 255, .05);
+  --bp-border:      rgba(255, 255, 255, .13);
+  --bp-text:        #f6f9fd;
+  --bp-text-sub:    #c4d3ea;
+  --bp-text-muted:  #8ea6c9;
+  --bp-primary:     #7fb0ff;
+  --bp-check:       #60a5fa;
+  --bp-accent:      #f5b942;
+  --bp-accent-soft: rgba(245, 185, 66, .10);
+  --bp-track:       rgba(255, 255, 255, .14);
+  --bp-ok:          #4ade80;
+  --bp-ok-soft:     rgba(34, 197, 94, .12);
+  --bp-header-bg:   rgba(4, 18, 48, .28);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bp-bg);
+  color: var(--bp-text);
+  font-family: var(--bp-font);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+[hidden] { display: none !important; }
+
+button { font: inherit; }
+
+/* ── Setup card (schedule picker, start, messages) ─────────── */
+.bp-setup {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 26px;
+  padding: 32px 20px;
+  /* Two faint rings sweeping in from the sides over a bright-to-deep
+     blue, so the backdrop has depth without competing with the card. */
+  background:
+    radial-gradient(circle at -22% 50%, transparent 0 40%, rgba(255, 255, 255, .06) 40.2% 40.6%, transparent 40.8%),
+    radial-gradient(circle at 122% 50%, transparent 0 40%, rgba(255, 255, 255, .06) 40.2% 40.6%, transparent 40.8%),
+    radial-gradient(circle at -22% 50%, rgba(255, 255, 255, .06), transparent 40%),
+    radial-gradient(circle at 122% 50%, rgba(255, 255, 255, .06), transparent 40%),
+    radial-gradient(ellipse at 50% 0%, rgba(96, 165, 250, .35), transparent 60%),
+    linear-gradient(180deg, #1f5bb8 0%, #15448f 50%, #0d3270 100%);
+  overflow: auto;
+}
+
+.bp-setup-logo { height: 64px; width: auto; flex-shrink: 0; }
+/* Centered when it fits, scrollable from the top when it does not
+   (justify-content: center would clip the logo off the top instead). */
+.bp-setup > :first-child { margin-top: auto; }
+.bp-setup > :last-child { margin-bottom: auto; }
+.bp-setup .bp-card { flex-shrink: 0; }
+
+.bp-card {
+  width: min(480px, 100%);
+  padding: 36px 32px 32px;
+  border-radius: 18px;
+  background: #ffffff;
+  color: #0b2d4f;
+  box-shadow: 0 24px 60px rgba(3, 18, 36, .35);
+  text-align: center;
+}
+
+.bp-card h1 {
+  margin: 0 0 6px;
+  font-family: var(--bp-display);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.bp-card p { margin: 0 0 22px; color: #475569; font-size: 15px; line-height: 1.5; }
+
+.bp-card-eyebrow {
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: #2563eb;
+}
+
+/* The picker and start cards: wider, centered, with room to breathe. */
+.bp-panel {
+  width: min(640px, 100%);
+  padding: 34px 32px 32px;
+  border-radius: 22px;
+  box-shadow: 0 30px 80px rgba(3, 18, 50, .45), 0 0 0 1px rgba(255, 255, 255, .5) inset;
+}
+.bp-panel h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.1; }
+.bp-panel-school {
+  margin-top: 4px;
+  font-size: clamp(19px, 3vw, 26px);
+  font-weight: 600;
+  color: #1e3a5f;
+}
+.bp-panel p { margin: 6px 0 24px; font-size: 16px; }
+.bp-panel .bp-cta { width: 100%; }
+
+.bp-schedule-list { display: grid; gap: 14px; text-align: left; }
+
+.bp-schedule-btn {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  min-height: 92px;
+  padding: 14px 20px 14px 16px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #0b2d4f;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  transition: border-color .15s, background .15s, box-shadow .15s, transform .15s;
+}
+.bp-schedule-btn:hover { border-color: #93c5fd; box-shadow: 0 6px 18px rgba(37, 99, 235, .12); }
+.bp-schedule-btn:active { transform: scale(.99); }
+.bp-schedule-btn:focus-visible { outline: 3px solid #2563eb; outline-offset: 2px; }
+.bp-schedule-btn.is-current {
+  border: 2px solid #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, .14);
+}
+
+.bp-schedule-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: #eef2f6;
+  color: #0b2d4f;
+}
+.is-current .bp-schedule-icon { background: #0b2d4f; color: #f5b942; }
+
+.bp-schedule-text { flex: 1; min-width: 0; }
+.bp-schedule-btn strong { display: block; font-size: 20px; font-weight: 700; }
+.bp-schedule-btn span:not(.bp-current-pill) { display: block; margin-top: 3px; font-size: 15px; color: #64748b; }
+
+.bp-current-pill {
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-radius: 99px;
+  background: #dbeafe;
+  color: #1e40af;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.bp-schedule-chevron { flex-shrink: 0; color: #64748b; transition: color .15s, transform .15s; }
+.bp-schedule-btn:hover .bp-schedule-chevron { color: #2563eb; transform: translateX(2px); }
+.is-current .bp-schedule-chevron { color: #0b2d4f; }
+
+.bp-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 0 30px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #2f7bff 0%, #1d63f0 100%);
+  color: #ffffff;
+  font-size: 19px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(29, 99, 240, .32);
+  transition: filter .15s, transform .15s;
+}
+.bp-cta:hover { filter: brightness(1.06); }
+.bp-cta:active { transform: scale(.985); }
+.bp-cta:focus-visible { outline: 3px solid #93c5fd; outline-offset: 3px; }
+.bp-schedule-list + .bp-cta { margin-top: 18px; }
+
+.bp-card-note { margin: 16px 0 0 !important; font-size: 13px !important; color: #64748b !important; }
+
+/* On a laptop or a board the picker is often tapped from arm's length
+   or read from a step back: scale it up when there is room. */
+@media (min-width: 900px) and (min-height: 760px) {
+  .bp-setup-logo { height: 70px; }
+  .bp-panel { width: min(720px, 100%); padding: 36px 36px 32px; border-radius: 24px; }
+  .bp-panel h1 { font-size: 46px; }
+  .bp-panel-school { font-size: 28px; }
+  .bp-panel p { font-size: 18px; margin-bottom: 24px; }
+  .bp-card-eyebrow { font-size: 13px; }
+  .bp-schedule-btn { min-height: 96px; gap: 20px; padding: 14px 22px 14px 16px; }
+  .bp-schedule-icon { width: 68px; height: 68px; }
+  .bp-schedule-icon svg { width: 32px; height: 32px; }
+  .bp-schedule-btn strong { font-size: 23px; }
+  .bp-schedule-btn span:not(.bp-current-pill) { font-size: 16px; }
+  .bp-current-pill { font-size: 13px; padding: 7px 16px; }
+  .bp-panel .bp-cta { min-height: 66px; font-size: 21px; }
+}
+
+@media (min-width: 1100px) and (min-height: 920px) {
+  .bp-setup-logo { height: 76px; }
+  .bp-panel { width: min(820px, 100%); padding: 40px 40px 36px; border-radius: 26px; }
+  .bp-panel h1 { font-size: 56px; }
+  .bp-panel-school { font-size: 32px; }
+  .bp-panel p { font-size: 19px; margin-bottom: 28px; }
+  .bp-card-eyebrow { font-size: 14px; }
+  .bp-schedule-list { gap: 16px; }
+  .bp-schedule-btn { min-height: 112px; gap: 24px; padding: 18px 26px 18px 20px; border-radius: 18px; }
+  .bp-schedule-icon { width: 80px; height: 80px; border-radius: 16px; }
+  .bp-schedule-icon svg { width: 36px; height: 36px; }
+  .bp-schedule-btn strong { font-size: 26px; }
+  .bp-schedule-btn span:not(.bp-current-pill) { font-size: 18px; }
+  .bp-current-pill { font-size: 14px; padding: 8px 18px; }
+  .bp-schedule-chevron { width: 26px; height: 26px; }
+  .bp-panel .bp-cta { min-height: 76px; font-size: 23px; border-radius: 16px; }
+  .bp-schedule-list + .bp-cta { margin-top: 20px; }
+}
+
+@media (max-width: 520px) {
+  .bp-panel { padding: 26px 18px 20px; }
+  .bp-schedule-btn { gap: 12px; min-height: 80px; padding: 12px 14px 12px 12px; }
+  .bp-schedule-icon { width: 52px; height: 52px; }
+  .bp-schedule-btn strong { font-size: 17px; }
+  .bp-current-pill { padding: 5px 10px; font-size: 11px; }
+}
+
+/* ── App shell ──────────────────────────────────────────────── */
+.bp-app {
+  position: relative;
+  height: 100%;
+  display: grid;
+  /* minmax(0, 1fr): an auto column grows to fit the strip's content and
+     pushes the last cards off screen. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  overflow: hidden;
+  background: var(--bp-app-bg);
+  isolation: isolate;
+}
+/* A very large, faint disc behind the stage gives the screen depth. */
+.bp-app::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  top: 54%;
+  width: max(118vw, 150vh);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, var(--bp-halo) 0 58%, transparent 58.2%);
+  pointer-events: none;
+}
+
+.bp-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: clamp(64px, 9vh, 96px);
+  padding: 10px clamp(16px, 2.4vw, 40px);
+  background: var(--bp-header-bg);
+  border-bottom: 1px solid rgba(255, 255, 255, .1);
+  color: #ffffff;
+}
+
+.bp-brand { display: flex; align-items: center; gap: clamp(12px, 1.4vw, 22px); min-width: 0; }
+.bp-brand-logo { height: clamp(40px, 5.6vh, 60px); width: auto; flex-shrink: 0; }
+.bp-brand-rule, .bp-header-rule {
+  width: 1px;
+  height: clamp(30px, 4.6vh, 48px);
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, .22);
+}
+.bp-brand-text { min-width: 0; }
+.bp-brand-school {
+  font-size: clamp(12px, 1.6vh, 17px);
+  font-weight: 600;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: #a9c4ec;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bp-brand-schedule {
+  font-size: clamp(17px, 2.6vh, 28px);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bp-header-spacer { flex: 1; }
+
+/* The time of day, shown up here while the stage is counting down. */
+.bp-header-clock {
+  display: flex;
+  align-items: baseline;
+  gap: .14em;
+  margin-right: 6px;
+  font-size: clamp(24px, 4.2vh, 46px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bp-header-sec { font-size: .5em; font-weight: 700; color: #a9c4ec; letter-spacing: 0; }
+.bp-header-ampm { font-size: .44em; font-weight: 700; color: #c4d3ea; letter-spacing: .04em; }
+.bp-app[data-mode="idle"] .bp-header-clock { display: none; }
+
+.bp-pills { display: flex; align-items: center; gap: 10px; }
+.bp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  height: clamp(34px, 4.6vh, 46px);
+  padding: 0 clamp(14px, 1.3vw, 20px);
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 99px;
+  background: rgba(255, 255, 255, .07);
+  color: rgba(255, 255, 255, .94);
+  font-size: clamp(13px, 1.7vh, 17px);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bp-pill::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, .18);
+}
+.bp-pill[data-state="warn"] { border-color: rgba(245, 185, 66, .6); background: rgba(245, 185, 66, .16); color: #ffe2a6; }
+.bp-pill[data-state="warn"]::before { background: #f5b942; box-shadow: 0 0 0 3px rgba(245, 185, 66, .2); }
+button.bp-pill { cursor: pointer; }
+button.bp-pill:focus-visible { outline: 2px solid #ffffff; outline-offset: 2px; }
+
+.bp-actions { display: flex; align-items: center; gap: 2px; }
+.bp-icon-btn {
+  display: grid;
+  place-items: center;
+  width: clamp(44px, 5.6vh, 56px);
+  height: clamp(44px, 5.6vh, 56px);
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(255, 255, 255, .9);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.bp-icon-btn svg { width: clamp(22px, 3vh, 30px); height: clamp(22px, 3vh, 30px); }
+.bp-icon-btn:hover { background: rgba(255, 255, 255, .14); color: #ffffff; }
+.bp-icon-btn:focus-visible { outline: 2px solid #ffffff; outline-offset: 1px; }
+
+/* ── Stage ──────────────────────────────────────────────────
+   Centered and built to read from the back of a room: the giant number,
+   then what it means, then the date. Sizes track the viewport height
+   first (what runs out on a 16:9 projector) and the width second, so
+   the longest readings still fit. */
+.bp-stage {
+  display: grid;
+  place-items: center;
+  padding: 2vh 4vw 1vh;
+  min-height: 0;
+  text-align: center;
+}
+
+.bp-hero { min-width: 0; max-width: 100%; }
+
+.bp-countdown {
+  font-size: clamp(72px, min(36vh, 26vw), 600px);
+  font-weight: 800;
+  line-height: .92;
+  letter-spacing: -0.045em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--bp-text);
+  transition: color .4s;
+}
+/* Over an hour ("1:23:45") the reading is two characters longer. */
+.bp-countdown[data-long="true"] { font-size: clamp(60px, min(32vh, 18vw), 520px); }
+.bp-hero-ampm {
+  margin-left: .08em;
+  font-size: .3em;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #9fbbe6;
+}
+:root[data-theme="light"] .bp-hero-ampm { color: var(--bp-text-muted); }
+
+.bp-now-title {
+  margin-bottom: 1.2vh;
+  font-family: var(--bp-display);
+  font-size: clamp(30px, min(8.4vh, 6vw), 140px);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.bp-now-sub {
+  margin-top: 2vh;
+  font-size: clamp(18px, min(4.4vh, 3vw), 70px);
+  font-weight: 500;
+  color: var(--bp-text-sub);
+}
+.bp-now-sub:empty { display: none; }
+
+.bp-date {
+  margin-top: 2vh;
+  font-size: clamp(12px, min(2.2vh, 1.6vw), 32px);
+  font-weight: 600;
+  letter-spacing: .28em;
+  text-transform: uppercase;
+  color: var(--bp-text-muted);
+}
+
+/* Last minute before a bell: one calm color shift, no flashing. */
+.bp-stage[data-urgent="true"] .bp-countdown { color: var(--bp-accent); }
+
+/* ── Day strip ──────────────────────────────────────────────── */
+.bp-strip {
+  display: flex;
+  gap: clamp(8px, .9vw, 16px);
+  padding: 1vh clamp(16px, 2.4vw, 40px) 0;
+  min-height: 0;
+}
+.bp-strip:empty { display: none; }
+
+.bp-seg {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: clamp(10px, 1.8vh, 22px) clamp(12px, 1.2vw, 22px);
+  border: 1px solid var(--bp-border);
+  border-radius: 14px;
+  background: var(--bp-surface);
+  overflow: hidden;
+}
+.bp-seg-head { display: flex; align-items: center; gap: 8px; }
+.bp-seg-name {
+  flex: 1;
+  min-width: 0;
+  font-size: clamp(14px, min(2.5vh, 1.5vw), 32px);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bp-seg-check {
+  display: none;
+  place-items: center;
+  width: clamp(20px, 2.8vh, 32px);
+  height: clamp(20px, 2.8vh, 32px);
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--bp-check);
+  color: #0a2350;
+}
+.bp-seg-check svg { width: 62%; height: 62%; }
+.bp-seg-time {
+  margin-top: .5vh;
+  font-size: clamp(12px, min(2vh, 1.15vw), 26px);
+  font-weight: 500;
+  color: var(--bp-text-sub);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bp-seg-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; }
+.bp-seg-bar i { display: block; height: 100%; width: 0; background: var(--bp-accent); transition: width 1s linear; }
+
+.bp-seg[data-state="past"] .bp-seg-check { display: grid; }
+.bp-seg[data-state="past"] .bp-seg-name,
+.bp-seg[data-state="past"] .bp-seg-time { opacity: .82; }
+.bp-seg[data-state="current"] {
+  border-color: var(--bp-accent);
+  background: var(--bp-accent-soft);
+  box-shadow: 0 0 0 1px var(--bp-accent) inset;
+}
+.bp-seg-end[data-state="done"] {
+  border-color: var(--bp-ok);
+  background: var(--bp-ok-soft);
+  box-shadow: 0 0 0 1px var(--bp-ok) inset, 0 0 24px rgba(74, 222, 128, .12);
+}
+.bp-seg-end[data-state="done"] .bp-seg-check { display: grid; background: var(--bp-ok); color: #052e16; }
+
+/* ── Status line ────────────────────────────────────────────── */
+.bp-footer {
+  display: flex;
+  justify-content: center;
+  padding: clamp(10px, 2.2vh, 28px) 16px clamp(12px, 2.6vh, 32px);
+}
+.bp-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 100%;
+  min-height: clamp(40px, 5.8vh, 64px);
+  padding: 0 clamp(18px, 2vw, 34px);
+  border: 1px solid var(--bp-border);
+  border-radius: 99px;
+  background: var(--bp-surface);
+  color: var(--bp-text-sub);
+  font-size: clamp(13px, min(2.2vh, 1.5vw), 28px);
+  font-weight: 600;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bp-status strong { color: var(--bp-text); font-weight: 700; }
+.bp-status[data-tone="none"] { visibility: hidden; }
+.bp-status[data-tone="done"] { border-color: rgba(74, 222, 128, .35); background: var(--bp-ok-soft); color: var(--bp-ok); }
+.bp-status svg {
+  width: clamp(26px, 3.6vh, 40px);
+  height: clamp(26px, 3.6vh, 40px);
+  flex-shrink: 0;
+  padding: 6px;
+  border-radius: 50%;
+  background: var(--bp-ok);
+  color: #052e16;
+}
+
+/* ── Start overlay ──────────────────────────────────────────── */
+.bp-start {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(4, 20, 38, .72);
+  backdrop-filter: blur(6px);
+}
+
+/* ── Bell flash ─────────────────────────────────────────────── */
+.bp-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 2vh;
+  padding: 24px;
+  background: #f5b942;
+  color: #0b2d4f;
+  text-align: center;
+  animation: bp-flash-in .25s ease-out;
+}
+.bp-flash-icon { width: clamp(72px, 13vw, 240px); height: auto; animation: bp-ring .9s ease-in-out 3; transform-origin: 50% 8%; }
+.bp-flash-title {
+  font-family: var(--bp-display);
+  font-size: clamp(36px, 7vw, 150px);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+}
+.bp-flash-sub { font-size: clamp(18px, 2.6vw, 54px); font-weight: 600; opacity: .8; font-variant-numeric: tabular-nums; }
+
+@keyframes bp-flash-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes bp-ring {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(13deg); }
+  40% { transform: rotate(-11deg); }
+  60% { transform: rotate(7deg); }
+  80% { transform: rotate(-4deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bp-flash, .bp-flash-icon { animation: none; }
+  .bp-progress-fill, .bp-countdown { transition: none; }
+}
+
+/* ── Narrow and portrait screens ─────────────────────────── */
+@media (max-aspect-ratio: 5/4), (max-width: 900px) {
+  .bp-countdown { font-size: clamp(64px, min(26vh, 27vw), 520px); }
+  .bp-countdown[data-long="true"] { font-size: clamp(52px, min(22vh, 19vw), 440px); }
+  /* Too narrow for every card: the strip scrolls sideways (no visible
+     scrollbar on a display) and keeps the current period in view. */
+  .bp-strip { overflow-x: auto; scrollbar-width: none; scroll-behavior: smooth; }
+  .bp-strip::-webkit-scrollbar { display: none; }
+  .bp-seg { flex: 0 0 auto; min-width: 150px; }
+  .bp-header-clock { display: none; }
+}
+
+@media (max-width: 900px) {
+  .bp-header { flex-wrap: wrap; gap: 8px 10px; padding: 8px 12px; }
+  .bp-pills { order: 3; width: 100%; }
+  .bp-header-rule { display: none; }
+  .bp-brand-rule { display: none; }
+  .bp-status { letter-spacing: .06em; }
+}
+
+/* ── Floating mini window (Document Picture-in-Picture) ─────── */
+body.bp-mini {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4vw;
+  padding: 0 6vw;
+  overflow: hidden;
+}
+.bp-mini-title {
+  font-size: clamp(13px, 6.5vh, 30px);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bp-mini-sub {
+  margin-top: 2px;
+  font-size: clamp(11px, 4.6vh, 20px);
+  font-weight: 600;
+  color: var(--bp-text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bp-mini-count {
+  font-size: clamp(30px, 38vh, 150px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+body.bp-mini[data-urgent="true"] .bp-mini-count { color: var(--bp-accent); }
+body.bp-mini[data-ring="true"] { background: #f5b942; color: #0b2d4f; }
+body.bp-mini[data-ring="true"] .bp-mini-sub,
+body.bp-mini[data-ring="true"] .bp-mini-count { color: #0b2d4f; }
