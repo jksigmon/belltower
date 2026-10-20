@@ -398,7 +398,7 @@ function computeState(now) {
       target: p.end,
       progress: (now - p.start) / (p.end - p.start),
       status: nxt
-        ? { tone: 'info', html: `Next <strong>${esc(nxt.name)}</strong> at ${fmtTime(nxt.start)}` }
+        ? { tone: 'info', html: `Next: <strong>${esc(nxt.name)}</strong> at ${fmtTime(nxt.start)}` }
         : { tone: 'info', html: 'Last period of the day' },
     };
   }
