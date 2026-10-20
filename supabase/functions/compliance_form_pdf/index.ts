@@ -44,7 +44,7 @@ serve(async (req) => {
         signed_at, content_hash, expires_at, voided_at,
         compliance_form_templates!inner (
           id, title, description, body_html, school_id,
-          schools!inner ( id, name, logo_url )
+          schools!inner ( id, name, logo_url, timezone )
         )
       `)
       .eq("id", agreement_id)
@@ -174,7 +174,9 @@ serve(async (req) => {
     page.drawText("Signature Record", { x: margin, y, size: 13, font: fontBold, color: rgb(0.1, 0.1, 0.1) });
     y -= 20;
 
+    const tz = (school.timezone as string | null) ?? "America/New_York";
     const signedDate = new Date(agreement.signed_at as string).toLocaleString("en-US", {
+      timeZone: tz,
       month: "long", day: "numeric", year: "numeric",
       hour: "numeric", minute: "2-digit", timeZoneName: "short",
     });
@@ -189,7 +191,7 @@ serve(async (req) => {
       fields.push(["Expires", agreement.expires_at as string]);
     }
     if (agreement.voided_at) {
-      fields.push(["VOIDED", new Date(agreement.voided_at as string).toLocaleString("en-US")]);
+      fields.push(["VOIDED", new Date(agreement.voided_at as string).toLocaleString("en-US", { timeZone: tz, timeZoneName: "short" })]);
     }
 
     for (const [label, value] of fields) {

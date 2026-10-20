@@ -89,7 +89,7 @@ serve(async (req) => {
     // Load school email config
     const { data: school } = await supabase
       .from("schools")
-      .select("notifications_from_email, notifications_reply_to, pto_from_email, pto_reply_to")
+      .select("timezone, notifications_from_email, notifications_reply_to, pto_from_email, pto_reply_to")
       .eq("id", req_row.school_id)
       .single();
 
@@ -97,6 +97,7 @@ serve(async (req) => {
     const replyTo  = school?.notifications_reply_to   ?? school?.pto_reply_to   ?? DEFAULT_REPLY_TO;
     const manageUrl = `${APP_BASE_URL}/app/requests-manage.html`;
     const submittedAt = new Date(req_row.created_at).toLocaleString("en-US", {
+      timeZone: school?.timezone ?? "America/New_York",
       month: "short", day: "numeric", year: "numeric",
       hour: "numeric", minute: "2-digit"
     });
