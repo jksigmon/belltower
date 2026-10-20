@@ -1555,7 +1555,16 @@ async function loadStaffPtoHistory(employeeId) {
         const date = r.decided_at ? fmtDate(r.decided_at.split('T')[0]) : '';
         decisionHtml = `<span class="err">Denied</span><br><span class="muted">by ${name} • ${date}</span>`;
       } else if (r.status === 'CANCELLED') {
-        decisionHtml = `<span class="warn">Cancelled</span><br><span class="muted">by employee</span>`;
+        // decided_at is only set when a manager approves the cancellation of an
+        // already-approved request (hours refunded). A pending request the employee
+        // withdrew has no decision and never touched the balance.
+        if (r.decided_at) {
+          const name = r.employees ? `${r.employees.first_name} ${r.employees.last_name}` : 'Admin';
+          const date = fmtDate(r.decided_at.split('T')[0]);
+          decisionHtml = `<span class="warn">Cancellation approved</span><br><span class="muted">by ${esc(name)} • ${date} (hours refunded)</span>`;
+        } else {
+          decisionHtml = `<span class="warn">Cancelled before approval</span><br><span class="muted">by employee (no hours deducted)</span>`;
+        }
       }
 
       const typeMap = { VACATION: 'badge-pto-vacation', SICK: 'badge-pto-sick', PERSONAL: 'badge-pto-personal', PROFESSIONAL: 'badge-pto-professional' };
