@@ -3,27 +3,11 @@ import { initPage } from './admin.auth.js?v=2';
 import { esc, debounce, loadSchoolConfig, GRADE_ORDER, fmtTime, fmtShortDate, todayISO, dbError, showToast, getAvatarColor } from './admin.shared.js?v=4';
 import qrcode from './vendor/qrcode.js';
 import { blockedCredentialText } from './compliance.roles.js?v=5';
+import { fetchAllRows, loadTripRoster, countTripAttending, isCustomRoster, findRosterRemovalImpact, saveCustomRoster, tripHasStudentPayments, resetTripStudentData } from './field-trip-roster.js?v=1';
+import { openStudentPicker } from './field-trip-picker.js?v=1';
 
 let profile = null;
 let schoolConfig = null;
-
-const FETCH_ALL_BATCH_SIZE = 1000;
-
-// PostgREST caps unranged selects at 1000 rows. Queries here can select every
-// active student in a set of grade levels, which can exceed that cap in a
-// large school — paginate with .range() so results aren't silently truncated.
-async function fetchAllRows(builder) {
-  const rows = [];
-  let from = 0;
-  while (true) {
-    const { data, error } = await builder().range(from, from + FETCH_ALL_BATCH_SIZE - 1);
-    if (error) return { error };
-    rows.push(...data);
-    if (data.length < FETCH_ALL_BATCH_SIZE) break;
-    from += FETCH_ALL_BATCH_SIZE;
-  }
-  return { data: rows };
-}
 
 // ── Module-level state ──────────────────────────────────────────────────
 let tripCache            = [];
@@ -32,12 +16,18 @@ let currentTrip          = null;
 let chaperoneList        = [];
 let studentList          = [];
 let volunteerByGuardianId = new Map(); // guardian_id -> compliance_volunteers row (authoritative link)
+let volunteerByEmail      = new Map(); // email (lower) -> row (links staff drivers to their volunteer record)
 let volunteerByNameKey    = new Map(); // "last|firstword" (lower, parens stripped) -> row (fallback)
 let requiredFormTemplates = [];        // school-level, loaded once on init
 let agreementsMap        = new Map(); // email (lower) -> Set<templateId>
 let agreementsGuardianMap = new Map(); // guardian_id -> Set<templateId> (fallback when guardian has no email)
 let pendingRequestByVolunteerId = new Map(); // volunteer_id -> open compliance_bg_check_requests row
 let selectedCandidate    = null;
+// Trip drawer: staged custom roster (applied when the trip is saved)
+let drawerRosterIds      = new Set();
+let drawerRosterOriginal = new Set(); // ids already saved for this trip
+let drawerRosterLoaded   = true;      // false while an existing custom roster is still loading
+let drawerRosterDirty    = false;
 let activeTab            = 'chaperones';
 let drawerManagers       = [];   // { profile_id, name, email } — pending in drawer
 let currentManagers      = [];   // loaded from DB for current trip
@@ -177,7 +167,7 @@ async function loadTrips() {
 
   let query = supabase
     .from('field_trips')
-    .select('id, name, destination, destination_address, start_date, end_date, depart_at, return_at, grade_levels, drivers_needed, max_chaperones, chaperones_needed, notes, parent_notes, status, created_at, payment_required, student_cost, chaperone_payment_required, chaperone_cost, allow_installments, installment_schedule, payment_due_date')
+    .select('id, name, destination, destination_address, start_date, end_date, depart_at, return_at, grade_levels, roster_mode, drivers_needed, max_chaperones, chaperones_needed, notes, parent_notes, status, created_at, payment_required, student_cost, chaperone_payment_required, chaperone_cost, allow_installments, installment_schedule, payment_due_date')
     .eq('school_id', profile.school_id)
     .order('start_date', { ascending: false });
   if (tripIds) query = query.in('id', tripIds);
@@ -235,7 +225,7 @@ function renderTripList() {
         ? `<span class="trip-badge trip-badge-past">Past</span>`
         : `<span class="trip-badge trip-badge-active">Upcoming</span>`;
 
-    const grades  = (t.grade_levels ?? []).map(g => `<span class="grade-pill">${esc(g)}</span>`).join('');
+    const grades  = gradePillsHtml(t);
     const dateStr = t.end_date && t.end_date !== t.start_date
       ? `${startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${new Date(t.end_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`
       : startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -291,25 +281,33 @@ async function loadChaperoneCounts(ids) {
 async function loadStudentCounts(trips) {
   if (!trips.length) return;
 
-  const { data: students } = await supabase
-    .from('students')
-    .select('grade_level')
-    .eq('school_id', profile.school_id)
-    .eq('active', true);
+  const customIds = trips.filter(isCustomRoster).map(t => t.id);
+  const needGrades = trips.some(t => !isCustomRoster(t));
 
-  if (!students) return;
+  const [studRes, ftRes] = await Promise.all([
+    needGrades
+      ? fetchAllRows(() => supabase.from('students').select('id, grade_level')
+          .eq('school_id', profile.school_id).eq('active', true).order('id'))
+      : Promise.resolve({ data: [] }),
+    customIds.length
+      ? fetchAllRows(() => supabase.from('field_trip_students').select('id, field_trip_id, attending')
+          .in('field_trip_id', customIds).order('id'))
+      : Promise.resolve({ data: [] }),
+  ]);
+  if (studRes.error || ftRes.error) return;
 
   const gradeCountMap = {};
-  students.forEach(s => { gradeCountMap[s.grade_level] = (gradeCountMap[s.grade_level] ?? 0) + 1; });
+  (studRes.data ?? []).forEach(s => { gradeCountMap[s.grade_level] = (gradeCountMap[s.grade_level] ?? 0) + 1; });
+  const customCount = {};
+  (ftRes.data ?? []).forEach(r => { if (r.attending) customCount[r.field_trip_id] = (customCount[r.field_trip_id] ?? 0) + 1; });
 
   trips.forEach(t => {
     const el = document.getElementById(`studCount-${t.id}`);
     if (!el) return;
     const grades = t.grade_levels ?? [];
-    const count = grades.length
-      ? grades.reduce((sum, g) => sum + (gradeCountMap[g] ?? 0), 0)
-      : students.length;
-    el.textContent = count;
+    el.textContent = isCustomRoster(t)
+      ? (customCount[t.id] ?? 0)
+      : grades.reduce((sum, g) => sum + (gradeCountMap[g] ?? 0), 0);
   });
 }
 
@@ -409,18 +407,16 @@ async function openTrip(id) {
 // Chaperones tab without waiting on the full Students roster (which only
 // loads lazily when that tab is opened).
 async function loadAttendingCount() {
-  const grades = currentTrip.grade_levels ?? [];
-  if (!grades.length) { attendingCount = 0; renderComplianceStats(); return; }
-
-  const [{ count: totalCount }, { data: notAttending }] = await Promise.all([
-    supabase.from('students').select('id', { count: 'exact', head: true })
-      .eq('school_id', profile.school_id).eq('active', true).in('grade_level', grades),
-    fetchAllRows(() => supabase.from('field_trip_students').select('student_id')
-      .eq('field_trip_id', currentTrip.id).eq('attending', false)),
-  ]);
-
-  attendingCount = (totalCount ?? 0) - (notAttending ?? []).length;
+  const { count } = await countTripAttending(supabase, currentTrip, { schoolId: profile.school_id });
+  attendingCount = count ?? 0;
   renderComplianceStats();
+}
+
+// Custom rosters get a leading "Custom" pill; their grade pills are derived
+// from the members and are informational only.
+function gradePillsHtml(trip) {
+  const pills = (trip.grade_levels ?? []).map(g => `<span class="grade-pill">${esc(g)}</span>`).join('');
+  return isCustomRoster(trip) ? `<span class="grade-pill">Custom group</span>${pills}` : pills;
 }
 
 function renderTripHeader(trip) {
@@ -451,7 +447,7 @@ function renderTripHeader(trip) {
   if (trip.depart_at) timeStr += `Departs ${fmtTime(trip.depart_at)}`;
   if (trip.return_at) timeStr += (timeStr ? ' &bull; ' : '') + `Returns ${fmtTime(trip.return_at)}`;
 
-  const grades = (trip.grade_levels ?? []).map(g => `<span class="grade-pill">${esc(g)}</span>`).join('');
+  const grades = gradePillsHtml(trip);
 
   document.getElementById('ftDetailMeta').innerHTML = `
     <span class="trip-hdr-meta-item">
@@ -671,6 +667,7 @@ function volunteerNameKey(firstName, lastName) {
 async function loadVolunteerCompliance(chaperones) {
   volunteerByGuardianId.clear();
   volunteerByNameKey.clear();
+  volunteerByEmail.clear();
 
   // Fetch the whole school's roster once -- small dataset (a few hundred
   // to ~1000 rows), and guardian_id is only reliably set on a subset of
@@ -682,7 +679,7 @@ async function loadVolunteerCompliance(chaperones) {
   // a brand new trip with no chaperones at all.
   const { data, error } = await supabase
     .from('compliance_volunteer_status')
-    .select('id, first_name, last_name, guardian_id, bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at, dl_expires_at, insurance_expires_at, can_chaperone, can_drive, bg_followup_flag, bg_followup_note')
+    .select('id, first_name, last_name, guardian_id, email, bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at, dl_expires_at, insurance_expires_at, can_chaperone, can_drive, bg_followup_flag, bg_followup_note')
     .eq('school_id', profile.school_id)
     .is('archived_at', null);
 
@@ -694,6 +691,7 @@ async function loadVolunteerCompliance(chaperones) {
   (data ?? []).forEach(row => {
     if (row.guardian_id) volunteerByGuardianId.set(row.guardian_id, row);
     volunteerByNameKey.set(volunteerNameKey(row.first_name, row.last_name), row);
+    if (row.email) volunteerByEmail.set(row.email.trim().toLowerCase(), row);
   });
 }
 
@@ -731,6 +729,13 @@ function getVolunteer(guardian) {
     return volunteerByGuardianId.get(guardian.id);
   }
   return volunteerByNameKey.get(volunteerNameKey(guardian.first_name, guardian.last_name)) ?? null;
+}
+
+// Staff aren't tied to a volunteer row by FK, so match on email only (a name
+// guess could attach the wrong person's MVR/DL). No match means "Not tracked".
+function getStaffVolunteer(employee) {
+  const email = (employee?.email ?? '').trim().toLowerCase();
+  return email ? volunteerByEmail.get(email) ?? null : null;
 }
 
 function getMissingForms(guardian) {
@@ -976,7 +981,7 @@ function renderChaperoneTable() {
     const person  = isStaff ? (chap.employee ?? {}) : isVolunteer ? (chap.volunteer ?? {}) : g;
     // A directly-linked volunteer record IS the compliance record -- no
     // name-matching lookup needed the way guardians require.
-    const volunteer = isStaff ? null : isVolunteer ? (chap.volunteer ?? null) : getVolunteer(g);
+    const volunteer = isStaff ? getStaffVolunteer(person) : isVolunteer ? (chap.volunteer ?? null) : getVolunteer(g);
     // getMissingForms() only reads .email/.id off this, so the volunteer
     // record itself stands in fine for a guardian here.
     const formsPerson = isVolunteer ? (chap.volunteer ?? {}) : g;
@@ -988,7 +993,7 @@ function renderChaperoneTable() {
     let mvrCell = '';
     const requireMvr = schoolConfig?.require_mvr_for_drivers !== false;
     if (driversNeeded && requireMvr) {
-      if (isStaff) {
+      if (isStaff && !volunteer) {
         mvrCell = `<td><span class="muted" style="font-size:12px;" title="MVR clearance isn't tracked for staff in Belltower — verify separately.">Not tracked</span></td>`;
       } else if (!chap.is_driver) {
         mvrCell = `<td><span class="muted" style="font-size:12px;">N/A</span></td>`;
@@ -1009,7 +1014,7 @@ function renderChaperoneTable() {
 
     let dlCell = '', insCell = '';
     if (driversNeeded) {
-      if (isStaff) {
+      if (isStaff && !volunteer) {
         dlCell  = `<td><span class="muted" style="font-size:12px;" title="Driver's license isn't tracked for staff in Belltower — verify separately.">Not tracked</span></td>`;
         insCell = `<td><span class="muted" style="font-size:12px;" title="Insurance isn't tracked for staff in Belltower — verify separately.">Not tracked</span></td>`;
       } else if (!chap.is_driver) {
@@ -1265,24 +1270,18 @@ async function loadStudents() {
   const tbody = document.getElementById('ftStudTableBody');
   tbody.innerHTML = `<tr><td colspan="5" class="muted" style="text-align:center;padding:32px 0;">Loading...</td></tr>`;
 
+  const custom = isCustomRoster(currentTrip);
   const grades = currentTrip.grade_levels ?? [];
 
-  if (!grades.length) {
+  if (!custom && !grades.length) {
     tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:32px 0;color:#b45309;">No grade levels set on this trip — edit the trip to specify grades before viewing students.</td></tr>`;
     document.getElementById('ftStudGradeBreakdown').innerHTML = '';
     return;
   }
 
-  const [{ data: students, error: sErr }, { data: ftStudents }, { data: slips }] = await Promise.all([
-    fetchAllRows(() => supabase
-      .from('students')
-      .select('id, first_name, last_name, grade_level, homeroom_teacher_id, employees!left(first_name, last_name)')
-      .eq('school_id', profile.school_id)
-      .eq('active', true)
-      .in('grade_level', grades)
-      .order('last_name', { ascending: true })),
-    fetchAllRows(() => supabase.from('field_trip_students').select('student_id, attending').eq('field_trip_id', currentTrip.id)),
-    fetchAllRows(() => supabase.from('field_trip_permission_slips').select('id, student_id, status').eq('field_trip_id', currentTrip.id)),
+  const [{ data: roster, error: sErr }, { data: slips }] = await Promise.all([
+    loadTripRoster(supabase, currentTrip, { schoolId: profile.school_id }),
+    fetchAllRows(() => supabase.from('field_trip_permission_slips').select('id, student_id, status').eq('field_trip_id', currentTrip.id).order('id')),
   ]);
 
   if (sErr) {
@@ -1290,12 +1289,7 @@ async function loadStudents() {
     return;
   }
 
-  // Build attendance override map
-  const overrides = new Map((ftStudents ?? []).map(r => [r.student_id, r.attending]));
-  studentList = (students ?? []).map(s => ({
-    ...s,
-    attending: overrides.has(s.id) ? overrides.get(s.id) : true,
-  }));
+  studentList = roster ?? [];
 
   permissionSlipMap.clear();
   (slips ?? []).forEach(r => permissionSlipMap.set(r.student_id, { id: r.id, status: r.status }));
@@ -1352,7 +1346,7 @@ async function checkStudentDoubleBookings() {
   if (!candidates.length) return;
 
   const results = await Promise.all(candidates.map(t =>
-    fetchAllRows(() => supabase.from('field_trip_students').select('student_id, attending').eq('field_trip_id', t.id))
+    fetchAllRows(() => supabase.from('field_trip_students').select('student_id, attending').eq('field_trip_id', t.id).order('student_id'))
   ));
 
   const attendingStudents = studentList.filter(s => s.attending);
@@ -1360,8 +1354,11 @@ async function checkStudentDoubleBookings() {
   candidates.forEach((t, i) => {
     const overrides = new Map((results[i].data ?? []).map(r => [r.student_id, r.attending]));
     const tGrades = new Set(t.grade_levels ?? []);
+    const otherIsCustom = isCustomRoster(t);
     attendingStudents.forEach(s => {
-      if (tGrades.size && !tGrades.has(s.grade_level)) return;
+      // Custom trips only include students with a row; grade trips include
+      // the whole grade unless the student was opted out.
+      if (otherIsCustom ? overrides.get(s.id) !== true : (tGrades.size && !tGrades.has(s.grade_level))) return;
       const stillAttendingOther = overrides.has(s.id) ? overrides.get(s.id) : true;
       if (!stillAttendingOther) return;
       if (!doubleBookingMap.has(s.id)) doubleBookingMap.set(s.id, []);
@@ -1389,7 +1386,59 @@ function getFilteredStudents() {
 const SLIP_LABELS = { pending: 'Pending', signed: 'Signed', declined: 'Declined' };
 const SLIP_CLASSES = { pending: 'comp-action', signed: 'comp-cleared', declined: 'comp-blocked' };
 
+function syncRosterEditUi() {
+  const custom = isCustomRoster(currentTrip);
+  const btn = document.getElementById('ftStudEditRosterBtn');
+  if (btn) btn.style.display = custom ? '' : 'none';
+  const txt = document.getElementById('ftStudEmptyText');
+  if (txt) txt.textContent = custom
+    ? 'No students have been chosen for this trip yet. Use "Add / remove students" to build the group.'
+    : 'Set grade levels on this trip to see the matching student roster.';
+}
+
+// Students-tab entry point for custom rosters: opens the picker and saves
+// the difference straight away (the trip drawer stages its picks instead).
+async function editCustomRoster() {
+  const trip = currentTrip;
+  if (!trip || !isCustomRoster(trip)) return;
+  const { data: rows, error } = await fetchAllRows(() => supabase.from('field_trip_students')
+    .select('student_id').eq('field_trip_id', trip.id).order('student_id'));
+  if (error) { dbError(error, 'Failed to load the current student list'); return; }
+  const currentIds = (rows ?? []).map(r => r.student_id);
+
+  openStudentPicker(supabase, {
+    schoolId: profile.school_id,
+    gradeLevels: GRADE_LEVELS,
+    initialIds: currentIds,
+    apply: async nextSet => {
+      const removed = currentIds.filter(id => !nextSet.has(id));
+      if (removed.length) {
+        const impact = await findRosterRemovalImpact(supabase, trip.id, removed);
+        if (impact.error) { dbError(impact.error, 'Could not check the removed students'); return; }
+        if (impact.paid.length) {
+          showToast(`${impact.paid.length} student${impact.paid.length !== 1 ? 's' : ''} you removed ${impact.paid.length !== 1 ? 'have' : 'has'} recorded payments. Mark them not attending instead, or keep them on the trip.`, 'warn');
+          return;
+        }
+        if (impact.seated.length && !confirm(`${impact.seated.length} removed student${impact.seated.length !== 1 ? 's are' : ' is'} seated in a vehicle. They will go back to unassigned. Continue?`)) return;
+      }
+      const res = await saveCustomRoster(supabase, trip, { schoolId: profile.school_id, nextIds: [...nextSet], currentIds });
+      if (res.error) { dbError(res.error, 'Failed to update the student list'); return; }
+      const idx = tripCache.findIndex(t => t.id === trip.id);
+      if (idx >= 0) tripCache[idx] = { ...tripCache[idx], grade_levels: res.grade_levels };
+      if (currentTrip?.id === trip.id) {
+        currentTrip = { ...currentTrip, grade_levels: res.grade_levels };
+        renderTripHeader(currentTrip);
+        paymentsLoaded = false;
+        await loadStudents();
+        loadAttendingCount();
+      }
+      showToast('Student list updated.', 'success');
+    },
+  });
+}
+
 function renderStudentTable() {
+  syncRosterEditUi();
   const tbody = document.getElementById('ftStudTableBody');
   document.getElementById('ftStudTableWrap').style.display = studentList.length ? '' : 'none';
   document.getElementById('ftStudEmpty').hidden = studentList.length > 0;
@@ -1477,6 +1526,7 @@ function wireStudentToolbar() {
     renderStudentTable();
   });
   document.getElementById('ftStudSlipFilter')?.addEventListener('change', () => renderStudentTable());
+  document.getElementById('ftStudEditRosterBtn')?.addEventListener('click', editCustomRoster);
   document.getElementById('ftStudMarkAttendingBtn')?.addEventListener('click', () => bulkSetAttendance(true));
   document.getElementById('ftStudMarkNotAttendingBtn')?.addEventListener('click', () => bulkSetAttendance(false));
   document.getElementById('ftStudMarkSignedBtn')?.addEventListener('click', bulkMarkSlipsSigned);
@@ -2185,6 +2235,17 @@ function wireTripDrawer() {
   document.getElementById('ftCancelTripDrawerBtn')?.addEventListener('click', closeTripDrawer);
   document.getElementById('ftSaveTripBtn')?.addEventListener('click', saveTrip);
   buildGradeCheckboxes();
+  document.querySelectorAll('input[name="ftRosterMode"]').forEach(r =>
+    r.addEventListener('change', () => { syncRosterModeUi(); checkTripConflicts(); }));
+  document.getElementById('ftDrawerPickStudentsBtn')?.addEventListener('click', () => {
+    if (!drawerRosterLoaded) { showToast('Still loading the current student list. Try again in a moment.', 'info'); return; }
+    openStudentPicker(supabase, {
+      schoolId: profile.school_id,
+      gradeLevels: GRADE_LEVELS,
+      initialIds: drawerRosterIds,
+      apply: ids => { drawerRosterIds = ids; drawerRosterDirty = true; renderDrawerRosterSummary(); },
+    });
+  });
 
   const mgrSearch = document.getElementById('ftMgrSearch');
   if (mgrSearch) {
@@ -2222,6 +2283,34 @@ function wireTripDrawer() {
   document.getElementById('ftDrawerEndDate')?.addEventListener('input', checkTripConflicts);
 }
 
+function getDrawerRosterMode() {
+  return document.querySelector('input[name="ftRosterMode"]:checked')?.value === 'custom' ? 'custom' : 'grades';
+}
+
+function syncRosterModeUi() {
+  const custom = getDrawerRosterMode() === 'custom';
+  document.getElementById('ftDrawerGradesWrap').style.display = custom ? 'none' : '';
+  document.getElementById('ftDrawerCustomWrap').style.display = custom ? '' : 'none';
+}
+
+function renderDrawerRosterSummary() {
+  const el = document.getElementById('ftDrawerCustomSummary');
+  if (!el) return;
+  if (!drawerRosterLoaded) { el.textContent = 'Loading...'; return; }
+  const n = drawerRosterIds.size;
+  el.textContent = n ? `${n} student${n !== 1 ? 's' : ''} chosen` : 'No students chosen yet';
+}
+
+// Grades used for the conflict heads-up. In custom mode these are derived
+// from the members, so an existing trip supplies them and a new one has none.
+function getDrawerGrades() {
+  if (getDrawerRosterMode() === 'custom') {
+    const id = document.getElementById('ftDrawerTripId')?.value;
+    return id ? (tripCache.find(t => t.id === id)?.grade_levels ?? []) : [];
+  }
+  return [...document.querySelectorAll('#ftDrawerGrades input:checked')].map(cb => cb.value);
+}
+
 function buildGradeCheckboxes() {
   const wrap = document.getElementById('ftDrawerGrades');
   if (!wrap) return;
@@ -2246,7 +2335,7 @@ function checkTripConflicts() {
   if (!startVal) { warnEl.style.display = 'none'; return; }
   const endVal  = document.getElementById('ftDrawerEndDate')?.value || startVal;
   const editId  = document.getElementById('ftDrawerTripId')?.value;
-  const grades  = [...document.querySelectorAll('#ftDrawerGrades input:checked')].map(cb => cb.value);
+  const grades  = getDrawerGrades();
 
   const start = new Date(startVal + 'T12:00:00');
   const end   = new Date(endVal + 'T12:00:00');
@@ -2288,10 +2377,30 @@ function openTripDrawer(trip) {
   document.getElementById('ftDrawerNotes').value   = trip?.notes ?? '';
   document.getElementById('ftDrawerParentNotes').value = trip?.parent_notes ?? '';
 
-  const selected = new Set(trip?.grade_levels ?? []);
+  const custom = isCustomRoster(trip);
+  const selected = new Set(custom ? [] : (trip?.grade_levels ?? []));
   document.querySelectorAll('#ftDrawerGrades input[type="checkbox"]').forEach(cb => {
     cb.checked = selected.has(cb.value);
   });
+  document.querySelector(`input[name="ftRosterMode"][value="${custom ? 'custom' : 'grades'}"]`).checked = true;
+  syncRosterModeUi();
+  drawerRosterIds = new Set();
+  drawerRosterOriginal = new Set();
+  drawerRosterDirty = false;
+  drawerRosterLoaded = !(custom && trip?.id);
+  renderDrawerRosterSummary();
+  if (custom && trip?.id) {
+    // Rows (not the active-student roster) so an edit diffs against exactly what is stored.
+    fetchAllRows(() => supabase.from('field_trip_students').select('student_id').eq('field_trip_id', trip.id).order('student_id'))
+      .then(({ data, error }) => {
+        if (document.getElementById('ftDrawerTripId').value !== trip.id) return; // drawer moved on
+        if (error) { showToast('Could not load the current student list.', 'error'); return; }
+        drawerRosterOriginal = new Set((data ?? []).map(r => r.student_id));
+        drawerRosterIds = new Set(drawerRosterOriginal);
+        drawerRosterLoaded = true;
+        renderDrawerRosterSummary();
+      });
+  }
 
   // Payment settings
   const payReq = document.getElementById('ftDrawerPaymentRequired');
@@ -2332,6 +2441,8 @@ function duplicateTrip(trip) {
     start_date: '',
     end_date: '',
     payment_due_date: null,
+    // Custom students never copy, so a copied custom trip starts empty.
+    grade_levels: isCustomRoster(trip) ? [] : trip.grade_levels,
   });
   showToast('Set new dates before saving.', 'info');
 }
@@ -2401,6 +2512,22 @@ function wireParentEmailModal() {
   });
 }
 
+// Persists the drawer's staged custom roster (or clears per-student rows on a
+// roster-type switch). Returns { error, grade_levels? }.
+async function applyDrawerRoster(trip, rosterMode, switchingMode) {
+  if (switchingMode) {
+    const { error } = await resetTripStudentData(supabase, trip.id);
+    if (error) return { error };
+  }
+  if (rosterMode !== 'custom') return {};
+  if (!switchingMode && !drawerRosterDirty) return {};
+  return saveCustomRoster(supabase, trip, {
+    schoolId: profile.school_id,
+    nextIds: [...drawerRosterIds],
+    currentIds: switchingMode ? [] : [...drawerRosterOriginal],
+  });
+}
+
 async function saveTrip() {
   const id        = document.getElementById('ftDrawerTripId').value;
   const name      = document.getElementById('ftDrawerName').value.trim();
@@ -2424,7 +2551,47 @@ async function saveTrip() {
     }
   }
 
-  const grades = [...document.querySelectorAll('#ftDrawerGrades input:checked')].map(cb => cb.value);
+  const rosterMode = getDrawerRosterMode();
+  const checkedGrades = [...document.querySelectorAll('#ftDrawerGrades input:checked')].map(cb => cb.value);
+  if (rosterMode === 'grades' && !checkedGrades.length) {
+    showToast('Select at least one grade level, or choose "Custom group" to pick individual students.', 'warn');
+    return;
+  }
+  if (rosterMode === 'custom' && id && !drawerRosterLoaded) {
+    showToast('Still loading the current student list. Try again in a moment.', 'info');
+    return;
+  }
+
+  // A roster-type switch changes what field_trip_students rows mean, so the
+  // per-student data is reset. Refuse if money is already recorded.
+  const existingTrip = id ? tripCache.find(t => t.id === id) : null;
+  const switchingMode = !!existingTrip && (existingTrip.roster_mode ?? 'grades') !== rosterMode;
+  if (switchingMode) {
+    const { has, error: payErr } = await tripHasStudentPayments(supabase, id);
+    if (payErr) { dbError(payErr, 'Could not check payments'); return; }
+    if (has) {
+      showToast('This trip has recorded student payments, so its roster type cannot be changed.', 'warn');
+      return;
+    }
+    if (!confirm(`Switch this trip to a ${rosterMode === 'custom' ? 'custom group' : 'grade-based roster'}? Attendance choices, permission slips, and vehicle seats for its students will be reset.`)) return;
+  }
+
+  // Custom-roster removals: refuse anyone with recorded payments, warn about vehicle seats.
+  let rosterRemovals = [];
+  if (rosterMode === 'custom' && !switchingMode && id && drawerRosterDirty) {
+    rosterRemovals = [...drawerRosterOriginal].filter(sid => !drawerRosterIds.has(sid));
+    if (rosterRemovals.length) {
+      const impact = await findRosterRemovalImpact(supabase, id, rosterRemovals);
+      if (impact.error) { dbError(impact.error, 'Could not check the removed students'); return; }
+      if (impact.paid.length) {
+        showToast(`${impact.paid.length} student${impact.paid.length !== 1 ? 's' : ''} you removed ${impact.paid.length !== 1 ? 'have' : 'has'} recorded payments. Mark them not attending instead, or reopen Choose students and keep them.`, 'warn');
+        return;
+      }
+      if (impact.seated.length && !confirm(`${impact.seated.length} removed student${impact.seated.length !== 1 ? 's are' : ' is'} seated in a vehicle. They will go back to unassigned. Continue?`)) return;
+    }
+  }
+
+  const grades = rosterMode === 'custom' ? (existingTrip?.grade_levels ?? []) : checkedGrades;
   const chaperonesNeeded = document.getElementById('ftDrawerChaperonesNeeded').checked;
 
   const payload = {
@@ -2437,6 +2604,7 @@ async function saveTrip() {
     depart_at:                  document.getElementById('ftDrawerDepart').value  || null,
     return_at:                  document.getElementById('ftDrawerReturn').value  || null,
     grade_levels:               grades,
+    roster_mode:                rosterMode,
     chaperones_needed:          chaperonesNeeded,
     drivers_needed:             chaperonesNeeded && document.getElementById('ftDrawerDrivers').checked,
     max_chaperones:             chaperonesNeeded && document.getElementById('ftDrawerMaxChap').value ? parseInt(document.getElementById('ftDrawerMaxChap').value, 10) : null,
@@ -2459,6 +2627,9 @@ async function saveTrip() {
   if (id) {
     ({ error } = await supabase.from('field_trips').update(payload).eq('id', id));
     if (!error) {
+      const r = await applyDrawerRoster({ id }, rosterMode, switchingMode);
+      if (r.error) dbError(r.error, 'Trip saved, but the student list could not be updated. Reopen the trip and try again');
+      else if (r.grade_levels) payload.grade_levels = r.grade_levels;
       const idx = tripCache.findIndex(t => t.id === id);
       if (idx >= 0) tripCache[idx] = { ...tripCache[idx], ...payload };
       if (currentTrip?.id === id) {
@@ -2467,6 +2638,11 @@ async function saveTrip() {
         document.getElementById('ftPaymentsTab').style.display = currentTrip.payment_required ? '' : 'none';
         if (!currentTrip.payment_required && activeTab === 'payments') switchTab('chaperones');
         paymentsLoaded = false;
+        // The roster may have changed (grades edited, custom group, mode switch).
+        studentList = [];
+        permissionSlipMap.clear();
+        loadAttendingCount();
+        if (activeTab === 'students') loadStudents();
       }
       // Delta: insert new managers, delete removed ones
       const editorEntry = { profile_id: profile.id, name: '', email: '' };
@@ -2498,6 +2674,11 @@ async function saveTrip() {
     const { data, error: insertErr } = await supabase.from('field_trips').insert({ ...payload, created_by_profile_id: profile.id }).select().single();
     error = insertErr;
     if (!error && data) {
+      if (rosterMode === 'custom' && drawerRosterIds.size) {
+        const r = await applyDrawerRoster(data, rosterMode, false);
+        if (r.error) dbError(r.error, 'Trip saved, but the student list could not be saved. Open the trip and choose students again');
+        else if (r.grade_levels) data.grade_levels = r.grade_levels;
+      }
       tripCache.unshift(data);
       // Insert creator first (bootstrap), then any additional drawer managers
       await supabase.from('field_trip_managers').insert(
@@ -2807,21 +2988,12 @@ const _debouncedEnsurePaymentRows = debounce(() => ensurePaymentRows(), 500);
 async function ensurePaymentRows() {
   const studentCost   = currentTrip.student_cost   ?? 0;
   const chaperoneCost = currentTrip.chaperone_cost  ?? studentCost;
-  const grades        = currentTrip.grade_levels    ?? [];
-
-  if (grades.length) {
-    const [{ data: allStudents }, { data: excluded }] = await Promise.all([
-      fetchAllRows(() => supabase.from('students').select('id').eq('school_id', profile.school_id).eq('active', true).in('grade_level', grades)),
-      fetchAllRows(() => supabase.from('field_trip_students').select('student_id').eq('field_trip_id', currentTrip.id).eq('attending', false)),
-    ]);
-    const excludedIds = new Set((excluded ?? []).map(r => r.student_id));
-    const attending   = (allStudents ?? []).filter(s => !excludedIds.has(s.id));
-    if (attending.length) {
-      await supabase.from('field_trip_payments').upsert(
-        attending.map(s => ({ school_id: profile.school_id, field_trip_id: currentTrip.id, student_id: s.id, payer_type: 'student', amount_due: studentCost })),
-        { onConflict: 'field_trip_id,student_id', ignoreDuplicates: true }
-      );
-    }
+  const { data: roster } = await loadTripRoster(supabase, currentTrip, { schoolId: profile.school_id, select: 'id', attendingOnly: true });
+  if (roster?.length) {
+    await supabase.from('field_trip_payments').upsert(
+      roster.map(s => ({ school_id: profile.school_id, field_trip_id: currentTrip.id, student_id: s.id, payer_type: 'student', amount_due: studentCost })),
+      { onConflict: 'field_trip_id,student_id', ignoreDuplicates: true }
+    );
   }
 
   if (currentTrip.chaperone_payment_required) {
@@ -2934,8 +3106,8 @@ function renderPaymentTab(wrap) {
     html += buildPaymentTable(sortedStudents, 'student');
   } else if (students.length) {
     html += `<p class="muted" style="font-size:13px;margin-bottom:16px;">No students match the selected homeroom.</p>`;
-  } else if (!(currentTrip.grade_levels?.length)) {
-    html += `<p class="muted" style="font-size:13px;margin-bottom:16px;">Set grade levels on this trip to auto-populate student payment records.</p>`;
+  } else if (isCustomRoster(currentTrip) ? !studentList.length : !(currentTrip.grade_levels?.length)) {
+    html += `<p class="muted" style="font-size:13px;margin-bottom:16px;">${isCustomRoster(currentTrip) ? 'Choose students on this trip to create their payment records.' : 'Set grade levels on this trip to auto-populate student payment records.'}</p>`;
   }
 
   if (currentTrip.chaperone_payment_required) {
@@ -3141,26 +3313,17 @@ async function openDayOfSheet(trip) {
   body.innerHTML = '<p class="muted" style="padding:40px;text-align:center;">Loading…</p>';
   overlay.classList.add('open');
 
-  const grades = trip.grade_levels ?? [];
-  const studentQuery = () => {
-    let q = supabase
-      .from('students')
-      .select('id, first_name, last_name, grade_level, family_id, homeroom_teacher_id')
-      .eq('school_id', profile.school_id)
-      .eq('active', true)
-      .order('last_name', { ascending: true });
-    return grades.length ? q.in('grade_level', grades) : q;
-  };
-
-  const [{ data: students }, { data: ftStudents }, { data: assignments }, { data: slips }] = await Promise.all([
-    fetchAllRows(studentQuery),
-    fetchAllRows(() => supabase.from('field_trip_students').select('student_id, attending').eq('field_trip_id', trip.id)),
-    fetchAllRows(() => supabase.from('field_trip_vehicle_assignments').select('student_id, chaperone_id').eq('field_trip_id', trip.id)),
-    fetchAllRows(() => supabase.from('field_trip_permission_slips').select('student_id, status').eq('field_trip_id', trip.id)),
+  const [{ data: roster }, { data: assignments }, { data: slips }] = await Promise.all([
+    loadTripRoster(supabase, trip, {
+      schoolId: profile.school_id,
+      select: 'id, first_name, last_name, grade_level, family_id, homeroom_teacher_id',
+      attendingOnly: true,
+    }),
+    fetchAllRows(() => supabase.from('field_trip_vehicle_assignments').select('student_id, chaperone_id').eq('field_trip_id', trip.id).order('id')),
+    fetchAllRows(() => supabase.from('field_trip_permission_slips').select('student_id, status').eq('field_trip_id', trip.id).order('id')),
   ]);
 
-  const overrides = new Map((ftStudents ?? []).map(r => [r.student_id, r.attending]));
-  const attending = (students ?? []).filter(s => (overrides.has(s.id) ? overrides.get(s.id) : true));
+  const attending = roster ?? [];
   const slipMap = new Map((slips ?? []).map(r => [r.student_id, r.status]));
 
   const familyIds = [...new Set(attending.map(s => s.family_id).filter(Boolean))];

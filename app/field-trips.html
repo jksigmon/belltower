@@ -131,6 +131,21 @@
     .pay-summary-card.alert .val { color:#dc2626; }
 
     /* ── Record payment modal ── */
+    .ft-roster-toggle { display:flex; gap:16px; padding:4px 0 2px; font-size:13px; }
+    .ft-roster-toggle label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+    .ft-picker-card { width:860px; max-width:calc(100vw - 32px); max-height:90vh; display:flex; flex-direction:column; }
+    .ft-picker-grades { display:flex; flex-wrap:wrap; gap:6px; }
+    .ft-picker-chip { border:1px solid #d1d5db; background:#fff; border-radius:999px; padding:3px 11px; font-size:12px; cursor:pointer; color:#374151; }
+    .ft-picker-chip.on { background:#0b2d4f; border-color:#0b2d4f; color:#fff; }
+    .ft-picker-list { border:1px solid #e5e7eb; border-radius:8px; overflow-y:auto; overflow-x:hidden; min-height:180px; flex:1; max-height:38vh; }
+    .ft-picker-row { display:grid; grid-template-columns:16px minmax(0,1fr) auto; align-items:center; column-gap:10px; box-sizing:border-box; width:100%; padding:7px 16px 7px 12px; border-bottom:1px solid #f3f4f6; cursor:pointer; font-size:13px; }
+    .ft-picker-row:hover { background:#f9fafb; }
+    .ft-picker-name { font-weight:600; color:#111827; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .ft-picker-row input { width:16px; height:16px; margin:0; }
+    .ft-picker-meta { white-space:nowrap; text-align:right; color:#6b7280; font-size:12px; }
+    .ft-picker-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; max-height:84px; overflow-y:auto; }
+    .ft-picker-sel { display:inline-flex; align-items:center; gap:4px; background:#e0ecf8; color:#0b2d4f; border-radius:999px; padding:2px 4px 2px 10px; font-size:12px; }
+    .ft-picker-sel button { border:0; background:transparent; cursor:pointer; font-size:14px; line-height:1; color:#0b2d4f; padding:0 4px; }
     .ft-modal-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.45); z-index: 500;
@@ -646,6 +661,7 @@
           </div>
 
           <div class="ft-export-bar" style="justify-content:flex-start;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-primary" id="ftStudEditRosterBtn" style="display:none;">Add / remove students</button>
             <button class="btn btn-sm" id="ftStudMarkAttendingBtn">Mark filtered attending</button>
             <button class="btn btn-sm" id="ftStudMarkNotAttendingBtn">Mark filtered not attending</button>
             <button class="btn btn-sm" id="ftStudMarkSignedBtn">Mark filtered slips signed</button>
@@ -670,7 +686,7 @@
           </div>
           <div id="ftStudEmpty" class="empty-state" hidden>
             <div class="empty-title">No students found</div>
-            <div class="empty-text">Set grade levels on this trip to see the matching student roster.</div>
+            <div class="empty-text" id="ftStudEmptyText">Set grade levels on this trip to see the matching student roster.</div>
           </div>
         </div>
 
@@ -748,6 +764,32 @@
   </div>
 </div>
 
+<!-- ══ STUDENT PICKER MODAL (custom rosters) ═════════════════════════ -->
+<div id="ftPickerOverlay" class="ft-modal-overlay" style="z-index:700;">
+  <div class="ft-modal-card ft-picker-card">
+    <h3 style="margin:0 0 12px 0;font-size:16px;font-weight:800;color:#0b2d4f;">Choose students</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <input type="text" id="ftPickerSearch" class="admin-input" placeholder="Search by student or homeroom teacher..." style="flex:1;min-width:200px;" autocomplete="off">
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#374151;white-space:nowrap;cursor:pointer;">
+        <input type="checkbox" id="ftPickerSelectedOnly"> Selected only
+      </label>
+    </div>
+    <div id="ftPickerGrades" class="ft-picker-grades"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin:8px 0 6px;font-size:12px;color:#6b7280;">
+      <span id="ftPickerShownCount"></span>
+      <button type="button" class="btn btn-sm" id="ftPickerSelectShown">Select all shown</button>
+      <button type="button" class="btn btn-sm" id="ftPickerClearShown">Clear shown</button>
+    </div>
+    <div id="ftPickerList" class="ft-picker-list"></div>
+    <div id="ftPickerChips" class="ft-picker-chips"></div>
+    <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:14px;">
+      <strong id="ftPickerSelectedCount" style="margin-right:auto;font-size:13px;color:#0b2d4f;"></strong>
+      <button class="btn" id="ftPickerCancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="ftPickerApplyBtn">Apply</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ PARENT EMAIL PREVIEW MODAL ═══════════════════════════════════ -->
 <div id="ftParentEmailOverlay" class="ft-modal-overlay" style="z-index:600;">
   <div class="ft-modal-card" style="width:560px;max-width:calc(100vw - 32px);">
@@ -810,8 +852,22 @@
     </div>
 
     <div class="drawer-field">
-      <label class="drawer-label">Grade levels</label>
-      <div id="ftDrawerGrades" style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;"></div>
+      <label class="drawer-label">Who is going?</label>
+      <div class="ft-roster-toggle" role="radiogroup" aria-label="Student roster type">
+        <label><input type="radio" name="ftRosterMode" value="grades" checked> By grade level</label>
+        <label><input type="radio" name="ftRosterMode" value="custom"> Custom group</label>
+      </div>
+      <div id="ftDrawerGradesWrap">
+        <div id="ftDrawerGrades" style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0;"></div>
+        <div class="muted" style="font-size:12px;">Every active student in the selected grades is included. You can mark individual students as not attending afterward.</div>
+      </div>
+      <div id="ftDrawerCustomWrap" style="display:none;padding:8px 0;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm" id="ftDrawerPickStudentsBtn">Choose students</button>
+          <span id="ftDrawerCustomSummary" class="muted" style="font-size:13px;">No students chosen yet</span>
+        </div>
+        <div class="muted" style="font-size:12px;margin-top:6px;">For a class or group that spans grades. You can pick from the whole school and save the trip as a draft with nobody chosen.</div>
+      </div>
     </div>
 
     <div id="ftDrawerConflictWarning" class="ft-conflict-warning" style="display:none;"></div>

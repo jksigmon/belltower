@@ -1,6 +1,7 @@
 import { supabase } from './admin.supabase.js?v=2';
 import { initPage } from './admin.auth.js?v=2';
 import { esc } from './admin.shared.js?v=4';
+import { loadTripRoster, isCustomRoster } from './field-trip-roster.js?v=1';
 
 const GRADE_COLORS = [
   '#3b82f6','#10b981','#f59e0b','#ef4444',
@@ -77,7 +78,7 @@ async function init() {
     dateEl.hidden = false;
   }
 
-  if (!(trip.grade_levels ?? []).length) {
+  if (!isCustomRoster(trip) && !(trip.grade_levels ?? []).length) {
     document.getElementById('vehBoard').innerHTML =
       '<div style="padding:60px 40px;color:#b45309;font-size:14px;max-width:480px;margin:0 auto;text-align:center;">No grade levels set on this trip — edit the trip to specify grades before planning vehicles.</div>';
     return;
@@ -134,24 +135,13 @@ async function init() {
 // ── Data helpers ──────────────────────────────────────────────────────────
 
 async function loadAttendingStudents() {
-  const grades = trip.grade_levels ?? [];
-  let q = supabase.from('students')
-    .select('id, first_name, last_name, grade_level, homeroom_teacher_id, employees!left(first_name, last_name)')
-    .eq('school_id', profile.school_id)
-    .eq('active', true)
-    .order('last_name');
-  if (grades.length) q = q.in('grade_level', grades);
-
-  const [{ data: allS }, { data: excl }] = await Promise.all([
-    q,
-    supabase.from('field_trip_students')
-      .select('student_id')
-      .eq('field_trip_id', tripId)
-      .eq('attending', false),
-  ]);
-
-  const exclSet = new Set((excl ?? []).map(r => r.student_id));
-  return (allS ?? []).filter(s => !exclSet.has(s.id));
+  const { data, error } = await loadTripRoster(supabase, trip, { schoolId: profile.school_id, attendingOnly: true });
+  if (error) {
+    document.getElementById('vehBoard').innerHTML =
+      '<div style="padding:60px;color:#dc2626;font-size:14px;">Failed to load students.</div>';
+    return [];
+  }
+  return data;
 }
 
 function buildGradeColorMap(studs) {
