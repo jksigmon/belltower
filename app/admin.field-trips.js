@@ -2627,6 +2627,7 @@ async function saveTrip() {
   if (id) {
     ({ error } = await supabase.from('field_trips').update(payload).eq('id', id));
     if (!error) {
+      if (payload.payment_required) await syncUnpaidAmounts(id, payload);
       const r = await applyDrawerRoster({ id }, rosterMode, switchingMode);
       if (r.error) dbError(r.error, 'Trip saved, but the student list could not be updated. Reopen the trip and try again');
       else if (r.grade_levels) payload.grade_levels = r.grade_levels;
@@ -2981,6 +2982,20 @@ async function loadPayments() {
   paymentChaperoneMap = new Map((chapRes.data ?? []).map(c => [c.id, c]));
 
   renderPaymentTab(wrap);
+}
+
+// Rows are created once with the cost at that time, so a later cost edit has to be
+// pushed to rows nobody has paid on yet. Paid, partial and waived rows are left alone.
+async function syncUnpaidAmounts(tripId, trip) {
+  const studentCost   = trip.student_cost ?? 0;
+  const chaperoneCost = trip.chaperone_cost ?? studentCost;
+  for (const [payerType, cost] of [['student', studentCost], ['chaperone', chaperoneCost]]) {
+    const { error } = await supabase.from('field_trip_payments')
+      .update({ amount_due: cost, updated_by: profile.id, updated_at: new Date().toISOString() })
+      .eq('field_trip_id', tripId).eq('payer_type', payerType)
+      .eq('status', 'unpaid').eq('amount_paid', 0).neq('amount_due', cost);
+    if (error) dbError(error, 'Trip saved, but unpaid amounts could not be updated');
+  }
 }
 
 const _debouncedEnsurePaymentRows = debounce(() => ensurePaymentRows(), 500);
