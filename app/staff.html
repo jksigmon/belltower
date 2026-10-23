@@ -5113,7 +5113,6 @@ function renderMyCeuProgress(licenses, ceusByLicense, generalCeus = []) {
       <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">General CEUs <span class="muted" style="font-weight:400;font-size:0.78rem;">(not linked to a license)</span></span>
       <button type="button" class="btn btn-sm staffAddCeuBtn" data-license-id="">+ Add CEU</button>
     </div>
-    <p class="muted" style="font-size:0.76rem;margin:2px 0 8px;">For coursework or workshops that don't map to a specific license. Don't log Safe Schools, AED, CPR, or other required compliance training here: those aren't CEUs and don't count toward your renewal credits. Ask an administrator to track those in Compliance instead.</p>
     <div class="ceu-progress-total">Total <span>${generalTotal.toFixed(3)} CEU${generalTotal === 1 ? '' : 's'}</span></div>
     ${generalCeus.length
       ? '<div class="ceu-entry-list">' + generalCeus.map(myCeuEntryRow).join('') + '</div>'
