@@ -164,53 +164,73 @@
 
   <!-- Needs Attention (JS-gated) -->
   <div class="dash-section dash-section--full" id="dashAttention" style="display:none;">
-    <div class="dash-section-head"><i data-lucide="alert-circle"></i><span class="dash-section-eyebrow">Needs Attention</span><span class="dash-section-rule"></span></div>
-    <div class="stat-grid">
-      <a href="/app/pto.html#pending" class="stat stat-alert" id="dashPtoPending" style="display:none;" data-accent="red">
-        <span class="stat-chip"><i data-lucide="calendar-clock"></i></span>
-        <strong id="statPtoPending" class="stat-num">–</strong>
-        <span class="stat-label">Pending Leave</span>
-      </a>
-      <a href="/app/pto.html#cancellations" class="stat stat-alert" id="dashPtoCancels" style="display:none;" data-accent="orange">
-        <span class="stat-chip"><i data-lucide="calendar-x"></i></span>
-        <strong id="statPtoCancels" class="stat-num">–</strong>
-        <span class="stat-label">Leave Cancellations</span>
-      </a>
-      <a href="/app/pto.html#calendar" class="stat stat-info" id="dashStaffOut" style="display:none;" data-accent="blue">
-        <span class="stat-chip"><i data-lucide="user-minus"></i></span>
-        <strong id="statStaffOut" class="stat-num">–</strong>
-        <span id="statStaffOutBreakdown" class="stat-sub-line" style="display:none;font-size:11px;"></span>
-        <span class="stat-label">Staff Out Today</span>
-      </a>
-      <a href="/app/substitutes.html" class="stat stat-alert" id="dashSubUnassigned" style="display:none;" data-accent="red">
+    <div class="attn-head">
+      <span class="attn-head-icon"><i data-lucide="alert-circle"></i></span>
+      <div>
+        <h3 class="attn-title">Needs Attention</h3>
+        <p class="attn-sub">Items that may require your action.</p>
+      </div>
+    </div>
+    <div class="attn-primary">
+      <a href="/app/substitutes.html" class="stat" id="dashSubUnassigned" style="display:none;" data-accent="red">
         <span class="stat-chip"><i data-lucide="alert-triangle"></i></span>
         <strong id="statSubUnassigned" class="stat-num">–</strong>
         <span class="stat-label">Unassigned Coverage</span>
+        <span class="stat-desc">Classes without a teacher assignment.</span>
+        <i data-lucide="chevron-right" class="stat-go"></i>
       </a>
-      <a href="/app/substitutes.html" class="stat stat-info" id="dashSubToday" style="display:none;" data-accent="blue">
+      <a href="/app/compliance.html#requests" class="stat" id="dashBgPending" style="display:none;" data-accent="red">
+        <span class="stat-chip"><i data-lucide="user-search"></i></span>
+        <strong id="statBgPending" class="stat-num">–</strong>
+        <span class="stat-label">Pending BG Checks</span>
+        <span class="stat-desc">Staff with incomplete background checks.</span>
+        <i data-lucide="chevron-right" class="stat-go"></i>
+      </a>
+      <a href="/app/pto.html#pending" class="stat" id="dashPtoPending" style="display:none;" data-accent="orange">
+        <span class="stat-chip"><i data-lucide="calendar-plus"></i></span>
+        <strong id="statPtoPending" class="stat-num">–</strong>
+        <span class="stat-label">Pending Leave</span>
+        <span class="stat-desc">Leave requests awaiting approval.</span>
+        <i data-lucide="chevron-right" class="stat-go"></i>
+      </a>
+      <a href="/app/pto.html#calendar" class="stat" id="dashStaffOut" style="display:none;" data-accent="blue">
+        <span class="stat-chip"><i data-lucide="network"></i></span>
+        <strong id="statStaffOut" class="stat-num">–</strong>
+        <span class="stat-label">Staff Out Today</span>
+        <span class="stat-desc" id="statStaffOutDesc">Staff members out today.</span>
+        <i data-lucide="chevron-right" class="stat-go"></i>
+      </a>
+    </div>
+    <div class="attn-secondary">
+      <a href="/app/pto.html#cancellations" class="stat" id="dashPtoCancels" style="display:none;" data-accent="orange">
+        <span class="stat-chip"><i data-lucide="calendar-x"></i></span>
+        <strong id="statPtoCancels" class="stat-num">–</strong>
+        <span class="stat-label">Leave Cancellations</span>
+        <i data-lucide="chevron-right" class="stat-go"></i>
+      </a>
+      <a href="/app/substitutes.html" class="stat" id="dashSubToday" style="display:none;" data-accent="blue">
         <span class="stat-chip"><i data-lucide="user-check"></i></span>
         <strong id="statSubToday" class="stat-num">–</strong>
         <span class="stat-label">Sub Assignments Today</span>
+        <i data-lucide="chevron-right" class="stat-go"></i>
       </a>
-      <a href="/app/substitutes.html#cancellations" class="stat stat-alert" id="dashSubCancellations" style="display:none;" data-accent="orange">
+      <a href="/app/substitutes.html#cancellations" class="stat" id="dashSubCancellations" style="display:none;" data-accent="orange">
         <span class="stat-chip"><i data-lucide="x-circle"></i></span>
         <strong id="statSubCancellations" class="stat-num">–</strong>
         <span class="stat-label">Pending Sub Cancellations</span>
+        <i data-lucide="chevron-right" class="stat-go"></i>
       </a>
-      <a href="/app/licensure.html" class="stat stat-alert" id="dashLicExpiring" style="display:none;" data-accent="amber">
+      <a href="/app/licensure.html" class="stat" id="dashLicExpiring" style="display:none;" data-accent="amber">
         <span class="stat-chip"><i data-lucide="shield-alert"></i></span>
         <strong id="statLicExpiring" class="stat-num">–</strong>
         <span class="stat-label">Licenses Expiring (30d)</span>
+        <i data-lucide="chevron-right" class="stat-go"></i>
       </a>
-      <a href="/app/compliance.html#requests" class="stat stat-alert" id="dashBgPending" style="display:none;" data-accent="red">
-        <span class="stat-chip"><i data-lucide="user-check"></i></span>
-        <strong id="statBgPending" class="stat-num">–</strong>
-        <span class="stat-label">Pending BG Checks</span>
-      </a>
-      <a href="/app/compliance.html#agreements" class="stat stat-alert" id="dashAgreementsExpiring" style="display:none;" data-accent="amber">
+      <a href="/app/compliance.html#agreements" class="stat" id="dashAgreementsExpiring" style="display:none;" data-accent="amber">
         <span class="stat-chip"><i data-lucide="file-warning"></i></span>
         <strong id="statAgreementsExpiring" class="stat-num">–</strong>
         <span class="stat-label">Agreements Expiring (30d)</span>
+        <i data-lucide="chevron-right" class="stat-go"></i>
       </a>
     </div>
   </div>

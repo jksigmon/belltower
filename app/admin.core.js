@@ -4,6 +4,18 @@ import { esc, initDashClamps, BDAY_VISIBLE, renderQuickActions } from './admin.s
 import { loadWeather } from './weather.js';
 import { initCalendarStrip } from './calendar-strip.js';
 
+// Mark stat cards whose count is zero so CSS can quiet them (color is reserved for live counts)
+const statZeroObserver = new MutationObserver(muts => {
+  for (const m of muts) {
+    const num = m.target.nodeType === 3 ? m.target.parentElement : m.target;
+    const card = num?.closest?.('.stat');
+    if (card && num.classList.contains('stat-num')) {
+      card.classList.toggle('is-zero', num.textContent.trim() === '0');
+    }
+  }
+});
+statZeroObserver.observe(document.body, { childList: true, characterData: true, subtree: true });
+
 let currentProfile = null;
 let currentModules = {}; // { pto: true, substitutes: false, ... }
 let effectiveSchoolId = null;
@@ -518,12 +530,9 @@ async function loadDashboardStats() {
     });
     const groupEntries = Object.entries(groupCounts)
       .sort((a, b) => a[1].sort_order - b[1].sort_order);
-    const breakdownEl = document.getElementById('statStaffOutBreakdown');
-    const cardEl = document.getElementById('dashStaffOut');
-    if (groupEntries.length > 0 && breakdownEl) {
-      breakdownEl.textContent = groupEntries.map(([name, g]) => `${name}: ${g.count}`).join(' · ');
-      breakdownEl.style.display = '';
-      if (cardEl) cardEl.classList.add('stat-wide');
+    const descEl = document.getElementById('statStaffOutDesc');
+    if (groupEntries.length > 0 && descEl) {
+      descEl.textContent = groupEntries.map(([name, g]) => `${name}: ${g.count}`).join(' · ');
     }
     show('dashStaffOut');
     show('dashAttention');
