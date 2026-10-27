@@ -1083,7 +1083,7 @@ function renderChaperoneTable() {
         </div>
       </td>
     `;
-    tr.querySelector('button[data-chap-id]').addEventListener('click', () => removeChaperone(chap.id));
+    tr.querySelector('button[data-chap-id]').addEventListener('click', () => removeChaperone(chap.id, fullName));
     tr.querySelector('button[data-edit-chap-id]').addEventListener('click', () => openEditChapModal(chap));
     tbody.appendChild(tr);
   });
@@ -1228,7 +1228,7 @@ function downloadFormLinkQR(url, name) {
   a.remove();
 }
 
-async function removeChaperone(chapId) {
+async function removeChaperone(chapId, name = 'this chaperone') {
   // field_trip_vehicle_assignments.chaperone_id is NOT NULL, so a removed
   // driver's assignment rows can't be nulled out -- they must be deleted,
   // or the assigned students become invisible (not in the removed driver's
@@ -1240,10 +1240,17 @@ async function removeChaperone(chapId) {
     .eq('chaperone_id', chapId);
   const assignedCount = assignedRows?.length ?? 0;
 
+  const lines = [
+    `Remove ${name} from this trip?`,
+    '',
+    'This will:',
+    '- Take them off the chaperone list for this trip.',
+  ];
   if (assignedCount > 0) {
-    const ok = confirm(`This chaperone has ${assignedCount} student${assignedCount !== 1 ? 's' : ''} assigned to their vehicle in Plan Vehicles. Removing them will send ${assignedCount !== 1 ? 'those students' : 'that student'} back to Unassigned. Continue?`);
-    if (!ok) return;
+    lines.push(`- Permanently clear the ${assignedCount} student${assignedCount !== 1 ? 's' : ''} assigned to their vehicle in Plan Vehicles, sending ${assignedCount !== 1 ? 'them' : 'the student'} back to Unassigned. This cannot be undone, and you would need to reassign ${assignedCount !== 1 ? 'them' : 'the student'} by hand.`);
   }
+  lines.push('', 'Continue?');
+  if (!confirm(lines.join('\n'))) return;
 
   const { error } = await supabase
     .from('field_trip_chaperones')
