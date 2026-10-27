@@ -11,7 +11,7 @@ let schoolConfig = null;
 
 // ── Module-level state ──────────────────────────────────────────────────
 let tripCache            = [];
-let tripDateSortAsc      = false; // list-view Date column sort; newest first by default
+let tripDateSortAsc      = true;  // list-view Date column sort; soonest first by default
 let currentTrip          = null;
 let chaperoneList        = [];
 let studentList          = [];
@@ -373,7 +373,11 @@ function wireFilters() {
   const status  = document.getElementById('ftStatusFilter');
   const handler = debounce(() => renderTripList(), 200);
   search?.addEventListener('input', handler);
-  status?.addEventListener('change', handler);
+  status?.addEventListener('change', () => {
+    // Past reads best most-recent-first; everything else soonest-first.
+    tripDateSortAsc = status.value !== 'past';
+    renderTripList();
+  });
   document.getElementById('newTripBtn')?.addEventListener('click', () => openTripDrawer(null));
   document.getElementById('ftDateSortTh')?.addEventListener('click', () => {
     tripDateSortAsc = !tripDateSortAsc;
