@@ -1759,8 +1759,9 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       </button>
       <div class="faq-answer">
         <p>Each trip has a list of <strong>managing teachers</strong> — the staff members responsible for that trip. Only people on this list (plus school admins) can view and edit the trip.</p>
-        <p><strong>To add a managing teacher:</strong> open the trip and use the <em>Add teacher/staff</em> search field in the Managing Teachers section. Type a name or email and select from the results. Any managing teacher on the trip can add or remove others.</p>
-        <p><strong>To remove a managing teacher:</strong> click the × on their chip in the Managing Teachers row.</p>
+        <p><strong>To add a managing teacher:</strong> open the trip, click <strong>Edit Trip</strong>, and use the <em>Managing Teachers / Staff</em> search at the bottom of the panel. Type a name, select from the results, then click <strong>Save Trip</strong>. Any managing teacher on the trip can add or remove others.</p>
+        <p><strong>To remove a managing teacher:</strong> click the × on their chip in the Managing Teachers row on the trip page. (In Edit Trip you can also remove chips, then save.)</p>
+        <p>Clicking a managing teacher's name on the trip page narrows the Chaperones and Students tabs to that teacher's homeroom. Click it again to clear the filter.</p>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           The <strong>Manage field trips</strong> permission in the admin access panel is different — it grants a school administrator visibility into <em>all</em> trips school-wide, not just ones they're listed on.
@@ -1789,7 +1790,7 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
         <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="faq-answer">
-        <p>Open a trip and go to the <strong>Chaperones</strong> tab. Click <strong>Add Chaperone</strong>, choose <strong>Parent/Guardian</strong> or <strong>Staff</strong> at the top of the drawer, and search by name or email. Mark the chaperone as a driver if they will be transporting students.</p>
+        <p>Open a trip and go to the <strong>Chaperones</strong> tab. Click <strong>Add Chaperone</strong> and search by name or email. One search covers parents/guardians, staff, and outside volunteers together, and each result is labeled with its type. An outside volunteer who isn't a parent or staff member only appears once they are in Compliance &rarr; Volunteers or have a background check request on file (even a pending one). Check <strong>Driving</strong> if they will be transporting students, and enter how many students their vehicle can seat.</p>
         <p>Guardian chaperones show their compliance status automatically pulled from the Compliance module:</p>
         <ul>
           <li><strong>Cleared</strong> — valid background check on file, all required forms signed.</li>
@@ -1992,13 +1993,14 @@ mark { background: #fef9c3; border-radius: 2px; padding: 0 2px; }
       <div class="faq-answer">
         <p>Once at least one chaperone is marked as a driver, a <strong>Plan Vehicles</strong> button appears in the trip header. Clicking it opens a full-screen vehicle assignment board with one column per driver.</p>
         <ul>
-          <li><strong>Set capacity:</strong> click the capacity badge on any driver column to enter how many students that vehicle can hold. The badge turns amber when at capacity and red when over.</li>
-          <li><strong>Assign students:</strong> drag a student card from the Unassigned column and drop it onto a driver column, or drag between driver columns to reassign.</li>
-          <li><strong>Auto-assign:</strong> click <strong>Auto-assign</strong> to distribute unassigned students evenly across driver vehicles, grouped by grade.</li>
-          <li><strong>Clear All:</strong> removes all current assignments and returns every student to Unassigned.</li>
-          <li><strong>Print Roster:</strong> generates a clean printable layout showing each driver's assigned students.</li>
+          <li><strong>Set capacity:</strong> click the capacity badge on any driver column to enter how many students that vehicle can hold. The badge counts down the seats left, turns amber when <strong>Full</strong>, and red when <strong>Over capacity</strong>.</li>
+          <li><strong>Assign students:</strong> drag a student card from the Unassigned column and drop it onto a driver column, or drag between driver columns to reassign. You can also click a card (Ctrl/Cmd-click for several) and then click a vehicle. On a touch device, tap a student and then tap a vehicle.</li>
+          <li><strong>Auto-assign:</strong> click <strong>Auto-assign</strong> to place unassigned students in the vehicle with the most open seats, working through them by grade then last name. Treat it as a starting point and adjust by hand.</li>
+          <li><strong>Class/group labels:</strong> click <strong>+ Class/group</strong> on a driver column to label that car (for example a class name). Once any car has a label, a <strong>Group by class</strong> button sorts the board by label. Labels are for organizing only and never restrict who can ride.</li>
+          <li><strong>Undo / Clear All:</strong> <strong>Undo</strong> reverses your last move. <strong>Clear All</strong> removes all current assignments and returns every student to Unassigned.</li>
+          <li><strong>Print Roster / Download PDF:</strong> a clean car-by-car list of each driver's students, with anyone unassigned listed in red at the end. If your school tracks homerooms you can filter it to one homeroom first.</li>
         </ul>
-        <p>Assignments save automatically as you drag.</p>
+        <p>Assignments save automatically as you go.</p>
         <div class="tip">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           You can set a chaperone's vehicle capacity when adding them — check <strong>Driving</strong> in the Add Chaperone drawer and enter the seat count.
