@@ -1,5 +1,5 @@
 import { supabase } from './admin.supabase.js?v=2';
-import { esc, debounce, showToast, dbError, todayISO, getAvatarColor } from './admin.shared.js?v=4';
+import { esc, debounce, showToast, dbError, todayISO, fmtShortDate, getAvatarColor } from './admin.shared.js?v=4';
 import { VOLUNTEER_ROLES, blockedCredentialText } from './compliance.roles.js?v=5';
 
 const BUCKET = 'volunteer-credential-files';
@@ -8,6 +8,7 @@ const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.heic,.heif,application/pdf,image/*';
 
 let rows = new Map(); // id -> row, current result set
 let schoolId = null;
+let trips = new Map(); // id -> upcoming trip row for the filter dropdown
 
 const DOC_ICON    = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
 const CHECK_ICON  = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>';
@@ -18,7 +19,53 @@ const UPLOAD_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"
 export async function initChaperoneCredentials(profile) {
   schoolId = profile?.school_id ?? null;
   document.getElementById('ccSearch')?.addEventListener('input', debounce(load, 250));
+  document.getElementById('ccTripFilter')?.addEventListener('change', () => {
+    updateTripNote();
+    load();
+  });
+  await loadTrips();
   await load();
+}
+
+// Upcoming trips for the filter dropdown (soonest first, from the server).
+// A failure here only costs the filter, not the page.
+async function loadTrips() {
+  const select = document.getElementById('ccTripFilter');
+  if (!select) return;
+  const { data, error } = await supabase.rpc('list_chaperone_credential_trips');
+  if (error) {
+    document.querySelector('.cc-field-trip').style.display = 'none';
+    return;
+  }
+  trips = new Map((data ?? []).map(t => [t.id, t]));
+  (data ?? []).forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t.id;
+    opt.textContent = `${t.name} (${fmtShortDate(t.start_date)})`;
+    select.appendChild(opt);
+  });
+}
+
+function updateTripNote() {
+  const select = document.getElementById('ccTripFilter');
+  const hint = document.getElementById('ccTripHint');
+  const note = document.getElementById('ccTripNote');
+  const trip = trips.get(select?.value);
+
+  select.classList.toggle('cc-active', !!trip);
+  hint.textContent = trip
+    ? `Showing only the chaperones on this trip. Choose "All volunteers" to see everyone.`
+    : 'Pick an upcoming trip to see only its chaperones.';
+
+  if (!trip || !trip.unmatched_count) {
+    note.style.display = 'none';
+    return;
+  }
+  const n = trip.unmatched_count;
+  document.getElementById('ccTripNoteText').textContent = n === 1
+    ? '1 chaperone on this trip has no volunteer record yet, so they are not listed here. Ask your compliance manager to add them to the volunteer roster.'
+    : `${n} chaperones on this trip have no volunteer record yet, so they are not listed here. Ask your compliance manager to add them to the volunteer roster.`;
+  note.style.display = 'flex';
 }
 
 async function load() {
@@ -26,7 +73,9 @@ async function load() {
   const term = document.getElementById('ccSearch')?.value.trim() || null;
   tbody.innerHTML = '<tr><td colspan="7" class="muted" style="text-align:center;padding:32px 0;">Loading…</td></tr>';
 
-  const { data, error } = await supabase.rpc('list_chaperone_credentials', { p_search: term });
+  const tripId = document.getElementById('ccTripFilter')?.value || null;
+
+  const { data, error } = await supabase.rpc('list_chaperone_credentials', { p_search: term, p_trip_id: tripId });
 
   if (error) {
     tbody.innerHTML = `<tr><td colspan="7" class="status-danger" style="text-align:center;padding:32px 0;">Failed to load: ${esc(error.message)}</td></tr>`;
@@ -38,7 +87,7 @@ async function load() {
   document.getElementById('ccTruncatedNote').style.display = data_.length >= 200 ? 'block' : 'none';
 
   if (!data_.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="muted" style="text-align:center;padding:32px 0;">${term ? 'No matches.' : 'No volunteers on the roster yet.'}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" class="muted" style="text-align:center;padding:32px 0;">${term ? 'No matches.' : tripId ? 'No chaperones on this trip match a volunteer record yet.' : 'No volunteers on the roster yet.'}</td></tr>`;
     return;
   }
 
