@@ -444,7 +444,7 @@ export async function loadAgreements(profile) {
       <td data-action="${hasUnreviewedData ? 'review-data' : ''}" data-id="${esc(row.id)}" style="cursor:${hasUnreviewedData ? 'pointer' : 'default'}">${dataBadge}</td>
       <td style="white-space:nowrap;">
         <button class="btn btn-sm" data-action="pdf" data-id="${esc(row.id)}">PDF</button>
-        ${row.link_status === 'unresolved' && !row.archived_at ? `<button class="btn btn-sm" data-action="link-guardian" data-id="${esc(row.id)}" style="margin-left:4px;">Link</button>` : ''}
+        ${!row.archived_at ? `<button class="btn btn-sm" data-action="link-guardian" data-id="${esc(row.id)}" style="margin-left:4px;">${row.link_status === 'unresolved' ? 'Link' : 'Relink'}</button>` : ''}
         ${!isVoided && !row.archived_at ? `<button class="btn btn-sm" data-action="void" data-id="${esc(row.id)}" style="margin-left:4px;color:var(--danger);">Void</button>` : ''}
         <button class="btn btn-sm" data-action="archive" data-id="${esc(row.id)}" style="margin-left:4px;color:var(--text-muted,#9ca3af);font-size:11px;">${row.archived_at ? 'Unarchive' : 'Archive'}</button>
       </td>
@@ -715,7 +715,7 @@ export async function saveLinkGuardian() {
   const isVolunteer = activeLinkTarget.type === 'volunteer';
   const payload = isVolunteer
     ? { guardian_id: selectedGuardianForLink.id }
-    : { guardian_id: selectedGuardianForLink.id, link_status: 'manual_linked' };
+    : { guardian_id: selectedGuardianForLink.id, family_id: selectedGuardianForLink.family_id, link_status: 'manual_linked' };
 
   const { error } = await supabase
     .from(isVolunteer ? 'compliance_volunteers' : 'compliance_agreements')
