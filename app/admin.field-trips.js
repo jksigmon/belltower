@@ -1016,6 +1016,7 @@ function renderChaperoneTable() {
       }
     }
 
+    if ((g.last_name ?? '').toLowerCase() === 'cramp') console.log('[DEBUG cramp]', { chapId: chap.id, guardianId: g.id, volunteer, linked: volunteerByGuardianId.get(g.id), mapSize: volunteerByGuardianId.size, isDriver: chap.is_driver });
     let dlCell = '', insCell = '';
     if (driversNeeded) {
       if (isStaff && !volunteer) {
