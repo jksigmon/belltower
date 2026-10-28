@@ -15,7 +15,7 @@ let tripDateSortAsc      = true;  // list-view Date column sort; soonest first b
 let currentTrip          = null;
 let chaperoneList        = [];
 let studentList          = [];
-let volunteerByGuardianId = new Map(); // guardian_id -> compliance_volunteers row (authoritative link)
+let volunteerByGuardianId = new Map(); // guardian_id -> [compliance_volunteers rows] (authoritative link; can be >1)
 let volunteerByEmail      = new Map(); // email (lower) -> row (links staff drivers to their volunteer record)
 let volunteerByNameKey    = new Map(); // "last|firstword" (lower, parens stripped) -> row (fallback)
 let requiredFormTemplates = [];        // school-level, loaded once on init
@@ -693,7 +693,11 @@ async function loadVolunteerCompliance(chaperones) {
   }
 
   (data ?? []).forEach(row => {
-    if (row.guardian_id) volunteerByGuardianId.set(row.guardian_id, row);
+    if (row.guardian_id) {
+      const list = volunteerByGuardianId.get(row.guardian_id) ?? [];
+      list.push(row);
+      volunteerByGuardianId.set(row.guardian_id, list);
+    }
     volunteerByNameKey.set(volunteerNameKey(row.first_name, row.last_name), row);
     if (row.email) volunteerByEmail.set(row.email.trim().toLowerCase(), row);
   });
@@ -729,8 +733,13 @@ function getVolunteer(guardian) {
   if (!guardian) return null;
   // Trust a direct guardian_id link over a name guess -- it's the
   // authoritative match wherever it exists.
-  if (guardian.id && volunteerByGuardianId.has(guardian.id)) {
-    return volunteerByGuardianId.get(guardian.id);
+  // More than one roster row can carry the same guardian_id (a stray row
+  // under another name), so among linked rows prefer the one whose name
+  // matches the guardian rather than whichever loaded last.
+  const linked = guardian.id ? volunteerByGuardianId.get(guardian.id) : null;
+  if (linked?.length) {
+    const key = volunteerNameKey(guardian.first_name, guardian.last_name);
+    return linked.find(v => volunteerNameKey(v.first_name, v.last_name) === key) ?? linked[linked.length - 1];
   }
   return volunteerByNameKey.get(volunteerNameKey(guardian.first_name, guardian.last_name)) ?? null;
 }
@@ -1016,7 +1025,6 @@ function renderChaperoneTable() {
       }
     }
 
-    if ((g.last_name ?? '').toLowerCase() === 'cramp') console.log('[DEBUG cramp]', { chapId: chap.id, guardianId: g.id, volunteer, linked: volunteerByGuardianId.get(g.id), mapSize: volunteerByGuardianId.size, isDriver: chap.is_driver });
     let dlCell = '', insCell = '';
     if (driversNeeded) {
       if (isStaff && !volunteer) {
