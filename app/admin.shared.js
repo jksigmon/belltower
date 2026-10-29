@@ -639,6 +639,73 @@ const QA_CLASS_PLACEMENT_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="cu
 
 export const QA_ICONS = { classPlacement: QA_CLASS_PLACEMENT_ICON };
 
+// Gooey hover pill. Two blue blobs (fast + lagging) sit under a goo filter so
+// they melt together while travelling. Each blob has a white copy of the
+// buttons clipped to its exact rectangle, so labels turn white precisely where
+// the blue is, even mid-slide. Everything lives in the scrolling row, so
+// offsetLeft stays aligned while the row is scrolled.
+const QA_PAD_X = 14, QA_PAD_TOP = 5, QA_PAD_BOTTOM = 24, QA_BTN_H = 44;
+
+function ensureQuickActionGooFilter() {
+  if (document.getElementById('qaGooSvg')) return;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.id = 'qaGooSvg';
+  svg.setAttribute('width', '0');
+  svg.setAttribute('height', '0');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.style.position = 'absolute';
+  svg.innerHTML = `<defs><filter id="qa-goo" x="-5%" y="-40%" width="110%" height="180%" color-interpolation-filters="sRGB">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="7 0" result="b"/>
+    <feColorMatrix in="b" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -10"/>
+  </filter></defs>`;
+  document.body.appendChild(svg);
+}
+
+function bindQuickActionPill(container, goo, glow, blobs, overlays) {
+  const buttons = [...container.querySelectorAll('.qa-btn')];
+  const last = buttons[buttons.length - 1];
+  const contentW = () => last.offsetLeft + last.offsetWidth + QA_PAD_X;
+  const sizeLayers = () => {
+    const w = contentW() + 'px';
+    goo.style.width = w;
+    overlays.forEach(o => { o.style.width = w; });
+  };
+  const rectFor = (btn) => ({ left: btn.offsetLeft, width: btn.offsetWidth });
+  const apply = (blob, overlay, r) => {
+    blob.style.width = r.width + 'px';
+    blob.style.transform = `translateX(${r.left}px)`;
+    const right = contentW() - (r.left + r.width);
+    overlay.style.clipPath =
+      `inset(${QA_PAD_TOP}px ${right}px ${QA_PAD_BOTTOM}px ${r.left}px round ${QA_BTN_H / 2}px)`;
+  };
+  const layers = [goo, glow, ...overlays];
+
+  const place = (btn) => {
+    const first = !container.classList.contains('qa-active');
+    sizeLayers();
+    if (first) layers.concat(blobs).forEach(el => { el.style.transition = 'none'; });
+    const r = rectFor(btn);
+    blobs.forEach((blob, i) => apply(blob, overlays[i], r));
+    glow.style.width = r.width + 'px';
+    glow.style.transform = `translateX(${r.left}px)`;
+    container.classList.add('qa-active');
+    if (first) {
+      void container.offsetWidth;
+      layers.concat(blobs).forEach(el => { el.style.transition = ''; });
+    }
+  };
+  const clear = () => container.classList.remove('qa-active');
+
+  buttons.forEach(btn => {
+    btn.addEventListener('mouseenter', () => place(btn));
+    btn.addEventListener('focus', () => place(btn));
+  });
+  container.addEventListener('mouseleave', clear);
+  container.addEventListener('focusout', (e) => {
+    if (!container.contains(e.relatedTarget)) clear();
+  });
+}
+
 /**
  * Renders the Quick Actions icon bar: icon + label pills. `actions` items
  * take { label, icon, href, external, iconSvg }, where `icon` is a lucide
@@ -647,6 +714,24 @@ export const QA_ICONS = { classPlacement: QA_CLASS_PLACEMENT_ICON };
 export function renderQuickActions(container, actions) {
   if (!container || !actions.length) return;
   container.innerHTML = '';
+  // Goo layer (two blobs) sits behind the buttons; see bindQuickActionPill.
+  ensureQuickActionGooFilter();
+  const goo = document.createElement('div');
+  goo.className = 'qa-goo';
+  goo.setAttribute('aria-hidden', 'true');
+  const blobs = ['qa-blob qa-blob--lead', 'qa-blob qa-blob--trail'].map(cls => {
+    const b = document.createElement('span');
+    b.className = cls;
+    goo.appendChild(b);
+    return b;
+  });
+  container.appendChild(goo);
+  // Glow is its own element (not part of the filtered goo) so it tracks the
+  // fast blob instead of waiting for the lagging one to settle.
+  const glow = document.createElement('span');
+  glow.className = 'qa-glow';
+  glow.setAttribute('aria-hidden', 'true');
+  container.appendChild(glow);
   actions.forEach(({ label, icon, iconSvg, href, external }) => {
     const a = document.createElement('a');
     a.className = 'qa-btn';
@@ -673,6 +758,31 @@ export function renderQuickActions(container, actions) {
     container.appendChild(a);
   });
   if (window.lucide) lucide.createIcons({ el: container });
+  // White copies of the buttons, one per blob, each clipped to its blob.
+  const overlays = blobs.map((_, i) => {
+    const ov = document.createElement('div');
+    ov.className = i ? 'qa-overlay qa-overlay--trail' : 'qa-overlay';
+    ov.setAttribute('aria-hidden', 'true');
+    container.querySelectorAll('.qa-btn').forEach(btn => {
+      const c = btn.cloneNode(true);
+      c.removeAttribute('href');
+      c.removeAttribute('target');
+      c.tabIndex = -1;
+      ov.appendChild(c);
+    });
+    container.appendChild(ov);
+    return ov;
+  });
+  bindQuickActionPill(container, goo, glow, blobs, overlays);
+
+  const updateFades = () => {
+    const max = container.scrollWidth - container.clientWidth;
+    container.classList.toggle('qa-fade-l', container.scrollLeft > 1);
+    container.classList.toggle('qa-fade-r', container.scrollLeft < max - 1);
+  };
+  container.addEventListener('scroll', updateFades, { passive: true });
+  if (window.ResizeObserver) new ResizeObserver(updateFades).observe(container);
+  updateFades();
 
   // Scrollbar is hidden (see .dash-actions-row) so a plain vertical wheel
   // scroll is the only affordance most mouse users have — Chrome doesn't

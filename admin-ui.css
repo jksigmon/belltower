@@ -4217,24 +4217,120 @@ a.stat, a.dash-stat-link {
   gap: 10px;
   flex: 1;
   min-width: 0;
-  padding: 5px 0;
+  /* Extra padding gives the active pill's glow room inside the scroll
+     box (overflow clips anything outside it); negative margins cancel it
+     so the card's layout is unchanged. */
+  padding: 5px 14px 24px;
+  margin: 0 -14px -19px;
   overflow-x: auto;
   scrollbar-width: none;
-  /* Scroll-shadow trick (no JS): two opaque white gradients scroll WITH
-     the content ("local") and mask the edge shadows ("scroll", fixed to
-     the scrollport) wherever there's nothing left to scroll toward — so
-     the hint only shows on whichever side actually has more pills. */
-  background:
-    linear-gradient(to right, #ffffff 30%, rgba(255, 255, 255, 0)) 0 0,
-    linear-gradient(to left, #ffffff 30%, rgba(255, 255, 255, 0)) 100% 0,
-    radial-gradient(farthest-side at 0% 50%, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0)) 0 0,
-    radial-gradient(farthest-side at 100% 50%, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0)) 100% 0;
-  background-repeat: no-repeat;
-  background-size: 32px 100%, 32px 100%, 12px 100%, 12px 100%;
-  background-attachment: local, local, scroll, scroll;
+  /* Edge fades are masks (transparent, so they work on any card
+     background); renderQuickActions toggles qa-fade-l / qa-fade-r from
+     the scroll position. */
+  --qa-fade-l: 0px;
+  --qa-fade-r: 0px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--qa-fade-l), #000 calc(100% - var(--qa-fade-r)), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--qa-fade-l), #000 calc(100% - var(--qa-fade-r)), transparent 100%);
 }
 .dash-actions-row::-webkit-scrollbar { display: none; }
+.dash-actions-row { position: relative; }
+.dash-actions-row.qa-fade-l { --qa-fade-l: 32px; }
+.dash-actions-row.qa-fade-r { --qa-fade-r: 32px; }
 
+/* Gooey hover pill. Two blue blobs share one SVG goo filter (#qa-goo, injected
+   by renderQuickActions) so they melt into each other while travelling: the
+   lead blob arrives fast, the trail blob lags. Resting state is a white
+   outlined oval; it fills blue as the layer fades in. */
+.qa-goo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  filter: url(#qa-goo);
+  transition: opacity 160ms ease;
+}
+.qa-glow {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  height: 44px;
+  width: 0;
+  border-radius: 999px;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 8px 14px -6px rgba(11, 45, 79, 0.5);
+  transition:
+    transform 260ms cubic-bezier(0.22, 0.9, 0.3, 1),
+    width 260ms cubic-bezier(0.22, 0.9, 0.3, 1),
+    opacity 160ms ease;
+}
+.dash-actions-row.qa-active .qa-glow { opacity: 1; }
+.qa-blob {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  height: 44px;
+  width: 0;
+  border-radius: 999px;
+  background: #143a63;
+  transition:
+    transform var(--qa-dur, 300ms) cubic-bezier(0.22, 0.9, 0.3, 1),
+    width var(--qa-dur, 300ms) cubic-bezier(0.22, 0.9, 0.3, 1);
+}
+.qa-blob--lead  { --qa-dur: 260ms; }
+.qa-blob--trail { --qa-dur: 520ms; }
+
+/* White duplicates of the buttons, clipped (clip-path set from JS, animated
+   with the same timing as their blob) to the blob so text flips to white
+   exactly where blue is under it. */
+.qa-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 5px 14px 24px;
+  box-sizing: border-box;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    clip-path 260ms cubic-bezier(0.22, 0.9, 0.3, 1),
+    opacity 160ms ease;
+}
+.qa-overlay--trail { transition-duration: 520ms, 160ms; }
+.qa-overlay .qa-btn {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+.qa-overlay .qa-label,
+.qa-overlay .qa-icon { color: #ffffff; }
+/* Never animate anything inside the white copies: they must show white the
+   instant they are revealed, and the originals' hover scale must not offset
+   the blue icon underneath. */
+.qa-overlay *,
+.dash-actions-row.qa-active .qa-btn .qa-icon { transition: none !important; }
+.dash-actions-row.qa-active .qa-btn .qa-icon { transform: none; }
+.qa-overlay .qa-icon svg { stroke: #ffffff; }
+.dash-actions-row.qa-active .qa-goo,
+.dash-actions-row.qa-active .qa-overlay { opacity: 1; }
+.dash-actions-row.qa-active .qa-btn {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  transform: none;
+}
+.dash-actions-row .qa-btn { position: relative; z-index: 1; }
 .qa-btn {
   display: inline-flex;
   align-items: center;
@@ -4260,6 +4356,9 @@ a.stat, a.dash-stat-link {
 }
 .qa-btn:focus-visible {
   box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #2563eb;
+}
+.dash-actions-row.qa-active .qa-btn:focus-visible {
+  box-shadow: none;
 }
 
 .qa-icon {
@@ -4290,7 +4389,7 @@ a.stat, a.dash-stat-link {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .qa-btn, .qa-btn .qa-icon {
+  .qa-btn, .qa-btn .qa-icon, .qa-blob, .qa-overlay, .qa-glow {
     transition-duration: 1ms;
   }
 }
