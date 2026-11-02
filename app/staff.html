@@ -5962,6 +5962,10 @@ async function loadPtoStats() {
   document.getElementById('staffSumPending').textContent   = `${pending} hrs`;
   document.getElementById('staffSumCancelled').textContent = `${cancelled} hrs`;
   document.getElementById('staffSumNet').textContent       = `${net} hrs`;
+    else if (l.reason?.startsWith('REQUEST TYPE CHANGED')) {
+      if (l.delta_hours < 0) approved += Math.abs(l.delta_hours);
+      else cancelled += l.delta_hours;
+    }
 }
 
 async function loadStaffPtoTypes() {

@@ -1449,6 +1449,30 @@
 </div>
   
 <!-- =============================================
+     CHANGE LEAVE TYPE MODAL
+============================================= -->
+<div id="ptoChangeTypeModal" class="confirm-modal-overlay" hidden>
+  <div class="confirm-modal-dialog">
+    <h3 class="confirm-modal-title">Change Leave Type</h3>
+    <p class="confirm-modal-body" id="ptoChangeTypeInfo"></p>
+    <div class="drawer-field" style="margin-top:12px;">
+      <label for="ptoChangeTypeSelect">New leave type <span class="required">*</span></label>
+      <select id="ptoChangeTypeSelect" class="form-input" style="margin-top:4px;"></select>
+    </div>
+    <div class="drawer-field" style="margin-top:12px;">
+      <label for="ptoChangeTypeReason">Reason</label>
+      <input id="ptoChangeTypeReason" class="form-input" type="text" maxlength="200"
+        placeholder="e.g. Attending a conference" style="margin-top:4px;">
+    </div>
+    <p class="muted" id="ptoChangeTypeImpact" style="margin-top:10px;font-size:12px;"></p>
+    <div class="confirm-modal-actions">
+      <button id="ptoChangeTypeCancel" class="btn">Cancel</button>
+      <button id="ptoChangeTypeConfirm" class="btn btn-primary">Change Type</button>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================
      PTO DENIAL MODAL
 ============================================= -->
 <div id="ptoDenyModal" class="confirm-modal-overlay" hidden>
@@ -1512,6 +1536,9 @@
     <div class="cal-pop-row">
       <span class="cal-pop-label">Approved by</span>
       <span id="calPopApprover"></span>
+    </div>
+    <div class="cal-pop-row" id="calPopActions" hidden>
+      <button id="calPopChangeType" class="btn">Change leave type</button>
     </div>
   </div>
 </div>

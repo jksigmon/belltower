@@ -483,6 +483,10 @@ function humanizeReason(reason) {
   if (allot) return `Annual Allotment (${allot[1]})`;
   const manual = reason.match(/^MANUAL_ADJUSTMENT_(\d+)(?::\s*(.*))?$/);
   if (manual) return `Manual Adjustment (${manual[1]})${manual[2] ? ': ' + manual[2] : ''}`;
+  const typeChange = reason.match(/^REQUEST TYPE CHANGED \((.+) to (.+)\)(?::\s*(.*))?$/);
+  if (typeChange) {
+    return `Type changed from ${ptoTypeLabel(typeChange[1])} to ${ptoTypeLabel(typeChange[2])}${typeChange[3] ? ': ' + typeChange[3] : ''}`;
+  }
   return reason.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
@@ -673,6 +677,139 @@ async function confirmNegativeBalanceImpact(ids) {
     danger: true
   });
 }
+
+/* =============================================
+   CHANGE LEAVE TYPE (approved requests)
+   Balance managers only. The change_pto_request_type RPC moves the ledger
+   hours from the old type to the new one; never update pto_type directly.
+============================================= */
+let _changeTypeCtx = null;
+
+async function openChangeTypeModal(requestId, onDone) {
+  if (!_canManagePtoBalances) {
+    showToast('You are not authorized to change leave types.', 'error');
+    return;
+  }
+
+  const { data: req, error } = await supabase
+    .from('pto_requests')
+    .select(`
+      id, employee_id, pto_type, status, requested_hours, start_date, end_date,
+      employees!pto_requests_employee_id_fkey (first_name, last_name)
+    `)
+    .eq('id', requestId)
+    .eq('school_id', currentProfile.school_id)
+    .single();
+
+  if (error || !req) {
+    console.error(error);
+    showToast('Could not load that leave request.', 'error');
+    return;
+  }
+  if (req.status !== 'APPROVED') {
+    showToast('Only approved leave can have its type changed.', 'warn');
+    return;
+  }
+
+  const options = currentSchoolPtoTypes.filter(t => t !== req.pto_type);
+  if (!options.length) {
+    showToast('No other leave types are enabled for this school.', 'warn');
+    return;
+  }
+
+  const name = req.employees ? `${req.employees.first_name} ${req.employees.last_name}` : 'This employee';
+  const info = document.getElementById('ptoChangeTypeInfo');
+  info.textContent =
+    `${name}\n${fmtReqDates(req)} · ${Number(req.requested_hours ?? 0)} hrs\nCurrently: ${ptoTypeLabel(req.pto_type)}`;
+
+  const sel = document.getElementById('ptoChangeTypeSelect');
+  sel.innerHTML = options.map(t => `<option value="${esc(t)}">${esc(ptoTypeLabel(t))}</option>`).join('');
+  document.getElementById('ptoChangeTypeReason').value = '';
+
+  _changeTypeCtx = { req, onDone };
+  updateChangeTypeImpact();
+  document.getElementById('ptoChangeTypeModal').hidden = false;
+}
+
+function updateChangeTypeImpact() {
+  if (!_changeTypeCtx) return;
+  const { req } = _changeTypeCtx;
+  const newType = document.getElementById('ptoChangeTypeSelect').value;
+  const hrs = Number(req.requested_hours ?? 0);
+  const oldCounts = currentSchoolPtoTypeMeta[req.pto_type]?.countsAgainstBalance !== false;
+  const newCounts = currentSchoolPtoTypeMeta[newType]?.countsAgainstBalance !== false;
+  const parts = [];
+  if (oldCounts) parts.push(`${hrs} hrs credited back to ${ptoTypeLabel(req.pto_type)}`);
+  if (newCounts) parts.push(`${hrs} hrs deducted from ${ptoTypeLabel(newType)}`);
+  document.getElementById('ptoChangeTypeImpact').textContent = parts.length
+    ? parts.join('; ') + '. Recorded in the ledger.'
+    : 'Neither type counts against balance, so no hours move.';
+}
+
+function closeChangeTypeModal() {
+  document.getElementById('ptoChangeTypeModal').hidden = true;
+  _changeTypeCtx = null;
+}
+
+document.getElementById('ptoChangeTypeSelect')?.addEventListener('change', updateChangeTypeImpact);
+document.getElementById('ptoChangeTypeCancel')?.addEventListener('click', closeChangeTypeModal);
+document.getElementById('ptoChangeTypeModal')?.addEventListener('click', e => {
+  if (e.target.id === 'ptoChangeTypeModal') closeChangeTypeModal();
+});
+
+document.getElementById('ptoChangeTypeConfirm')?.addEventListener('click', async () => {
+  if (!_changeTypeCtx) return;
+  const { req, onDone } = _changeTypeCtx;
+  const newType = document.getElementById('ptoChangeTypeSelect').value;
+  const reason = document.getElementById('ptoChangeTypeReason').value.trim();
+  const hrs = Number(req.requested_hours ?? 0);
+
+  // Negative balance policy applies to the type being charged.
+  if (negativeBalancePolicy !== 'allow' &&
+      currentSchoolPtoTypeMeta[newType]?.countsAgainstBalance !== false) {
+    const { data: bal } = await supabase
+      .from('pto_balances')
+      .select('balance_hours')
+      .eq('school_id', currentProfile.school_id)
+      .eq('employee_id', req.employee_id)
+      .eq('pto_type', newType)
+      .maybeSingle();
+    const after = Number(bal?.balance_hours ?? 0) - hrs;
+    if (after < 0) {
+      if (negativeBalancePolicy === 'block') {
+        showToast(`Can't change: this would leave ${ptoTypeLabel(newType)} at ${after.toFixed(2)} hrs. Adjust their balance first.`, 'error');
+        return;
+      }
+      const ok = await showConfirm({
+        title: 'This Will Create a Negative Balance',
+        body: `${ptoTypeLabel(newType)} would be at ${after.toFixed(2)} hrs.\n\nChange the leave type anyway?`,
+        confirmText: 'Change Anyway',
+        danger: true
+      });
+      if (!ok) return;
+    }
+  }
+
+  const btn = document.getElementById('ptoChangeTypeConfirm');
+  btn.disabled = true;
+  const { error } = await supabase.rpc('change_pto_request_type', {
+    p_request_id: req.id,
+    p_new_type: newType,
+    p_reason: reason || null
+  });
+  btn.disabled = false;
+
+  if (error) {
+    console.error(error);
+    showToast(error.message || 'Failed to change leave type.', 'error');
+    return;
+  }
+
+  closeChangeTypeModal();
+  showToast(`Leave type changed to ${ptoTypeLabel(newType)}.`, 'success');
+  ptoCalendar?.refetchEvents();
+  onDone?.();
+});
 
 /* =============================================
    PENDING PTO — GROUPED BY EMPLOYEE
@@ -1465,6 +1602,7 @@ async function loadStaffPtoHistory(employeeId) {
   let histQuery = supabase
     .from('pto_requests')
     .select(`
+      id,
       pto_type,
       start_date,
       end_date,
@@ -1516,6 +1654,11 @@ async function loadStaffPtoHistory(employeeId) {
     if (l.reason === 'REQUEST APPROVED') approvedUsed += Math.abs(l.delta_hours);
     if (l.reason === 'REQUEST CANCELLED FUTURE' || l.reason === 'REQUEST RESCINDED RETROACTIVE') {
       cancelled += l.delta_hours;
+    }
+    // A type change is a credit on one type and a debit on another: net zero overall.
+    if (l.reason?.startsWith('REQUEST TYPE CHANGED')) {
+      if (l.delta_hours < 0) approvedUsed += Math.abs(l.delta_hours);
+      else cancelled += l.delta_hours;
     }
   });
 
@@ -1569,14 +1712,19 @@ async function loadStaffPtoHistory(employeeId) {
 
       const typeMap = { VACATION: 'badge-pto-vacation', SICK: 'badge-pto-sick', PERSONAL: 'badge-pto-personal', PROFESSIONAL: 'badge-pto-professional' };
       const tr = document.createElement('tr');
+      const changeTypeBtn = (_canManagePtoBalances && r.status === 'APPROVED')
+        ? `<br><button type="button" class="link-btn" data-change-type="${esc(r.id)}" style="font-size:12px;font-weight:400;padding:0;background:none;border:none;color:#2563eb;cursor:pointer;">Change type</button>`
+        : '';
       tr.innerHTML = `
-        <td><span class="pto-type-badge ${typeMap[r.pto_type] ?? 'badge-pto-other'}" data-type="${r.pto_type}">${r.pto_type.charAt(0)+r.pto_type.slice(1).toLowerCase()}</span></td>
+        <td><span class="pto-type-badge ${typeMap[r.pto_type] ?? 'badge-pto-other'}" data-type="${r.pto_type}">${r.pto_type.charAt(0)+r.pto_type.slice(1).toLowerCase()}</span>${changeTypeBtn}</td>
         <td>${dates}</td>
         <td>${formatHoursWithTime(r)}</td>
         <td>${decisionHtml}</td>
         <td>${r.notes ? esc(r.notes) : '—'}</td>
         <td>${fmtDate(r.submitted_at?.split('T')[0])}</td>
       `;
+      tr.querySelector('[data-change-type]')?.addEventListener('click', () =>
+        openChangeTypeModal(r.id, () => refreshStaffHistory(employeeId)));
       tbody.appendChild(tr);
     });
   }
@@ -2387,6 +2535,15 @@ async function openCalEventPopover(el, fcEvent) {
 
   const pendingBadge = document.getElementById('calPopPendingBadge');
   if (pendingBadge) pendingBadge.style.display = fcEvent.extendedProps.status === 'PENDING' ? '' : 'none';
+
+  const popActions = document.getElementById('calPopActions');
+  if (popActions) {
+    popActions.hidden = !(_canManagePtoBalances && fcEvent.extendedProps.status === 'APPROVED');
+    document.getElementById('calPopChangeType').onclick = () => {
+      closeCalEventPopover();
+      openChangeTypeModal(fcEvent.id);
+    };
+  }
 
   document.getElementById('calPopEmpName').textContent  = empName;
   document.getElementById('calPopDate').textContent     = dateStr;

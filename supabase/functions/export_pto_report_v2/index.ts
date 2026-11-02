@@ -288,12 +288,13 @@ if (moduleError || !moduleRow?.enabled) {
             employee_id,
             pto_type,
             delta_hours,
+            reason,
             employees!pto_ledger_employee_id_fkey (
               first_name,
               last_name
             )
           `)
-          .eq("reason", "REQUEST APPROVED")
+          .or("reason.eq.REQUEST APPROVED,reason.like.REQUEST TYPE CHANGED%")
           .eq("school_id", profile.school_id)
           .gte("created_at", start_date)
           .lte("created_at", end_date);
@@ -306,7 +307,10 @@ if (moduleError || !moduleRow?.enabled) {
       const usageMap: Record<string, any> = {};
 
       data.forEach(r => {
-        if (r.delta_hours >= 0) return;
+        // A leave type change credits the old type and debits the new one, so
+        // its credits subtract from usage. Approvals only ever debit.
+        const isTypeChange = String(r.reason ?? "").startsWith("REQUEST TYPE CHANGED");
+        if (r.delta_hours >= 0 && !isTypeChange) return;
 
         const key = `${r.employee_id}_${r.pto_type}`;
         if (!usageMap[key]) {
@@ -316,7 +320,7 @@ if (moduleError || !moduleRow?.enabled) {
             hours: 0,
           };
         }
-        usageMap[key].hours += Math.abs(r.delta_hours);
+        usageMap[key].hours += isTypeChange ? -Number(r.delta_hours) : Math.abs(r.delta_hours);
       });
 
       const sheet = workbook.addWorksheet("Payroll Leave Usage", {
@@ -334,7 +338,7 @@ if (moduleError || !moduleRow?.enabled) {
 
       sheet.getRow(1).font = { bold: true };
 
-      const sortedPayroll = Object.values(usageMap).sort((a, b) =>
+      const sortedPayroll = Object.values(usageMap).filter(r => r.hours > 0).sort((a, b) =>
         a.employee.localeCompare(b.employee)
       );
 
@@ -507,6 +511,8 @@ if (moduleError || !moduleRow?.enabled) {
           s.allotted += hours;
         } else if (reason === "REQUEST APPROVED") {
           s.used += Math.abs(hours);
+        } else if (reason.startsWith("REQUEST TYPE CHANGED")) {
+          s.used -= hours;
         } else if (reason.includes("MANUAL_ADJUSTMENT")) {
           s.adjusted += hours;
         } else if (reason.includes("YEAR_END") && reason.includes("ROLLOVER") && hours > 0) {
