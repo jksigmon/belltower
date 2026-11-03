@@ -12,6 +12,7 @@
   <link rel="icon" href="/icons/favicon.ico">
   <style>
     /* ── Toolbar ── */
+    .veh-hint:not([hidden]) { display: flex; }
     .veh-toolbar {
       display: flex;
       align-items: center;
@@ -553,6 +554,11 @@
     <button type="button" aria-label="Dismiss" onclick="document.getElementById('vehMobileNotice').remove()">&#10005;</button>
   </div>
 
+  <div id="vehHomeroomHint" class="veh-hint" style="align-items:center;gap:10px;margin:0 0 12px;padding:8px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:13px;color:#1e40af;" hidden>
+    <span></span>
+    <button type="button" id="vehHomeroomHintClear" class="btn btn-sm" style="margin-left:auto;flex-shrink:0;">Show all</button>
+  </div>
+
   <!-- ── Board ── -->
   <div class="veh-board" id="vehBoard">
     <div style="padding:60px 40px;color:#9ca3af;font-size:14px;">Loading…</div>
@@ -562,6 +568,6 @@
 <!-- ── Print roster (hidden on screen) ── -->
 <div class="print-roster" id="printRoster"></div>
 
-<script type="module" src="/app/field-trip-vehicles.js?v=4"></script>
+<script type="module" src="/app/field-trip-vehicles.js?v=5"></script>
 </body>
 </html>

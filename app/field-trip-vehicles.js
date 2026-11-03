@@ -686,6 +686,20 @@ function updateAggregateStats() {
 
 // ── Search ────────────────────────────────────────────────────────────────
 
+// Plain-language note under the toolbar while the homeroom filter is active,
+// so a board of hidden (empty) cars doesn't look broken.
+function updateHomeroomHint(homeroomKey) {
+  const hint = document.getElementById('vehHomeroomHint');
+  if (!hint) return;
+  if (!homeroomKey) { hint.hidden = true; return; }
+  const name = homeroomKey === NO_HOMEROOM_KEY
+    ? 'students with no homeroom'
+    : `${getUnassignedHomeroomOptions().homerooms.find(([id]) => id === homeroomKey)?.[1] ?? 'this homeroom'}'s students`;
+  hint.querySelector('span').textContent =
+    `Showing only ${name} in cars. Cars with none of them are hidden. Print and PDF match.`;
+  hint.hidden = false;
+}
+
 function applySearchFilter() {
   // Toolbar homeroom select: filters the whole board on screen, and is also
   // what the printed roster / PDF use.
@@ -706,6 +720,7 @@ function applySearchFilter() {
     const anyVisible = [...group.querySelectorAll('.veh-card')].some(c => c.style.display !== 'none');
     group.style.display = anyVisible ? '' : 'none';
   });
+  updateHomeroomHint(toolbarHomeroom);
   // With a homeroom picked, cars carrying none of those students are hidden
   // (matching the printed roster), along with any group header left empty.
   document.querySelectorAll('.veh-col').forEach(col => {
@@ -936,9 +951,9 @@ function populatePrintHomeroomSelect() {
   const { homerooms, hasNoHomeroom } = getUnassignedHomeroomOptions();
   if (!homerooms.length) { sel.hidden = true; sel.value = ''; return; }
   const prev = sel.value;
-  sel.innerHTML = '<option value="">All homerooms</option>' +
-    homerooms.map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('') +
-    (hasNoHomeroom ? `<option value="${NO_HOMEROOM_KEY}">No homeroom</option>` : '');
+  sel.innerHTML = '<option value="">Show: all homerooms</option>' +
+    homerooms.map(([id, name]) => `<option value="${esc(id)}">Show: ${esc(name)}'s students</option>`).join('') +
+    (hasNoHomeroom ? `<option value="${NO_HOMEROOM_KEY}">Show: students with no homeroom</option>` : '');
   sel.value = [...sel.options].some(o => o.value === prev) ? prev : '';
   sel.hidden = false;
 }
@@ -1175,6 +1190,11 @@ async function downloadRosterPdf() {
 function wireActions() {
   populatePrintHomeroomSelect();
   document.getElementById('vehPrintHomeroom')?.addEventListener('change', applySearchFilter);
+  document.getElementById('vehHomeroomHintClear')?.addEventListener('click', () => {
+    const sel = document.getElementById('vehPrintHomeroom');
+    if (sel) sel.value = '';
+    applySearchFilter();
+  });
   document.getElementById('vehDownloadBtn')?.addEventListener('click', downloadRosterPdf);
   document.getElementById('vehAutoAssignBtn')?.addEventListener('click', autoAssign);
   document.getElementById('vehClearBtn')?.addEventListener('click', clearAssignments);
