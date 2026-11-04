@@ -533,7 +533,7 @@ async function loadChaperones() {
           students(id, first_name, last_name, grade_level, homeroom_teacher_id, employees!left(first_name, last_name))
         )
       ),
-      employee:employees(id, first_name, last_name, email),
+      employee:employees!field_trip_chaperones_employee_id_fkey(id, first_name, last_name, email),
       volunteer:compliance_volunteers(id, first_name, last_name, email, guardian_id,
         bg_cleared_at, bg_expires_at, mvr_cleared_at, mvr_expires_at,
         dl_expires_at, insurance_expires_at, can_chaperone, can_drive,
@@ -3030,7 +3030,7 @@ async function loadPayments() {
           guardian:guardians(first_name, last_name, email,
             family:families(students(homeroom_teacher_id, employees!left(first_name, last_name)))
           ),
-          employee:employees(first_name, last_name),
+          employee:employees!field_trip_chaperones_employee_id_fkey(first_name, last_name),
           volunteer:compliance_volunteers(first_name, last_name)
         `).in('id', chaperoneIds)
       : Promise.resolve({ data: [] }),

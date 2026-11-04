@@ -86,7 +86,7 @@ async function init() {
 
   const [driversRes, studList, assignRes] = await Promise.all([
     supabase.from('field_trip_chaperones')
-      .select('id, vehicle_capacity, car_group_label, guardian:guardians(first_name, last_name), employee:employees(first_name, last_name), volunteer:compliance_volunteers(first_name, last_name)')
+      .select('id, vehicle_capacity, car_group_label, guardian:guardians(first_name, last_name), employee:employees!field_trip_chaperones_employee_id_fkey(first_name, last_name), volunteer:compliance_volunteers(first_name, last_name)')
       .eq('field_trip_id', tripId)
       .eq('is_driver', true)
       .is('removed_at', null)
