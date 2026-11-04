@@ -527,7 +527,7 @@ async function loadChaperones() {
   const { data, error } = await supabase
     .from('field_trip_chaperones')
     .select(`
-      id, guardian_id, employee_id, volunteer_id, is_driver, vehicle_capacity, added_at,
+      id, guardian_id, employee_id, volunteer_id, is_driver, vehicle_capacity, added_at, homeroom_teacher_id,
       guardian:guardians(id, first_name, last_name, email, phone,
         family:families(family_name,
           students(id, first_name, last_name, grade_level, homeroom_teacher_id, employees!left(first_name, last_name))
@@ -907,12 +907,30 @@ function getManagerHomeroomIds() {
   return new Set(currentManagers.filter(m => m.employee_id).map(m => m.employee_id));
 }
 
+// Fills a "Homeroom teacher" picker for staff/volunteer chaperones with this
+// trip's Managing Teachers (the same teachers the homeroom filters offer).
+function fillChapTeacherSelect(selectId, selectedId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const teachers = currentManagers
+    .filter(m => m.employee_id)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  sel.innerHTML = '<option value="">No class (show under every teacher)</option>' +
+    teachers.map(m => `<option value="${esc(m.employee_id)}">${esc(m.name)}</option>`).join('');
+  sel.value = teachers.some(m => m.employee_id === selectedId) ? selectedId : '';
+}
+
 function populateHomeroomFilterSelect(selectId) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
   const current = sel.value;
   const managerIds = getManagerHomeroomIds();
   const homerooms = new Map();
+  chaperoneList.forEach(c => {
+    if (c.guardian_id || !c.homeroom_teacher_id || !managerIds.has(c.homeroom_teacher_id)) return;
+    const m = currentManagers.find(x => x.employee_id === c.homeroom_teacher_id);
+    if (m) homerooms.set(m.employee_id, m.name);
+  });
   chaperoneList.forEach(c => {
     (c.guardian?.family?.students ?? []).forEach(s => {
       if (s.homeroom_teacher_id && s.employees && managerIds.has(s.homeroom_teacher_id)) {
@@ -930,13 +948,13 @@ function populateChapHomeroomFilter() {
   populateHomeroomFilterSelect('ftChapHomeroomFilter');
 }
 
-// Staff and volunteer chaperones aren't tied to any one family's homeroom,
-// so a homeroom filter only narrows guardian chaperones -- staff/volunteers
-// always stay visible since they're general trip help, not class-specific.
+// Guardian chaperones are narrowed by their family's homeroom. Staff and
+// volunteers have no family, so they follow the homeroom teacher a manager
+// picked for them; with none picked they always stay visible as general help.
 function filterChaperonesByHomeroom(list, homeroomVal) {
   if (!homeroomVal) return list;
   return list.filter(c => {
-    if (!c.guardian_id) return true;
+    if (!c.guardian_id) return !c.homeroom_teacher_id || c.homeroom_teacher_id === homeroomVal;
     return (c.guardian?.family?.students ?? []).some(s => s.homeroom_teacher_id === homeroomVal);
   });
 }
@@ -999,8 +1017,9 @@ function renderChaperoneTable() {
     // record itself stands in fine for a guardian here.
     const formsPerson = isVolunteer ? (chap.volunteer ?? {}) : g;
 
+    const assignedTeacher = currentManagers.find(m => m.employee_id === chap.homeroom_teacher_id);
     const students = (isStaff || isVolunteer)
-      ? '<span class="muted">—</span>'
+      ? (assignedTeacher ? `<span class="muted" title="Placed under this teacher's class">${esc(assignedTeacher.name)}'s class</span>` : '<span class="muted">—</span>')
       : (g.family?.students ?? []).map(s => esc(s.first_name)).join(', ') || '<span class="muted">—</span>';
 
     let mvrCell = '';
@@ -1783,6 +1802,7 @@ function openChapDrawer() {
   document.getElementById('ftChapIsDriver').checked = false;
   document.getElementById('ftChapCapacity').value = '';
   document.getElementById('ftChapCapacityWrap').style.display = 'none';
+  fillChapTeacherSelect('ftChapTeacher', '');
   document.getElementById('ftChapDrawer').classList.add('open');
   document.getElementById('ftChapDrawerOverlay').classList.add('open');
   document.getElementById('ftChapSearch').focus();
@@ -1797,6 +1817,7 @@ function closeChapDrawer() {
 function clearChapSelection() {
   selectedCandidate = null;
   document.getElementById('ftChapSelected').style.display = 'none';
+  document.getElementById('ftChapTeacherWrap').style.display = 'none';
   document.getElementById('ftSaveChapBtn').disabled = true;
   const warnBox = document.getElementById('ftChapSelectedWarning');
   warnBox.style.display = 'none';
@@ -2038,6 +2059,7 @@ function selectChapCandidate(c) {
   document.getElementById('ftChapSelectedEmail').textContent = (c.email ?? '') + hint;
   document.getElementById('ftChapSelected').style.display = '';
   document.getElementById('ftSaveChapBtn').disabled = false;
+  document.getElementById('ftChapTeacherWrap').style.display = c.kind === 'guardian' ? 'none' : '';
   renderChapSelectedWarning(c);
 }
 
@@ -2103,6 +2125,9 @@ async function saveChaperone() {
   } else {
     payload.volunteer_id = selectedCandidate.id;
   }
+  if (!payload.guardian_id) {
+    payload.homeroom_teacher_id = document.getElementById('ftChapTeacher').value || null;
+  }
 
   const { error } = await supabase.from('field_trip_chaperones').insert(payload);
 
@@ -2129,6 +2154,8 @@ function openEditChapModal(chap) {
   document.getElementById('ftEditChapIsDriver').checked = !!chap.is_driver;
   document.getElementById('ftEditChapCapacity').value   = chap.vehicle_capacity ?? '';
   document.getElementById('ftEditChapCapacityWrap').style.display = chap.is_driver ? '' : 'none';
+  document.getElementById('ftEditChapTeacherWrap').style.display = chap.guardian_id ? 'none' : '';
+  fillChapTeacherSelect('ftEditChapTeacher', chap.homeroom_teacher_id);
   document.getElementById('ftEditChapModal').classList.add('open');
 }
 
@@ -2147,18 +2174,29 @@ async function saveEditChap() {
   const capInput   = document.getElementById('ftEditChapCapacity').value;
   const vehicleCap = isDriver && capInput ? (parseInt(capInput, 10) || null) : null;
 
+  const editChap = chaperoneList.find(c => c.id === pendingEditChapId);
+  const update = { is_driver: isDriver, vehicle_capacity: vehicleCap };
+  if (editChap && !editChap.guardian_id) {
+    update.homeroom_teacher_id = document.getElementById('ftEditChapTeacher').value || null;
+  }
+
   const { error } = await supabase
     .from('field_trip_chaperones')
-    .update({ is_driver: isDriver, vehicle_capacity: vehicleCap })
+    .update(update)
     .eq('id', pendingEditChapId);
 
   btn.disabled = false;
   if (error) { dbError(error, 'Failed to update chaperone'); return; }
 
   const chap = chaperoneList.find(c => c.id === pendingEditChapId);
-  if (chap) { chap.is_driver = isDriver; chap.vehicle_capacity = vehicleCap; }
+  if (chap) {
+    chap.is_driver = isDriver;
+    chap.vehicle_capacity = vehicleCap;
+    if ('homeroom_teacher_id' in update) chap.homeroom_teacher_id = update.homeroom_teacher_id;
+  }
 
   closeEditChapModal();
+  populateChapHomeroomFilter();
   renderChaperoneTable();
   renderComplianceStats();
   const planBtn = document.getElementById('ftPlanVehiclesBtn');
