@@ -83,6 +83,10 @@ async function init() {
   });
 
   document.getElementById('ftPaymentModalCancel')?.addEventListener('click', closePaymentModal);
+  document.getElementById('ftPaymentHistoryClose')?.addEventListener('click', closePaymentHistory);
+  document.getElementById('ftPaymentHistoryModal')?.addEventListener('click', e => {
+    if (e.target.id === 'ftPaymentHistoryModal') closePaymentHistory();
+  });
   document.getElementById('ftPaymentModalSave')?.addEventListener('click', savePayment);
   document.getElementById('ftPaymentModal')?.addEventListener('click', e => {
     if (e.target.id === 'ftPaymentModal') closePaymentModal();
@@ -1618,7 +1622,7 @@ async function bulkSetAttendance(attending) {
   }
 
   if (!ids.length) {
-    showToast(`All ${skipped} matching students have payments on file — waive or refund first.`, 'warn');
+    showToast(`All ${skipped} matching students have payments on file — waive or void them first.`, 'warn');
     return;
   }
 
@@ -1708,7 +1712,7 @@ async function toggleAttendance(studentId, attending, tr) {
       .eq('student_id', studentId)
       .maybeSingle();
     if (existing && parseFloat(existing.amount_paid) > 0) {
-      showToast('This student has a payment on file — waive or refund it in the Payments tab before marking them not attending.', 'warn');
+      showToast('This student has a payment on file — waive it or void the payment in the Payments tab before marking them not attending.', 'warn');
       const cb = tr.querySelector('input[type="checkbox"]');
       if (cb) cb.checked = true;
       return;
@@ -3215,6 +3219,9 @@ function renderPaymentTab(wrap) {
   wrap.querySelectorAll('[data-waive-payment]').forEach(btn => {
     btn.addEventListener('click', () => waivePayment(btn.dataset.waivePayment, btn.dataset.name));
   });
+  wrap.querySelectorAll('[data-payment-history]').forEach(btn => {
+    btn.addEventListener('click', () => openPaymentHistory(btn.dataset.paymentHistory, btn.dataset.name));
+  });
 }
 
 function buildPaymentTable(rows, type) {
@@ -3245,10 +3252,12 @@ function buildPaymentTable(rows, type) {
       if (person) name = `${esc(person.first_name)} ${esc(person.last_name)}`;
     }
     const canAct = p.status !== 'paid' && p.status !== 'waived';
-    const actions = canAct
+    const hasPaid = (p.amount_paid || 0) > 0;
+    const actions = (canAct || hasPaid)
       ? `<div style="display:inline-flex;gap:6px;">
-           <button class="btn btn-sm" data-record-payment="${p.id}" data-name="${name}" data-balance="${balance}" style="font-size:11px;">Record</button>
-           <button class="btn btn-sm btn-outline" data-waive-payment="${p.id}" data-name="${name}" style="font-size:11px;">Waive</button>
+           ${canAct ? `<button class="btn btn-sm" data-record-payment="${p.id}" data-name="${name}" data-balance="${balance}" style="font-size:11px;">Record</button>
+           <button class="btn btn-sm btn-outline" data-waive-payment="${p.id}" data-name="${name}" style="font-size:11px;">Waive</button>` : ''}
+           ${hasPaid ? `<button class="btn btn-sm btn-outline" data-payment-history="${p.id}" data-name="${name}" style="font-size:11px;">History</button>` : ''}
          </div>`
       : '';
 
@@ -3327,6 +3336,98 @@ async function savePayment() {
   btn.disabled = false; btn.textContent = 'Save';
   closePaymentModal();
   renderPaymentTab(document.getElementById('ftTabPayments'));
+}
+
+// ── Payment history / void ────────────────────────────────────────────────
+let historyPaymentId = null;
+let historyName      = '';
+
+function closePaymentHistory() {
+  document.getElementById('ftPaymentHistoryModal').classList.remove('open');
+  historyPaymentId = null;
+}
+
+async function openPaymentHistory(paymentId, name) {
+  historyPaymentId = paymentId;
+  historyName      = name;
+  document.getElementById('ftPaymentHistoryTitle').textContent = `Payment history: ${name}`;
+  document.getElementById('ftPaymentHistoryBody').innerHTML = '<p class="muted" style="font-size:13px;">Loading...</p>';
+  document.getElementById('ftPaymentHistoryModal').classList.add('open');
+  await renderPaymentHistory();
+}
+
+async function renderPaymentHistory() {
+  const body = document.getElementById('ftPaymentHistoryBody');
+  const { data, error } = await supabase.from('field_trip_payment_log')
+    .select('id, amount, received_date, notes, voided_at, void_reason')
+    .eq('payment_id', historyPaymentId)
+    .order('received_date', { ascending: true }).order('created_at', { ascending: true });
+  if (error) { dbError(error, 'Failed to load payment history'); closePaymentHistory(); return; }
+  if (!data.length) { body.innerHTML = '<p class="muted" style="font-size:13px;">No payments recorded.</p>'; return; }
+
+  const fmt = d => new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  body.innerHTML = `<table class="admin-table"><thead><tr><th>Date</th><th>Amount</th><th>Notes</th><th></th></tr></thead><tbody>${
+    data.map(e => {
+      const voided = !!e.voided_at;
+      const style  = voided ? 'text-decoration:line-through;color:#9ca3af;' : '';
+      const note   = [e.notes, voided && e.void_reason ? `Voided: ${e.void_reason}` : voided ? 'Voided' : null].filter(Boolean).map(esc).join(' | ');
+      return `<tr>
+        <td style="${style}">${fmt(e.received_date)}</td>
+        <td style="${style}">$${Number(e.amount).toFixed(2)}</td>
+        <td style="font-size:12px;color:#6b7280;">${note || '—'}</td>
+        <td>${voided ? '' : `<button class="btn btn-sm btn-outline" data-void-entry="${e.id}" data-amount="${e.amount}" style="font-size:11px;">Void</button>`}</td>
+      </tr>`;
+    }).join('')
+  }</tbody></table>`;
+
+  body.querySelectorAll('[data-void-entry]').forEach(btn => {
+    btn.addEventListener('click', () => voidPaymentEntry(btn.dataset.voidEntry, parseFloat(btn.dataset.amount)));
+  });
+}
+
+async function voidPaymentEntry(entryId, amount) {
+  const reason = prompt(`Void this $${amount.toFixed(2)} payment for ${historyName}?\nEnter a reason (optional, press OK to confirm):`);
+  if (reason === null) return;
+
+  const rec = paymentCache.find(p => p.id === historyPaymentId);
+  if (!rec) return;
+
+  const { data: voided, error: voidErr } = await supabase.from('field_trip_payment_log')
+    .update({ voided_at: new Date().toISOString(), voided_by: profile.id, void_reason: reason.trim() || null })
+    .eq('id', entryId).is('voided_at', null).select('id');
+  if (voidErr) { dbError(voidErr, 'Failed to void payment'); return; }
+  if (!voided?.length) { showToast('That payment was already voided.', 'warn'); await renderPaymentHistory(); return; }
+
+  const newPaid = Math.max(0, Math.round(((parseFloat(rec.amount_paid) || 0) - amount) * 100) / 100);
+  // A waived row stays waived; its amount_paid still tracks real money received.
+  const newStatus = rec.status === 'waived' ? 'waived' : computePaymentStatus(newPaid, rec.amount_due);
+
+  const { data: remaining } = await supabase.from('field_trip_payment_log')
+    .select('received_date').eq('payment_id', historyPaymentId).is('voided_at', null)
+    .order('received_date', { ascending: false }).limit(1);
+  const lastDate = remaining?.[0]?.received_date ?? null;
+
+  const { error: updErr } = await supabase.from('field_trip_payments').update({
+    amount_paid:       newPaid,
+    status:            newStatus,
+    last_payment_date: lastDate,
+    updated_by:        profile.id,
+    updated_at:        new Date().toISOString(),
+  }).eq('id', historyPaymentId);
+
+  if (updErr) {
+    // Put the log entry back so the log and the running total stay in agreement.
+    await supabase.from('field_trip_payment_log').update({ voided_at: null, voided_by: null, void_reason: null }).eq('id', entryId);
+    dbError(updErr, 'Failed to update the payment total. The payment was not voided');
+    await renderPaymentHistory();
+    return;
+  }
+
+  const idx = paymentCache.findIndex(p => p.id === historyPaymentId);
+  if (idx >= 0) paymentCache[idx] = { ...paymentCache[idx], amount_paid: newPaid, status: newStatus, last_payment_date: lastDate };
+  showToast('Payment voided.', 'success');
+  renderPaymentTab(document.getElementById('ftTabPayments'));
+  if (newPaid > 0) await renderPaymentHistory(); else closePaymentHistory();
 }
 
 async function waivePayment(paymentId, name) {
