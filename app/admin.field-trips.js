@@ -3043,16 +3043,23 @@ async function loadPayments() {
 }
 
 // Rows are created once with the cost at that time, so a later cost edit has to be
-// pushed to rows nobody has paid on yet. Paid, partial and waived rows are left alone.
+// pushed to existing rows. Waived rows are left alone. Rows with payments keep their
+// amount_paid and get their status recomputed against the new amount due.
 async function syncUnpaidAmounts(tripId, trip) {
   const studentCost   = trip.student_cost ?? 0;
   const chaperoneCost = trip.chaperone_cost ?? studentCost;
   for (const [payerType, cost] of [['student', studentCost], ['chaperone', chaperoneCost]]) {
-    const { error } = await supabase.from('field_trip_payments')
-      .update({ amount_due: cost, updated_by: profile.id, updated_at: new Date().toISOString() })
+    const { data: stale, error } = await supabase.from('field_trip_payments')
+      .select('id, amount_paid')
       .eq('field_trip_id', tripId).eq('payer_type', payerType)
-      .eq('status', 'unpaid').eq('amount_paid', 0).neq('amount_due', cost);
-    if (error) dbError(error, 'Trip saved, but unpaid amounts could not be updated');
+      .neq('status', 'waived').neq('amount_due', cost);
+    if (error) { dbError(error, 'Trip saved, but payment amounts could not be updated'); continue; }
+    for (const row of stale ?? []) {
+      const { error: updErr } = await supabase.from('field_trip_payments')
+        .update({ amount_due: cost, status: computePaymentStatus(row.amount_paid, cost), updated_by: profile.id, updated_at: new Date().toISOString() })
+        .eq('id', row.id);
+      if (updErr) dbError(updErr, 'Trip saved, but payment amounts could not be updated');
+    }
   }
 }
 
