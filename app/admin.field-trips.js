@@ -2948,12 +2948,12 @@ function renderDrawerInstallments() {
   list.innerHTML = '';
   drawerInstallments.forEach((inst, i) => {
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;gap:6px;align-items:center;';
+    row.style.cssText = 'display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) auto;gap:6px;align-items:center;padding-bottom:8px;border-bottom:1px solid #e5e7eb;';
     row.innerHTML = `
-      <input type="text" class="admin-input" value="${esc(inst.label ?? '')}" placeholder="Label (e.g. Deposit)" style="flex:2;font-size:12px;padding:5px 8px;">
-      <input type="number" class="admin-input" value="${inst.amount || ''}" min="0" step="0.01" placeholder="$0.00" style="flex:1;font-size:12px;padding:5px 8px;">
-      <input type="date" class="admin-input" value="${inst.due_date ?? ''}" style="flex:1.5;font-size:12px;padding:5px 8px;">
-      <button type="button" style="background:none;border:none;cursor:pointer;padding:0 4px;color:#9ca3af;font-size:18px;line-height:1;">&times;</button>
+      <input type="text" class="admin-input" value="${esc(inst.label ?? '')}" placeholder="Label (e.g. Deposit)" style="grid-column:1 / -1;min-width:0;width:100%;font-size:12px;padding:5px 8px;">
+      <input type="number" class="admin-input" value="${inst.amount || ''}" min="0" step="0.01" placeholder="$0.00" style="min-width:0;width:100%;font-size:12px;padding:5px 8px;">
+      <input type="date" class="admin-input" value="${inst.due_date ?? ''}" style="min-width:0;width:100%;font-size:12px;padding:5px 8px;">
+      <button type="button" aria-label="Remove installment" style="background:none;border:none;cursor:pointer;padding:0 4px;color:#9ca3af;font-size:18px;line-height:1;">&times;</button>
     `;
     const inputs = row.querySelectorAll('input');
     const delBtn = row.querySelector('button');
