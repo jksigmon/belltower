@@ -34,6 +34,7 @@ let currentManagers      = [];   // loaded from DB for current trip
 let drawerInstallments   = [];   // installment rows being built in trip drawer
 let paymentCache         = [];   // field_trip_payments rows for current trip
 let paymentStudentMap    = new Map();
+let paymentHomerooms     = [];   // [id, name] pairs from the last Payments tab render
 let paymentChaperoneMap  = new Map();
 let pendingPaymentId     = null; // payment row targeted by the record-payment modal
 let paymentsLoaded       = false;
@@ -84,6 +85,14 @@ async function init() {
 
   document.getElementById('ftPaymentModalCancel')?.addEventListener('click', closePaymentModal);
   document.getElementById('ftPaymentHistoryClose')?.addEventListener('click', closePaymentHistory);
+  document.getElementById('ftUnpaidCancel')?.addEventListener('click', closeUnpaidModal);
+  document.getElementById('ftUnpaidModal')?.addEventListener('click', e => {
+    if (e.target.id === 'ftUnpaidModal') closeUnpaidModal();
+  });
+  document.getElementById('ftUnpaidMode')?.addEventListener('change', updateUnpaidCount);
+  document.getElementById('ftUnpaidHomeroom')?.addEventListener('change', updateUnpaidCount);
+  document.getElementById('ftUnpaidPrint')?.addEventListener('click', printUnpaidList);
+  document.getElementById('ftUnpaidCsv')?.addEventListener('click', downloadUnpaidCsv);
   document.getElementById('ftPaymentHistoryModal')?.addEventListener('click', e => {
     if (e.target.id === 'ftPaymentHistoryModal') closePaymentHistory();
   });
@@ -3138,6 +3147,7 @@ function renderPaymentTab(wrap) {
   });
   if (payHomeroomFilter && !homerooms.has(payHomeroomFilter)) payHomeroomFilter = '';
   const sortedHomerooms = [...homerooms.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  paymentHomerooms = sortedHomerooms;
 
   const filteredStudents = payHomeroomFilter
     ? students.filter(p => paymentStudentMap.get(p.student_id)?.homeroom_teacher_id === payHomeroomFilter)
@@ -3175,6 +3185,7 @@ function renderPaymentTab(wrap) {
       <option value="">All homerooms</option>
       ${sortedHomerooms.map(([id, name]) => `<option value="${esc(id)}" ${id === payHomeroomFilter ? 'selected' : ''}>${esc(name)}</option>`).join('')}
     </select>
+    ${students.length ? '<button class="btn btn-outline" id="ftPayUnpaidListBtn" style="align-self:stretch;padding-top:0;padding-bottom:0;">Print / export unpaid list</button>' : ''}
   </div>`;
 
   const sortedStudents = [...filteredStudents].sort((a, b) => {
@@ -3219,6 +3230,7 @@ function renderPaymentTab(wrap) {
   wrap.querySelectorAll('[data-waive-payment]').forEach(btn => {
     btn.addEventListener('click', () => waivePayment(btn.dataset.waivePayment, btn.dataset.name));
   });
+  document.getElementById('ftPayUnpaidListBtn')?.addEventListener('click', openUnpaidModal);
   wrap.querySelectorAll('[data-payment-history]').forEach(btn => {
     btn.addEventListener('click', () => openPaymentHistory(btn.dataset.paymentHistory, btn.dataset.name));
   });
@@ -3336,6 +3348,122 @@ async function savePayment() {
   btn.disabled = false; btn.textContent = 'Save';
   closePaymentModal();
   renderPaymentTab(document.getElementById('ftTabPayments'));
+}
+
+// ── Unpaid list (print / CSV) ─────────────────────────────────────────────
+// mode 'none'  = students who have paid nothing yet
+// mode 'owes'  = anyone with a balance left (nothing paid, or partially paid)
+// Waived students never appear.
+function getUnpaidRows(mode, homeroomId) {
+  return paymentCache
+    .filter(p => p.payer_type === 'student' && p.status !== 'waived')
+    .map(p => {
+      const st   = paymentStudentMap.get(p.student_id);
+      const due  = parseFloat(p.amount_due)  || 0;
+      const paid = parseFloat(p.amount_paid) || 0;
+      return { st, due, paid, balance: Math.max(0, due - paid) };
+    })
+    .filter(r => r.st && r.balance > 0 && (mode === 'owes' || r.paid === 0))
+    .filter(r => !homeroomId || r.st.homeroom_teacher_id === homeroomId)
+    .sort((a, b) => (a.st.last_name ?? '').localeCompare(b.st.last_name ?? '') || (a.st.first_name ?? '').localeCompare(b.st.first_name ?? ''));
+}
+
+function unpaidSelection() {
+  const mode       = document.getElementById('ftUnpaidMode').value;
+  const homeroomId = document.getElementById('ftUnpaidHomeroom').value;
+  const homeroom   = paymentHomerooms.find(([id]) => id === homeroomId)?.[1] ?? '';
+  return { mode, homeroom, rows: getUnpaidRows(mode, homeroomId) };
+}
+
+function openUnpaidModal() {
+  document.getElementById('ftUnpaidMode').value = 'owes';
+  document.getElementById('ftUnpaidHomeroom').innerHTML = '<option value="">All homerooms</option>' +
+    paymentHomerooms.map(([id, name]) => `<option value="${esc(id)}">${esc(name)}</option>`).join('');
+  document.getElementById('ftUnpaidHomeroom').value = payHomeroomFilter || '';
+  updateUnpaidCount();
+  document.getElementById('ftUnpaidModal').classList.add('open');
+}
+
+function closeUnpaidModal() {
+  document.getElementById('ftUnpaidModal').classList.remove('open');
+}
+
+function updateUnpaidCount() {
+  const { rows } = unpaidSelection();
+  const total = rows.reduce((sum, r) => sum + r.balance, 0);
+  document.getElementById('ftUnpaidCount').textContent = rows.length
+    ? `${rows.length} student${rows.length !== 1 ? 's' : ''}, $${total.toFixed(2)} outstanding`
+    : 'No students match.';
+  document.getElementById('ftUnpaidPrint').disabled = !rows.length;
+  document.getElementById('ftUnpaidCsv').disabled   = !rows.length;
+}
+
+function unpaidTitle(mode) {
+  return mode === 'none' ? 'Students who have not paid' : 'Students with a balance due';
+}
+
+function homeroomName(st) {
+  return st.employees ? `${st.employees.first_name} ${st.employees.last_name}` : '';
+}
+
+function printUnpaidList() {
+  const { mode, homeroom, rows } = unpaidSelection();
+  if (!rows.length) return;
+  const total = rows.reduce((sum, r) => sum + r.balance, 0);
+  const date  = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const money = n => `$${n.toFixed(2)}`;
+
+  const doc = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(currentTrip.name)} unpaid list</title>
+    <style>
+      @page { margin: 0.5in; }
+      body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; color: #111; font-size: 12px; }
+      h1 { font-size: 18px; margin: 0 0 2px; }
+      .sub { color: #555; margin: 0 0 14px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #ccc; }
+      th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 2px solid #333; }
+      td.num, th.num { text-align: right; }
+      tr { break-inside: avoid; }
+      tfoot td { font-weight: 700; border-top: 2px solid #333; border-bottom: none; }
+    </style></head><body>
+    <h1>${esc(currentTrip.name)}: ${esc(unpaidTitle(mode))}</h1>
+    <p class="sub">${homeroom ? `Homeroom: ${esc(homeroom)}. ` : ''}${rows.length} student${rows.length !== 1 ? 's' : ''}. Printed ${esc(date)}.</p>
+    <table>
+      <thead><tr><th>Name</th><th>Grade</th><th>Homeroom</th><th class="num">Due</th><th class="num">Paid</th><th class="num">Balance</th></tr></thead>
+      <tbody>${rows.map(r => `<tr>
+        <td>${esc(r.st.last_name)}, ${esc(r.st.first_name)}</td>
+        <td>${esc(r.st.grade_level ?? '')}</td>
+        <td>${esc(homeroomName(r.st))}</td>
+        <td class="num">${money(r.due)}</td><td class="num">${money(r.paid)}</td><td class="num">${money(r.balance)}</td>
+      </tr>`).join('')}</tbody>
+      <tfoot><tr><td colspan="5">Total outstanding</td><td class="num">${money(total)}</td></tr></tfoot>
+    </table></body></html>`;
+
+  const frame = document.createElement('iframe');
+  frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(frame);
+  frame.contentDocument.open();
+  frame.contentDocument.write(doc);
+  frame.contentDocument.close();
+  frame.contentWindow.addEventListener('afterprint', () => frame.remove());
+  setTimeout(() => { frame.contentWindow.focus(); frame.contentWindow.print(); }, 100);
+  closeUnpaidModal();
+}
+
+function downloadUnpaidCsv() {
+  const { mode, rows } = unpaidSelection();
+  if (!rows.length) return;
+  const headers = ['Last name', 'First name', 'Grade', 'Homeroom', 'Due', 'Paid', 'Balance'];
+  const data = rows.map(r => [r.st.last_name ?? '', r.st.first_name ?? '', r.st.grade_level ?? '', homeroomName(r.st), r.due.toFixed(2), r.paid.toFixed(2), r.balance.toFixed(2)]);
+  const csv  = [headers, ...data].map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `${currentTrip.name.replace(/[^a-z0-9]/gi, '_')}_${mode === 'none' ? 'not_paid' : 'balance_due'}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  closeUnpaidModal();
 }
 
 // ── Payment history / void ────────────────────────────────────────────────

@@ -722,6 +722,30 @@
   </div>
 </div>
 
+<!-- ══ UNPAID LIST MODAL ═════════════════════════════════════════════ -->
+<div id="ftUnpaidModal" class="ft-modal-overlay">
+  <div class="ft-modal-card">
+    <h3 style="margin:0 0 18px 0;font-size:16px;font-weight:800;color:#0b2d4f;">Unpaid list</h3>
+    <div style="margin-bottom:14px;">
+      <label class="drawer-label" for="ftUnpaidMode">Who to include</label>
+      <select id="ftUnpaidMode" class="admin-input" style="width:100%;">
+        <option value="owes">Still owes money (unpaid and partial)</option>
+        <option value="none">Has not paid anything ($0 paid)</option>
+      </select>
+    </div>
+    <div style="margin-bottom:10px;">
+      <label class="drawer-label" for="ftUnpaidHomeroom">Homeroom</label>
+      <select id="ftUnpaidHomeroom" class="admin-input" style="width:100%;"></select>
+    </div>
+    <p id="ftUnpaidCount" class="muted" style="font-size:13px;margin:0 0 20px 0;"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn" id="ftUnpaidCancel">Cancel</button>
+      <button class="btn btn-outline" id="ftUnpaidCsv">Download CSV</button>
+      <button class="btn btn-primary" id="ftUnpaidPrint">Print</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ PAYMENT HISTORY MODAL ═════════════════════════════════════════ -->
 <div id="ftPaymentHistoryModal" class="ft-modal-overlay">
   <div class="ft-modal-card" style="max-width:560px;width:100%;">
